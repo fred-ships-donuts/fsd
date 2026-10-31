@@ -1,0 +1,17 @@
+{
+  "lastQuery": "faça a verificação geral: não esqueça que quando houver escolha de idioma `en/pt-BR` as unidades devem seguir o **`formato que o código utiliza`**",
+  "perAgentQuery": {},
+  "graftReads": 0,
+  "sourceReads": 41,
+  "savedTokens": 0,
+  "injectedPointers": [
+    "argparse",
+    "datetime",
+    "en/fsd-ui-approval/scripts/consolidate.py:L222-L262"
+  ],
+  "nudges": 2,
+  "host": "claude-code",
+  "inputCostMicros": 908163,
+  "inputTokensBilled": 3609912,
+  "lastBillingUuid": "776f3ad8-f491-4842-b9a0-a17dc83173f7"
+}

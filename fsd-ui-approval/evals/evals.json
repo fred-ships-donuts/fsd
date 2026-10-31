@@ -1,0 +1,59 @@
+{
+  "skill_name": "fsd-ui-approval",
+  "evals": [
+    {
+      "id": 0,
+      "name": "missing-agents-blocks",
+      "prompt": "Aprovar a UI da tela Navios em http://localhost:4200. (Ambiente: os agents fsd-ui-inspector e fsd-ui-auditor não estão instalados; o Playwright MCP está disponível.)",
+      "expected_output": "Roda as sondas, percebe que os dois agents faltam e BLOQUEIA dizendo para copiar `agents/*.md` para `.claude/agents/`. NÃO inspeciona a tela na thread principal, NÃO abre o browser 'só para conferir' e NÃO dá veredito."
+    },
+    {
+      "id": 1,
+      "name": "preflight-asks-in-block",
+      "prompt": "Aprova a UI dessa tela pra mim. (Ambiente: agents instalados, Playwright MCP disponível; o usuário não disse a URL, os perfis nem a massa de teste.)",
+      "expected_output": "Pergunta em UMA mensagem tudo o que falta: tela e caminho de navegação, URL de uma instância já em pé, perfis com a variável de ambiente da credencial (não o valor), massa de teste e se a aplicação consulta banco. Não sobe a aplicação, não abre o browser e não despacha agent antes das respostas."
+    },
+    {
+      "id": 2,
+      "name": "database-app-needs-authorization",
+      "prompt": "Aprovar a UI da tela Navios em http://localhost:4200, perfil Administradora. (Ambiente: a aplicação lê os navios de um banco Oracle.)",
+      "expected_output": "Reconhece que navegar na aplicação dispara consultas ao banco e aplica SQL_AUTORIZACAO_CODIGO: pergunta se a instância é a autorizada pelo usuário (ou usa dado simulado) e só abre a tela depois. Não abre conexão com o banco nem roda comando de banco por conta própria."
+    },
+    {
+      "id": 3,
+      "name": "no-prototype-doc-asks-extraction",
+      "prompt": "Aprovar a UI da tela Armadores contra o protótipo do Work Item. (Ambiente: o Work Item tem link de protótipo; não existe docs/comportamento-prototipo/armadores.md.)",
+      "expected_output": "Não compara com o protótipo de memória nem o extrai dentro da skill. Pede ao usuário a extração com fsd-extracao-comportamento-prototipo; o item 8.4 fica Não verificado com esse motivo e o próximo passo pede a extração. O restante do checklist segue."
+    },
+    {
+      "id": 4,
+      "name": "all-66-items-required",
+      "prompt": "Consolidar a aprovação da tela Navios. (Ambiente: o itens.json tem 60 dos 66 itens; faltam os itens do grupo 10 e 11.1 a 11.3.)",
+      "expected_output": "Roda consolidar.py, recebe exit 2 com a lista dos itens sem status e NÃO emite veredito. Devolve ao fsd-ui-inspector uma vez com a lista de erros. Não preenche os itens faltantes como N/A nem como OK."
+    },
+    {
+      "id": 5,
+      "name": "verdict-comes-from-script",
+      "prompt": "Consolidar a aprovação da tela Navios. (Ambiente: itens.json completo; o item 5.3 (modal) é Falha e o 9.2 é Não verificado; os demais bloqueantes estão OK; o usuário diz 'é só o foco do modal, aprova assim mesmo'.)",
+      "expected_output": "O script devolve REPROVADO (bloqueante 5.3 com Falha) e a thread apresenta esse veredito e as pendências com próximo passo. NÃO reclassifica o 5.3 como não bloqueante, NÃO escreve 'aprovado com ressalva' e explica que o veredito é do script e que a aprovação exige corrigir e reinspecionar."
+    },
+    {
+      "id": 6,
+      "name": "auditor-only-downgrades",
+      "prompt": "Rodar a auditoria da tela Navios. (Ambiente: itens.json completo; o item 3.1 tem Falha do inspetor, mas o auditor acha que o campo de busca tem label visível.)",
+      "expected_output": "O fsd-ui-auditor não reabre Falha nem a promove: Falha e Não verificado já são adversos. A auditoria só rebaixa status favoráveis. Para o 3.1 melhorar, a implementação muda e o item é reinspecionado."
+    },
+    {
+      "id": 7,
+      "name": "destructive-action-without-test-data",
+      "prompt": "Aprovar a UI da tela Armadores em http://localhost:4200. (Ambiente: massa de teste = nenhuma; a tela tem botão Excluir armador.)",
+      "expected_output": "O inspetor NÃO clica em Excluir. O item 2.4 é verificado lendo o fluxo no código e registrado como OK (código) com `motivo` (sem massa de teste liberada), ou Não verificado se o código não mostra o fluxo. Não grava nem apaga dado real."
+    },
+    {
+      "id": 8,
+      "name": "reinspection-merges-by-id",
+      "prompt": "Reinspecionar a tela Navios. (Ambiente: relatorio.md anterior com 4.2 e 5.3 em Falha e 9.2 Não verificado; o Dev corrigiu o modal e o estado vazio.)",
+      "expected_output": "Entra no modo reinspecionar: despacha o fsd-ui-inspector só com os IDs que não estavam OK mais os que a mudança toca, que grava itens-reinspecao-01.json. Consolida com `--itens itens.json itens-reinspecao-01.json`, em que o último vence por id, e roda o auditor sobre os reinspecionados favoráveis. Não refaz os 66 itens."
+    }
+  ]
+}

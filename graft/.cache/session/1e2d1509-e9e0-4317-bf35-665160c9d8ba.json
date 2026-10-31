@@ -1,0 +1,13 @@
+{
+  "lastQuery": "1. usa bloco extension. 3. deve traduzir 200, 201, 400, 404 e 500. 4. essas coberturas são específicas demais. 5. detecte por regex então. deixe o 2 como está.",
+  "perAgentQuery": {},
+  "graftReads": 0,
+  "sourceReads": 7,
+  "savedTokens": 0,
+  "injectedPointers": [],
+  "nudges": 2,
+  "inputCostMicros": 3135757,
+  "inputTokensBilled": 11830592,
+  "lastBillingUuid": "69538283-e635-48fe-9cb9-000dfe362fcc",
+  "host": "claude-code"
+}

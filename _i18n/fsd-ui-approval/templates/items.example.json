@@ -1,0 +1,49 @@
+{
+  "_comment": "Format of items.json. One object per checklist item; approval requires all 66 (--partial accepts a subset). Remove this field. Never write credentials, tokens or real personal data.",
+  "meta": {
+    "screen": "Base Data › Vessels",
+    "app": "http://localhost:4200",
+    "build": "commit shown in the footer, or 'not exposed'",
+    "prototype": "docs/prototype-behavior/base-data.md",
+    "profiles": "Administrator, Intake Operator",
+    "driver": "mcp",
+    "date": "2026-10-28",
+    "limits": [
+      "Error state simulated by a route returning a 500 response; the backend was not changed.",
+      "Saving not inspected: no test data released."
+    ]
+  },
+  "items": [
+    {
+      "id": "1.1",
+      "status": "OK",
+      "evidence": "Vessels > hover over the row and the Sort button: background changes from #fff to #f1f5f9; cursor pointer on row, button and header (getComputedStyle).",
+      "shot": "evidence/1.1-hover-row.png"
+    },
+    {
+      "id": "2.3",
+      "status": "N/A",
+      "reason": "The screen is read-only: it has no form or confirmation modal."
+    },
+    {
+      "id": "3.4",
+      "status": "OK (code)",
+      "evidence": "vessels.service.ts:88 maps the code DUPLICATE_VESSEL to the field message.",
+      "reason": "I tried to simulate the 422 response with a route, but the screen does not save, so the state is not reachable."
+    },
+    {
+      "id": "4.2",
+      "status": "Fail",
+      "evidence": "Vessels > Status filter = Inactive with no results: shows only 'No vessel found.', with no guidance or action. Reproduced 2 out of 2.",
+      "shot": "evidence/4.2-empty-vessels.png",
+      "next_step": "Add 'Try adjusting the search or the Status filter' to the empty state.",
+      "origin": "prototype"
+    },
+    {
+      "id": "9.2",
+      "status": "Not verified",
+      "reason": "The script evaluation tool failed in 3 attempts (CSP blocked the execution).",
+      "next_step": "Measure the contrast with the browser accessibility extension or relax the CSP in the test environment."
+    }
+  ]
+}

@@ -1,0 +1,1997 @@
+{
+  "meta": {
+    "version": 1,
+    "nodeCount": 88,
+    "edgeCount": 122,
+    "languages": [
+      "c_sharp",
+      "python"
+    ],
+    "scopes": [
+      {
+        "prefix": "",
+        "label": "",
+        "markers": []
+      }
+    ]
+  },
+  "nodes": [
+    {
+      "id": "_i18n/fsd-csharp-code-standard/en/scripts/check.py",
+      "name": "check.py",
+      "kind": "file",
+      "path": "_i18n/fsd-csharp-code-standard/en/scripts/check.py",
+      "span": "L1-L166",
+      "signature": null,
+      "exported": true,
+      "origin": "ast",
+      "body_hash": "aea50bee2a4571a1d92e248339d11862cb5289bb3c414463505273129da00d19",
+      "chars": 7563,
+      "summary_state": "pending",
+      "summary": null,
+      "crux": null
+    },
+    {
+      "id": "_i18n/fsd-csharp-code-standard/en/scripts/check.py#check_file",
+      "name": "check_file",
+      "kind": "function",
+      "path": "_i18n/fsd-csharp-code-standard/en/scripts/check.py",
+      "span": "L113-L133",
+      "signature": "def check_file(path)",
+      "exported": true,
+      "origin": "ast",
+      "body_hash": "70647f485ad01c84c2df9a836817426811b04d87b27e4b696d857b471e0b1473",
+      "summary_state": "pending",
+      "summary": null,
+      "crux": null
+    },
+    {
+      "id": "_i18n/fsd-csharp-code-standard/en/scripts/check.py#clean",
+      "name": "clean",
+      "kind": "function",
+      "path": "_i18n/fsd-csharp-code-standard/en/scripts/check.py",
+      "span": "L56-L93",
+      "signature": "def clean(text)",
+      "exported": true,
+      "origin": "ast",
+      "body_hash": "bb198cda514e465b3068c0717593217b5cbbf368cf5384c24bf6ffb1b4804671",
+      "summary_state": "pending",
+      "summary": null,
+      "crux": null
+    },
+    {
+      "id": "_i18n/fsd-csharp-code-standard/en/scripts/check.py#handle_without_invalid",
+      "name": "handle_without_invalid",
+      "kind": "function",
+      "path": "_i18n/fsd-csharp-code-standard/en/scripts/check.py",
+      "span": "L100-L110",
+      "signature": "def handle_without_invalid(cleaned)",
+      "exported": true,
+      "origin": "ast",
+      "body_hash": "eb5845d631f5105b7b6016ee67302315f256155a1ee39ac3bdd8b735331a4098",
+      "summary_state": "pending",
+      "summary": null,
+      "crux": null
+    },
+    {
+      "id": "_i18n/fsd-csharp-code-standard/en/scripts/check.py#list_files",
+      "name": "list_files",
+      "kind": "function",
+      "path": "_i18n/fsd-csharp-code-standard/en/scripts/check.py",
+      "span": "L136-L147",
+      "signature": "def list_files(entries)",
+      "exported": true,
+      "origin": "ast",
+      "body_hash": "2ca21f6427c3dbe9d83ca8ff280896b664392afb843dfb0a69b7231b6111f6b1",
+      "summary_state": "pending",
+      "summary": null,
+      "crux": null
+    },
+    {
+      "id": "_i18n/fsd-csharp-code-standard/en/scripts/check.py#main",
+      "name": "main",
+      "kind": "function",
+      "path": "_i18n/fsd-csharp-code-standard/en/scripts/check.py",
+      "span": "L150-L161",
+      "signature": "def main(argv)",
+      "exported": true,
+      "origin": "ast",
+      "body_hash": "3a1d0a5469ddd2a0649a0f5be0d2ca110143cccb2264f5b2b1eee3c236d6d960",
+      "summary_state": "pending",
+      "summary": null,
+      "crux": null
+    },
+    {
+      "id": "_i18n/fsd-csharp-code-standard/en/scripts/sync.py",
+      "name": "sync.py",
+      "kind": "file",
+      "path": "_i18n/fsd-csharp-code-standard/en/scripts/sync.py",
+      "span": "L1-L70",
+      "signature": null,
+      "exported": true,
+      "origin": "ast",
+      "body_hash": "36ea0905e433acfd0eb13b2f62757f8f792c2567d2f4c1e457de6f4d6c5ab17c",
+      "chars": 2728,
+      "summary_state": "pending",
+      "summary": null,
+      "crux": null
+    },
+    {
+      "id": "_i18n/fsd-csharp-code-standard/en/scripts/sync.py#first_difference",
+      "name": "first_difference",
+      "kind": "function",
+      "path": "_i18n/fsd-csharp-code-standard/en/scripts/sync.py",
+      "span": "L35-L39",
+      "signature": "def first_difference(a, b)",
+      "exported": true,
+      "origin": "ast",
+      "body_hash": "33a5ae642f295b6192d8b64f6d286748570aa3d2b3ef886baed139040e3b0cd5",
+      "summary_state": "pending",
+      "summary": null,
+      "crux": null
+    },
+    {
+      "id": "_i18n/fsd-csharp-code-standard/en/scripts/sync.py#main",
+      "name": "main",
+      "kind": "function",
+      "path": "_i18n/fsd-csharp-code-standard/en/scripts/sync.py",
+      "span": "L42-L65",
+      "signature": "def main(argv)",
+      "exported": true,
+      "origin": "ast",
+      "body_hash": "d4c2b6ec828004cc3ec9e6e7c33610e5c5a3bf27770f41c99bed2742f86ef9f7",
+      "summary_state": "pending",
+      "summary": null,
+      "crux": null
+    },
+    {
+      "id": "_i18n/fsd-csharp-code-standard/en/scripts/sync.py#normalize",
+      "name": "normalize",
+      "kind": "function",
+      "path": "_i18n/fsd-csharp-code-standard/en/scripts/sync.py",
+      "span": "L27-L32",
+      "signature": "def normalize(text, from_project)",
+      "exported": true,
+      "origin": "ast",
+      "body_hash": "9b209253204cc99b30cef91e0ad9c030f607e637672aeaffa6800b13b691f58c",
+      "summary_state": "pending",
+      "summary": null,
+      "crux": null
+    },
+    {
+      "id": "_i18n/fsd-csharp-code-standard/en/templates/Result.cs",
+      "name": "Result.cs",
+      "kind": "file",
+      "path": "_i18n/fsd-csharp-code-standard/en/templates/Result.cs",
+      "span": "L1-L86",
+      "signature": null,
+      "exported": true,
+      "origin": "generic",
+      "body_hash": "bd6a5a7f71a67d03e18ae8ba82ebf2137ff396093dbb15182d171fbf72894f71",
+      "chars": 3708,
+      "summary_state": "pending",
+      "summary": null,
+      "crux": null
+    },
+    {
+      "id": "_i18n/fsd-csharp-code-standard/en/templates/Result.cs#Content",
+      "name": "Content",
+      "kind": "variable",
+      "path": "_i18n/fsd-csharp-code-standard/en/templates/Result.cs",
+      "span": "L72-L72",
+      "signature": "public IReadOnlyCollection<T?> Content { get; } = [];",
+      "exported": true,
+      "origin": "generic",
+      "body_hash": "8b62491e43ed310db066f55a5c1c78de8a9fce00f03c6cb5685a358f13a18b8b",
+      "summary_state": "pending",
+      "summary": null,
+      "crux": null
+    },
+    {
+      "id": "_i18n/fsd-csharp-code-standard/en/templates/Result.cs#IsFailure",
+      "name": "IsFailure",
+      "kind": "variable",
+      "path": "_i18n/fsd-csharp-code-standard/en/templates/Result.cs",
+      "span": "L84-L84",
+      "signature": "public bool IsFailure => !IsSuccess;",
+      "exported": true,
+      "origin": "generic",
+      "body_hash": "918e855a654511cf3e267887899f13eb5ddd1c1ea1026f3e05b3daa55298d70c",
+      "summary_state": "pending",
+      "summary": null,
+      "crux": null
+    },
+    {
+      "id": "_i18n/fsd-csharp-code-standard/en/templates/Result.cs#IsSuccess",
+      "name": "IsSuccess",
+      "kind": "variable",
+      "path": "_i18n/fsd-csharp-code-standard/en/templates/Result.cs",
+      "span": "L81-L81",
+      "signature": "public bool IsSuccess => Status < HttpStatusCode.BadRequest;",
+      "exported": true,
+      "origin": "generic",
+      "body_hash": "83b0e453e24762aa3f9680a57cb7958dc8f3c0b00d12b806d3bb86b619dd15b2",
+      "summary_state": "pending",
+      "summary": null,
+      "crux": null
+    },
+    {
+      "id": "_i18n/fsd-csharp-code-standard/en/templates/Result.cs#Pagination",
+      "name": "Pagination",
+      "kind": "variable",
+      "path": "_i18n/fsd-csharp-code-standard/en/templates/Result.cs",
+      "span": "L75-L75",
+      "signature": "public Pagination? Pagination { get; }",
+      "exported": true,
+      "origin": "generic",
+      "body_hash": "ce9f1fe997fff7d7f35dc5d6f7364e1cecd151a711a5e561213893999687d9ba",
+      "summary_state": "pending",
+      "summary": null,
+      "crux": null
+    },
+    {
+      "id": "_i18n/fsd-csharp-code-standard/en/templates/Result.cs#Result",
+      "name": "Result",
+      "kind": "class",
+      "path": "_i18n/fsd-csharp-code-standard/en/templates/Result.cs",
+      "span": "L17-L85",
+      "signature": "public sealed class Result<T> : Notifiable where T : class",
+      "exported": true,
+      "origin": "generic",
+      "body_hash": "d2a4fe26427959ebf22f011a935e879ad40fe4faea9bb85d6c056b5f3e010614",
+      "summary_state": "pending",
+      "summary": null,
+      "crux": null
+    },
+    {
+      "id": "_i18n/fsd-csharp-code-standard/en/templates/Result.cs#Result~2",
+      "name": "Result",
+      "kind": "method",
+      "path": "_i18n/fsd-csharp-code-standard/en/templates/Result.cs",
+      "span": "L23-L26",
+      "signature": "public Result()",
+      "exported": true,
+      "origin": "generic",
+      "body_hash": "304bec60003c78974707c9816bd870eed762c658083c38a53bd875ceb3dd3931",
+      "summary_state": "pending",
+      "summary": null,
+      "crux": null
+    },
+    {
+      "id": "_i18n/fsd-csharp-code-standard/en/templates/Result.cs#Result~3",
+      "name": "Result",
+      "kind": "method",
+      "path": "_i18n/fsd-csharp-code-standard/en/templates/Result.cs",
+      "span": "L36-L40",
+      "signature": "public Result(string property, string message)",
+      "exported": true,
+      "origin": "generic",
+      "body_hash": "bb446187aa8c26e0841345869173bd86e7ce39797238254a7ccbb54d6c56f8b1",
+      "summary_state": "pending",
+      "summary": null,
+      "crux": null
+    },
+    {
+      "id": "_i18n/fsd-csharp-code-standard/en/templates/Result.cs#Result~4",
+      "name": "Result",
+      "kind": "method",
+      "path": "_i18n/fsd-csharp-code-standard/en/templates/Result.cs",
+      "span": "L44-L48",
+      "signature": "public Result(T content)",
+      "exported": true,
+      "origin": "generic",
+      "body_hash": "3a9fd9f52f5c2cd638508f8f50811fbef75a37dc2143e1796aa8f48284de8bfc",
+      "summary_state": "pending",
+      "summary": null,
+      "crux": null
+    },
+    {
+      "id": "_i18n/fsd-csharp-code-standard/en/templates/Result.cs#Result~5",
+      "name": "Result",
+      "kind": "method",
+      "path": "_i18n/fsd-csharp-code-standard/en/templates/Result.cs",
+      "span": "L56-L61",
+      "signature": "public Result(IReadOnlyCollection<T> items, Pagination pagination)",
+      "exported": true,
+      "origin": "generic",
+      "body_hash": "26da0e1c79c9f33de1cfe764dab27694558289f752bf0bd8d0e794737c43232d",
+      "summary_state": "pending",
+      "summary": null,
+      "crux": null
+    },
+    {
+      "id": "_i18n/fsd-csharp-code-standard/en/templates/Result.cs#Result~6",
+      "name": "Result",
+      "kind": "method",
+      "path": "_i18n/fsd-csharp-code-standard/en/templates/Result.cs",
+      "span": "L65-L69",
+      "signature": "public Result(IReadOnlyCollection<Notification> notifications)",
+      "exported": true,
+      "origin": "generic",
+      "body_hash": "43341630d90ddefcd1aac93c859adc8f5fc953d33878a999885c71e93e2d16f7",
+      "summary_state": "pending",
+      "summary": null,
+      "crux": null
+    },
+    {
+      "id": "_i18n/fsd-csharp-code-standard/en/templates/Result.cs#Status",
+      "name": "Status",
+      "kind": "variable",
+      "path": "_i18n/fsd-csharp-code-standard/en/templates/Result.cs",
+      "span": "L78-L78",
+      "signature": "public HttpStatusCode Status { get; }",
+      "exported": true,
+      "origin": "generic",
+      "body_hash": "272c51f7a4afe67a9c8ee978bf7d231ad6f94ae2b78740c83b75194de070dcec",
+      "summary_state": "pending",
+      "summary": null,
+      "crux": null
+    },
+    {
+      "id": "_i18n/fsd-csharp-code-standard/pt-BR/scripts/conferir.py",
+      "name": "conferir.py",
+      "kind": "file",
+      "path": "_i18n/fsd-csharp-code-standard/pt-BR/scripts/conferir.py",
+      "span": "L1-L166",
+      "signature": null,
+      "exported": true,
+      "origin": "ast",
+      "body_hash": "8699c62ca251e7515fe9f3455b149ba342eb1baaa73c7c2309ddd132358ed5ed",
+      "chars": 7567,
+      "summary_state": "pending",
+      "summary": null,
+      "crux": null
+    },
+    {
+      "id": "_i18n/fsd-csharp-code-standard/pt-BR/scripts/conferir.py#conferir_arquivo",
+      "name": "conferir_arquivo",
+      "kind": "function",
+      "path": "_i18n/fsd-csharp-code-standard/pt-BR/scripts/conferir.py",
+      "span": "L113-L133",
+      "signature": "def conferir_arquivo(caminho)",
+      "exported": true,
+      "origin": "ast",
+      "body_hash": "a1c702529cbdc72ceb735833bc9535b0125684b71a729e6a782572eec8397a85",
+      "summary_state": "pending",
+      "summary": null,
+      "crux": null
+    },
+    {
+      "id": "_i18n/fsd-csharp-code-standard/pt-BR/scripts/conferir.py#handle_sem_invalid",
+      "name": "handle_sem_invalid",
+      "kind": "function",
+      "path": "_i18n/fsd-csharp-code-standard/pt-BR/scripts/conferir.py",
+      "span": "L100-L110",
+      "signature": "def handle_sem_invalid(limpo)",
+      "exported": true,
+      "origin": "ast",
+      "body_hash": "f5e2295e57b15f32b956e1e53b1eb8c917562cc2c0c7fc412fee01676dc64494",
+      "summary_state": "pending",
+      "summary": null,
+      "crux": null
+    },
+    {
+      "id": "_i18n/fsd-csharp-code-standard/pt-BR/scripts/conferir.py#limpar",
+      "name": "limpar",
+      "kind": "function",
+      "path": "_i18n/fsd-csharp-code-standard/pt-BR/scripts/conferir.py",
+      "span": "L56-L93",
+      "signature": "def limpar(texto)",
+      "exported": true,
+      "origin": "ast",
+      "body_hash": "d4cf731f9a87bae8e01a4ff4308857fafee4bd675bacebab8c7c4f625faa862e",
+      "summary_state": "pending",
+      "summary": null,
+      "crux": null
+    },
+    {
+      "id": "_i18n/fsd-csharp-code-standard/pt-BR/scripts/conferir.py#listar",
+      "name": "listar",
+      "kind": "function",
+      "path": "_i18n/fsd-csharp-code-standard/pt-BR/scripts/conferir.py",
+      "span": "L136-L147",
+      "signature": "def listar(entradas)",
+      "exported": true,
+      "origin": "ast",
+      "body_hash": "ee493a667b0c5240783f6344af3c1f56b9c9386d8ace688232c046a65c88a148",
+      "summary_state": "pending",
+      "summary": null,
+      "crux": null
+    },
+    {
+      "id": "_i18n/fsd-csharp-code-standard/pt-BR/scripts/conferir.py#main",
+      "name": "main",
+      "kind": "function",
+      "path": "_i18n/fsd-csharp-code-standard/pt-BR/scripts/conferir.py",
+      "span": "L150-L161",
+      "signature": "def main(argv)",
+      "exported": true,
+      "origin": "ast",
+      "body_hash": "bcdd5a2c6449bb381a6d58a3b975217ff114ce951fc92f132b59d48e7b4875d1",
+      "summary_state": "pending",
+      "summary": null,
+      "crux": null
+    },
+    {
+      "id": "_i18n/fsd-csharp-code-standard/pt-BR/scripts/sincronia.py",
+      "name": "sincronia.py",
+      "kind": "file",
+      "path": "_i18n/fsd-csharp-code-standard/pt-BR/scripts/sincronia.py",
+      "span": "L1-L70",
+      "signature": null,
+      "exported": true,
+      "origin": "ast",
+      "body_hash": "33b5b0ad59ab8cdcff277bc0c98faf85dce59d041d9641ac1c35e291a799b0f8",
+      "chars": 2810,
+      "summary_state": "pending",
+      "summary": null,
+      "crux": null
+    },
+    {
+      "id": "_i18n/fsd-csharp-code-standard/pt-BR/scripts/sincronia.py#main",
+      "name": "main",
+      "kind": "function",
+      "path": "_i18n/fsd-csharp-code-standard/pt-BR/scripts/sincronia.py",
+      "span": "L42-L65",
+      "signature": "def main(argv)",
+      "exported": true,
+      "origin": "ast",
+      "body_hash": "19f4f90c344dc51444d5fb1103f024f69762a4e6a7160e2170f588ba87478911",
+      "summary_state": "pending",
+      "summary": null,
+      "crux": null
+    },
+    {
+      "id": "_i18n/fsd-csharp-code-standard/pt-BR/scripts/sincronia.py#normalizar",
+      "name": "normalizar",
+      "kind": "function",
+      "path": "_i18n/fsd-csharp-code-standard/pt-BR/scripts/sincronia.py",
+      "span": "L27-L32",
+      "signature": "def normalizar(texto, do_projeto)",
+      "exported": true,
+      "origin": "ast",
+      "body_hash": "498d0c9038f9a6eebd266b3cd7c3adc3f84524af07c6947381074295a335a4b1",
+      "summary_state": "pending",
+      "summary": null,
+      "crux": null
+    },
+    {
+      "id": "_i18n/fsd-csharp-code-standard/pt-BR/scripts/sincronia.py#primeira_diferenca",
+      "name": "primeira_diferenca",
+      "kind": "function",
+      "path": "_i18n/fsd-csharp-code-standard/pt-BR/scripts/sincronia.py",
+      "span": "L35-L39",
+      "signature": "def primeira_diferenca(a, b)",
+      "exported": true,
+      "origin": "ast",
+      "body_hash": "5ffc313e7b58ed21a3e2bd978808c042877cfb3152b499c4d1314d4df2b97d78",
+      "summary_state": "pending",
+      "summary": null,
+      "crux": null
+    },
+    {
+      "id": "_i18n/fsd-csharp-code-standard/pt-BR/templates/Result.cs",
+      "name": "Result.cs",
+      "kind": "file",
+      "path": "_i18n/fsd-csharp-code-standard/pt-BR/templates/Result.cs",
+      "span": "L1-L86",
+      "signature": null,
+      "exported": true,
+      "origin": "generic",
+      "body_hash": "22af2fa335ae3864f79a4b9babf8e45b80a2b1b17de0cd03ba334fc10ee332e0",
+      "chars": 3741,
+      "summary_state": "pending",
+      "summary": null,
+      "crux": null
+    },
+    {
+      "id": "_i18n/fsd-csharp-code-standard/pt-BR/templates/Result.cs#Content",
+      "name": "Content",
+      "kind": "variable",
+      "path": "_i18n/fsd-csharp-code-standard/pt-BR/templates/Result.cs",
+      "span": "L72-L72",
+      "signature": "public IReadOnlyCollection<T?> Content { get; } = [];",
+      "exported": true,
+      "origin": "generic",
+      "body_hash": "8b62491e43ed310db066f55a5c1c78de8a9fce00f03c6cb5685a358f13a18b8b",
+      "summary_state": "pending",
+      "summary": null,
+      "crux": null
+    },
+    {
+      "id": "_i18n/fsd-csharp-code-standard/pt-BR/templates/Result.cs#IsFailure",
+      "name": "IsFailure",
+      "kind": "variable",
+      "path": "_i18n/fsd-csharp-code-standard/pt-BR/templates/Result.cs",
+      "span": "L84-L84",
+      "signature": "public bool IsFailure => !IsSuccess;",
+      "exported": true,
+      "origin": "generic",
+      "body_hash": "918e855a654511cf3e267887899f13eb5ddd1c1ea1026f3e05b3daa55298d70c",
+      "summary_state": "pending",
+      "summary": null,
+      "crux": null
+    },
+    {
+      "id": "_i18n/fsd-csharp-code-standard/pt-BR/templates/Result.cs#IsSuccess",
+      "name": "IsSuccess",
+      "kind": "variable",
+      "path": "_i18n/fsd-csharp-code-standard/pt-BR/templates/Result.cs",
+      "span": "L81-L81",
+      "signature": "public bool IsSuccess => Status < HttpStatusCode.BadRequest;",
+      "exported": true,
+      "origin": "generic",
+      "body_hash": "83b0e453e24762aa3f9680a57cb7958dc8f3c0b00d12b806d3bb86b619dd15b2",
+      "summary_state": "pending",
+      "summary": null,
+      "crux": null
+    },
+    {
+      "id": "_i18n/fsd-csharp-code-standard/pt-BR/templates/Result.cs#Pagination",
+      "name": "Pagination",
+      "kind": "variable",
+      "path": "_i18n/fsd-csharp-code-standard/pt-BR/templates/Result.cs",
+      "span": "L75-L75",
+      "signature": "public Pagination? Pagination { get; }",
+      "exported": true,
+      "origin": "generic",
+      "body_hash": "ce9f1fe997fff7d7f35dc5d6f7364e1cecd151a711a5e561213893999687d9ba",
+      "summary_state": "pending",
+      "summary": null,
+      "crux": null
+    },
+    {
+      "id": "_i18n/fsd-csharp-code-standard/pt-BR/templates/Result.cs#Result",
+      "name": "Result",
+      "kind": "class",
+      "path": "_i18n/fsd-csharp-code-standard/pt-BR/templates/Result.cs",
+      "span": "L17-L85",
+      "signature": "public sealed class Result<T> : Notifiable where T : class",
+      "exported": true,
+      "origin": "generic",
+      "body_hash": "93b4c51185d5b1563bf7bcc304c01d8053fc64063239854b1b2af0ee92b00e13",
+      "summary_state": "pending",
+      "summary": null,
+      "crux": null
+    },
+    {
+      "id": "_i18n/fsd-csharp-code-standard/pt-BR/templates/Result.cs#Result~2",
+      "name": "Result",
+      "kind": "method",
+      "path": "_i18n/fsd-csharp-code-standard/pt-BR/templates/Result.cs",
+      "span": "L23-L26",
+      "signature": "public Result()",
+      "exported": true,
+      "origin": "generic",
+      "body_hash": "304bec60003c78974707c9816bd870eed762c658083c38a53bd875ceb3dd3931",
+      "summary_state": "pending",
+      "summary": null,
+      "crux": null
+    },
+    {
+      "id": "_i18n/fsd-csharp-code-standard/pt-BR/templates/Result.cs#Result~3",
+      "name": "Result",
+      "kind": "method",
+      "path": "_i18n/fsd-csharp-code-standard/pt-BR/templates/Result.cs",
+      "span": "L36-L40",
+      "signature": "public Result(string property, string message)",
+      "exported": true,
+      "origin": "generic",
+      "body_hash": "bb446187aa8c26e0841345869173bd86e7ce39797238254a7ccbb54d6c56f8b1",
+      "summary_state": "pending",
+      "summary": null,
+      "crux": null
+    },
+    {
+      "id": "_i18n/fsd-csharp-code-standard/pt-BR/templates/Result.cs#Result~4",
+      "name": "Result",
+      "kind": "method",
+      "path": "_i18n/fsd-csharp-code-standard/pt-BR/templates/Result.cs",
+      "span": "L44-L48",
+      "signature": "public Result(T content)",
+      "exported": true,
+      "origin": "generic",
+      "body_hash": "3a9fd9f52f5c2cd638508f8f50811fbef75a37dc2143e1796aa8f48284de8bfc",
+      "summary_state": "pending",
+      "summary": null,
+      "crux": null
+    },
+    {
+      "id": "_i18n/fsd-csharp-code-standard/pt-BR/templates/Result.cs#Result~5",
+      "name": "Result",
+      "kind": "method",
+      "path": "_i18n/fsd-csharp-code-standard/pt-BR/templates/Result.cs",
+      "span": "L56-L61",
+      "signature": "public Result(IReadOnlyCollection<T> items, Pagination pagination)",
+      "exported": true,
+      "origin": "generic",
+      "body_hash": "26da0e1c79c9f33de1cfe764dab27694558289f752bf0bd8d0e794737c43232d",
+      "summary_state": "pending",
+      "summary": null,
+      "crux": null
+    },
+    {
+      "id": "_i18n/fsd-csharp-code-standard/pt-BR/templates/Result.cs#Result~6",
+      "name": "Result",
+      "kind": "method",
+      "path": "_i18n/fsd-csharp-code-standard/pt-BR/templates/Result.cs",
+      "span": "L65-L69",
+      "signature": "public Result(IReadOnlyCollection<Notification> notifications)",
+      "exported": true,
+      "origin": "generic",
+      "body_hash": "43341630d90ddefcd1aac93c859adc8f5fc953d33878a999885c71e93e2d16f7",
+      "summary_state": "pending",
+      "summary": null,
+      "crux": null
+    },
+    {
+      "id": "_i18n/fsd-csharp-code-standard/pt-BR/templates/Result.cs#Status",
+      "name": "Status",
+      "kind": "variable",
+      "path": "_i18n/fsd-csharp-code-standard/pt-BR/templates/Result.cs",
+      "span": "L78-L78",
+      "signature": "public HttpStatusCode Status { get; }",
+      "exported": true,
+      "origin": "generic",
+      "body_hash": "272c51f7a4afe67a9c8ee978bf7d231ad6f94ae2b78740c83b75194de070dcec",
+      "summary_state": "pending",
+      "summary": null,
+      "crux": null
+    },
+    {
+      "id": "_i18n/fsd-ui-approval/scripts/consolidate.py",
+      "name": "consolidate.py",
+      "kind": "file",
+      "path": "_i18n/fsd-ui-approval/scripts/consolidate.py",
+      "span": "L1-L267",
+      "signature": null,
+      "exported": true,
+      "origin": "ast",
+      "body_hash": "04785a7ced8005651d5784a2d8a89ac718c20fb9f4190cd8652d15c8a388c17f",
+      "chars": 12136,
+      "summary_state": "pending",
+      "summary": null,
+      "crux": null
+    },
+    {
+      "id": "_i18n/fsd-ui-approval/scripts/consolidate.py#apply_audit",
+      "name": "apply_audit",
+      "kind": "function",
+      "path": "_i18n/fsd-ui-approval/scripts/consolidate.py",
+      "span": "L89-L127",
+      "signature": "def apply_audit(by_id, path)",
+      "exported": true,
+      "origin": "ast",
+      "body_hash": "c18a68bf4eed3e0c3e6287d3ab41ed084ba1d18d30e9c3d3ef3d3b48d6539e53",
+      "summary_state": "pending",
+      "summary": null,
+      "crux": null
+    },
+    {
+      "id": "_i18n/fsd-ui-approval/scripts/consolidate.py#cell",
+      "name": "cell",
+      "kind": "function",
+      "path": "_i18n/fsd-ui-approval/scripts/consolidate.py",
+      "span": "L142-L143",
+      "signature": "def cell(value)",
+      "exported": true,
+      "origin": "ast",
+      "body_hash": "c36adf9ab0cdc40f129dfc0918ea99f9b652dff7ea46a6ed893df8cd4789c6c6",
+      "summary_state": "pending",
+      "summary": null,
+      "crux": null
+    },
+    {
+      "id": "_i18n/fsd-ui-approval/scripts/consolidate.py#description",
+      "name": "description",
+      "kind": "function",
+      "path": "_i18n/fsd-ui-approval/scripts/consolidate.py",
+      "span": "L146-L161",
+      "signature": "def description(it)",
+      "exported": true,
+      "origin": "ast",
+      "body_hash": "badcae4a196e5a9120f56beee2f0964c0aed56564389206c46aaad143268323f",
+      "summary_state": "pending",
+      "summary": null,
+      "crux": null
+    },
+    {
+      "id": "_i18n/fsd-ui-approval/scripts/consolidate.py#load_checklist",
+      "name": "load_checklist",
+      "kind": "function",
+      "path": "_i18n/fsd-ui-approval/scripts/consolidate.py",
+      "span": "L27-L39",
+      "signature": "def load_checklist(path)",
+      "exported": true,
+      "origin": "ast",
+      "body_hash": "5fac9e9b1ef6e543dadf5174dc12157cde67e16229f86b0752e39b0f9287bc0e",
+      "summary_state": "pending",
+      "summary": null,
+      "crux": null
+    },
+    {
+      "id": "_i18n/fsd-ui-approval/scripts/consolidate.py#main",
+      "name": "main",
+      "kind": "function",
+      "path": "_i18n/fsd-ui-approval/scripts/consolidate.py",
+      "span": "L222-L262",
+      "signature": "def main()",
+      "exported": true,
+      "origin": "ast",
+      "body_hash": "e316734bf16b58d8389da619e0c124a9733e9b6a324258115e0f045c716de7e2",
+      "summary_state": "pending",
+      "summary": null,
+      "crux": null
+    },
+    {
+      "id": "_i18n/fsd-ui-approval/scripts/consolidate.py#merge",
+      "name": "merge",
+      "kind": "function",
+      "path": "_i18n/fsd-ui-approval/scripts/consolidate.py",
+      "span": "L46-L58",
+      "signature": "def merge(files)",
+      "exported": true,
+      "origin": "ast",
+      "body_hash": "819a441fee166d8419dc8de350987ccaed51f8911ac141a618da8a6728f13b2b",
+      "summary_state": "pending",
+      "summary": null,
+      "crux": null
+    },
+    {
+      "id": "_i18n/fsd-ui-approval/scripts/consolidate.py#report",
+      "name": "report",
+      "kind": "function",
+      "path": "_i18n/fsd-ui-approval/scripts/consolidate.py",
+      "span": "L164-L219",
+      "signature": "def report(meta, checklist_items, groups, by_id, partial, res)",
+      "exported": true,
+      "origin": "ast",
+      "body_hash": "8eaf3433c9c2d870a5632d5e09bb0068ba63aa7cab52c05bef3ef44ba4764236",
+      "summary_state": "pending",
+      "summary": null,
+      "crux": null
+    },
+    {
+      "id": "_i18n/fsd-ui-approval/scripts/consolidate.py#text",
+      "name": "text",
+      "kind": "function",
+      "path": "_i18n/fsd-ui-approval/scripts/consolidate.py",
+      "span": "L42-L43",
+      "signature": "def text(value)",
+      "exported": true,
+      "origin": "ast",
+      "body_hash": "095a17b14da6c7931035a6e8136f8749825aa27c5475813f941c68e93ede73e5",
+      "summary_state": "pending",
+      "summary": null,
+      "crux": null
+    },
+    {
+      "id": "_i18n/fsd-ui-approval/scripts/consolidate.py#validate",
+      "name": "validate",
+      "kind": "function",
+      "path": "_i18n/fsd-ui-approval/scripts/consolidate.py",
+      "span": "L61-L86",
+      "signature": "def validate(checklist_items, by_id, partial)",
+      "exported": true,
+      "origin": "ast",
+      "body_hash": "df48b043b510b8d8cae0fe985f2731435a466e2c6e5535a9436871695536bad8",
+      "summary_state": "pending",
+      "summary": null,
+      "crux": null
+    },
+    {
+      "id": "_i18n/fsd-ui-approval/scripts/consolidate.py#verdict",
+      "name": "verdict",
+      "kind": "function",
+      "path": "_i18n/fsd-ui-approval/scripts/consolidate.py",
+      "span": "L130-L139",
+      "signature": "def verdict(checklist_items, by_id)",
+      "exported": true,
+      "origin": "ast",
+      "body_hash": "d4bb9ca6c30934747c265360c564da6b9162f007f1dc9d71eb89c6050fd1ee90",
+      "summary_state": "pending",
+      "summary": null,
+      "crux": null
+    },
+    {
+      "id": "fsd-padroes-codigo-csharp/scripts/conferir.py",
+      "name": "conferir.py",
+      "kind": "file",
+      "path": "fsd-padroes-codigo-csharp/scripts/conferir.py",
+      "span": "L1-L166",
+      "signature": null,
+      "exported": true,
+      "origin": "ast",
+      "body_hash": "8699c62ca251e7515fe9f3455b149ba342eb1baaa73c7c2309ddd132358ed5ed",
+      "chars": 7567,
+      "summary_state": "pending",
+      "summary": null,
+      "crux": null
+    },
+    {
+      "id": "fsd-padroes-codigo-csharp/scripts/conferir.py#conferir_arquivo",
+      "name": "conferir_arquivo",
+      "kind": "function",
+      "path": "fsd-padroes-codigo-csharp/scripts/conferir.py",
+      "span": "L113-L133",
+      "signature": "def conferir_arquivo(caminho)",
+      "exported": true,
+      "origin": "ast",
+      "body_hash": "a1c702529cbdc72ceb735833bc9535b0125684b71a729e6a782572eec8397a85",
+      "summary_state": "pending",
+      "summary": null,
+      "crux": null
+    },
+    {
+      "id": "fsd-padroes-codigo-csharp/scripts/conferir.py#handle_sem_invalid",
+      "name": "handle_sem_invalid",
+      "kind": "function",
+      "path": "fsd-padroes-codigo-csharp/scripts/conferir.py",
+      "span": "L100-L110",
+      "signature": "def handle_sem_invalid(limpo)",
+      "exported": true,
+      "origin": "ast",
+      "body_hash": "f5e2295e57b15f32b956e1e53b1eb8c917562cc2c0c7fc412fee01676dc64494",
+      "summary_state": "pending",
+      "summary": null,
+      "crux": null
+    },
+    {
+      "id": "fsd-padroes-codigo-csharp/scripts/conferir.py#limpar",
+      "name": "limpar",
+      "kind": "function",
+      "path": "fsd-padroes-codigo-csharp/scripts/conferir.py",
+      "span": "L56-L93",
+      "signature": "def limpar(texto)",
+      "exported": true,
+      "origin": "ast",
+      "body_hash": "d4cf731f9a87bae8e01a4ff4308857fafee4bd675bacebab8c7c4f625faa862e",
+      "summary_state": "pending",
+      "summary": null,
+      "crux": null
+    },
+    {
+      "id": "fsd-padroes-codigo-csharp/scripts/conferir.py#listar",
+      "name": "listar",
+      "kind": "function",
+      "path": "fsd-padroes-codigo-csharp/scripts/conferir.py",
+      "span": "L136-L147",
+      "signature": "def listar(entradas)",
+      "exported": true,
+      "origin": "ast",
+      "body_hash": "ee493a667b0c5240783f6344af3c1f56b9c9386d8ace688232c046a65c88a148",
+      "summary_state": "pending",
+      "summary": null,
+      "crux": null
+    },
+    {
+      "id": "fsd-padroes-codigo-csharp/scripts/conferir.py#main",
+      "name": "main",
+      "kind": "function",
+      "path": "fsd-padroes-codigo-csharp/scripts/conferir.py",
+      "span": "L150-L161",
+      "signature": "def main(argv)",
+      "exported": true,
+      "origin": "ast",
+      "body_hash": "bcdd5a2c6449bb381a6d58a3b975217ff114ce951fc92f132b59d48e7b4875d1",
+      "summary_state": "pending",
+      "summary": null,
+      "crux": null
+    },
+    {
+      "id": "fsd-padroes-codigo-csharp/scripts/sincronia.py",
+      "name": "sincronia.py",
+      "kind": "file",
+      "path": "fsd-padroes-codigo-csharp/scripts/sincronia.py",
+      "span": "L1-L70",
+      "signature": null,
+      "exported": true,
+      "origin": "ast",
+      "body_hash": "33b5b0ad59ab8cdcff277bc0c98faf85dce59d041d9641ac1c35e291a799b0f8",
+      "chars": 2810,
+      "summary_state": "pending",
+      "summary": null,
+      "crux": null
+    },
+    {
+      "id": "fsd-padroes-codigo-csharp/scripts/sincronia.py#main",
+      "name": "main",
+      "kind": "function",
+      "path": "fsd-padroes-codigo-csharp/scripts/sincronia.py",
+      "span": "L42-L65",
+      "signature": "def main(argv)",
+      "exported": true,
+      "origin": "ast",
+      "body_hash": "19f4f90c344dc51444d5fb1103f024f69762a4e6a7160e2170f588ba87478911",
+      "summary_state": "pending",
+      "summary": null,
+      "crux": null
+    },
+    {
+      "id": "fsd-padroes-codigo-csharp/scripts/sincronia.py#normalizar",
+      "name": "normalizar",
+      "kind": "function",
+      "path": "fsd-padroes-codigo-csharp/scripts/sincronia.py",
+      "span": "L27-L32",
+      "signature": "def normalizar(texto, do_projeto)",
+      "exported": true,
+      "origin": "ast",
+      "body_hash": "498d0c9038f9a6eebd266b3cd7c3adc3f84524af07c6947381074295a335a4b1",
+      "summary_state": "pending",
+      "summary": null,
+      "crux": null
+    },
+    {
+      "id": "fsd-padroes-codigo-csharp/scripts/sincronia.py#primeira_diferenca",
+      "name": "primeira_diferenca",
+      "kind": "function",
+      "path": "fsd-padroes-codigo-csharp/scripts/sincronia.py",
+      "span": "L35-L39",
+      "signature": "def primeira_diferenca(a, b)",
+      "exported": true,
+      "origin": "ast",
+      "body_hash": "5ffc313e7b58ed21a3e2bd978808c042877cfb3152b499c4d1314d4df2b97d78",
+      "summary_state": "pending",
+      "summary": null,
+      "crux": null
+    },
+    {
+      "id": "fsd-padroes-codigo-csharp/templates/Result.cs",
+      "name": "Result.cs",
+      "kind": "file",
+      "path": "fsd-padroes-codigo-csharp/templates/Result.cs",
+      "span": "L1-L86",
+      "signature": null,
+      "exported": true,
+      "origin": "generic",
+      "body_hash": "013b8c5f281b11499c1b15eb7d99be277dffc0278302f74bd4fa19ff6a0b1def",
+      "chars": 3835,
+      "summary_state": "pending",
+      "summary": null,
+      "crux": null
+    },
+    {
+      "id": "fsd-padroes-codigo-csharp/templates/Result.cs#Content",
+      "name": "Content",
+      "kind": "variable",
+      "path": "fsd-padroes-codigo-csharp/templates/Result.cs",
+      "span": "L72-L72",
+      "signature": "public IReadOnlyCollection<T?> Content { get; } = [];",
+      "exported": true,
+      "origin": "generic",
+      "body_hash": "8b62491e43ed310db066f55a5c1c78de8a9fce00f03c6cb5685a358f13a18b8b",
+      "summary_state": "pending",
+      "summary": null,
+      "crux": null
+    },
+    {
+      "id": "fsd-padroes-codigo-csharp/templates/Result.cs#IsFailure",
+      "name": "IsFailure",
+      "kind": "variable",
+      "path": "fsd-padroes-codigo-csharp/templates/Result.cs",
+      "span": "L84-L84",
+      "signature": "public bool IsFailure => !IsSuccess;",
+      "exported": true,
+      "origin": "generic",
+      "body_hash": "918e855a654511cf3e267887899f13eb5ddd1c1ea1026f3e05b3daa55298d70c",
+      "summary_state": "pending",
+      "summary": null,
+      "crux": null
+    },
+    {
+      "id": "fsd-padroes-codigo-csharp/templates/Result.cs#IsSuccess",
+      "name": "IsSuccess",
+      "kind": "variable",
+      "path": "fsd-padroes-codigo-csharp/templates/Result.cs",
+      "span": "L81-L81",
+      "signature": "public bool IsSuccess => Status < HttpStatusCode.BadRequest;",
+      "exported": true,
+      "origin": "generic",
+      "body_hash": "83b0e453e24762aa3f9680a57cb7958dc8f3c0b00d12b806d3bb86b619dd15b2",
+      "summary_state": "pending",
+      "summary": null,
+      "crux": null
+    },
+    {
+      "id": "fsd-padroes-codigo-csharp/templates/Result.cs#Pagination",
+      "name": "Pagination",
+      "kind": "variable",
+      "path": "fsd-padroes-codigo-csharp/templates/Result.cs",
+      "span": "L75-L75",
+      "signature": "public Pagination? Pagination { get; }",
+      "exported": true,
+      "origin": "generic",
+      "body_hash": "ce9f1fe997fff7d7f35dc5d6f7364e1cecd151a711a5e561213893999687d9ba",
+      "summary_state": "pending",
+      "summary": null,
+      "crux": null
+    },
+    {
+      "id": "fsd-padroes-codigo-csharp/templates/Result.cs#Result",
+      "name": "Result",
+      "kind": "class",
+      "path": "fsd-padroes-codigo-csharp/templates/Result.cs",
+      "span": "L17-L85",
+      "signature": "public sealed class Result<T> : Notifiable where T : class",
+      "exported": true,
+      "origin": "generic",
+      "body_hash": "b571e329086b9c79d700fce54ebf29fd7ae1617e2da164f02aaeafdbf5ca15b4",
+      "summary_state": "pending",
+      "summary": null,
+      "crux": null
+    },
+    {
+      "id": "fsd-padroes-codigo-csharp/templates/Result.cs#Result~2",
+      "name": "Result",
+      "kind": "method",
+      "path": "fsd-padroes-codigo-csharp/templates/Result.cs",
+      "span": "L23-L26",
+      "signature": "public Result()",
+      "exported": true,
+      "origin": "generic",
+      "body_hash": "ec022dcaf0146471ec3e16a82c3a34ff2fa7f7dfc5f7671962c4bd00e85d718e",
+      "summary_state": "pending",
+      "summary": null,
+      "crux": null
+    },
+    {
+      "id": "fsd-padroes-codigo-csharp/templates/Result.cs#Result~3",
+      "name": "Result",
+      "kind": "method",
+      "path": "fsd-padroes-codigo-csharp/templates/Result.cs",
+      "span": "L36-L40",
+      "signature": "public Result(string property, string message)",
+      "exported": true,
+      "origin": "generic",
+      "body_hash": "462c9338b86606cf4728c3037feb5f8f340d8d98034701a56ea0df5abf020680",
+      "summary_state": "pending",
+      "summary": null,
+      "crux": null
+    },
+    {
+      "id": "fsd-padroes-codigo-csharp/templates/Result.cs#Result~4",
+      "name": "Result",
+      "kind": "method",
+      "path": "fsd-padroes-codigo-csharp/templates/Result.cs",
+      "span": "L44-L48",
+      "signature": "public Result(T content)",
+      "exported": true,
+      "origin": "generic",
+      "body_hash": "e426d6968999714a533ad560e84034edebc716135c72adba8ab2e35ff0f189b6",
+      "summary_state": "pending",
+      "summary": null,
+      "crux": null
+    },
+    {
+      "id": "fsd-padroes-codigo-csharp/templates/Result.cs#Result~5",
+      "name": "Result",
+      "kind": "method",
+      "path": "fsd-padroes-codigo-csharp/templates/Result.cs",
+      "span": "L56-L61",
+      "signature": "public Result(IReadOnlyCollection<T> items, Pagination pagination)",
+      "exported": true,
+      "origin": "generic",
+      "body_hash": "47e79fd3c916e0a3d672596ed84542843792367b08a2027356b6572cb4576816",
+      "summary_state": "pending",
+      "summary": null,
+      "crux": null
+    },
+    {
+      "id": "fsd-padroes-codigo-csharp/templates/Result.cs#Result~6",
+      "name": "Result",
+      "kind": "method",
+      "path": "fsd-padroes-codigo-csharp/templates/Result.cs",
+      "span": "L65-L69",
+      "signature": "public Result(IReadOnlyCollection<Notification> notifications)",
+      "exported": true,
+      "origin": "generic",
+      "body_hash": "57f565660ab1d8ccb9108adbd2578f45a0171780725a367cc4d5fa9d8a35bf9a",
+      "summary_state": "pending",
+      "summary": null,
+      "crux": null
+    },
+    {
+      "id": "fsd-padroes-codigo-csharp/templates/Result.cs#Status",
+      "name": "Status",
+      "kind": "variable",
+      "path": "fsd-padroes-codigo-csharp/templates/Result.cs",
+      "span": "L78-L78",
+      "signature": "public HttpStatusCode Status { get; }",
+      "exported": true,
+      "origin": "generic",
+      "body_hash": "272c51f7a4afe67a9c8ee978bf7d231ad6f94ae2b78740c83b75194de070dcec",
+      "summary_state": "pending",
+      "summary": null,
+      "crux": null
+    },
+    {
+      "id": "fsd-ui-approval/scripts/consolidar.py",
+      "name": "consolidar.py",
+      "kind": "file",
+      "path": "fsd-ui-approval/scripts/consolidar.py",
+      "span": "L1-L267",
+      "signature": null,
+      "exported": true,
+      "origin": "ast",
+      "body_hash": "94c906e7c70136f9191c6c3b49b53d09d24d2482630d1866f869ee11dea23e10",
+      "chars": 12370,
+      "summary_state": "pending",
+      "summary": null,
+      "crux": null
+    },
+    {
+      "id": "fsd-ui-approval/scripts/consolidar.py#aplicar_auditoria",
+      "name": "aplicar_auditoria",
+      "kind": "function",
+      "path": "fsd-ui-approval/scripts/consolidar.py",
+      "span": "L89-L127",
+      "signature": "def aplicar_auditoria(por_id, caminho)",
+      "exported": true,
+      "origin": "ast",
+      "body_hash": "7e6092fffea88a19a1e109d54a01ed9143dce188666e87e401efce2ae93f588f",
+      "summary_state": "pending",
+      "summary": null,
+      "crux": null
+    },
+    {
+      "id": "fsd-ui-approval/scripts/consolidar.py#carregar_checklist",
+      "name": "carregar_checklist",
+      "kind": "function",
+      "path": "fsd-ui-approval/scripts/consolidar.py",
+      "span": "L27-L39",
+      "signature": "def carregar_checklist(caminho)",
+      "exported": true,
+      "origin": "ast",
+      "body_hash": "c641e76be067ea663f3fad3777c9329b02afab4e28357446013704a83991fb33",
+      "summary_state": "pending",
+      "summary": null,
+      "crux": null
+    },
+    {
+      "id": "fsd-ui-approval/scripts/consolidar.py#celula",
+      "name": "celula",
+      "kind": "function",
+      "path": "fsd-ui-approval/scripts/consolidar.py",
+      "span": "L142-L143",
+      "signature": "def celula(valor)",
+      "exported": true,
+      "origin": "ast",
+      "body_hash": "be79c40cb7140a6099def3c3db50b065a3880111532f65cf85bdecac69c2d647",
+      "summary_state": "pending",
+      "summary": null,
+      "crux": null
+    },
+    {
+      "id": "fsd-ui-approval/scripts/consolidar.py#descricao",
+      "name": "descricao",
+      "kind": "function",
+      "path": "fsd-ui-approval/scripts/consolidar.py",
+      "span": "L146-L161",
+      "signature": "def descricao(it)",
+      "exported": true,
+      "origin": "ast",
+      "body_hash": "be5cbf2cd457fe955815d2acd0ee875b9951831caf38a06e6d2befa95ccabc55",
+      "summary_state": "pending",
+      "summary": null,
+      "crux": null
+    },
+    {
+      "id": "fsd-ui-approval/scripts/consolidar.py#juntar",
+      "name": "juntar",
+      "kind": "function",
+      "path": "fsd-ui-approval/scripts/consolidar.py",
+      "span": "L46-L58",
+      "signature": "def juntar(arquivos)",
+      "exported": true,
+      "origin": "ast",
+      "body_hash": "2cc5e64b9b2f112e4cbd75f45d48755efe88477119459cf8647f9c4837a58006",
+      "summary_state": "pending",
+      "summary": null,
+      "crux": null
+    },
+    {
+      "id": "fsd-ui-approval/scripts/consolidar.py#main",
+      "name": "main",
+      "kind": "function",
+      "path": "fsd-ui-approval/scripts/consolidar.py",
+      "span": "L222-L262",
+      "signature": "def main()",
+      "exported": true,
+      "origin": "ast",
+      "body_hash": "6cce3b5bf98980a0790f16799670dd9457d59ecb13688cc6c3051814cfdf5967",
+      "summary_state": "pending",
+      "summary": null,
+      "crux": null
+    },
+    {
+      "id": "fsd-ui-approval/scripts/consolidar.py#relatorio",
+      "name": "relatorio",
+      "kind": "function",
+      "path": "fsd-ui-approval/scripts/consolidar.py",
+      "span": "L164-L219",
+      "signature": "def relatorio(meta, itens_checklist, grupos, por_id, parcial, res)",
+      "exported": true,
+      "origin": "ast",
+      "body_hash": "c3559b2bb17de19c0a09b3de9e750363ea03ea8cb568b9aa4038ba4b49baf0b3",
+      "summary_state": "pending",
+      "summary": null,
+      "crux": null
+    },
+    {
+      "id": "fsd-ui-approval/scripts/consolidar.py#texto",
+      "name": "texto",
+      "kind": "function",
+      "path": "fsd-ui-approval/scripts/consolidar.py",
+      "span": "L42-L43",
+      "signature": "def texto(valor)",
+      "exported": true,
+      "origin": "ast",
+      "body_hash": "8a4375cf9d52dd2aaa110a664a798387c6fca91bf5c16636f000a10695dc45bb",
+      "summary_state": "pending",
+      "summary": null,
+      "crux": null
+    },
+    {
+      "id": "fsd-ui-approval/scripts/consolidar.py#validar",
+      "name": "validar",
+      "kind": "function",
+      "path": "fsd-ui-approval/scripts/consolidar.py",
+      "span": "L61-L86",
+      "signature": "def validar(itens_checklist, por_id, parcial)",
+      "exported": true,
+      "origin": "ast",
+      "body_hash": "40cb9308f188c79b9ddfd06dc9da002626164b291575313d269939b274b19105",
+      "summary_state": "pending",
+      "summary": null,
+      "crux": null
+    },
+    {
+      "id": "fsd-ui-approval/scripts/consolidar.py#veredito",
+      "name": "veredito",
+      "kind": "function",
+      "path": "fsd-ui-approval/scripts/consolidar.py",
+      "span": "L130-L139",
+      "signature": "def veredito(itens_checklist, por_id)",
+      "exported": true,
+      "origin": "ast",
+      "body_hash": "8f36c7f61dff1d2a2d5e171468d28dbf27554b5f867a135ba41533c8e76222f9",
+      "summary_state": "pending",
+      "summary": null,
+      "crux": null
+    }
+  ],
+  "edges": [
+    {
+      "source": "_i18n/fsd-csharp-code-standard/en/scripts/check.py",
+      "target": "_i18n/fsd-csharp-code-standard/en/scripts/check.py#main",
+      "relation": "calls",
+      "confidence": "extracted"
+    },
+    {
+      "source": "_i18n/fsd-csharp-code-standard/en/scripts/check.py",
+      "target": "_i18n/fsd-csharp-code-standard/en/scripts/check.py#check_file",
+      "relation": "contains",
+      "confidence": "extracted"
+    },
+    {
+      "source": "_i18n/fsd-csharp-code-standard/en/scripts/check.py",
+      "target": "_i18n/fsd-csharp-code-standard/en/scripts/check.py#clean",
+      "relation": "contains",
+      "confidence": "extracted"
+    },
+    {
+      "source": "_i18n/fsd-csharp-code-standard/en/scripts/check.py",
+      "target": "_i18n/fsd-csharp-code-standard/en/scripts/check.py#handle_without_invalid",
+      "relation": "contains",
+      "confidence": "extracted"
+    },
+    {
+      "source": "_i18n/fsd-csharp-code-standard/en/scripts/check.py",
+      "target": "_i18n/fsd-csharp-code-standard/en/scripts/check.py#list_files",
+      "relation": "contains",
+      "confidence": "extracted"
+    },
+    {
+      "source": "_i18n/fsd-csharp-code-standard/en/scripts/check.py",
+      "target": "_i18n/fsd-csharp-code-standard/en/scripts/check.py#main",
+      "relation": "contains",
+      "confidence": "extracted"
+    },
+    {
+      "source": "_i18n/fsd-csharp-code-standard/en/scripts/check.py",
+      "target": "pathlib",
+      "relation": "imports",
+      "confidence": "extracted"
+    },
+    {
+      "source": "_i18n/fsd-csharp-code-standard/en/scripts/check.py",
+      "target": "re",
+      "relation": "imports",
+      "confidence": "extracted"
+    },
+    {
+      "source": "_i18n/fsd-csharp-code-standard/en/scripts/check.py",
+      "target": "sys",
+      "relation": "imports",
+      "confidence": "extracted"
+    },
+    {
+      "source": "_i18n/fsd-csharp-code-standard/en/scripts/check.py#check_file",
+      "target": "_i18n/fsd-csharp-code-standard/en/scripts/check.py#clean",
+      "relation": "calls",
+      "confidence": "extracted"
+    },
+    {
+      "source": "_i18n/fsd-csharp-code-standard/en/scripts/check.py#check_file",
+      "target": "_i18n/fsd-csharp-code-standard/en/scripts/check.py#handle_without_invalid",
+      "relation": "calls",
+      "confidence": "extracted"
+    },
+    {
+      "source": "_i18n/fsd-csharp-code-standard/en/scripts/check.py#main",
+      "target": "_i18n/fsd-csharp-code-standard/en/scripts/check.py#check_file",
+      "relation": "calls",
+      "confidence": "extracted"
+    },
+    {
+      "source": "_i18n/fsd-csharp-code-standard/en/scripts/check.py#main",
+      "target": "_i18n/fsd-csharp-code-standard/en/scripts/check.py#list_files",
+      "relation": "calls",
+      "confidence": "extracted"
+    },
+    {
+      "source": "_i18n/fsd-csharp-code-standard/en/scripts/sync.py",
+      "target": "_i18n/fsd-csharp-code-standard/en/scripts/sync.py#main",
+      "relation": "calls",
+      "confidence": "extracted"
+    },
+    {
+      "source": "_i18n/fsd-csharp-code-standard/en/scripts/sync.py",
+      "target": "_i18n/fsd-csharp-code-standard/en/scripts/sync.py#first_difference",
+      "relation": "contains",
+      "confidence": "extracted"
+    },
+    {
+      "source": "_i18n/fsd-csharp-code-standard/en/scripts/sync.py",
+      "target": "_i18n/fsd-csharp-code-standard/en/scripts/sync.py#main",
+      "relation": "contains",
+      "confidence": "extracted"
+    },
+    {
+      "source": "_i18n/fsd-csharp-code-standard/en/scripts/sync.py",
+      "target": "_i18n/fsd-csharp-code-standard/en/scripts/sync.py#normalize",
+      "relation": "contains",
+      "confidence": "extracted"
+    },
+    {
+      "source": "_i18n/fsd-csharp-code-standard/en/scripts/sync.py",
+      "target": "pathlib",
+      "relation": "imports",
+      "confidence": "extracted"
+    },
+    {
+      "source": "_i18n/fsd-csharp-code-standard/en/scripts/sync.py",
+      "target": "re",
+      "relation": "imports",
+      "confidence": "extracted"
+    },
+    {
+      "source": "_i18n/fsd-csharp-code-standard/en/scripts/sync.py",
+      "target": "sys",
+      "relation": "imports",
+      "confidence": "extracted"
+    },
+    {
+      "source": "_i18n/fsd-csharp-code-standard/en/scripts/sync.py#main",
+      "target": "_i18n/fsd-csharp-code-standard/en/scripts/sync.py#first_difference",
+      "relation": "calls",
+      "confidence": "extracted"
+    },
+    {
+      "source": "_i18n/fsd-csharp-code-standard/en/scripts/sync.py#main",
+      "target": "_i18n/fsd-csharp-code-standard/en/scripts/sync.py#normalize",
+      "relation": "calls",
+      "confidence": "extracted"
+    },
+    {
+      "source": "_i18n/fsd-csharp-code-standard/pt-BR/scripts/conferir.py",
+      "target": "_i18n/fsd-csharp-code-standard/pt-BR/scripts/conferir.py#main",
+      "relation": "calls",
+      "confidence": "extracted"
+    },
+    {
+      "source": "_i18n/fsd-csharp-code-standard/pt-BR/scripts/conferir.py",
+      "target": "_i18n/fsd-csharp-code-standard/pt-BR/scripts/conferir.py#conferir_arquivo",
+      "relation": "contains",
+      "confidence": "extracted"
+    },
+    {
+      "source": "_i18n/fsd-csharp-code-standard/pt-BR/scripts/conferir.py",
+      "target": "_i18n/fsd-csharp-code-standard/pt-BR/scripts/conferir.py#handle_sem_invalid",
+      "relation": "contains",
+      "confidence": "extracted"
+    },
+    {
+      "source": "_i18n/fsd-csharp-code-standard/pt-BR/scripts/conferir.py",
+      "target": "_i18n/fsd-csharp-code-standard/pt-BR/scripts/conferir.py#limpar",
+      "relation": "contains",
+      "confidence": "extracted"
+    },
+    {
+      "source": "_i18n/fsd-csharp-code-standard/pt-BR/scripts/conferir.py",
+      "target": "_i18n/fsd-csharp-code-standard/pt-BR/scripts/conferir.py#listar",
+      "relation": "contains",
+      "confidence": "extracted"
+    },
+    {
+      "source": "_i18n/fsd-csharp-code-standard/pt-BR/scripts/conferir.py",
+      "target": "_i18n/fsd-csharp-code-standard/pt-BR/scripts/conferir.py#main",
+      "relation": "contains",
+      "confidence": "extracted"
+    },
+    {
+      "source": "_i18n/fsd-csharp-code-standard/pt-BR/scripts/conferir.py",
+      "target": "pathlib",
+      "relation": "imports",
+      "confidence": "extracted"
+    },
+    {
+      "source": "_i18n/fsd-csharp-code-standard/pt-BR/scripts/conferir.py",
+      "target": "re",
+      "relation": "imports",
+      "confidence": "extracted"
+    },
+    {
+      "source": "_i18n/fsd-csharp-code-standard/pt-BR/scripts/conferir.py",
+      "target": "sys",
+      "relation": "imports",
+      "confidence": "extracted"
+    },
+    {
+      "source": "_i18n/fsd-csharp-code-standard/pt-BR/scripts/conferir.py#conferir_arquivo",
+      "target": "_i18n/fsd-csharp-code-standard/pt-BR/scripts/conferir.py#handle_sem_invalid",
+      "relation": "calls",
+      "confidence": "extracted"
+    },
+    {
+      "source": "_i18n/fsd-csharp-code-standard/pt-BR/scripts/conferir.py#conferir_arquivo",
+      "target": "_i18n/fsd-csharp-code-standard/pt-BR/scripts/conferir.py#limpar",
+      "relation": "calls",
+      "confidence": "extracted"
+    },
+    {
+      "source": "_i18n/fsd-csharp-code-standard/pt-BR/scripts/conferir.py#main",
+      "target": "_i18n/fsd-csharp-code-standard/pt-BR/scripts/conferir.py#conferir_arquivo",
+      "relation": "calls",
+      "confidence": "extracted"
+    },
+    {
+      "source": "_i18n/fsd-csharp-code-standard/pt-BR/scripts/conferir.py#main",
+      "target": "_i18n/fsd-csharp-code-standard/pt-BR/scripts/conferir.py#listar",
+      "relation": "calls",
+      "confidence": "extracted"
+    },
+    {
+      "source": "_i18n/fsd-csharp-code-standard/pt-BR/scripts/sincronia.py",
+      "target": "_i18n/fsd-csharp-code-standard/pt-BR/scripts/sincronia.py#main",
+      "relation": "calls",
+      "confidence": "extracted"
+    },
+    {
+      "source": "_i18n/fsd-csharp-code-standard/pt-BR/scripts/sincronia.py",
+      "target": "_i18n/fsd-csharp-code-standard/pt-BR/scripts/sincronia.py#main",
+      "relation": "contains",
+      "confidence": "extracted"
+    },
+    {
+      "source": "_i18n/fsd-csharp-code-standard/pt-BR/scripts/sincronia.py",
+      "target": "_i18n/fsd-csharp-code-standard/pt-BR/scripts/sincronia.py#normalizar",
+      "relation": "contains",
+      "confidence": "extracted"
+    },
+    {
+      "source": "_i18n/fsd-csharp-code-standard/pt-BR/scripts/sincronia.py",
+      "target": "_i18n/fsd-csharp-code-standard/pt-BR/scripts/sincronia.py#primeira_diferenca",
+      "relation": "contains",
+      "confidence": "extracted"
+    },
+    {
+      "source": "_i18n/fsd-csharp-code-standard/pt-BR/scripts/sincronia.py",
+      "target": "pathlib",
+      "relation": "imports",
+      "confidence": "extracted"
+    },
+    {
+      "source": "_i18n/fsd-csharp-code-standard/pt-BR/scripts/sincronia.py",
+      "target": "re",
+      "relation": "imports",
+      "confidence": "extracted"
+    },
+    {
+      "source": "_i18n/fsd-csharp-code-standard/pt-BR/scripts/sincronia.py",
+      "target": "sys",
+      "relation": "imports",
+      "confidence": "extracted"
+    },
+    {
+      "source": "_i18n/fsd-csharp-code-standard/pt-BR/scripts/sincronia.py#main",
+      "target": "_i18n/fsd-csharp-code-standard/pt-BR/scripts/sincronia.py#normalizar",
+      "relation": "calls",
+      "confidence": "extracted"
+    },
+    {
+      "source": "_i18n/fsd-csharp-code-standard/pt-BR/scripts/sincronia.py#main",
+      "target": "_i18n/fsd-csharp-code-standard/pt-BR/scripts/sincronia.py#primeira_diferenca",
+      "relation": "calls",
+      "confidence": "extracted"
+    },
+    {
+      "source": "_i18n/fsd-ui-approval/scripts/consolidate.py",
+      "target": "_i18n/fsd-ui-approval/scripts/consolidate.py#main",
+      "relation": "calls",
+      "confidence": "extracted"
+    },
+    {
+      "source": "_i18n/fsd-ui-approval/scripts/consolidate.py",
+      "target": "_i18n/fsd-ui-approval/scripts/consolidate.py#apply_audit",
+      "relation": "contains",
+      "confidence": "extracted"
+    },
+    {
+      "source": "_i18n/fsd-ui-approval/scripts/consolidate.py",
+      "target": "_i18n/fsd-ui-approval/scripts/consolidate.py#cell",
+      "relation": "contains",
+      "confidence": "extracted"
+    },
+    {
+      "source": "_i18n/fsd-ui-approval/scripts/consolidate.py",
+      "target": "_i18n/fsd-ui-approval/scripts/consolidate.py#description",
+      "relation": "contains",
+      "confidence": "extracted"
+    },
+    {
+      "source": "_i18n/fsd-ui-approval/scripts/consolidate.py",
+      "target": "_i18n/fsd-ui-approval/scripts/consolidate.py#load_checklist",
+      "relation": "contains",
+      "confidence": "extracted"
+    },
+    {
+      "source": "_i18n/fsd-ui-approval/scripts/consolidate.py",
+      "target": "_i18n/fsd-ui-approval/scripts/consolidate.py#main",
+      "relation": "contains",
+      "confidence": "extracted"
+    },
+    {
+      "source": "_i18n/fsd-ui-approval/scripts/consolidate.py",
+      "target": "_i18n/fsd-ui-approval/scripts/consolidate.py#merge",
+      "relation": "contains",
+      "confidence": "extracted"
+    },
+    {
+      "source": "_i18n/fsd-ui-approval/scripts/consolidate.py",
+      "target": "_i18n/fsd-ui-approval/scripts/consolidate.py#report",
+      "relation": "contains",
+      "confidence": "extracted"
+    },
+    {
+      "source": "_i18n/fsd-ui-approval/scripts/consolidate.py",
+      "target": "_i18n/fsd-ui-approval/scripts/consolidate.py#text",
+      "relation": "contains",
+      "confidence": "extracted"
+    },
+    {
+      "source": "_i18n/fsd-ui-approval/scripts/consolidate.py",
+      "target": "_i18n/fsd-ui-approval/scripts/consolidate.py#validate",
+      "relation": "contains",
+      "confidence": "extracted"
+    },
+    {
+      "source": "_i18n/fsd-ui-approval/scripts/consolidate.py",
+      "target": "_i18n/fsd-ui-approval/scripts/consolidate.py#verdict",
+      "relation": "contains",
+      "confidence": "extracted"
+    },
+    {
+      "source": "_i18n/fsd-ui-approval/scripts/consolidate.py",
+      "target": "argparse",
+      "relation": "imports",
+      "confidence": "extracted"
+    },
+    {
+      "source": "_i18n/fsd-ui-approval/scripts/consolidate.py",
+      "target": "datetime",
+      "relation": "imports",
+      "confidence": "extracted"
+    },
+    {
+      "source": "_i18n/fsd-ui-approval/scripts/consolidate.py",
+      "target": "json",
+      "relation": "imports",
+      "confidence": "extracted"
+    },
+    {
+      "source": "_i18n/fsd-ui-approval/scripts/consolidate.py",
+      "target": "pathlib",
+      "relation": "imports",
+      "confidence": "extracted"
+    },
+    {
+      "source": "_i18n/fsd-ui-approval/scripts/consolidate.py",
+      "target": "re",
+      "relation": "imports",
+      "confidence": "extracted"
+    },
+    {
+      "source": "_i18n/fsd-ui-approval/scripts/consolidate.py",
+      "target": "sys",
+      "relation": "imports",
+      "confidence": "extracted"
+    },
+    {
+      "source": "_i18n/fsd-ui-approval/scripts/consolidate.py#apply_audit",
+      "target": "_i18n/fsd-ui-approval/scripts/consolidate.py#text",
+      "relation": "calls",
+      "confidence": "extracted"
+    },
+    {
+      "source": "_i18n/fsd-ui-approval/scripts/consolidate.py#description",
+      "target": "_i18n/fsd-ui-approval/scripts/consolidate.py#cell",
+      "relation": "calls",
+      "confidence": "extracted"
+    },
+    {
+      "source": "_i18n/fsd-ui-approval/scripts/consolidate.py#main",
+      "target": "_i18n/fsd-ui-approval/scripts/consolidate.py#apply_audit",
+      "relation": "calls",
+      "confidence": "extracted"
+    },
+    {
+      "source": "_i18n/fsd-ui-approval/scripts/consolidate.py#main",
+      "target": "_i18n/fsd-ui-approval/scripts/consolidate.py#load_checklist",
+      "relation": "calls",
+      "confidence": "extracted"
+    },
+    {
+      "source": "_i18n/fsd-ui-approval/scripts/consolidate.py#main",
+      "target": "_i18n/fsd-ui-approval/scripts/consolidate.py#merge",
+      "relation": "calls",
+      "confidence": "extracted"
+    },
+    {
+      "source": "_i18n/fsd-ui-approval/scripts/consolidate.py#main",
+      "target": "_i18n/fsd-ui-approval/scripts/consolidate.py#report",
+      "relation": "calls",
+      "confidence": "extracted"
+    },
+    {
+      "source": "_i18n/fsd-ui-approval/scripts/consolidate.py#main",
+      "target": "_i18n/fsd-ui-approval/scripts/consolidate.py#validate",
+      "relation": "calls",
+      "confidence": "extracted"
+    },
+    {
+      "source": "_i18n/fsd-ui-approval/scripts/consolidate.py#main",
+      "target": "_i18n/fsd-ui-approval/scripts/consolidate.py#verdict",
+      "relation": "calls",
+      "confidence": "extracted"
+    },
+    {
+      "source": "_i18n/fsd-ui-approval/scripts/consolidate.py#report",
+      "target": "_i18n/fsd-ui-approval/scripts/consolidate.py#cell",
+      "relation": "calls",
+      "confidence": "extracted"
+    },
+    {
+      "source": "_i18n/fsd-ui-approval/scripts/consolidate.py#report",
+      "target": "_i18n/fsd-ui-approval/scripts/consolidate.py#description",
+      "relation": "calls",
+      "confidence": "extracted"
+    },
+    {
+      "source": "_i18n/fsd-ui-approval/scripts/consolidate.py#validate",
+      "target": "_i18n/fsd-ui-approval/scripts/consolidate.py#text",
+      "relation": "calls",
+      "confidence": "extracted"
+    },
+    {
+      "source": "fsd-padroes-codigo-csharp/scripts/conferir.py",
+      "target": "fsd-padroes-codigo-csharp/scripts/conferir.py#main",
+      "relation": "calls",
+      "confidence": "extracted"
+    },
+    {
+      "source": "fsd-padroes-codigo-csharp/scripts/conferir.py",
+      "target": "fsd-padroes-codigo-csharp/scripts/conferir.py#conferir_arquivo",
+      "relation": "contains",
+      "confidence": "extracted"
+    },
+    {
+      "source": "fsd-padroes-codigo-csharp/scripts/conferir.py",
+      "target": "fsd-padroes-codigo-csharp/scripts/conferir.py#handle_sem_invalid",
+      "relation": "contains",
+      "confidence": "extracted"
+    },
+    {
+      "source": "fsd-padroes-codigo-csharp/scripts/conferir.py",
+      "target": "fsd-padroes-codigo-csharp/scripts/conferir.py#limpar",
+      "relation": "contains",
+      "confidence": "extracted"
+    },
+    {
+      "source": "fsd-padroes-codigo-csharp/scripts/conferir.py",
+      "target": "fsd-padroes-codigo-csharp/scripts/conferir.py#listar",
+      "relation": "contains",
+      "confidence": "extracted"
+    },
+    {
+      "source": "fsd-padroes-codigo-csharp/scripts/conferir.py",
+      "target": "fsd-padroes-codigo-csharp/scripts/conferir.py#main",
+      "relation": "contains",
+      "confidence": "extracted"
+    },
+    {
+      "source": "fsd-padroes-codigo-csharp/scripts/conferir.py",
+      "target": "pathlib",
+      "relation": "imports",
+      "confidence": "extracted"
+    },
+    {
+      "source": "fsd-padroes-codigo-csharp/scripts/conferir.py",
+      "target": "re",
+      "relation": "imports",
+      "confidence": "extracted"
+    },
+    {
+      "source": "fsd-padroes-codigo-csharp/scripts/conferir.py",
+      "target": "sys",
+      "relation": "imports",
+      "confidence": "extracted"
+    },
+    {
+      "source": "fsd-padroes-codigo-csharp/scripts/conferir.py#conferir_arquivo",
+      "target": "fsd-padroes-codigo-csharp/scripts/conferir.py#handle_sem_invalid",
+      "relation": "calls",
+      "confidence": "extracted"
+    },
+    {
+      "source": "fsd-padroes-codigo-csharp/scripts/conferir.py#conferir_arquivo",
+      "target": "fsd-padroes-codigo-csharp/scripts/conferir.py#limpar",
+      "relation": "calls",
+      "confidence": "extracted"
+    },
+    {
+      "source": "fsd-padroes-codigo-csharp/scripts/conferir.py#main",
+      "target": "fsd-padroes-codigo-csharp/scripts/conferir.py#conferir_arquivo",
+      "relation": "calls",
+      "confidence": "extracted"
+    },
+    {
+      "source": "fsd-padroes-codigo-csharp/scripts/conferir.py#main",
+      "target": "fsd-padroes-codigo-csharp/scripts/conferir.py#listar",
+      "relation": "calls",
+      "confidence": "extracted"
+    },
+    {
+      "source": "fsd-padroes-codigo-csharp/scripts/sincronia.py",
+      "target": "fsd-padroes-codigo-csharp/scripts/sincronia.py#main",
+      "relation": "calls",
+      "confidence": "extracted"
+    },
+    {
+      "source": "fsd-padroes-codigo-csharp/scripts/sincronia.py",
+      "target": "fsd-padroes-codigo-csharp/scripts/sincronia.py#main",
+      "relation": "contains",
+      "confidence": "extracted"
+    },
+    {
+      "source": "fsd-padroes-codigo-csharp/scripts/sincronia.py",
+      "target": "fsd-padroes-codigo-csharp/scripts/sincronia.py#normalizar",
+      "relation": "contains",
+      "confidence": "extracted"
+    },
+    {
+      "source": "fsd-padroes-codigo-csharp/scripts/sincronia.py",
+      "target": "fsd-padroes-codigo-csharp/scripts/sincronia.py#primeira_diferenca",
+      "relation": "contains",
+      "confidence": "extracted"
+    },
+    {
+      "source": "fsd-padroes-codigo-csharp/scripts/sincronia.py",
+      "target": "pathlib",
+      "relation": "imports",
+      "confidence": "extracted"
+    },
+    {
+      "source": "fsd-padroes-codigo-csharp/scripts/sincronia.py",
+      "target": "re",
+      "relation": "imports",
+      "confidence": "extracted"
+    },
+    {
+      "source": "fsd-padroes-codigo-csharp/scripts/sincronia.py",
+      "target": "sys",
+      "relation": "imports",
+      "confidence": "extracted"
+    },
+    {
+      "source": "fsd-padroes-codigo-csharp/scripts/sincronia.py#main",
+      "target": "fsd-padroes-codigo-csharp/scripts/sincronia.py#normalizar",
+      "relation": "calls",
+      "confidence": "extracted"
+    },
+    {
+      "source": "fsd-padroes-codigo-csharp/scripts/sincronia.py#main",
+      "target": "fsd-padroes-codigo-csharp/scripts/sincronia.py#primeira_diferenca",
+      "relation": "calls",
+      "confidence": "extracted"
+    },
+    {
+      "source": "fsd-ui-approval/scripts/consolidar.py",
+      "target": "fsd-ui-approval/scripts/consolidar.py#main",
+      "relation": "calls",
+      "confidence": "extracted"
+    },
+    {
+      "source": "fsd-ui-approval/scripts/consolidar.py",
+      "target": "fsd-ui-approval/scripts/consolidar.py#aplicar_auditoria",
+      "relation": "contains",
+      "confidence": "extracted"
+    },
+    {
+      "source": "fsd-ui-approval/scripts/consolidar.py",
+      "target": "fsd-ui-approval/scripts/consolidar.py#carregar_checklist",
+      "relation": "contains",
+      "confidence": "extracted"
+    },
+    {
+      "source": "fsd-ui-approval/scripts/consolidar.py",
+      "target": "fsd-ui-approval/scripts/consolidar.py#celula",
+      "relation": "contains",
+      "confidence": "extracted"
+    },
+    {
+      "source": "fsd-ui-approval/scripts/consolidar.py",
+      "target": "fsd-ui-approval/scripts/consolidar.py#descricao",
+      "relation": "contains",
+      "confidence": "extracted"
+    },
+    {
+      "source": "fsd-ui-approval/scripts/consolidar.py",
+      "target": "fsd-ui-approval/scripts/consolidar.py#juntar",
+      "relation": "contains",
+      "confidence": "extracted"
+    },
+    {
+      "source": "fsd-ui-approval/scripts/consolidar.py",
+      "target": "fsd-ui-approval/scripts/consolidar.py#main",
+      "relation": "contains",
+      "confidence": "extracted"
+    },
+    {
+      "source": "fsd-ui-approval/scripts/consolidar.py",
+      "target": "fsd-ui-approval/scripts/consolidar.py#relatorio",
+      "relation": "contains",
+      "confidence": "extracted"
+    },
+    {
+      "source": "fsd-ui-approval/scripts/consolidar.py",
+      "target": "fsd-ui-approval/scripts/consolidar.py#texto",
+      "relation": "contains",
+      "confidence": "extracted"
+    },
+    {
+      "source": "fsd-ui-approval/scripts/consolidar.py",
+      "target": "fsd-ui-approval/scripts/consolidar.py#validar",
+      "relation": "contains",
+      "confidence": "extracted"
+    },
+    {
+      "source": "fsd-ui-approval/scripts/consolidar.py",
+      "target": "fsd-ui-approval/scripts/consolidar.py#veredito",
+      "relation": "contains",
+      "confidence": "extracted"
+    },
+    {
+      "source": "fsd-ui-approval/scripts/consolidar.py",
+      "target": "argparse",
+      "relation": "imports",
+      "confidence": "extracted"
+    },
+    {
+      "source": "fsd-ui-approval/scripts/consolidar.py",
+      "target": "datetime",
+      "relation": "imports",
+      "confidence": "extracted"
+    },
+    {
+      "source": "fsd-ui-approval/scripts/consolidar.py",
+      "target": "json",
+      "relation": "imports",
+      "confidence": "extracted"
+    },
+    {
+      "source": "fsd-ui-approval/scripts/consolidar.py",
+      "target": "pathlib",
+      "relation": "imports",
+      "confidence": "extracted"
+    },
+    {
+      "source": "fsd-ui-approval/scripts/consolidar.py",
+      "target": "re",
+      "relation": "imports",
+      "confidence": "extracted"
+    },
+    {
+      "source": "fsd-ui-approval/scripts/consolidar.py",
+      "target": "sys",
+      "relation": "imports",
+      "confidence": "extracted"
+    },
+    {
+      "source": "fsd-ui-approval/scripts/consolidar.py#aplicar_auditoria",
+      "target": "fsd-ui-approval/scripts/consolidar.py#texto",
+      "relation": "calls",
+      "confidence": "extracted"
+    },
+    {
+      "source": "fsd-ui-approval/scripts/consolidar.py#descricao",
+      "target": "fsd-ui-approval/scripts/consolidar.py#celula",
+      "relation": "calls",
+      "confidence": "extracted"
+    },
+    {
+      "source": "fsd-ui-approval/scripts/consolidar.py#main",
+      "target": "fsd-ui-approval/scripts/consolidar.py#aplicar_auditoria",
+      "relation": "calls",
+      "confidence": "extracted"
+    },
+    {
+      "source": "fsd-ui-approval/scripts/consolidar.py#main",
+      "target": "fsd-ui-approval/scripts/consolidar.py#carregar_checklist",
+      "relation": "calls",
+      "confidence": "extracted"
+    },
+    {
+      "source": "fsd-ui-approval/scripts/consolidar.py#main",
+      "target": "fsd-ui-approval/scripts/consolidar.py#juntar",
+      "relation": "calls",
+      "confidence": "extracted"
+    },
+    {
+      "source": "fsd-ui-approval/scripts/consolidar.py#main",
+      "target": "fsd-ui-approval/scripts/consolidar.py#relatorio",
+      "relation": "calls",
+      "confidence": "extracted"
+    },
+    {
+      "source": "fsd-ui-approval/scripts/consolidar.py#main",
+      "target": "fsd-ui-approval/scripts/consolidar.py#validar",
+      "relation": "calls",
+      "confidence": "extracted"
+    },
+    {
+      "source": "fsd-ui-approval/scripts/consolidar.py#main",
+      "target": "fsd-ui-approval/scripts/consolidar.py#veredito",
+      "relation": "calls",
+      "confidence": "extracted"
+    },
+    {
+      "source": "fsd-ui-approval/scripts/consolidar.py#relatorio",
+      "target": "fsd-ui-approval/scripts/consolidar.py#celula",
+      "relation": "calls",
+      "confidence": "extracted"
+    },
+    {
+      "source": "fsd-ui-approval/scripts/consolidar.py#relatorio",
+      "target": "fsd-ui-approval/scripts/consolidar.py#descricao",
+      "relation": "calls",
+      "confidence": "extracted"
+    },
+    {
+      "source": "fsd-ui-approval/scripts/consolidar.py#validar",
+      "target": "fsd-ui-approval/scripts/consolidar.py#texto",
+      "relation": "calls",
+      "confidence": "extracted"
+    }
+  ]
+}

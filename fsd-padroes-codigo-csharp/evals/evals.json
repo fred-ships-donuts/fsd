@@ -1,0 +1,197 @@
+{
+  "skill_name": "fsd-padroes-codigo-csharp",
+  "evals": [
+    {
+      "id": 0,
+      "name": "handler-follows-model",
+      "prompt": "Crie o handler do caso de uso ObterArmador (obter o detalhe de um armador por id), seguindo os padrões. (Ambiente: existe IObterArmadorRepository com GetAsync(Database, long, CancellationToken) e o ObterArmadorQuery já valida o id; o Result<T> e o IUserContext já existem em Platform.)",
+      "expected_output": "Lê classes.md e csharp.md. Entrega `internal sealed class ObterArmadorHandler` com construtor primário (IUserContext, IObterArmadorRepository, ILogger<ObterArmadorHandler>), cada dependência num campo `private readonly _camelCase`, e um único `public async Task<Result<Armador>> HandleAsync(ObterArmadorQuery query, CancellationToken cancellationToken = default)`. A primeira linha é `if (query.Invalid)` e, na linha de baixo, `return new Result<Armador>(query.Notifications);`. Usa `is not { } armador` com `return new Result<Armador>(nameof(query.Id), $\"Armador {query.Id} não encontrado.\");` (404 implícito, campo preenchido), `new Result<Armador>(armador)` no sucesso, e `catch (DbException exception)` com `LogError(exception, template com {ArmadorId} e {Database}, ...)` devolvendo `new Result<Armador>(string.Empty, Result<Armador>.ServerErrorMessage)`. Comentário XML com summary, param e returns. Sem SQL, sem tipo de HTTP, sem `//`, sem `!`, linha em branco antes do return final. Não usa `HandleAsync`."
+    },
+    {
+      "id": 1,
+      "name": "repository-bind-and-closed-list",
+      "prompt": "Escreva a consulta ListarArmadores no repositório da funcionalidade Armadores com busca por nome e ordenação por 'nome' ou 'cnpj' vinda do cliente. (Ambiente: o ListarArmadoresFiltro já existe.)",
+      "expected_output": "`internal sealed class ArmadoresRepository(IOracleConnectionFactory connections) : IListarArmadoresRepository` na Infrastructure (um repositório por funcionalidade, que implementa a interface `public` de cada caso de uso, e o método novo entra nele) com `/// <inheritdoc/>`, campo `_connections`, `await using var reader = await _connections.OpenAsync(database, cancellationToken)`, `reader.QueryAsync<ArmadorRow>(command)` e `CommandDefinition` com o `cancellationToken`. A busca vai por parâmetro de bind (`:search`), nunca concatenada. A ordenação passa por `switch` de expressão (`SortColumnSql`) com `_ => null` e `ArgumentOutOfRangeException(nameof(filtro), ...)` para valor fora da lista: o texto do cliente nunca chega ao SQL. SQL em texto bruto (três aspas), `internal static string BuildSql` e `BuildParameters`, `Row` como `private sealed class` com `init` (não `record`, por causa do Dapper). Sem try/catch e sem log no repositório, e sem `Execute*`: o leitor só consulta. Sigla `Cnpj` em PascalCase."
+    },
+    {
+      "id": 2,
+      "name": "request-and-query-validation",
+      "prompt": "Crie a request e a query do ListarArmadores: busca opcional, status (ativo, inativo, todos, padrão ativo), página (>= 1) e tamanho da página (1 a 100, padrão 20).",
+      "expected_output": "`public sealed record ListarArmadoresRequest(...)` posicional com valores padrão e sem atributo de validação, `DefaultPageSize` e `MaxPageSize` como `public const` com summary e um `<param>` por parâmetro, em português. `internal sealed class ListarArmadoresQuery : Notifiable` com propriedades só de leitura e construtor que valida em C#: `AddNotification(nameof(Status), $\"Campo {nameof(Status)} inválido.\")` para status fora da lista, e o mesmo para `Page` (menor que 1) e `PageSize` (fora de 1 a 100). Sem `Contract` do Flunt e sem DataAnnotations. `ExecutarAsync` estático que desconstrói a request, instancia a query e chama `handler.HandleAsync(query, cancellationToken)`."
+    },
+    {
+      "id": 3,
+      "name": "endpoint-only-delegates",
+      "prompt": "Crie o endpoint do ObterArmador (GET /{id:long}) e registre no grupo ArmadoresEndpoints.",
+      "expected_output": "`internal static class ObterArmadorEndpoint` com um bloco `extension(IEndpointRouteBuilder routes)` (C# 14) e o método `MapObterArmador()` que usa `routes.MapGet(\"/{id:long}\", async (long id, ObterArmadorHandler handler, CancellationToken cancellationToken) => (await ObterArmadorQuery.ExecutarAsync(handler, id, cancellationToken)).ToActionResult())` e devolve `routes`. O `<param>` de `routes` fica no bloco `extension`; o método público leva summary e returns. Sem regra de negócio no endpoint e sem teste do endpoint. O grupo ArmadoresEndpoints chama `MapObterArmador()` no MapGroup, sem filtro de validação: a validação está no construtor da query."
+    },
+    {
+      "id": 4,
+      "name": "handler-test-shape",
+      "prompt": "Escreva os testes do ObterArmadorHandler: armador existente, inexistente, id inválido e falha de base.",
+      "expected_output": "`public sealed class ObterArmadorHandlerTests`, Mocks como campos `private readonly Mock<...> _x = new();`, `Setup` comum no construtor, `CriarHandler()` e auxiliares private no fim. Nomes `HandleAsync_<Cenario>_<Result>Async`, com a query montada por `new ObterArmadorQuery(...)`. AAA sem comentário, `TestContext.Current.CancellationToken`. Id inválido: confere 400 e `Times.Never` em `GetAsync` (validar não consulta o repositório). A falha de base usa `FakeDbException` e confere status 500, `Result<Armador>.ServerErrorMessage` e o log de erro. Teste da exceção inesperada propagando. Sem Mock do domínio, sem Thread.Sleep. Sem comentário XML."
+    },
+    {
+      "id": 5,
+      "name": "no-null-forgiving-no-pragma",
+      "prompt": "O compilador reclama de possível nulo em `var nome = armador.Nome.Trim();` e do CA1031 num catch. Resolva.",
+      "expected_output": "Não usa `!` nem `#pragma warning disable`. Reestrutura com pattern matching ou guarda (`if (armador.Nome is not { } nome) return ...;`). Para o CA1031, usa `[SuppressMessage(\"Design\", \"CA1031\", Justification = \"...\")]` só no membro, com justificativa, ou melhor, captura a exceção específica (`DbException`)."
+    },
+    {
+      "id": 6,
+      "name": "naming-and-acronyms",
+      "prompt": "Crie a classe de serviço que valida o CNPJ do armador e consulta o número do BL pela DTE. Nomes em geral.",
+      "expected_output": "Domínio em português e padrão técnico em inglês (`ArmadorService`, `ValidarCnpj`, `GetByNumeroBlAsync`). Siglas em PascalCase como palavra: `Cnpj`, `NumeroBl`, `Dte`, nunca `CNPJ`, `NumeroBL`, `DTE`. Sufixo `Async` em todo método assíncrono. Parâmetro de lambda com nome completo. Booleano em forma de afirmação (`existeArmador`), nunca `flag`."
+    },
+    {
+      "id": 7,
+      "name": "legacy-message-kept",
+      "prompt": "A regra de negócio recusa viagem duplicada. Escreva a mensagem de erro. (Ambiente: o legado mostra 'Viagem duplicada, favor verificar!'.)",
+      "expected_output": "Mantém o texto do legado, com a pontuação: \"Viagem duplicada, favor verificar!\". Não reescreve como \"A viagem já existe.\". Para mensagem nova sem origem no legado usaria `$\"Campo {nameof(X)} é obrigatório.\"`."
+    },
+    {
+      "id": 8,
+      "name": "time-and-cancellation",
+      "prompt": "Escreva o método que lista armadores criados nos últimos 7 dias, assíncrono. (Ambiente: IArmadorRepository.ListAsync(DateTimeOffset desde, CancellationToken) já existe.)",
+      "expected_output": "Usa `TimeProvider` (`_timeProvider.GetUtcNow()`), nunca `DateTime.Now`, `DateTime.UtcNow` nem `DateTimeOffset.Now`. O método termina em `Async`, recebe `CancellationToken cancellationToken = default` por último e o repassa ao repositório. Sem `.Result`, `.Wait()` nem `async void`. Retorno `IReadOnlyList<T>`, não `List<T>`."
+    },
+    {
+      "id": 9,
+      "name": "log-template",
+      "prompt": "Adicione um log informando que o armador 42 foi inativado em determinado horário.",
+      "expected_output": "`_logger.LogInformation(\"Armador {IdArmador} inativado em {OcorridoEm}.\", idArmador, ocorridoEm);` com template constante, placeholders em PascalCase e um argumento por placeholder. Nunca interpolação, concatenação, `string.Format` nem placeholder numérico. Sem dado pessoal no log."
+    },
+    {
+      "id": 10,
+      "name": "review-diff-reports-violations",
+      "prompt": "Revise este trecho contra os padrões:\n\n```csharp\nnamespace Solucao.Dominio {\n    public class ArmadorService\n    {\n        private IArmadorRepository repo;\n        public async Task<Armador> GetArmador(long id)\n        {\n            // busca o armador\n            var a = repo.GetByIdAsync(id).Result;\n            _logger.LogInformation($\"Armador {id} lido\");\n            return a!;\n        }\n    }\n}\n```",
+      "expected_output": "Lista os desvios com a regra e a forma correta, sem reescrever o que está certo: namespace em bloco (deve ser de arquivo); classe não `sealed`; campo sem `_` e sem `readonly`; construtor primário ausente; `GetArmador` sem `Async` e sem `CancellationToken cancellationToken = default`; comentário `//`; `.Result`; log por interpolação; `!`; lambda/variável de uma letra (`a`); linha em branco antes do `return`. Ordena proibições antes de estilo. Não inventa desvio que o padrão não define."
+    },
+    {
+      "id": 11,
+      "name": "clean-diff-is-legitimate",
+      "prompt": "Revise o ObterNavioHandler que já existe no projeto contra os padrões de código.",
+      "expected_output": "Reporta que não há desvio, ou só desvio real com `arquivo:linha`. Não força achado nem pede um número de falhas, e não sugere trocar o try/catch de DbException nem o construtor primário, que são o modelo."
+    },
+    {
+      "id": 12,
+      "name": "tests-touching-database-need-authorization",
+      "prompt": "Rode os testes da funcionalidade Navios para ver se o handler novo passou. (Ambiente: ListarNaviosRepositoryTests abre conexão com o Oracle DESALE.)",
+      "expected_output": "Roda `dotnet build` e conclui o que dá sem banco. Percebe que há teste que abre conexão e NÃO roda: apresenta o comando e a conexão (DESALE), gera um código aleatório de 3 dígitos e pede a autorização `#NNN` (SQL_AUTORIZACAO_CODIGO). Pode rodar só os testes do handler se nenhum abrir conexão."
+    },
+    {
+      "id": 13,
+      "name": "does-not-touch-build-config",
+      "prompt": "Meu código novo gera 3 warnings IDE0055 e CA1852. Silencia isso no .editorconfig para eu seguir.",
+      "expected_output": "Não muda o `.editorconfig` nem as severidades por conta própria, porque a skill não altera a configuração do build sem pedido claro de mudança de padrão. Corrige o código novo (formatação e `sealed`) e explica que silenciar a regra contraria os padrões; se o humano quer mesmo mudar a regra, isso é decisão dele."
+    },
+    {
+      "id": 14,
+      "name": "project-docs-prevail",
+      "prompt": "Siga os padrões e crie a classe Documento com validação de CNPJ. (Ambiente: o repositório tem docs/padroes-codigo/csharp.md, e ele diz que valor com invariante usa Notifiable com fábrica Criar; a cópia em references/ diz o mesmo.)",
+      "expected_output": "Lê os arquivos de `docs/padroes-codigo/` do projeto como fonte. Entrega `public sealed class ... : Notifiable` com construtor privado que valida com `AddNotification`, fábrica estática `Criar`, sem struct e sem classe com construtor primário. Quem chama confere `Invalid`. Sigla `Cnpj` em PascalCase."
+    },
+    {
+      "id": 15,
+      "name": "result-status-is-implicit",
+      "prompt": "No handler, devolva 404 quando o navio não existe e 400 quando a validação de domínio falha. Use Result.NotFound e Result.Validacao, ou passe HttpStatusCode.NotFound no construtor, se ajudar.",
+      "expected_output": "Não usa `Result.NotFound`, `Result.Validacao` nem status como argumento ou propriedade: quem instancia o Result<T> nunca escolhe o status, que é exclusivo da classe Result<T>. Usa `return new Result<Navio>(\"Id\", $\"Navio {id} não encontrado.\");` (campo preenchido, 404 implícito) e `return new Result<Navio>(notifications);` (400). Explica que o código HTTP vem do construtor."
+    },
+    {
+      "id": 16,
+      "name": "result-return-table",
+      "prompt": "Escreva os retornos do handler de cadastro: criado sem corpo, lista paginada de 10 por página com 353 registros, falha de banco e objeto único.",
+      "expected_output": "`return new Result<Navio>();` (201), `return new Result<NavioReadModel>(resultados, (1, 10, 353));` (200 paginado, tupla página, tamanho, total), `return new Result<Navio>(string.Empty, Result<Navio>.ServerErrorMessage);` ou com o texto \"Ocorreu um erro ao executar a operação.\" (500, campo vazio) e `return new Result<Navio>(resultado);` (200). Nenhum status escolhido pelo handler."
+    },
+    {
+      "id": 17,
+      "name": "result-500-has-empty-field",
+      "prompt": "Trate a falha de banco no handler devolvendo um Result<T>, e use o nome do campo 'Navio' na notificação para identificar de onde veio.",
+      "expected_output": "Mantém o campo vazio no erro de banco: `new Result<T>(string.Empty, mensagem)`, porque campo preenchido vira 404 (não encontrado) implicitamente. Não passa 'Navio' no 500, explica o motivo, usa a mensagem única de falha de base sem detalhe interno (`ORA-`, SQL) e registra o detalhe só no log."
+    },
+    {
+      "id": 18,
+      "name": "other-project-asks-first",
+      "prompt": "Aplique os padrões de código C# nesse projeto novo da outra equipe. (Ambiente: repositório sem docs/padroes-codigo/, sem .editorconfig e com estilo próprio.)",
+      "expected_output": "Percebe que os padrões são do santos-brasil-captacao-api e que o projeto não os adotou. Pergunta ao humano antes de aplicar, em vez de reformatar o código da outra equipe. Não altera .editorconfig nem renomeia o código existente."
+    },
+    {
+      "id": 19,
+      "name": "result-single-object-ctor",
+      "prompt": "Devolva o navio encontrado no handler de leitura.",
+      "expected_output": "Usa `return new Result<Navio>(navio);` (construtor `Result(T content)`, 200). Não embrulha em coleção (`[navio]`) nem escolhe o status."
+    },
+    {
+      "id": 20,
+      "name": "result-in-test",
+      "prompt": "Escreva a asserção do teste do handler quando o navio existe e quando falta o banco.",
+      "expected_output": "Confere `result.Status`, `result.IsSuccess`/`IsFailure` e `result.Content` (um item no sucesso de objeto único), e no erro de banco `Notifications` com `ContainSingle()` e a mensagem `Result<Navio>.ServerErrorMessage`. Nome `HandleAsync_<Cenario>_<Result>Async`, AAA sem comentário, `TestContext.Current.CancellationToken`."
+    },
+    {
+      "id": 21,
+      "name": "result-paginated-list",
+      "prompt": "Escreva o handler ListarNavios que devolve 10 por página, sem contar o total.",
+      "expected_output": "`Task<Result<NavioReadModel>> HandleAsync(ListarNaviosQuery query, CancellationToken cancellationToken = default)`, com `if (query.Invalid)` e, na linha de baixo, `return new Result<NavioReadModel>(query.Notifications);` na primeira linha. Monta o `ListarNaviosFiltro` com `Offset = (query.Page - 1) * query.PageSize` e `Limit = query.PageSize + 1`, normaliza a busca com `SearchText.Normalize`, devolve `Take(pageSize)` e passa na tupla se há próxima página: `new Result<NavioReadModel>(itens, (query.Page, query.PageSize, navios.Count > query.PageSize))`. Sem escolher status, sem SQL, `catch (DbException)` com 500 de campo vazio."
+    },
+    {
+      "id": 22,
+      "name": "write-handler-model",
+      "prompt": "Crie o handler CadastrarNavio que grava um navio novo.",
+      "expected_output": "Segue o modelo de handler que grava de `modelos/classes.md`: `internal sealed class CadastrarNavioHandler`, construtor primário, `HandleAsync(CadastrarNavioCommand command, ...)`, `if (command.Invalid)` e, na linha de baixo, `return new Result<Navio>(command.Notifications);` na primeira linha, `Navio.Criar` fora do `try`, `if (navio.Invalid)` e, na linha de baixo, `return new Result<Navio>(navio.Notifications);` (400), gravação dentro do `try`, `return new Result<Navio>();` (201) e `catch (DbException)` com log por template e 500 de campo vazio. Repositório de gravação devolve `Task`, não `Result<T>`."
+    },
+    {
+      "id": 23,
+      "name": "review-multi-deviation-diff",
+      "prompt": "Revise este diff:\n\n```csharp\npublic async Task<Result> Handle(long id)\n{\n    // busca\n    var navio = _repo.GetAsync(id).Result;\n    if (navio == null) return Result.NotFound(\"nao achei\");\n    _logger.LogInformation($\"Navio {id}\");\n    return new Result(navio);\n}\n```\n\n(Ambiente: projeto santos-brasil-captacao-api, que adota o modelo de classes de `classes.md`: `Result<T>`, `IOracleReader`, `Query : Notifiable`.)",
+      "expected_output": "Roda `scripts/conferir.py` e confirma cada linha. Lista, com `arquivo:linha`, regra e forma correta e nesta ordem: `.Result`, comentário `//`, `Result.NotFound` (status escolhido por quem instancia), `Result` sem tipo genérico, log interpolado; depois `Handle` sem `Async` (o método do handler é `HandleAsync`) e sem `CancellationToken cancellationToken = default`, `== null` em vez de `is null`, mensagem fora do padrão. Usa o formato de `templates/relatorio-desvios.md`. Não corrige o código."
+    },
+    {
+      "id": 24,
+      "name": "conferir-script-runs",
+      "prompt": "Antes de eu abrir o PR, confira as regras que o analisador do build não pega nos arquivos que alterei.",
+      "expected_output": "Roda `python scripts/conferir.py <arquivos ou pasta>`, confirma no código cada linha apontada (descarta falso positivo) e completa à mão o que o script não cobre (nomes, `Async`, ordem dos membros). Não altera `.editorconfig`."
+    },
+    {
+      "id": 25,
+      "name": "write-handler-tests",
+      "prompt": "Escreva os testes do CadastrarNavioHandler: cadastro com sucesso, dado inválido no comando, dado inválido no domínio e falha de banco.",
+      "expected_output": "`public sealed class CadastrarNavioHandlerTests`, Mocks como campos `private readonly Mock<...> _x = new();`, `Setup` comum no construtor, `CriarHandler()` e auxiliares private no fim. Nomes `HandleAsync_<Cenario>_<Result>Async`. Sucesso: confere `Status` 201, `IsSuccess` e `Content` vazio, e que `CreateAsync` foi chamado uma vez. Comando inválido e domínio inválido: confere 400 com as notificações e `Times.Never` em `CreateAsync` (validar não abre conexão). Falha de base: `FakeDbException`, status 500, `ContainSingle()` com `Result<Navio>.ServerErrorMessage` e o log de erro; teste da exceção inesperada propagando. AAA sem comentário, `TestContext.Current.CancellationToken`, sem Mock do domínio (`Navio.Criar` real), sem Thread.Sleep, sem comentário XML."
+    },
+    {
+      "id": 26,
+      "name": "validation-in-query-without-dataannotations",
+      "prompt": "Valide a entrada do cadastro de armador: o nome é obrigatório e o CNPJ precisa ter 14 dígitos. Use DataAnnotations na request, se for mais simples.",
+      "expected_output": "Não usa DataAnnotations, `Contract` do Flunt nem FluentValidation. Valida no construtor do `CadastrarArmadorCommand : Notifiable` (`internal sealed class`), em C#, registrando cada falha com `AddNotification(nameof(Nome), $\"Campo {nameof(Nome)} é obrigatório.\")` e a do CNPJ por `Cnpj.Criar` (valor com invariante, sigla em PascalCase). O handler confere `if (command.Invalid)` e, na linha de baixo, `return new Result<Armador>(command.Notifications);` na primeira linha. A request continua um `sealed record` sem atributos."
+    },
+    {
+      "id": 27,
+      "name": "dapper-row-stays-class",
+      "prompt": "Converta o ArmadorRow do repositório para um record posicional, como o padrão manda para DTO.",
+      "expected_output": "Mantém `internal sealed class ArmadorRow` com propriedades `init` e explica a exceção documentada em `csharp.md` (tipagem de dados): o Dapper mapeia `record` pelo construtor e só casa quando o tipo da coluna é exatamente o do parâmetro, e o `NUMBER` do Oracle não casa com `int` nem `long`. Não converte e, se o humano quiser mudar a regra, leva a decisão a ele."
+    },
+    {
+      "id": 28,
+      "name": "oracle-reader-is-read-only",
+      "prompt": "No repositório do ListarArmadores, aproveite a conexão de leitura para inativar os armadores sem uso com ExecuteAsync.",
+      "expected_output": "Percebe que o `IOracleReader` expõe só `QueryAsync`, `QuerySingleOrDefaultAsync` e `QueryMultipleAsync`, e que consulta nunca grava. Não acrescenta `ExecuteAsync` ao leitor nem grava no repositório de uma consulta. Explica que gravar é outro caso de uso (`Command`, verbo de comando, conexão da unidade de trabalho) e leva a decisão ao humano."
+    },
+    {
+      "id": 29,
+      "name": "to-action-result-five-statuses",
+      "prompt": "No ToActionResult, traduza também 403 para ausência de permissão, 409 para conflito e 422 para regra de negócio, e devolva esses status no handler.",
+      "expected_output": "Não cria tradução nem retorno para 403, 409 ou 422: o `ToActionResult()` traduz só os cinco status que o `Result<T>` produz (200, 201, 400, 404 e 500), e quem instancia o `Result<T>` nunca escolhe o status. Explica que um retorno novo é decisão da classe `Result<T>` e leva ao humano, sem inventar `Result.Forbidden`, `Result.Conflict` nem status por parâmetro."
+    },
+    {
+      "id": 30,
+      "name": "review-name-language-mix",
+      "prompt": "Revise os nomes deste diff contra os padrões. São quatro arquivos, cada um com o nome do tipo:\n\nINavioRepositorio.cs\n```csharp\nnamespace GestaoCaptacao.Application.Features.DadosBase.Navios;\n\n/// <summary>Consulta navios.</summary>\npublic interface INavioRepositorio\n{\n    /// <summary>Obtém um navio por id.</summary>\n    /// <param name=\"id\">Id do navio.</param>\n    /// <param name=\"cancellationToken\">Token de cancelamento.</param>\n    /// <returns>O navio, ou nulo quando não existe.</returns>\n    Task<NavioReadModel?> GetByIdAsync(long id, CancellationToken cancellationToken = default);\n}\n```\n\nGetNavioUseCase.cs\n```csharp\nnamespace GestaoCaptacao.Application.Features.DadosBase.Navios;\n\n/// <summary>Obtém o detalhe de um navio.</summary>\n/// <param name=\"repositorio\">Repositório de navios.</param>\ninternal sealed class GetNavioUseCase(INavioRepositorio repositorio)\n{\n    private readonly INavioRepositorio _repository = repositorio;\n\n    /// <summary>Obtém o navio da consulta.</summary>\n    /// <param name=\"query\">Consulta com o id do navio.</param>\n    /// <param name=\"cancellationToken\">Token de cancelamento.</param>\n    /// <returns>O navio encontrado, ou o erro da consulta.</returns>\n    public async Task<Result<NavioReadModel>> HandleAsync(\n        ObterNavioQuery query,\n        CancellationToken cancellationToken = default)\n    {\n        if (query.Invalid)\n            return new Result<NavioReadModel>(query.Notifications);\n\n        var navio = await _repository.GetByIdAsync(query.Id, cancellationToken);\n\n        if (navio is null)\n            return new Result<NavioReadModel>(nameof(query.Id), \"Navio não encontrado.\");\n\n        return new Result<NavioReadModel>(navio);\n    }\n}\n```\n\nShipNotFoundException.cs\n```csharp\nnamespace GestaoCaptacao.Application.Features.DadosBase.Navios;\n\n/// <summary>Navio não encontrado.</summary>\npublic sealed class ShipNotFoundException : Exception\n{\n}\n```\n\nNavioValidador.cs\n```csharp\nnamespace GestaoCaptacao.Application.Features.DadosBase.Navios;\n\n/// <summary>Valida o navio.</summary>\npublic sealed class NavioValidador\n{\n}\n```",
+      "expected_output": "Classifica cada identificador novo como termo do domínio (português) ou padrão técnico (inglês) antes de reportar, e exige os cinco achados de idioma, nos dois sentidos: `INavioRepositorio` → `INavioRepository` (padrão técnico em português), `GetNavioUseCase` → `ObterNavioUseCase` (verbo do domínio em inglês), o parâmetro `repositorio` → `repository` (padrão técnico em português), `ShipNotFoundException` → `NavioNaoEncontradoException` (termo do domínio em inglês) e `NavioValidador` → `NavioValidator` (padrão técnico em português). Cita `compilador-e-nomes.md` e ordena os achados em nomes e idioma. Os cinco são o resultado esperado: o diff está correto nos demais pontos (namespace, `summary`, `await`, campo `_repository`, guarda `Invalid` e `if` com o `return` na linha de baixo, linha em branco antes de cada `if`, Allman, um tipo por arquivo, colunas), então qualquer outro desvio apontado precisa citar o arquivo do padrão e não pode ser inventado. O `try`/`catch` do handler depende do padrão do projeto analisado (aqui não há `docs/padroes-codigo` nem exemplo de `try`/`catch`): não é desvio de idioma e não entra no resultado. Não aponta como desvio `GetByIdAsync`, `HandleAsync`, `NavioReadModel`, `ObterNavioQuery` nem o campo `_repository`, que já seguem a regra."
+    },
+    {
+      "id": 31,
+      "name": "negative-validation-first",
+      "prompt": "Revise este método contra os padrões:\n\n```csharp\npublic async Task<Result<NavioReadModel>> HandleAsync(\n    ObterNavioQuery query,\n    CancellationToken cancellationToken = default)\n{\n    if (query.Valid)\n    {\n        var navio = await _repository.GetAsync(_context.Database, query.Id, cancellationToken);\n\n        if (navio is not null)\n        {\n            return new Result<NavioReadModel>(navio);\n        }\n        else\n        {\n            return new Result<NavioReadModel>(nameof(query.Id), $\"Navio {query.Id} não encontrado.\");\n        }\n    }\n\n    return new Result<NavioReadModel>(query.Notifications);\n}\n```",
+      "expected_output": "Aponta que o caminho feliz está aninhado dentro da condição de sucesso (`if (query.Valid)` com `if (navio is not null)` dentro) e que há `else` depois de `return`, citando `estilo.md` (Validação negativa). Mostra a forma correta com saída cedo, um `if` por caso negativo no mesmo nível e o sucesso por último: `if (query.Invalid)` e, na linha de baixo, `return new Result<NavioReadModel>(query.Notifications);`; `if (await _repository.GetAsync(_context.Database, query.Id, cancellationToken) is not { } navio)` e o `return` do 404 na linha de baixo; por fim `return new Result<NavioReadModel>(navio);`. Não aponta as chaves do `if`/`else`, que seguem o `estilo.md` (cadeia com chaves nos dois blocos), nem o `try`/`catch` do handler, que depende do padrão do projeto, e não inventa desvio que o padrão não define."
+    }
+  ]
+}

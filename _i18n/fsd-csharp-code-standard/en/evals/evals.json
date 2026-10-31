@@ -1,0 +1,197 @@
+{
+  "skill_name": "fsd-csharp-code-standard",
+  "evals": [
+    {
+      "id": 0,
+      "name": "handler-follows-model",
+      "prompt": "Create the handler for the GetShipowner use case (get the detail of a shipowner by id), following the standards. (Environment: IGetShipownerRepository exists with GetAsync(Database, long, CancellationToken) and GetShipownerQuery already validates the id; Result<T> and IUserContext already exist in Platform.)",
+      "expected_output": "Reads classes.md and csharp.md. Delivers `internal sealed class GetShipownerHandler` with a primary constructor (IUserContext, IGetShipownerRepository, ILogger<GetShipownerHandler>), each dependency in a `private readonly _camelCase` field, and a single `public async Task<Result<Shipowner>> HandleAsync(GetShipownerQuery query, CancellationToken cancellationToken = default)`. The first line is `if (query.Invalid)` and, on the line below, `return new Result<Shipowner>(query.Notifications);`. Uses `is not { } shipowner` with `return new Result<Shipowner>(nameof(query.Id), $\"Shipowner {query.Id} not found.\");` (implicit 404, filled field), `new Result<Shipowner>(shipowner)` on success, and `catch (DbException exception)` with `LogError(exception, template with {ShipownerId} and {Database}, ...)` returning `new Result<Shipowner>(string.Empty, Result<Shipowner>.ServerErrorMessage)`. XML comment with summary, param, and returns, in English. No SQL, no HTTP type, no `//`, no `!`, blank line before the final return. Does not use `Handle` without `Async`."
+    },
+    {
+      "id": 1,
+      "name": "repository-bind-and-closed-list",
+      "prompt": "Write the ListShipowners query in the repository of the Shipowners feature, with search by name and ordering by 'name' or 'ein' coming from the client. (Environment: ListShipownersFilter already exists.)",
+      "expected_output": "`internal sealed class ShipownersRepository(IOracleConnectionFactory connections) : IListShipownersRepository` in Infrastructure (one repository per feature, which implements the `public` interface of each use case, and the new method goes into it) with `/// <inheritdoc/>`, a `_connections` field, `await using var reader = await _connections.OpenAsync(database, cancellationToken)`, `reader.QueryAsync<ShipownerRow>(command)`, and `CommandDefinition` with the `cancellationToken`. The search goes through a bind parameter (`:search`), never concatenated. Ordering goes through an expression `switch` (`SortColumnSql`) with `_ => null` and `ArgumentOutOfRangeException(nameof(filter), ...)` for a value outside the list: the client's text never reaches the SQL. SQL in raw text (three quotes), `internal static string BuildSql` and `BuildParameters`, `Row` as an `internal sealed class` with `init` (not `record`, because of Dapper). No try/catch and no log in the repository, and no `Execute*`: the reader only queries. Acronym `Ein` in PascalCase."
+    },
+    {
+      "id": 2,
+      "name": "request-and-query-validation",
+      "prompt": "Create the request and the query for ListShipowners: optional search, status (active, inactive, all, default active), page (>= 1), and page size (1 to 100, default 20).",
+      "expected_output": "`public sealed record ListShipownersRequest(...)` positional with default values and no validation attribute, `DefaultPageSize` and `MaxPageSize` as `public const` with a summary and one `<param>` per parameter, in English. `internal sealed class ListShipownersQuery : Notifiable` with read-only properties and a constructor that validates in C#: `AddNotification(nameof(Status), $\"Field {nameof(Status)} is invalid.\")` for a status outside the list, and the same for `Page` (less than 1) and `PageSize` (outside 1 to 100). No Flunt `Contract` and no DataAnnotations. A static `ExecuteAsync` that deconstructs the request, instantiates the query, and calls `handler.HandleAsync(query, cancellationToken)`."
+    },
+    {
+      "id": 3,
+      "name": "endpoint-only-delegates",
+      "prompt": "Create the endpoint for GetShipowner (GET /{id:long}) and register it in the ShipownersEndpoints group.",
+      "expected_output": "`internal static class GetShipownerEndpoint` with an `extension(IEndpointRouteBuilder routes)` block (C# 14) and the `MapGetShipowner()` method that uses `routes.MapGet(\"/{id:long}\", async (long id, GetShipownerHandler handler, CancellationToken cancellationToken) => (await GetShipownerQuery.ExecuteAsync(handler, id, cancellationToken)).ToActionResult())` and returns `routes`. The `<param>` for `routes` goes on the `extension` block; the public method carries summary and returns. No business rule in the endpoint and no endpoint test. The ShipownersEndpoints group calls `MapGetShipowner()` in the MapGroup, without a validation filter: validation is in the query's constructor."
+    },
+    {
+      "id": 4,
+      "name": "handler-test-shape",
+      "prompt": "Write the tests for GetShipownerHandler: existing shipowner, nonexistent, invalid id, and database failure.",
+      "expected_output": "`public sealed class GetShipownerHandlerTests`, Mocks as `private readonly Mock<...> _x = new();` fields, common `Setup` in the constructor, `CreateHandler()`, and private helpers at the end. Names `HandleAsync_<Scenario>_<Result>Async`, with the query built by `new GetShipownerQuery(...)`. AAA without comments, `TestContext.Current.CancellationToken`. Invalid id: checks 400 and `Times.Never` on `GetAsync` (validating does not query the repository). The database failure uses `FakeDbException` and checks status 500, `Result<Shipowner>.ServerErrorMessage`, and the error log. Test of the unexpected exception propagating. No domain Mock, no Thread.Sleep. No XML comment."
+    },
+    {
+      "id": 5,
+      "name": "no-null-forgiving-no-pragma",
+      "prompt": "The compiler complains about a possible null in `var name = shipowner.Name.Trim();` and about CA1031 in a catch. Fix it.",
+      "expected_output": "Uses neither `!` nor `#pragma warning disable`. Restructures with pattern matching or a guard (`if (shipowner.Name is not { } name) return ...;`). For CA1031, uses `[SuppressMessage(\"Design\", \"CA1031\", Justification = \"...\")]` only on the member, with a justification, or better, catches the specific exception (`DbException`)."
+    },
+    {
+      "id": 6,
+      "name": "naming-and-acronyms",
+      "prompt": "Create the service class that validates the shipowner's EIN and looks up the BL number by DTE. Names in general.",
+      "expected_output": "Everything in English (`ShipownerService`, `ValidateEin`, `GetByBlNumberAsync`). Acronyms in PascalCase as a word: `Ein`, `BlNumber`, `Dte`, never `EIN`, `BLNumber`, `DTE`. `Async` suffix on every asynchronous method. Lambda parameter with a full name. Boolean as an affirmative statement (`shipownerExists`), never `flag`."
+    },
+    {
+      "id": 7,
+      "name": "message-text-standard",
+      "prompt": "The business rule refuses a duplicate voyage. Write the error message.",
+      "expected_output": "Writes the message in English, as a complete sentence ending in a period that states the fact, such as \"A voyage with this data already exists.\". Does not write the message in another language. For a required field, it would use `$\"Field {nameof(X)} is required.\"`."
+    },
+    {
+      "id": 8,
+      "name": "time-and-cancellation",
+      "prompt": "Write the asynchronous method that lists shipowners created in the last 7 days. (Environment: IShipownerRepository.ListAsync(DateTimeOffset since, CancellationToken) already exists.)",
+      "expected_output": "Uses `TimeProvider` (`_timeProvider.GetUtcNow()`), never `DateTime.Now`, `DateTime.UtcNow`, or `DateTimeOffset.Now`. The method ends in `Async`, receives `CancellationToken cancellationToken = default` last, and passes it on to the repository. No `.Result`, `.Wait()`, or `async void`. Return `IReadOnlyList<T>`, not `List<T>`."
+    },
+    {
+      "id": 9,
+      "name": "log-template",
+      "prompt": "Add a log saying that shipowner 42 was deactivated at a given time.",
+      "expected_output": "`_logger.LogInformation(\"Shipowner {ShipownerId} deactivated at {OccurredAt}.\", shipownerId, occurredAt);` with a constant template in English, placeholders in PascalCase, and one argument per placeholder. Never interpolation, concatenation, `string.Format`, or a numeric placeholder. No personal data in the log."
+    },
+    {
+      "id": 10,
+      "name": "review-diff-reports-violations",
+      "prompt": "Review this snippet against the standards:\n\n```csharp\nnamespace Solution.Domain {\n    public class ShipownerService\n    {\n        private IShipownerRepository repo;\n        public async Task<Shipowner> GetShipowner(long id)\n        {\n            // fetches the shipowner\n            var s = repo.GetByIdAsync(id).Result;\n            _logger.LogInformation($\"Shipowner {id} read\");\n            return s!;\n        }\n    }\n}\n```",
+      "expected_output": "Lists the deviations with the rule and the correct form, without rewriting what is right: block namespace (must be file-scoped); non-`sealed` class; field without `_` and without `readonly`; missing primary constructor; `GetShipowner` without `Async` and without `CancellationToken cancellationToken = default`; `//` comment; `.Result`; interpolated log; `!`; one-letter lambda/variable (`s`); blank line before the `return`. Orders prohibitions before style. Does not invent a deviation the standard does not define."
+    },
+    {
+      "id": 11,
+      "name": "clean-diff-is-legitimate",
+      "prompt": "Review the GetVesselHandler that already exists in the project against the coding standards.",
+      "expected_output": "Reports that there is no deviation, or only a real deviation with `file:line`. Does not force a finding or ask for a number of failures, and does not suggest replacing the DbException try/catch or the primary constructor, which are the model."
+    },
+    {
+      "id": 12,
+      "name": "tests-touching-database-need-authorization",
+      "prompt": "Run the tests for the Vessels feature to see whether the new handler passed. (Environment: ListVesselsRepositoryTests opens a connection to the Oracle DEV_DB.)",
+      "expected_output": "Runs `dotnet build` and concludes what it can without the database. Notices that there is a test that opens a connection and does NOT run it: presents the command and the connection (DEV_DB), generates a random 3-digit code, and asks for the `#NNN` authorization (SQL_AUTORIZACAO_CODIGO). May run only the handler tests if none of them opens a connection."
+    },
+    {
+      "id": 13,
+      "name": "does-not-touch-build-config",
+      "prompt": "My new code generates 3 IDE0055 and CA1852 warnings. Silence that in .editorconfig so I can move on.",
+      "expected_output": "Does not change `.editorconfig` or the severities on its own, because the skill does not change the build configuration without a clear request to change the standard. Fixes the new code (formatting and `sealed`) and explains that silencing the rule goes against the standards; if the human really wants to change the rule, that is their decision."
+    },
+    {
+      "id": 14,
+      "name": "project-docs-prevail",
+      "prompt": "Follow the standards and create the Document class with EIN validation. (Environment: the repository has docs/coding-standards/csharp.md, and it says that a value with an invariant uses Notifiable with a Create factory; the copy in references/ says the same.)",
+      "expected_output": "Reads the files in the project's `docs/coding-standards/` as the source. Delivers `public sealed class ... : Notifiable` with a private constructor that validates with `AddNotification`, a static `Create` factory, no struct and no class with a primary constructor. Whoever calls it checks `Invalid`. Acronym `Ein` in PascalCase."
+    },
+    {
+      "id": 15,
+      "name": "result-status-is-implicit",
+      "prompt": "In the handler, return 404 when the vessel does not exist and 400 when the domain validation fails. Use Result.NotFound and Result.Validation, or pass HttpStatusCode.NotFound to the constructor, if that helps.",
+      "expected_output": "Does not use `Result.NotFound`, `Result.Validation`, or a status as an argument or property: whoever instantiates Result<T> never chooses the status, which belongs exclusively to the Result<T> class. Uses `return new Result<Vessel>(\"Id\", $\"Vessel {id} not found.\");` (filled field, implicit 404) and `return new Result<Vessel>(notifications);` (400). Explains that the HTTP code comes from the constructor."
+    },
+    {
+      "id": 16,
+      "name": "result-return-table",
+      "prompt": "Write the returns of the registration handler: created without a body, paginated list of 10 per page with 353 records, database failure, and a single object.",
+      "expected_output": "`return new Result<Vessel>();` (201), `return new Result<VesselReadModel>(results, (1, 10, 353));` (200 paginated, tuple page, size, total), `return new Result<Vessel>(string.Empty, Result<Vessel>.ServerErrorMessage);` or with the text \"An error occurred while executing the operation.\" (500, empty field) and `return new Result<Vessel>(result);` (200). No status chosen by the handler."
+    },
+    {
+      "id": 17,
+      "name": "result-500-has-empty-field",
+      "prompt": "Handle the database failure in the handler by returning a Result<T>, and use the field name 'Vessel' in the notification to identify where it came from.",
+      "expected_output": "Keeps the field empty on the database error: `new Result<T>(string.Empty, message)`, because a filled field implicitly becomes 404 (not found). Does not pass 'Vessel' on the 500, explains why, uses the single database-failure message without internal detail (`ORA-`, SQL), and records the detail only in the log."
+    },
+    {
+      "id": 18,
+      "name": "other-project-asks-first",
+      "prompt": "Apply the C# coding standards to this new project from the other team. (Environment: repository without docs/coding-standards/, without .editorconfig, and with its own style.)",
+      "expected_output": "Notices that the standards belong to my-project-api and that the project did not adopt them. Asks the human before applying, instead of reformatting the other team's code. Does not change .editorconfig or rename the existing code."
+    },
+    {
+      "id": 19,
+      "name": "result-single-object-ctor",
+      "prompt": "Return the vessel found in the read handler.",
+      "expected_output": "Uses `return new Result<Vessel>(vessel);` (constructor `Result(T content)`, 200). Does not wrap it in a collection (`[vessel]`) or choose the status."
+    },
+    {
+      "id": 20,
+      "name": "result-in-test",
+      "prompt": "Write the handler test assertion for when the vessel exists and when the database is missing.",
+      "expected_output": "Checks `result.Status`, `result.IsSuccess`/`IsFailure`, and `result.Content` (one item on single-object success), and on a database error `Notifications` with `ContainSingle()` and the message `Result<Vessel>.ServerErrorMessage`. Name `HandleAsync_<Scenario>_<Result>Async`, AAA without comments, `TestContext.Current.CancellationToken`."
+    },
+    {
+      "id": 21,
+      "name": "result-paginated-list",
+      "prompt": "Write the ListVessels handler that returns 10 per page, without counting the total.",
+      "expected_output": "`Task<Result<VesselReadModel>> HandleAsync(ListVesselsQuery query, CancellationToken cancellationToken = default)`, with `if (query.Invalid)` and, on the line below, `return new Result<VesselReadModel>(query.Notifications);` on the first line. Builds the `ListVesselsFilter` with `Offset = (query.Page - 1) * query.PageSize` and `Limit = query.PageSize + 1`, normalizes the search with `SearchText.Normalize`, returns `Take(pageSize)` and passes in the tuple whether there is a next page: `new Result<VesselReadModel>(items, (query.Page, query.PageSize, vessels.Count > query.PageSize))`. No status chosen, no SQL, `catch (DbException)` with a 500 and an empty field."
+    },
+    {
+      "id": 22,
+      "name": "write-handler-model",
+      "prompt": "Create the RegisterVessel handler that saves a new vessel.",
+      "expected_output": "Follows the write-handler model in `models/classes.md`: `internal sealed class RegisterVesselHandler`, primary constructor, `HandleAsync(RegisterVesselCommand command, ...)`, `if (command.Invalid)` and, on the line below, `return new Result<Vessel>(command.Notifications);` on the first line, `Vessel.Create` outside the `try`, `if (vessel.Invalid)` and, on the line below, `return new Result<Vessel>(vessel.Notifications);` (400), the write inside the `try`, `return new Result<Vessel>();` (201), and `catch (DbException)` with a template log and a 500 with an empty field. The write repository returns `Task`, not `Result<T>`."
+    },
+    {
+      "id": 23,
+      "name": "review-multi-deviation-diff",
+      "prompt": "Review this diff:\n\n```csharp\npublic async Task<Result> Handle(long id)\n{\n    // search\n    var vessel = _repo.GetAsync(id).Result;\n    if (vessel == null) return Result.NotFound(\"not found\");\n    _logger.LogInformation($\"Vessel {id}\");\n    return new Result(vessel);\n}\n```\n\n(Environment: my-project-api project, which adopts the class model of `classes.md`: `Result<T>`, `IOracleReader`, `Query : Notifiable`.)",
+      "expected_output": "Runs `scripts/check.py` and confirms each line. Lists, with `file:line`, rule, and correct form and in this order: `.Result`, `//` comment, `Result.NotFound` (status chosen by whoever instantiates), `Result` without a generic type, interpolated log; then `Handle` without `Async` (the handler's method is `HandleAsync`) and without `CancellationToken cancellationToken = default`, `== null` instead of `is null`, message outside the standard. Uses the format of `templates/deviations-report.md`. Does not fix the code."
+    },
+    {
+      "id": 24,
+      "name": "check-script-runs",
+      "prompt": "Before I open the PR, check the rules the build analyzer does not catch in the files I changed.",
+      "expected_output": "Runs `python scripts/check.py <files or folder>`, confirms in the code each line it points to (discards false positives), and completes by hand what the script does not cover (names, `Async`, member order). Does not change `.editorconfig`."
+    },
+    {
+      "id": 25,
+      "name": "write-handler-tests",
+      "prompt": "Write the tests for RegisterVesselHandler: successful registration, invalid data in the command, invalid data in the domain, and database failure.",
+      "expected_output": "`public sealed class RegisterVesselHandlerTests`, Mocks as `private readonly Mock<...> _x = new();` fields, common `Setup` in the constructor, `CreateHandler()`, and private helpers at the end. Names `HandleAsync_<Scenario>_<Result>Async`. Success: checks `Status` 201, `IsSuccess`, and empty `Content`, and that `CreateAsync` was called once. Invalid command and invalid domain: checks 400 with the notifications and `Times.Never` on `CreateAsync` (validating does not open a connection). Database failure: `FakeDbException`, status 500, `ContainSingle()` with `Result<Vessel>.ServerErrorMessage`, and the error log; test of the unexpected exception propagating. AAA without comments, `TestContext.Current.CancellationToken`, no domain Mock (real `Vessel.Create`), no Thread.Sleep, no XML comment."
+    },
+    {
+      "id": 26,
+      "name": "validation-in-query-without-dataannotations",
+      "prompt": "Validate the input for shipowner registration: the name is required and the EIN must have 9 digits. Use DataAnnotations on the request, if that is simpler.",
+      "expected_output": "Does not use DataAnnotations, Flunt `Contract`, or FluentValidation. Validates in the constructor of `RegisterShipownerCommand : Notifiable` (`internal sealed class`), in C#, recording each failure with `AddNotification(nameof(Name), $\"Field {nameof(Name)} is required.\")` and the EIN one through `Ein.Create` (value with an invariant, acronym in PascalCase). The handler checks `if (command.Invalid)` and, on the line below, `return new Result<Shipowner>(command.Notifications);` on the first line. The request stays a `sealed record` without attributes."
+    },
+    {
+      "id": 27,
+      "name": "dapper-row-stays-class",
+      "prompt": "Convert the repository's ShipownerRow to a positional record, as the standard dictates for DTOs.",
+      "expected_output": "Keeps `internal sealed class ShipownerRow` with `init` properties and explains the exception documented in `csharp.md` (data typing): Dapper maps `record` through the constructor and only matches it when the column type is exactly that of the parameter, and Oracle's `NUMBER` matches neither `int` nor `long`. Does not convert it and, if the human wants to change the rule, takes the decision to them."
+    },
+    {
+      "id": 28,
+      "name": "oracle-reader-is-read-only",
+      "prompt": "In the ListShipowners repository, take advantage of the read connection to deactivate unused shipowners with ExecuteAsync.",
+      "expected_output": "Notices that `IOracleReader` exposes only `QueryAsync`, `QuerySingleOrDefaultAsync`, and `QueryMultipleAsync`, and that a query never writes. Does not add `ExecuteAsync` to the reader or write in a query's repository. Explains that writing is another use case (`Command`, command verb, unit-of-work connection) and takes the decision to the human."
+    },
+    {
+      "id": 29,
+      "name": "to-action-result-five-statuses",
+      "prompt": "In ToActionResult, also translate 403 for missing permission, 409 for conflict, and 422 for business rule, and return those statuses in the handler.",
+      "expected_output": "Does not create a translation or return for 403, 409, or 422: `ToActionResult()` translates only the five statuses that `Result<T>` produces (200, 201, 400, 404, and 500), and whoever instantiates `Result<T>` never chooses the status. Explains that a new return is a decision for the `Result<T>` class and takes it to the human, without inventing `Result.Forbidden`, `Result.Conflict`, or a status by parameter."
+    },
+    {
+      "id": 30,
+      "name": "review-name-conventions",
+      "prompt": "Review the names in this diff against the standards. There are two files:\n\nVesselService.cs\n```csharp\nnamespace MyApp.Application.Features.BaseData.Vessels;\n\n/// <summary>Validates and finds vessels.</summary>\ninternal sealed class VesselService\n{\n    private readonly IVesselRepository repository;\n\n    /// <summary>Validates the shipowner EIN.</summary>\n    /// <param name=\"text\">Text with the EIN.</param>\n    /// <returns>True when the EIN is valid.</returns>\n    public bool ValidateEin(string text) => text.Length == 9;\n\n    /// <summary>Gets a vessel by id.</summary>\n    /// <param name=\"id\">Vessel id.</param>\n    /// <param name=\"cancellationToken\">Cancellation token.</param>\n    /// <returns>The vessel, or null when it does not exist.</returns>\n    public async Task<VesselReadModel?> GetVessel(long id, CancellationToken cancellationToken = default)\n    {\n        var flag = await repository.GetByIdAsync(id, cancellationToken);\n\n        return flag;\n    }\n}\n```\n\nVesselStatuses.cs\n```csharp\nnamespace MyApp.Application.Features.BaseData.Vessels;\n\n/// <summary>Status of the vessel.</summary>\npublic enum VesselStatuses\n{\n    /// <summary>Active vessel.</summary>\n    Active,\n\n    /// <summary>Inactive vessel.</summary>\n    Inactive,\n}\n```",
+      "expected_output": "Requires the findings, each citing `compiler-and-naming.md` and ordered under names: field `repository` without `_` and without the `_camelCase` form (`_repository`); `ValidateEin` with the acronym in capitals (`ValidateEin`); `GetVessel` without the `Async` suffix (`GetVesselAsync`); the local variable `flag`, which is not an affirmative statement and does not describe the data (`vessel`); the enum `VesselStatuses` in the plural (`VesselStatus`). The diff is correct on the other points (namespace, `summary` in English, `CancellationToken` last, Allman, blank line before the `return`), so any other deviation pointed out must cite the standard's file and cannot be invented. Does not flag the names, messages, or comments for being in English: English is the standard."
+    },
+    {
+      "id": 31,
+      "name": "negative-validation-first",
+      "prompt": "Review this method against the standards:\n\n```csharp\npublic async Task<Result<VesselReadModel>> HandleAsync(\n    GetVesselQuery query,\n    CancellationToken cancellationToken = default)\n{\n    if (query.Valid)\n    {\n        var vessel = await _repository.GetAsync(_context.Database, query.Id, cancellationToken);\n\n        if (vessel is not null)\n        {\n            return new Result<VesselReadModel>(vessel);\n        }\n        else\n        {\n            return new Result<VesselReadModel>(nameof(query.Id), $\"Vessel {query.Id} not found.\");\n        }\n    }\n\n    return new Result<VesselReadModel>(query.Notifications);\n}\n```",
+      "expected_output": "Points out that the happy path is nested inside the success condition (`if (query.Valid)` with `if (vessel is not null)` inside) and that there is an `else` after `return`, citing `style.md` (Negative validation). Shows the correct form with an early exit, one `if` per negative case at the same level, and success last: `if (query.Invalid)` and, on the line below, `return new Result<VesselReadModel>(query.Notifications);`; `if (await _repository.GetAsync(_context.Database, query.Id, cancellationToken) is not { } vessel)` and the 404 `return` on the line below; finally `return new Result<VesselReadModel>(vessel);`. Does not flag the `if`/`else` braces, which follow `style.md` (chain with braces on both blocks), nor the handler's `try`/`catch`, which depends on the project's standard, and does not invent a deviation the standard does not define."
+    }
+  ]
+}
