@@ -92,7 +92,6 @@ Changes should be introduced incrementally.
 
 During evolution, FSD should prefer:
 
-- adapters;
 - incremental changes;
 - compatibility layers;
 - reversible improvements.

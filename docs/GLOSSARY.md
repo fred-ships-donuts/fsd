@@ -26,7 +26,6 @@ For architecture details, see:
 | Artifact | Generated output |
 | Fridge | Archiving and long-term storage layer |
 | Craft | Baker specialization description |
-| Adapter | Compatibility mechanism between concepts or implementations |
 | Context | Information provided during execution |
 
 ---
@@ -104,12 +103,6 @@ Examples:
 - documentation;
 - plans;
 - reports.
-
----
-
-### Adapter
-
-An Adapter allows FSD concepts to interact with existing implementations during evolution.
 
 ---
 

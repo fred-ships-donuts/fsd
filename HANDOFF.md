@@ -9,11 +9,10 @@ O projeto **mudou de pasta**: agora é `/media/fredericojacobi/Projects/projetos
 **Nenhuma task foi executada.** Esta sessão só produziu documentação e planejamento:
 
 - `SPEC.md` reescrita (comandos, atalhos, atualização).
-- `TASKS.md` criado com 25 tasks (`F-1` a `F-25`).
+- `TASKS.md` criado com 25 tasks (`F-1.1`, `F-1.2` e `F-2` a `F-25`; a F-1 original foi dividida).
 - O código em `src/cli/` continua o rascunho antigo (Clack, `.fsd.json` por skill). Compila e passa 18 testes, mas está defasado em relação à spec.
 - `package.json` ainda está antigo: nome `fred-ship-donuts`, dois `bin` apontando para `index.js`, `@clack/prompts` e `commander` nas dependências. A F-3 corrige.
 
-Nada está commitado desde `8bd8bf4`. Há muitos arquivos deletados (migração do catálogo para `src/skills/_i18n/`) e `SPEC.md`, `TASKS.md`, `HANDOFF.md`, `docs/`, `src/`, `package.json` etc. não rastreados.
 
 ## Decisões do autor nesta sessão
 
@@ -26,27 +25,31 @@ Nada está commitado desde `8bd8bf4`. Há muitos arquivos deletados (migração 
 - Tarefas têm prefixo `F` (`F-1`, `F-2`...).
 - A estrutura de diretórios do FSD em um projeto passa a ser a do `docs/FSD-ARCHITECTURE.md` (`nook/` + `.fsd/`); a árvore só com `.fsd/` que o autor colou antes deixou de valer.
 - `Bench` e `Fridge` **não** guardam logs nem estado de execução. O `Bench` guarda as tarefas, e o `status` fica no arquivo de cada tarefa.
-- A pasta `graft/` pode ser apagada (decisão registrada na F-4).
+- A pasta `graft/` **não** deve ser apagada (revisto em 2026-11-01).
+- `Ingredient` sai do vocabulário e vira `Cookbook`: diretório `nook/cookbook/` que contém as recipes e substitui `nook/recipes/`.
+- Todos os docs usam `-` no nome de arquivo, nunca `_`.
+- A F-1 foi dividida em F-1.1 (análise, só leitura) e F-1.2 (pivô, alinhamento e correções). Ao fim da F-1.2, todas as demais tasks são atualizadas para `nook/` + `.fsd/`.
 
 ## Planejado, mas NÃO executado (o autor pediu só planejar)
 
 Está no `TASKS.md`:
 
-- **F-1** (analisar os docs, 11 entregáveis): relatório, documento pivô em `docs/`, alinhamento ao `FSD-ARCHITECTURE.md` (item 10) e correções de docs (item 11).
-- **Item 11 da F-1:** renomear `FSD_CONCEPT.md` → `FSD-CONCEPT.md` e `FSD_DOUGH.md` → `FSD-DOUGH.md` com links corrigidos; corrigir typos de `FSD-IMPLEMENTATION-STRATEGY.md`; alinhar `GLOSSARY.md` ao `FSD-ARCHITECTURE.md`; tirar logs e estado das seções `Bench` e `Fridge` da arquitetura.
+- **F-1.1** (analisar os docs, 8 entregáveis): só relatório.
+- **F-1.2** (3 entregáveis): documento pivô em `docs/`, alinhamento ao `FSD-ARCHITECTURE.md` e correções de docs.
+- **Correções da F-1.2:** renomear `FSD_CONCEPT.md` → `FSD-CONCEPT.md` e `FSD_DOUGH.md` → `FSD-DOUGH.md` com links corrigidos; corrigir typos de `FSD-IMPLEMENTATION-STRATEGY.md`; alinhar `GLOSSARY.md` ao `FSD-ARCHITECTURE.md`; tirar logs e estado das seções `Bench` e `Fridge` da arquitetura.
 - **F-2:** organização de diretórios (`nook/` + `.fsd/`) e conciliação com a SPEC 4.2.
-- **F-4:** apagar `graft/`, commitar a migração do catálogo, apagar `src/skills/fsd-padroes-codigo-csharp/`.
+- **F-4:** apagar `src/skills/fsd-padroes-codigo-csharp/` (a migração do catálogo já está commitada; `graft/` fica).
 
 ## Para conversar amanhã
 
 Itens da revisão que o autor ainda não respondeu:
 
-1. Faltam dependências: F-5, F-6, F-7 deveriam depender da F-2 (onde ficam `installed.json` e `config.json`); F-14 (`init`) deveria depender de F-17 a F-20; F-18, F-21 e F-22 a F-25 sem dependências.
-2. Título da F-2 ainda diz `(.fsd/)`; deveria citar `nook/` + `.fsd/`.
-3. Hierarquia de fontes: o `TASKS.md` diz que a `SPEC.md` é a fonte da verdade, mas o passo 10 da F-1 toma o `FSD-ARCHITECTURE.md` como referência.
-4. A F-23 diz "19 itens"; o número muda quando a spec mudar.
-5. A "Fase 0" mistura análise/design (F-1, F-2) com preparação técnica (F-3, F-4).
-6. Destino de `Ingredient` e `Adapter` no glossário (só existem nele); `Ingredient` se sobrepõe a `Context`.
+1. (Resolvido) Dependências faltantes adicionadas ao `TASKS.md`.
+2. (Resolvido) Título da F-2 agora cita `nook/` + `.fsd/`.
+3. Hierarquia de fontes: o `TASKS.md` diz que a `SPEC.md` é a fonte da verdade, mas a F-1.2 toma o `FSD-ARCHITECTURE.md` como referência.
+4. (Resolvido) A F-23 não fixa mais a quantidade de itens.
+5. (Resolvido) A Fase 0 foi separada: Fase 0 (documentação e estrutura: F-1.1, F-1.2, F-2) e Fase 0.5 (preparação técnica: F-3, F-4).
+6. (Resolvido) `Ingredient` vira `Cookbook`.
 7. Inconsistências da arquitetura ainda abertas: falta o status de tarefa pendente (só há `in_progress` e `done`); `Context` não tem diretório explícito (presumivelmente `nook/kitchen/`); `Kitchen` fala em "global settings" mas o diretório é do projeto; dois sentidos de "Skill" (capacidade do Baker vs skill do Claude Code instalada pela CLI).
 
 Pendências antigas do autor, ainda válidas:
@@ -84,4 +87,4 @@ Para testar sem sujar `~/.claude`, use `HOME=$(mktemp -d)`. O fluxo interativo p
 ## Próximo passo sugerido
 
 1. Conversar os pontos de "Para conversar amanhã".
-2. Mandar executar a F-1 (e depois a F-2). As demais tasks dependem do resultado delas.
+2. Mandar executar a F-1.1, depois a F-1.2 e a F-2. As demais tasks dependem do resultado delas.

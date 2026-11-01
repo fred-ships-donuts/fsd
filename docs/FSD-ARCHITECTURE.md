@@ -236,7 +236,7 @@ The `nook/` directory serves as the user-friendly interface store where develope
 
 - **`nook/kitchen/`**: Project rules, global settings, and user-provided context.
 - **`nook/bench/`**: Active workspace hosting input task files (`status: in_progress`).
-- **`nook/recipes/`**: Declarative workflow definitions.
+- **`nook/cookbook/`**: The cookbook, containing the Recipes (declarative workflow definitions).
 - **`nook/bakers/`**: Specialized AI worker definitions and craft metadata.
 - **`nook/display/`**: Showcase area hosting finished deliverables (`status: done` Donuts).
 - **`nook/fridge/`**: Archive holding past completed work items and historical tasks.
@@ -254,7 +254,7 @@ my-project/
 ├── nook/                  # User-friendly workspace directory
 │   ├── kitchen/           # Configuration, rules, and project context
 │   ├── bench/             # Active tasks in progress
-│   ├── recipes/           # Declarative workflows
+│   ├── cookbook/          # Cookbook: contains the Recipes (declarative workflows)
 │   ├── bakers/            # Specialized AI workers
 │   ├── display/           # Finished Donuts (status: done)
 │   └── fridge/            # Cold storage archive
