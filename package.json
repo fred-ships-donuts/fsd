@@ -1,0 +1,33 @@
+{
+  "name": "fred-ship-donuts",
+  "version": "0.0.1",
+  "description": "fred-ship-donuts CLI",
+  "main": "dist/cli/index.js",
+  "scripts": {
+    "dev": "tsx src/cli/index.ts",
+    "build": "tsc",
+    "start": "node dist/cli/index.js",
+    "test": "tsc && node --test dist"
+  },
+  "keywords": [],
+  "author": "Frederico Jacobi",
+  "license": "ISC",
+  "type": "module",
+  "devDependencies": {
+    "@types/node": "^26.6.5",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2"
+  },
+  "bin": {
+    "fred-ships-donuts": "./dist/cli/index.js",
+    "fsd": "./dist/cli/index.js"
+  },
+  "dependencies": {
+    "@clack/prompts": "^1.8.1",
+    "commander": "^15.0.0"
+  },
+  "files": [
+    "dist",
+    "src/skills"
+  ]
+}
