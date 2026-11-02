@@ -1,13 +1,14 @@
 {
-  "name": "fred-ship-donuts",
+  "name": "fred-ships-donuts",
   "version": "0.0.1",
-  "description": "fred-ship-donuts CLI",
-  "main": "dist/cli/index.js",
+  "description": "fsd (Fred Ships Donuts) CLI",
+  "main": "dist/cli/fsd.js",
   "scripts": {
-    "dev": "tsx src/cli/index.ts",
+    "dev": "tsx src/cli/fsd.ts",
     "build": "tsc",
-    "start": "node dist/cli/index.js",
-    "test": "tsc && node --test dist"
+    "start": "node dist/cli/fsd.js",
+    "test": "npm run build && node --test dist",
+    "postbuild": "node -e \"require('node:fs').chmodSync('dist/cli/fsd.js', 0o755)\""
   },
   "keywords": [],
   "author": "Frederico Jacobi",
@@ -15,19 +16,25 @@
   "type": "module",
   "devDependencies": {
     "@types/node": "^26.6.5",
+    "@types/react": "^19.3.0",
+    "ink-testing-library": "^4.0.0",
     "tsx": "^4.23.15",
     "typescript": "^7.0.2"
   },
   "bin": {
-    "fred-ships-donuts": "./dist/cli/index.js",
-    "fsd": "./dist/cli/index.js"
+    "fsd": "./dist/cli/fsd.js"
   },
   "dependencies": {
-    "@clack/prompts": "^1.8.1",
-    "commander": "^15.0.0"
+    "commander": "^15.0.0",
+    "ink": "^8.0.0",
+    "react": "^19.3.1"
   },
   "files": [
     "dist",
+    "!dist/**/*.test.*",
     "src/skills"
-  ]
+  ],
+  "engines": {
+    "node": ">=22"
+  }
 }

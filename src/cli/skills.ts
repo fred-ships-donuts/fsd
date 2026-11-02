@@ -1,14 +1,11 @@
-import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { homedir } from 'node:os';
-import { basename, join } from 'node:path';
+import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync } from 'node:fs';
+import { basename, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 // src/cli/ and dist/cli/ both sit two levels below the package root.
 export const packageRoot = fileURLToPath(new URL('../../', import.meta.url));
 
 export const skillsSource = join(packageRoot, 'src', 'skills', '_i18n');
-
-const markerFile = '.fsd.json';
 
 export interface SkillVariant {
   lang: string;
@@ -21,8 +18,6 @@ export interface Skill {
   name: string;
   variants: SkillVariant[];
 }
-
-export type InstallResult = 'installed' | 'upgraded' | 'skipped';
 
 export function readFrontmatter(skillMd: string): { name: string | undefined; version: string | undefined } {
   const block = /^---\r?\n([\s\S]*?)\r?\n---/.exec(skillMd)?.[1] ?? '';
@@ -62,10 +57,6 @@ export function skillLangs(skill: Skill): string[] {
 
 export function skillVersion(skill: Skill): string | undefined {
   return skill.variants[0]?.version;
-}
-
-export function skillsTarget(project: boolean): string {
-  return project ? join(process.cwd(), '.claude', 'skills') : join(homedir(), '.claude', 'skills');
 }
 
 // Semver 2.0.0 precedence (section 11); build metadata is ignored.
@@ -109,41 +100,18 @@ export function isValidVersion(version: string | undefined): version is string {
   return version !== undefined && /^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?$/.test(version);
 }
 
-export function installedVersion(target: string, name: string): string | undefined {
-  const file = join(target, name, 'SKILL.md');
-  return existsSync(file) ? readFrontmatter(readFileSync(file, 'utf8')).version : undefined;
-}
-
-export function installedLang(target: string, name: string): string | undefined {
-  const file = join(target, name, markerFile);
-  if (!existsSync(file)) return undefined;
-  try {
-    const { lang } = JSON.parse(readFileSync(file, 'utf8')) as { lang?: unknown };
-    return typeof lang === 'string' ? lang : undefined;
-  } catch {
-    return undefined;
-  }
-}
-
-export function isInstalled(target: string, name: string): boolean {
-  return existsSync(join(target, name));
-}
-
 // evals/ and README.md are authoring material, not part of an installed skill.
 const excluded = (source: string) => {
   const name = basename(source);
   return name !== 'evals' && name !== 'README.md';
 };
 
-export function copySkill(variant: SkillVariant, target: string, name: string): string {
-  const destination = join(target, name);
+export function copySkill(variant: SkillVariant, destination: string): void {
   rmSync(destination, { recursive: true, force: true });
-  mkdirSync(target, { recursive: true });
+  mkdirSync(dirname(destination), { recursive: true });
   cpSync(variant.dir, destination, { recursive: true, filter: excluded });
-  writeFileSync(join(destination, markerFile), JSON.stringify({ lang: variant.lang }) + '\n');
-  return destination;
 }
 
-export function removeSkill(target: string, name: string): void {
-  rmSync(join(target, name), { recursive: true, force: true });
+export function findSkill(name: string): Skill | undefined {
+  return listSkills().find((skill) => skill.name === name);
 }
