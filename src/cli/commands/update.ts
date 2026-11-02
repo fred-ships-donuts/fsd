@@ -1,9 +1,11 @@
 import { spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
-import { installSkill, type ActionResult } from '../actions/install.js';
+import { planInstall } from '../actions/install.js';
+import type { ActionResult } from '../actions/types.js';
 import { readConfig } from '../config.js';
 import { realEnv, scopePaths, type Env, type Scope } from '../fsdDir.js';
 import { readRegistry } from '../registry.js';
+import { runPlan, type RunOptions } from '../run.js';
 import { fetchLatestVersion, installLatest, isGlobalInstall, isNewer } from '../selfUpdate.js';
 import { findSkill } from '../skills.js';
 
@@ -17,17 +19,19 @@ export const consoleIo: Io = { out: (line) => console.log(line), err: (line) => 
 export const formatResult = (r: ActionResult): string =>
   `${r.action}${r.note ? ` (${r.note})` : ''} ${r.name} ${r.version} [${r.lang}] ${r.destination}`;
 
-// `fsd update skill [nome]`: global scope, plus the project scope when it has a registry.
-export function updateSkillsCommand(name: string | undefined, io: Io = consoleIo, env: Env = realEnv()): number {
+export interface SkillsOptions {
+  force?: boolean;
+  run?: RunOptions;
+}
+
+// `fsd update skill [nome]`: global scope, plus the project scope when it has a registry (SPEC 5.3).
+export async function updateSkillsCommand(name: string | undefined, io: Io = consoleIo, env: Env = realEnv(), options: SkillsOptions = {}): Promise<number> {
+  const force = options.force ?? false;
   const scopes: Scope[] = ['global'];
   if (env.cwd !== env.home && existsSync(scopePaths('project', env).installed)) scopes.push('project');
 
-  const targets = scopes.flatMap((scope) =>
-    Object.entries(readRegistry(scope, env).skills).map(([skillName, entry]) => ({ scope, skillName, entry })),
-  );
-  const selected = name ? targets.filter((target) => target.skillName === name) : targets;
-
-  if (name && selected.length === 0) {
+  const registries = scopes.map((scope) => ({ scope, skills: readRegistry(scope, env).skills }));
+  if (name && !registries.some((registry) => registry.skills[name])) {
     io.err(`skill ${name} is not installed`);
     return 1;
   }
@@ -37,12 +41,31 @@ export function updateSkillsCommand(name: string | undefined, io: Io = consoleIo
   }
 
   let failed = false;
-  for (const { scope, skillName, entry } of selected) {
-    try {
-      io.out(formatResult(installSkill(scope, { name: skillName, lang: entry.lang, destination: entry.path }, env)));
-    } catch (error) {
-      io.err(error instanceof Error ? error.message : String(error));
+  for (const { scope, skills } of registries) {
+    const requests = Object.entries(skills)
+      .filter(([skillName]) => !name || skillName === name)
+      // --force replaces originals only for skills that should be linked (SPEC 5.3).
+      .map(([skillName, entry]) => ({ name: skillName, lang: entry.lang, destination: entry.path, onConflict: force && entry.linked !== false ? ('replace' as const) : ('keep' as const) }));
+    const plan = planInstall(scope, requests, env);
+    for (const error of plan.errors) {
+      io.err(error);
       failed = true;
+    }
+    const outcome = await runPlan(plan, options.run);
+    if (outcome.status !== 'done') {
+      io.err(outcome.message);
+      if (outcome.status === 'cancelled') return 130;
+      failed = true;
+      continue;
+    }
+    for (const warning of outcome.warnings) io.out(warning);
+    for (const result of outcome.results) {
+      if (result.conflict && !force) {
+        io.err(`skill ${result.name}: ${result.conflict[0]} exists and is not managed by fsd (use --force to replace)`);
+        failed = true;
+      } else {
+        io.out(formatResult(result));
+      }
     }
   }
   return failed ? 1 : 0;

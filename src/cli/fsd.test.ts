@@ -21,7 +21,7 @@ describe('fsd binary', () => {
     assert.ok(outs.every((o) => o === outs[0]) && outs[0]!.includes('init') && outs[0]!.includes('update'));
   });
   it('usage errors exit 1', () => {
-    for (const args of [['foo'], ['init', 'x'], ['-s'], ['-u', 'init']]) assert.equal(run(...args).status, 1, args.join(' '));
+    for (const args of [['foo'], ['init', 'x'], ['-s'], ['-u', 'init'], ['-us'], ['-s', '-u'], ['-f'], ['link', 'skill', 'x', '-u']]) assert.equal(run(...args).status, 1, args.join(' '));
   });
   it('init without TTY exits 1', () => {
     const r = run('init');
