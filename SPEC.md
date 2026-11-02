@@ -210,8 +210,8 @@ Não existem `list`, `install` nem `uninstall`: o que faziam está no assistente
   [██████░░░░░░░░░░░░░░░░░░]  passo 3 de 7        <rodapé>
 ```
 
-- **Cabeçalho**: logotipo, nome da CLI, versão da CLI (a de `package.json`) e outros itens ainda a definir (6.7). Aparece em todas as telas.
-- **Corpo**: um passo por tela.
+- **Cabeçalho**: na tela inicial, o emoji 🍩 em blocos de quadrante, com metade do maior tamanho que a janela permite (a origem é uma grade de 192 × 96 sub-pixels, reduzida em `donutArt.ts`; o VTE não mostra imagens), o nome em letras de bloco engrossadas (traço com uma coluna a mais), numa linha só (`FRED SHIPS DONUTS`, a rosquinha mantém o formato redondo inteiro, e as letras seguem a altura visível dela, com precisão de meia linha; a rosquinha encolhe até frase e rosquinha caberem lado a lado), a versão da CLI (a de `package.json`), o escopo e o passo atual nos passos, o link do projeto e o autor (6.7). Só a tela inicial mostra o 🍩 grande; nos passos, o cabeçalho é uma linha. Para o terminal de 112 × 35 (110 colunas úteis, descontado o padding da raiz), o cabeçalho ocupa a largura toda e tem 14 linhas. A rosquinha é uma elipse de 14 linhas que ocupa cerca de 30% da largura da tela (34 colunas); a rosquinha fica à esquerda e as palavras à direita dela, junto da moldura. O tamanho é fixo, independente do terminal. A frase fica à direita, uma palavra por linha, centralizada na altura da rosquinha. Sem cor, volta o logotipo de uma linha.
+- **Corpo**: um passo por tela. O assistente ocupa o terminal inteiro (largura e altura, acompanhando redimensionamento) e roda na tela alternativa do terminal; ao sair, o terminal volta ao que era antes.
 - **Rodapé**: barra de progresso (6.4) e a dica de teclas do passo (ex.: `↑↓ mover · espaço marcar · enter confirmar · ← voltar`).
 
 ### 6.2 Fluxos e passos
@@ -233,7 +233,7 @@ O menu (passo 0) escolhe o fluxo. Fora da contagem da barra. `Sair` encerra com 
 | 3 | Idioma | Idiomas das skills escolhidas | **Condicional**: só aparece se alguma skill escolhida tem mais de um idioma. |
 | 4 | Conflitos | Para cada skill escolhida que tem uma de mesmo nome que não é nossa (regra 3), os caminhos em conflito e a escolha entre as três opções | **Condicional**: só aparece se houver conflito no escopo escolhido. |
 | 5 | Atualização | Duas opções: atualizar a CLI ao abrir `fsd init` (`autoUpdate`) e fazer o `fsd update` atualizar também as skills (`updateSkills`) | Seção 7. |
-| 6 | Tema | Dracula, Apple Lisa, Windows 98, Dark Night | O usuário escolhe as cores; pré-visualização na própria tela. |
+| 6 | Tema | Donut (padrão), Morango, Chocolate ao leite, Granulado | O usuário escolhe as cores; a pré-visualização aparece na própria tela. |
 | 7 | Resumo | Tudo que foi escolhido + confirmar e instalar | Último passo. Ao confirmar, cria a estrutura base (4.2), executa a instalação e mostra o resultado de cada skill. |
 
 Regras da instalação, aplicadas ao confirmar o resumo:
@@ -260,7 +260,7 @@ Implementação: cada passo é um componente Ink em `.tsx`; `useInput` trata as 
 
 ### 6.3 Resultado
 
-Depois de confirmar o resumo, cada skill mostra uma linha de resultado (`install`, `upgrade`, `remove` ou `skip`, com versão, idioma e destino; o resultado de `unlinked` é `install` com a nota `original kept, not linked`), no estilo do tema escolhido. A CLI termina com exit 0, ou 1 se houve falha de I/O. A confirmação do fluxo Instalar também grava as preferências (8.2).
+Depois de confirmar o resumo, cada skill mostra uma linha de resultado (`install`, `upgrade`, `remove` ou `skip`, com versão, idioma e destino; o resultado de `unlinked` é `install` com a nota `original kept, not linked`), na paleta da CLI. A CLI termina com exit 0, ou 1 se houve falha de I/O. A confirmação do fluxo Instalar também grava as preferências (8.2).
 
 ### 6.4 Barra de progresso do rodapé
 
@@ -273,9 +273,10 @@ Depois de confirmar o resumo, cada skill mostra uma linha de resultado (`install
 ### 6.5 Temas
 
 - Um tema define as cores da interface: cabeçalho, título do passo, item em foco, item marcado, dica de teclas, barra de progresso (parte cheia e vazia), sucesso, aviso e erro.
-- Temas iniciais: **Dracula**, **Apple Lisa**, **Windows 98**, **Dark Night**. A paleta exata de cada um fica para a implementação.
+- Temas: **Donut** (padrão, cores do emoji 🍩 na fonte Noto Color Emoji: cobertura de chocolate, massa dourada e laranja, cobertura rosa, granulado azul e vermelho), **Morango**, **Chocolate ao leite** e **Granulado**. As três últimas são alternativas à Donut para comparação; os valores estão em `docs/PALETAS-DONUT.md`.
+- O passo **Tema** do fluxo Instalar (6) escolhe o tema e mostra a pré-visualização na própria tela. O tema gravado é o que vale desde a abertura da CLI.
+- O campo `theme` do `config.json` (8.2) guarda o nome do tema. Um valor desconhecido cai no Donut.
 - Os símbolos (marcador de seleção, setas, preenchimento da barra) são um conjunto único, Unicode; não há escolha de símbolos.
-- O tema escolhido vale para o restante da execução e entra no resumo. Ele é persistido (8.2) e valem desde as primeiras telas nas execuções seguintes.
 - A utilidade do tema além da aparência será definida depois pelo autor; a spec não assume nenhuma.
 
 ### 6.6 Entrada sem terminal
@@ -284,11 +285,11 @@ O assistente nunca abre sem TTY (`fsd init`). Ver 5.1.
 
 ### 6.7 Pendências do layout
 
-1. **Logotipo e itens do cabeçalho**: desenho do logotipo e quais "outras" informações entram (ex.: destino atual, link, autor).
+1. ~~**Logotipo e itens do cabeçalho**~~: decidido. O emoji 🍩 em tamanho grande, gerado uma vez a partir da fonte Noto Color Emoji e guardado em `emojiDonut.ts` (a CLI não depende da fonte em tempo de execução); `F S D`, escopo e passo, link e autor. O destino (`~/.fsd/skills`) saiu do cabeçalho.
 2. **Posição do idioma**: confirmar que o passo de idioma fica logo após o passo 2.
 3. **Símbolos**: o conjunto Unicode único atual é provisório; falta decidir se há alternativa para terminais sem Unicode.
 4. **Largura do terminal**: comportamento em terminais estreitos (o logotipo pode ser omitido abaixo de uma largura mínima).
-5. **Paletas dos temas**: cores exatas de Dracula, Apple Lisa, Windows 98 e Dark Night.
+5. **Paleta final**: escolher entre Donut, Morango, Chocolate ao leite e Granulado (6.5).
 
 ### 6.8 Fluxo Apagar
 
@@ -381,7 +382,7 @@ As preferências do assistente ficam em `~/.fsd/config.json`. É uma configuraç
 ```json
 {
   "schema": 1,
-  "theme": "dracula",
+  "theme": "donut",
   "autoUpdate": true,
   "updateSkills": false,
   "lastUpdateCheck": "2026-10-31T12:00:00.000Z"
@@ -520,7 +521,7 @@ src/
 **Pendente (itens do autor)**
 
 - **Revisão desta spec (conflito, `--force`, interrupção, testes):** ver a seção "Pontos para a revisão" no `TASKS.md`.
-- **Layout** (hoje provisório na implementação): logotipo e cabeçalho, posição do idioma, largura mínima do terminal e paletas dos temas (6.7).
+- **Layout** (hoje provisório na implementação): logotipo e cabeçalho, posição do idioma, largura mínima do terminal e paleta final (6.7).
 - **Utilidade do tema**: será definida pelo autor depois; a spec não assume nenhuma.
 - **Revisar (decisões minhas)**: `update skill` cobre os escopos global e projeto (o de projeto só se existir `./.fsd/installed.json`); `updateSkills` vem desligado por padrão e é configurado no passo 4; não há flag para pular o auto-update, só a opção salva (se quiser `fsd init --no-update`, acrescentar); `fsd update` ignora o limite de 24 h.
 
