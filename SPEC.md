@@ -18,7 +18,6 @@ Instalar e apagar skills só existe dentro do assistente: não há `fsd install`
 
 - Criar/editar skills (o autoramento continua manual).
 - Instalar skills de terceiros ou de repositórios arbitrários.
-- Suporte a agentes que não sejam o Claude Code.
 - Publicar skills em um registry próprio.
 
 ## 2. Stack
@@ -76,16 +75,25 @@ Regras:
 
 `~` é o `os.homedir()` (no Windows, `%USERPROFILE%`). `<cwd>` é o diretório de onde o comando foi executado; a CLI não procura a raiz do git.
 
-### 4.2 Diretório `.fsd/`
+### 4.2 Estrutura de diretórios da CLI
 
-Tudo que é da CLI (e não da skill) fica em um diretório `.fsd/` no mesmo nível do `.claude` do escopo, nunca dentro das pastas das skills:
+Segue `docs/FSD-ARCHITECTURE.md`. Em cada escopo há um diretório de sistema `.fsd/` e um workspace `nook/`, no mesmo nível do `.claude` do escopo:
 
-| Escopo | Diretório | Conteúdo |
+| Escopo | Raiz | Conteúdo |
 |---|---|---|
-| Global | `~/.fsd/` | `config.json` (preferências, 8.2) e `installed.json` (skills instaladas globalmente) |
-| Projeto | `<cwd>/.fsd/` | `installed.json` (skills instaladas no projeto) |
+| Global | `~` | `~/.fsd/` e `~/nook/` |
+| Projeto | `<cwd>` | `<cwd>/.fsd/` e `<cwd>/nook/` |
 
-Os caminhos do `.fsd/` são calculados só a partir de `os.homedir()` e do `cwd`: a CLI não procura nem lê o `.claude/` para decidir onde o `.fsd/` fica. A pasta é criada sob demanda, na primeira gravação. No escopo de projeto, o `.fsd/installed.json` é versionável junto com o repositório, a critério do usuário; a CLI não mexe no `.gitignore`.
+| Diretório | Conteúdo |
+|---|---|
+| `.fsd/installed.json` | skills instaladas no escopo (4.3) |
+| `~/.fsd/config.json` | preferências (8.2); só no escopo global |
+| `.fsd/oven/`, `.fsd/cache/`, `.fsd/logs/` | sistema interno da CLI, criados vazios |
+| `nook/kitchen/`, `nook/bakers/` | workspace do usuário, criados vazios |
+
+**Estrutura base.** Ao confirmar o resumo do fluxo Instalar (como uma instalação de software qualquer), a CLI cria, no escopo escolhido e se ainda não existirem, `nook/kitchen/`, `nook/bakers/`, `.fsd/oven/`, `.fsd/cache/` e `.fsd/logs/`. Os demais diretórios de `nook/` (`bench/`, `cookbook/`, `rack/`, `fridge/`) não são criados. Cancelar não cria nada, e o fluxo Apagar não cria nem remove a estrutura. `fsd init` ao abrir não grava nada.
+
+Os caminhos são calculados só a partir de `os.homedir()` e do `cwd`: a CLI não procura nem lê o `.claude/` para decidir onde `.fsd/` e `nook/` ficam. No escopo de projeto, `.fsd/installed.json` e `nook/` são versionáveis junto com o repositório, a critério do usuário; a CLI não mexe no `.gitignore`.
 
 Toda gravação em `.fsd/` é atômica (escreve em arquivo temporário e renomeia).
 
@@ -97,7 +105,6 @@ Toda gravação em `.fsd/` é atômica (escreve em arquivo temporário e renomei
   "skills": {
     "fsd-csharp-code-standard": {
       "scope": "global",
-      "agent": "claude-code",
       "lang": "pt-BR",
       "version": "1.0.0-alpha.2",
       "path": "/home/fulano/.claude/skills/fsd-csharp-code-standard",
@@ -108,7 +115,7 @@ Toda gravação em `.fsd/` é atômica (escreve em arquivo temporário e renomei
 }
 ```
 
-**O registro é a fonte da verdade.** A CLI sabe o que instalou e onde olhando o `installed.json`, e não procurando em `.claude/`. O estado exibido nos passos de skills, a atualização e o `Apagar` nunca varrem o diretório do Claude: leem o registro e agem no `path` gravado (absoluto, definido na instalação). Cada entrada tem `agent` (hoje só `claude-code`) para que outros agentes possam ter destinos próprios no futuro sem mudar o formato.
+**O registro é a fonte da verdade.** A CLI sabe o que instalou e onde olhando o `installed.json`, e não procurando em `.claude/`. O estado exibido nos passos de skills, a atualização e o `Apagar` nunca varrem o diretório do Claude: leem o registro e agem no `path` gravado (absoluto, definido na instalação).
 
 ### 4.4 Estado de uma skill
 
@@ -183,7 +190,7 @@ Não existem `list`, `install` nem `uninstall`: o que faziam está no assistente
   <título do passo>
   <conteúdo do passo: menu, lista, seleção ou resumo>
 
-  [██████░░░░░░░░░░░░░░░░░░]  passo 3 de 8        <rodapé>
+  [██████░░░░░░░░░░░░░░░░░░]  passo 3 de 7        <rodapé>
 ```
 
 - **Cabeçalho**: logotipo, nome da CLI, versão da CLI (a de `package.json`) e outros itens ainda a definir (6.7). Aparece em todas as telas.
@@ -205,13 +212,12 @@ O menu (passo 0) escolhe o fluxo. Fora da contagem da barra. `Sair` encerra com 
 | # | Passo | Conteúdo | Observação |
 |---|---|---|---|
 | 1 | Escopo | Global (`~/.claude/skills`) ou local (`./.claude/skills`) | |
-| 2 | Serviço de IA | Apenas `Claude Code` | Uma única opção por enquanto; o passo existe para receber outros serviços. |
-| 3 | Skills | `Selecionar todas` ou escolha individual | Cada item mostra nome, versão, idiomas disponíveis e o estado no escopo (4.4). |
-| 4 | Idioma | Idiomas das skills escolhidas | **Condicional**: só aparece se alguma skill escolhida tem mais de um idioma. |
-| 5 | Atualização | Duas opções: atualizar a CLI ao abrir `fsd init` (`autoUpdate`) e fazer o `fsd update` atualizar também as skills (`updateSkills`) | Seção 7. |
-| 6 | Tema | Dracula, Apple Lisa, Windows 98, Dark Night | O usuário escolhe as cores; pré-visualização na própria tela. |
-| 7 | Símbolos | Conjunto de símbolos usado na interface | Conjuntos a definir (6.7). |
-| 8 | Resumo | Tudo que foi escolhido + confirmar e instalar | Último passo. Ao confirmar, executa a instalação e mostra o resultado de cada skill. |
+| 2 | Skills | `Selecionar todas` ou escolha individual | Cada item mostra nome, versão, idiomas disponíveis e o estado no escopo (4.4). |
+| 3 | Idioma | Idiomas das skills escolhidas | **Condicional**: só aparece se alguma skill escolhida tem mais de um idioma. |
+| 4 | Atualização | Duas opções: atualizar a CLI ao abrir `fsd init` (`autoUpdate`) e fazer o `fsd update` atualizar também as skills (`updateSkills`) | Seção 7. |
+| 5 | Tema | Dracula, Apple Lisa, Windows 98, Dark Night | O usuário escolhe as cores; pré-visualização na própria tela. |
+| 6 | Símbolos | Conjunto de símbolos usado na interface | Conjuntos a definir (6.7). |
+| 7 | Resumo | Tudo que foi escolhido + confirmar e instalar | Último passo. Ao confirmar, cria a estrutura base (4.2), executa a instalação e mostra o resultado de cada skill. |
 
 Regras da instalação, aplicadas ao confirmar o resumo:
 
@@ -221,7 +227,8 @@ Regras da instalação, aplicadas ao confirmar o resumo:
 4. Instalar por cima remove a pasta registrada e copia de novo (substituição completa, sem merge, para não deixar arquivos órfãos).
 5. Cria o diretório de destino se não existir. Preserva o bit de execução dos scripts (`scripts/*.py`).
 6. Registra a skill em `.fsd/installed.json` do escopo (idioma, versão, caminho e datas). Nada é gravado dentro da pasta da skill. O registro só é gravado depois da cópia ter dado certo.
-7. Skill com um único idioma pula o passo 4 e instala esse idioma.
+7. Skill com um único idioma pula o passo de idioma (3) e instala esse idioma.
+8. A estrutura base (4.2) é criada pelo assistente ao confirmar o resumo, antes de chamar as ações de instalação. `actions/install.ts` **não** cria a estrutura base (só o destino da skill e o `installed.json`), para que `fsd update skill` nunca a crie.
 
 Navegação: `enter` avança, `esc` volta ao passo anterior mantendo as escolhas, `ctrl+c` cancela sem escrever nada (exit 130). Nada é gravado em disco antes da confirmação no resumo.
 
@@ -233,8 +240,8 @@ Depois de confirmar o resumo, cada skill mostra uma linha de resultado (`install
 
 ### 6.4 Barra de progresso do rodapé
 
-- No fluxo Instalar a barra representa os passos 1 a 8 (o menu não conta); no fluxo Apagar (6.8), os passos 1 a 3. Cada passo concluído preenche sua fração: `passos concluídos / total de passos`.
-- Se o passo 4 (idioma) não se aplica, o total do fluxo Instalar passa de 8 para 7 e a barra é recalculada.
+- No fluxo Instalar a barra representa os passos 1 a 7 (o menu não conta); no fluxo Apagar (6.8), os passos 1 a 3. Cada passo concluído preenche sua fração: `passos concluídos / total de passos`.
+- Se o passo 3 (idioma) não se aplica, o total do fluxo Instalar passa de 7 para 6 e a barra é recalculada.
 - A barra fica **cheia ao concluir o último passo** (o resumo). Em um passo ainda em andamento ela mostra só os passos já concluídos.
 - Voltar com `esc` diminui a barra.
 - Com `NO_COLOR` ou terminal sem cor, a barra usa só os símbolos do conjunto escolhido, sem cor.
@@ -253,8 +260,8 @@ O assistente nunca abre sem TTY (`fsd init`). Ver 5.1.
 
 ### 6.7 Pendências do layout
 
-1. **Logotipo e itens do cabeçalho**: desenho do logotipo e quais "outras" informações entram (ex.: destino atual, serviço, link, autor).
-2. **Posição do idioma**: confirmar que o passo de idioma fica logo após o passo 3.
+1. **Logotipo e itens do cabeçalho**: desenho do logotipo e quais "outras" informações entram (ex.: destino atual, link, autor).
+2. **Posição do idioma**: confirmar que o passo de idioma fica logo após o passo 2.
 3. **Opções de símbolos**: quais conjuntos existem (ex.: Unicode, ASCII, Nerd Font) e se há detecção automática de terminal sem Unicode.
 4. **Largura do terminal**: comportamento em terminais estreitos (o logotipo pode ser omitido abaixo de uma largura mínima).
 5. **Paletas dos temas**: cores exatas de Dracula, Apple Lisa, Windows 98 e Dark Night.
@@ -279,11 +286,11 @@ O assistente nunca abre sem TTY (`fsd init`). Ver 5.1.
 Há dois gatilhos:
 
 - **`fsd update`** (5.2): atualiza a CLI quando o usuário manda, sempre.
-- **`fsd init`**: atualiza a CLI automaticamente antes de abrir o menu, se `autoUpdate` estiver ligado. Para não atualizar ao usar `fsd init`, o usuário desliga `autoUpdate` (passo 5 do assistente, 8.2).
+- **`fsd init`**: atualiza a CLI automaticamente antes de abrir o menu, se `autoUpdate` estiver ligado. Para não atualizar ao usar `fsd init`, o usuário desliga `autoUpdate` (passo 4 do assistente, 8.2).
 
 Regras comuns:
 
-- `autoUpdate: true | false` e `updateSkills: true | false` ficam na configuração (8.2). Padrões sugeridos no passo 5: `autoUpdate` ligado e `updateSkills` desligado.
+- `autoUpdate: true | false` e `updateSkills: true | false` ficam na configuração (8.2). Padrões sugeridos no passo 4: `autoUpdate` ligado e `updateSkills` desligado.
 - A CLI consulta o registro do npm pela última versão publicada de si mesma. Se houver versão maior que a instalada, atualiza.
 - No auto-update (`fsd init`), a consulta é limitada: timeout curto (2 s), no máximo uma vez a cada 24 h (a hora da última checagem fica na configuração), e qualquer falha de rede é ignorada em silêncio. Nunca bloqueia nem quebra o assistente. No `fsd update` explícito não há limite de 24 h, e a falha de rede é reportada com exit 1.
 - Só atualiza quando a CLI está instalada globalmente (`npm i -g`). Rodando via `npx`, não faz nada, pois `npx -p fred-ships-donuts@latest fsd` já traz a versão nova.
@@ -326,8 +333,8 @@ As preferências do assistente ficam em `~/.fsd/config.json`. É uma configuraç
 }
 ```
 
-- Escopo, serviço de IA e seleção de skills **não** são persistidos; só tema, símbolos, `autoUpdate` e `updateSkills` (mais o `lastUpdateCheck`).
-- O arquivo é lido ao abrir a CLI: tema e símbolos gravados valem já no cabeçalho e no menu, e os passos 5 a 7 vêm pré-selecionados com os valores gravados.
+- Escopo e seleção de skills **não** são persistidos; só tema, símbolos, `autoUpdate` e `updateSkills` (mais o `lastUpdateCheck`).
+- O arquivo é lido ao abrir a CLI: tema e símbolos gravados valem já no cabeçalho e no menu, e os passos 4 a 6 vêm pré-selecionados com os valores gravados.
 - É gravado só quando o usuário confirma o resumo do fluxo Instalar, junto com a instalação. Cancelar e o fluxo Apagar não gravam nada.
 - Arquivo ausente, ilegível ou com `schema` desconhecido: a CLI usa os padrões, sem erro, e o sobrescreve na próxima confirmação.
 
@@ -341,7 +348,7 @@ src/
       init.ts           # valida TTY, aplica auto-update e abre o assistente
       update.ts         # `fsd update` (CLI) e `fsd update skill [nome]`
     skills.ts           # catálogo: listSkills(), readSkill(), skillsTarget(project), copySkill()
-    fsdDir.ts           # ~/.fsd e ./.fsd: leitura e gravação atômica
+    fsdDir.ts           # ~/.fsd e ./.fsd (e nook/): estrutura base, leitura e gravação atômica
     registry.ts         # installed.json: registrar, consultar, remover entradas e estado (4.4)
     config.ts           # config.json: tema, símbolos, autoUpdate, lastUpdateCheck
     selfUpdate.ts       # verificação e atualização da própria CLI (7)
@@ -395,19 +402,20 @@ src/
 4. Instalar todas as skills em um `HOME` vazio cria cada uma com a árvore idêntica à do catálogo no idioma escolhido (menos `evals/` e `README.md`), em `<destino>/<name>/`, e as registra no `installed.json`.
 5. Instalar de novo uma skill já em dia não altera nada e termina com exit 0 (`skip (up to date)`).
 6. Escolher `en` em uma skill com idiomas instala só a árvore `en`.
-7. No escopo de projeto, o assistente escreve só em `./.claude/skills` e `./.fsd`, e não toca em `~/.claude` nem em `~/.fsd`, exceto o `config.json` (8.2).
+7. No escopo de projeto, o assistente escreve só em `./.claude/skills`, `./.fsd` e `./nook`, e não toca em `~/.claude`, `~/.fsd` nem `~/nook`, exceto o `config.json` (8.2).
 8. Instalar uma skill registrada com versão menor que a do catálogo faz `upgrade` e mantém o registro coerente.
 9. `Apagar` remove apenas as skills escolhidas e as entradas delas no registro.
 10. Uma pasta em `.claude/skills` que não consta no registro nunca é alterada sem autorização no resumo, e nunca é removida pelo `Apagar`.
 11. Apagar a pasta de uma skill à mão faz o assistente mostrar `missing`; instalar a restaura e `Apagar` limpa a entrada.
 12. No assistente, `ctrl+c` não grava nada em `~/.fsd` nem em `.claude`; `esc` volta ao passo anterior mantendo as escolhas.
-13. A barra de progresso chega a 100% somente ao concluir o resumo, e usa 7 passos no fluxo Instalar quando o idioma não se aplica.
+13. A barra de progresso chega a 100% somente ao concluir o resumo, e usa 6 passos no fluxo Instalar quando o idioma não se aplica.
 14. Tema, símbolos e auto-update escolhidos aparecem pré-selecionados e valem desde as primeiras telas na execução seguinte.
 15. Com `autoUpdate: false`, `fsd init` não faz nenhuma consulta de rede; `fsd update` continua atualizando a CLI.
 16. `fsd -u` equivale a `fsd update`, e `fsd -u -s [nome]` a `fsd update skill [nome]`; `fsd -s` sozinho sai com 1.
 17. `fsd update skill` atualiza todas as skills desatualizadas; `fsd update skill <nome>` atualiza só aquela; ambos saem com 0 quando tudo está em dia.
 18. Com `updateSkills: true`, `fsd update` atualiza a CLI e depois as skills usando a versão nova da CLI.
 19. O menu do assistente não tem "Atualizar": `Instalar` atualiza as skills desatualizadas.
+20. Confirmar o fluxo Instalar cria `nook/kitchen`, `nook/bakers`, `.fsd/oven`, `.fsd/cache` e `.fsd/logs` no escopo escolhido (em `~` no global); cancelar, `fsd init` ao abrir e o fluxo Apagar não criam nada.
 
 ## 13. Decisões e pendências
 
@@ -419,18 +427,18 @@ src/
 - **Catálogo**: único formato `_i18n/<nome>/<lang>/`; a CLI pergunta o idioma.
 - **Versão**: `metadata.version` no frontmatter, semver com pré-release.
 - **Arquivos instalados**: sem `evals/` nem `README.md`.
-- **Agente**: só Claude Code (v1).
-- **Dados da CLI**: em `.fsd/` (global `~/.fsd`, projeto `./.fsd`); `installed.json` é a fonte da verdade e a CLI não varre o diretório do Claude.
+- **Dados da CLI**: em `.fsd/` (global `~/.fsd`, projeto `./.fsd`), com `oven/`, `cache/` e `logs/`; a CLI é agnóstica a serviços de agentes (não há campo nem passo de agente); `fsd init` cria a estrutura base (4.2) ao confirmar o fluxo Instalar; `installed.json` é a fonte da verdade e a CLI não varre o diretório do Claude.
 - **Preferências**: `~/.fsd/config.json` com tema, símbolos, `autoUpdate` e `updateSkills`.
+- **Troca do Clack pelo Ink**: o rascunho antigo usava `@clack/prompts`, que não oferece tela fixa com cabeçalho, rodapé e barra de progresso em todas as telas (apêndice A); por isso a interface foi reescrita em Ink.
+- **Catálogo**: a cópia antiga `fsd-padroes-codigo-csharp/` foi apagada; só vale `_i18n/`.
 - **Interface**: Ink 8 com React >= 19.3, escrita em TSX (`jsx: react-jsx`), desenvolvida com `tsx`; fixa Node >= 22.
-- **Assistente**: menu (Instalar, Apagar, Sair); fluxo Instalar com escopo, serviço de IA, skills, idioma (condicional), auto-update, tema, símbolos e resumo; fluxo Apagar com escopo, skills e resumo; barra de progresso no rodapé.
+- **Assistente**: menu (Instalar, Apagar, Sair); fluxo Instalar com escopo, skills, idioma (condicional), auto-update, tema, símbolos e resumo; fluxo Apagar com escopo, skills e resumo; barra de progresso no rodapé.
 
 **Pendente (itens do autor)**
 
-- **Layout**: logotipo e cabeçalho, posição do idioma, conjuntos de símbolos, largura mínima do terminal e paletas dos temas (6.7).
-- **Catálogo**: `src/skills/fsd-padroes-codigo-csharp/` é cópia antiga de `fsd-csharp-code-standard/pt-BR` e deve ser apagada pelo autor.
+- **Layout** (hoje provisório na implementação): logotipo e cabeçalho, posição do idioma, conjuntos de símbolos, largura mínima do terminal e paletas dos temas (6.7).
 - **Utilidade do tema**: será definida pelo autor depois; a spec não assume nenhuma.
-- **Revisar (decisões minhas)**: `update skill` cobre os escopos global e projeto (o de projeto só se existir `./.fsd/installed.json`); `updateSkills` vem desligado por padrão e é configurado no passo 5; não há flag para pular o auto-update, só a opção salva (se quiser `fsd init --no-update`, acrescentar); `fsd update` ignora o limite de 24 h.
+- **Revisar (decisões minhas)**: `update skill` cobre os escopos global e projeto (o de projeto só se existir `./.fsd/installed.json`); `updateSkills` vem desligado por padrão e é configurado no passo 4; não há flag para pular o auto-update, só a opção salva (se quiser `fsd init --no-update`, acrescentar); `fsd update` ignora o limite de 24 h.
 
 ## Apêndice A — Bibliotecas de interface avaliadas
 
