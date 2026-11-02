@@ -1,7 +1,10 @@
-import { installSkill, hasConflict, type ActionResult } from '../actions/install.js';
-import { uninstallSkill } from '../actions/uninstall.js';
-import { readConfig, writeConfig } from '../config.js';
-import { ensureBaseStructure, realEnv, type Env, type Scope } from '../fsdDir.js';
+import { conflictPaths, hasConflict, planInstall } from '../actions/install.js';
+import { planUninstall } from '../actions/uninstall.js';
+import type { ConflictChoice } from '../actions/types.js';
+import { readConfig } from '../config.js';
+import { runPlan, type RunOptions, type RunOutcome } from '../run.js';
+import { join } from 'node:path';
+import { realEnv, scopePaths, type Env, type Scope } from '../fsdDir.js';
 import { readRegistry, skillState, type SkillState } from '../registry.js';
 import { isValidVersion, listSkills, type Skill } from '../skills.js';
 
@@ -12,8 +15,8 @@ export interface InstallChoices {
   autoUpdate: boolean;
   updateSkills: boolean;
   theme: string;
-  symbols: string;
-  overwrite: string[];
+  // Choice per skill that has a same-name skill in the way (SPEC 6.2 rule 3); missing = keep.
+  conflicts: Record<string, ConflictChoice>;
 }
 
 export interface SkillRow {
@@ -63,34 +66,32 @@ export function conflictsFor(choices: InstallChoices, env: Env = realEnv()): str
   return choices.skills.filter((name) => hasConflict(choices.scope, name, env));
 }
 
-// Runs on the summary confirmation: base structure, installs, then preferences (SPEC 4.2, 6.2, 8.2).
-export function executeInstall(choices: InstallChoices, env: Env = realEnv()): { results: ActionResult[]; errors: string[] } {
-  ensureBaseStructure(choices.scope, env);
-  const catalog = listSkills();
-  const results: ActionResult[] = [];
-  const errors: string[] = [];
-  for (const name of choices.skills) {
-    try {
-      const lang = pickLang(catalog.find((skill) => skill.name === name), choices.lang);
-      results.push(installSkill(choices.scope, { name, ...(lang ? { lang } : {}), overwriteConflict: choices.overwrite.includes(name) }, env));
-    } catch (error) {
-      errors.push(error instanceof Error ? error.message : String(error));
-    }
-  }
-  const previous = readConfig(env);
-  writeConfig({ ...previous, theme: choices.theme, symbols: choices.symbols, autoUpdate: choices.autoUpdate, updateSkills: choices.updateSkills }, env);
-  return { results, errors };
+export const conflictWhere = (choices: InstallChoices, name: string, env: Env = realEnv()): string[] => conflictPaths(choices.scope, name, undefined, env);
+
+// `unlinked` needs the original to be in .claude/skills, not at our own destination.
+export function unlinkedAvailable(choices: InstallChoices, name: string, env: Env = realEnv()): boolean {
+  const where = conflictWhere(choices, name, env);
+  return where.length > 0 && !where.includes(join(scopePaths(choices.scope, env).skills, name));
 }
 
-export function executeUninstall(scope: Scope, names: string[], env: Env = realEnv()): { results: ActionResult[]; errors: string[] } {
-  const results: ActionResult[] = [];
-  const errors: string[] = [];
-  for (const name of names) {
-    try {
-      results.push(uninstallSkill(scope, name, env));
-    } catch (error) {
-      errors.push(error instanceof Error ? error.message : String(error));
-    }
-  }
-  return { results, errors };
+const failedBeforeRun = (message: string): RunOutcome => ({ status: 'failed', phase: 'verify', message, warnings: [] });
+
+// Runs after the summary confirmation (SPEC 6.9): plan, then the phases.
+export function executeInstall(choices: InstallChoices, env: Env = realEnv(), options: RunOptions = {}, lastUpdateCheck?: string): Promise<RunOutcome> {
+  const catalog = listSkills();
+  const requests = choices.skills.map((name) => {
+    const lang = pickLang(catalog.find((skill) => skill.name === name), choices.lang);
+    return { name, ...(lang ? { lang } : {}), onConflict: choices.conflicts[name] ?? ('keep' as const) };
+  });
+  const previous = readConfig(env);
+  const config = { ...previous, theme: choices.theme, autoUpdate: choices.autoUpdate, updateSkills: choices.updateSkills, ...(lastUpdateCheck ? { lastUpdateCheck } : {}) };
+  const plan = planInstall(choices.scope, requests, env, { ensureBase: true, config });
+  if (plan.errors.length > 0) return Promise.resolve(failedBeforeRun(plan.errors.join('; ')));
+  return runPlan(plan, options);
+}
+
+export function executeUninstall(scope: Scope, names: string[], env: Env = realEnv(), options: RunOptions = {}): Promise<RunOutcome> {
+  const plan = planUninstall(scope, names, env);
+  if (plan.errors.length > 0) return Promise.resolve(failedBeforeRun(plan.errors.join('; ')));
+  return runPlan(plan, options);
 }

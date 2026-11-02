@@ -18,7 +18,7 @@ export function Pick({ options, selected, multi, withAll, onChange }: {
 }) {
   const { palette, symbols, color } = useTheme();
   const rows: Option[] = withAll ? [{ value: '*', label: 'Select all' }, ...options] : options;
-  const [cursor, setCursor] = useState(Math.max(0, rows.findIndex((row) => selected.includes(row.value))));
+  const [cursor, setCursor] = useState(multi ? 0 : Math.max(0, rows.findIndex((row) => selected.includes(row.value))));
 
   const allChecked = options.length > 0 && options.every((option) => selected.includes(option.value));
   const isChecked = (row: Option) => (row.value === '*' ? allChecked : selected.includes(row.value));

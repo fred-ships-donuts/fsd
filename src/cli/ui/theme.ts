@@ -1,6 +1,6 @@
 import { createContext, useContext } from 'react';
 
-// PROVISIONAL: palettes and symbol sets are placeholders until the author defines them (SPEC 6.7).
+// PROVISIONAL: palettes are placeholders until the author defines them (SPEC 6.7).
 export interface Palette {
   header: string;
   title: string;
@@ -32,10 +32,7 @@ export interface Symbols {
   down: string;
 }
 
-export const symbolSets: Record<string, Symbols> = {
-  unicode: { label: 'Unicode', marker: '❯', checked: '◉', unchecked: '○', barFull: '█', barEmpty: '░', up: '↑', down: '↓' },
-  ascii: { label: 'ASCII', marker: '>', checked: '[x]', unchecked: '[ ]', barFull: '#', barEmpty: '-', up: '^', down: 'v' },
-};
+export const symbols: Symbols = { label: 'Unicode', marker: '❯', checked: '◉', unchecked: '○', barFull: '█', barEmpty: '░', up: '↑', down: '↓' };
 
 export interface ThemeContext {
   palette: Palette;
@@ -45,15 +42,15 @@ export interface ThemeContext {
 
 export const colorEnabled = (): boolean => !process.env['NO_COLOR'];
 
-export function resolveTheme(themeId: string, symbolsId: string): ThemeContext {
+export function resolveTheme(themeId: string): ThemeContext {
   return {
     palette: (themes[themeId] ?? themes['dracula']!).palette,
-    symbols: symbolSets[symbolsId] ?? symbolSets['unicode']!,
+    symbols,
     color: colorEnabled(),
   };
 }
 
-export const Theme = createContext<ThemeContext>(resolveTheme('dracula', 'unicode'));
+export const Theme = createContext<ThemeContext>(resolveTheme('dracula'));
 export const useTheme = (): ThemeContext => useContext(Theme);
 
 // Props spread for <Text>/<Box>; no color at all when NO_COLOR is set.

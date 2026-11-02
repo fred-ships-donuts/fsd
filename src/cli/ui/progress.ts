@@ -1,12 +1,16 @@
 // Steps and progress bar of the wizard flows (SPEC 6.2, 6.4). Pure functions.
 
 export type Flow = 'install' | 'uninstall';
-export type StepId = 'scope' | 'skills' | 'language' | 'update' | 'theme' | 'symbols' | 'summary';
+export type StepId = 'scope' | 'skills' | 'language' | 'conflicts' | 'update' | 'theme' | 'summary';
 
-export function stepsFor(flow: Flow, languageApplies: boolean): StepId[] {
+// Language and conflicts are conditional steps (SPEC 6.2): the total is 7, 6 or 5.
+export function stepsFor(flow: Flow, languageApplies: boolean, conflictsApply = false): StepId[] {
   if (flow === 'uninstall') return ['scope', 'skills', 'summary'];
-  const steps: StepId[] = ['scope', 'skills', 'language', 'update', 'theme', 'symbols', 'summary'];
-  return languageApplies ? steps : steps.filter((step) => step !== 'language');
+  const steps: StepId[] = ['scope', 'skills'];
+  if (languageApplies) steps.push('language');
+  if (conflictsApply) steps.push('conflicts');
+  steps.push('update', 'theme', 'summary');
+  return steps;
 }
 
 // Completed steps over total. The bar is full only once the last step (summary) is concluded.
