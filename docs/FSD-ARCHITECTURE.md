@@ -39,7 +39,7 @@ Bench
 ↓  
 Oven  
 ↓  
-Recipe  
+Cookbook (Recipes)  
 ↓  
 Baker  
 ↓  
@@ -47,7 +47,7 @@ Skill
 ↓  
 Donuts (Artifacts)  
 ↓  
-Display  
+Rack  
 ↓  
 Fridge (Archive)
 
@@ -76,9 +76,9 @@ Kitchen is the conceptual project preparation layer.
 
 Responsibilities:
 
-- provide configuration;
+- provide project configuration;
 - provide preferences;
-- provide project context.
+- provide project context (rules and documentation).
 
 Kitchen represents the environment required before execution.
 
@@ -91,8 +91,9 @@ The Bench is the workspace directory where task definitions, inputs, and work it
 Responsibilities:
 
 - host active task files and input specifications;
-- store workspace state and temporary execution artifacts;
 - provide the directory structure for files processed by the Oven.
+
+The Bench does not store logs or execution state. The `status` of a task lives in the task file itself; logs and execution state live in `.fsd/logs` and `.fsd/oven`.
 
 ---
 
@@ -110,9 +111,15 @@ The Oven should remain independent from specific development domains.
 
 ---
 
+# Cookbook
+
+The Cookbook is the collection of Recipes of a project (`nook/cookbook/`).
+
+---
+
 # Recipes
 
-Recipes represent workflows.
+Recipes represent workflows and live in the Cookbook.
 
 A Recipe defines:
 
@@ -202,9 +209,9 @@ Examples:
 
 ---
 
-# Display
+# Rack
 
-The Display is the showcase layer where completed tasks (`status: done`) and delivered Donuts are placed for user review and inspection.
+The Rack is the showcase layer where completed tasks (`status: done`) and delivered Donuts are placed for user review and inspection.
 
 Responsibilities:
 
@@ -221,8 +228,9 @@ The Fridge is the archiving and long-term storage layer for completed tasks, pas
 Responsibilities:
 
 - store archived task definitions and past work items on user request;
-- preserve execution logs, historical metadata, and old execution states;
 - serve as cold storage to keep the active Bench clean and focused.
+
+The Fridge does not store logs or execution state. Archived tasks keep their `status` in the task file.
 
 ---
 
@@ -234,11 +242,11 @@ The conceptual model separates user-facing project workspaces from internal CLI 
 
 The `nook/` directory serves as the user-friendly interface store where developers manage tasks, contexts, and deliverables:
 
-- **`nook/kitchen/`**: Project rules, global settings, and user-provided context.
+- **`nook/kitchen/`**: Project rules, project settings, and user-provided context.
 - **`nook/bench/`**: Active workspace hosting input task files (`status: in_progress`).
 - **`nook/cookbook/`**: The cookbook, containing the Recipes (declarative workflow definitions).
 - **`nook/bakers/`**: Specialized AI worker definitions and craft metadata.
-- **`nook/display/`**: Showcase area hosting finished deliverables (`status: done` Donuts).
+- **`nook/rack/`**: Showcase area hosting finished deliverables (`status: done` Donuts).
 - **`nook/fridge/`**: Archive holding past completed work items and historical tasks.
 
 ### 2. System Directory (`.fsd/`)
@@ -256,7 +264,7 @@ my-project/
 │   ├── bench/             # Active tasks in progress
 │   ├── cookbook/          # Cookbook: contains the Recipes (declarative workflows)
 │   ├── bakers/            # Specialized AI workers
-│   ├── display/           # Finished Donuts (status: done)
+│   ├── rack/           # Finished Donuts (status: done)
 │   └── fridge/            # Cold storage archive
 │
 └── .fsd/                  # Internal system & execution state

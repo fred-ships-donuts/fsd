@@ -4,7 +4,7 @@
 
 FSD is an evolutionary AI coding assistant.
 
-The objective is to more than just an AI coding assistant. It will dive into a new development identity.
+The objective is to be more than just an AI coding assistant. It will dive into a new development identity.
 
 For the project vision, see:
 
@@ -19,7 +19,7 @@ FSD is not a rewrite.
 The project should:
 
 - understand before implement;
-- preserve before ;
+- preserve before changing;
 - evolve before redesigning.
 
 Existing behavior represents accumulated knowledge.
@@ -28,15 +28,15 @@ Existing behavior represents accumulated knowledge.
 
 # Initial Objective
 
-The first objective is identity establish.
+The first objective is to establish an identity.
 
-FSD should adopt its own identity while becaming an AI coding assistant.
+FSD should adopt its own identity while becoming an AI coding assistant.
 
 Initial implementations include:
 
 - project naming;
 - branding;
-- CLI implementation
+- CLI implementation;
 - skills implementation.
 
 The first stage should avoid unnecessary functional tools.
@@ -121,7 +121,7 @@ If the answer is no, reconsider the change.
 
 FSD should become more than just an AI coding assistant.
 
-Should be a life style.
+It should be a lifestyle.
 
 ---
 🍩 Bake small.  

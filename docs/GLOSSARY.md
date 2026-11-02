@@ -18,15 +18,18 @@ For architecture details, see:
 | Baker | FSD terminology for Agent |
 | Skill | Executable capability |
 | Recipe | Workflow definition |
-| Ingredient | Reusable knowledge or context |
-| Dough | FSD principles and foundation |
+| Cookbook | Collection of Recipes (`nook/cookbook/`) |
+| Dough | FSD principles and foundation (see `FSD-DOUGH.md`) |
 | Kitchen | Conceptual project preparation layer |
 | Bench | Active workspace directory for tasks |
-| Oven | Execution environment |
-| Artifact | Generated output |
+| Oven | Execution coordination layer |
+| Donuts (Artifacts) | Generated output |
+| Rack | Showcase layer for finished work |
 | Fridge | Archiving and long-term storage layer |
 | Craft | Baker specialization description |
 | Context | Information provided during execution |
+| nook/ | User-facing workspace directory |
+| .fsd/ | Internal system directory (execution state) |
 
 ---
 
@@ -58,44 +61,63 @@ A Skill represents an action or capability that can be executed.
 
 Skills should remain focused and reusable.
 
+The word has two senses in this project: the executable capability of a Baker (architecture) and a skill of the AI assistant that the `fsd` CLI installs (CLI specification). Both follow the same format.
+
 ---
 
 ### Recipe
 
 A Recipe defines a workflow.
 
-It describes how different capabilities are combined to produce a result.
+It describes how different capabilities are combined to produce a result. Recipes live in the Cookbook.
 
 ---
 
 ### Bench
 
-The Bench is the active workspace directory where task definitions and inputs reside before being processed.
+The Bench is the active workspace directory (`nook/bench/`) where task definitions and inputs reside before being processed. It does not store logs or execution state.
 
 ---
 
 ### Fridge
 
-The Fridge is the cold storage and archiving layer used to preserve completed tasks, history, and past artifacts.
+The Fridge (`nook/fridge/`) is the cold storage and archiving layer used to preserve completed tasks and past work. It does not store logs or execution state.
 
 ---
 
-### Ingredient
+### Cookbook
 
-Ingredients represent reusable information used during development.
-
-Examples:
-
-- project knowledge;
-- conventions;
-- documentation;
-- rules.
+The Cookbook is the directory `nook/cookbook/`. It contains the Recipes (declarative workflows) of the project.
 
 ---
 
-### Artifact
+### Dough
 
-An Artifact is a result produced by FSD.
+The Dough is the set of principles that guide FSD decisions. See `FSD-DOUGH.md`.
+
+---
+
+### Oven
+
+The Oven is the execution coordination layer. It manages the execution lifecycle and invokes workflows. Its runtime state lives in `.fsd/oven/`.
+
+---
+
+### Rack
+
+The Rack (`nook/rack/`) is the showcase layer where completed tasks (`status: done`) and delivered Donuts are placed for review.
+
+---
+
+### nook/ and .fsd/
+
+`nook/` is the user-facing workspace (`kitchen/`, `bench/`, `cookbook/`, `bakers/`, `rack/`, `fridge/`). `.fsd/` is the internal system directory (`oven/`, `cache/`, `logs/`).
+
+---
+
+### Donuts (Artifacts)
+
+Donuts, also called Artifacts, are the results produced by FSD.
 
 Examples:
 
