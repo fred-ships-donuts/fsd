@@ -36,7 +36,7 @@ export function scopePaths(scope: Scope, env: Env = realEnv()): ScopePaths {
     nook: join(root, 'nook'),
     installed: join(fsd, 'installed.json'),
     config: join(fsd, 'config.json'),
-    skills: join(root, '.claude', 'skills'),
+    skills: join(fsd, 'skills'),
   };
 }
 

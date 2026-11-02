@@ -32,6 +32,8 @@
   "files": [
     "dist",
     "!dist/**/*.test.*",
+    "!dist/**/testing.*",
+    "!dist/**/crashChild.*",
     "src/skills"
   ],
   "engines": {

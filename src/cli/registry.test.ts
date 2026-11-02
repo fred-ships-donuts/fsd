@@ -3,7 +3,7 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, it } from 'node:test';
 import { readConfig, writeConfig, defaultConfig } from './config.js';
-import { tempEnv } from './fsdDir.test.js';
+import { tempEnv } from './testing.js';
 import { readRegistry, registerSkill, skillState, unregisterSkill } from './registry.js';
 
 describe('registry', () => {

@@ -1,5 +1,5 @@
-import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync } from 'node:fs';
-import { basename, dirname, join } from 'node:path';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { basename, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 // src/cli/ and dist/cli/ both sit two levels below the package root.
@@ -101,16 +101,10 @@ export function isValidVersion(version: string | undefined): version is string {
 }
 
 // evals/ and README.md are authoring material, not part of an installed skill.
-const excluded = (source: string) => {
+export const copyFilter = (source: string): boolean => {
   const name = basename(source);
   return name !== 'evals' && name !== 'README.md';
 };
-
-export function copySkill(variant: SkillVariant, destination: string): void {
-  rmSync(destination, { recursive: true, force: true });
-  mkdirSync(dirname(destination), { recursive: true });
-  cpSync(variant.dir, destination, { recursive: true, filter: excluded });
-}
 
 export function findSkill(name: string): Skill | undefined {
   return listSkills().find((skill) => skill.name === name);

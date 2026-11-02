@@ -4,7 +4,6 @@ import { scopePaths, writeJsonAtomic, realEnv, type Env } from './fsdDir.js';
 export interface Config {
   schema: 1;
   theme: string;
-  symbols: string;
   autoUpdate: boolean;
   updateSkills: boolean;
   lastUpdateCheck?: string;
@@ -13,7 +12,6 @@ export interface Config {
 export const defaultConfig = (): Config => ({
   schema: 1,
   theme: 'dracula',
-  symbols: 'unicode',
   autoUpdate: true,
   updateSkills: false,
 });
@@ -27,7 +25,6 @@ export function readConfig(env: Env = realEnv()): Config {
     return {
       schema: 1,
       theme: typeof data.theme === 'string' ? data.theme : base.theme,
-      symbols: typeof data.symbols === 'string' ? data.symbols : base.symbols,
       autoUpdate: typeof data.autoUpdate === 'boolean' ? data.autoUpdate : base.autoUpdate,
       updateSkills: typeof data.updateSkills === 'boolean' ? data.updateSkills : base.updateSkills,
       ...(typeof data.lastUpdateCheck === 'string' ? { lastUpdateCheck: data.lastUpdateCheck } : {}),

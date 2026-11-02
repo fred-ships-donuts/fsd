@@ -9,6 +9,8 @@ export interface Entry {
   path: string;
   installedAt: string;
   updatedAt: string;
+  // false = installed without the link in .claude/skills (an original was kept there); absent = linked.
+  linked?: boolean;
 }
 
 export interface Registry {

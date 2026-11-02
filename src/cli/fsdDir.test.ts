@@ -1,17 +1,15 @@
 import assert from 'node:assert/strict';
-import { existsSync, mkdtempSync, readFileSync, readdirSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, it } from 'node:test';
-import { baseDirs, ensureBaseStructure, scopePaths, writeJsonAtomic, type Env } from './fsdDir.js';
-
-export const tempEnv = (): Env => ({ home: mkdtempSync(join(tmpdir(), 'fsd-home-')), cwd: mkdtempSync(join(tmpdir(), 'fsd-cwd-')) });
+import { baseDirs, ensureBaseStructure, scopePaths, writeJsonAtomic } from './fsdDir.js';
+import { tempEnv } from './testing.js';
 
 describe('fsdDir', () => {
   it('resolves global and project paths', () => {
     const env = tempEnv();
     assert.equal(scopePaths('global', env).installed, join(env.home, '.fsd', 'installed.json'));
-    assert.equal(scopePaths('project', env).skills, join(env.cwd, '.claude', 'skills'));
+    assert.equal(scopePaths('project', env).skills, join(env.cwd, '.fsd', 'skills'));
     assert.equal(scopePaths('project', env).nook, join(env.cwd, 'nook'));
   });
 
