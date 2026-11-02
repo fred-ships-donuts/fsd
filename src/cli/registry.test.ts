@@ -48,11 +48,11 @@ describe('config', () => {
 
   it('round-trips and ignores invalid field types', () => {
     const env = tempEnv();
-    writeConfig({ ...defaultConfig(), theme: 'windows98', autoUpdate: false }, env);
-    assert.equal(readConfig(env).theme, 'windows98');
+    writeConfig({ ...defaultConfig(), theme: 'donut', autoUpdate: false }, env);
+    assert.equal(readConfig(env).theme, 'donut');
     assert.equal(readConfig(env).autoUpdate, false);
     writeFileSync(join(env.home, '.fsd', 'config.json'), '{"schema":1,"theme":5,"autoUpdate":"yes"}');
-    assert.equal(readConfig(env).theme, 'dracula');
+    assert.equal(readConfig(env).theme, 'donut');
     assert.equal(readConfig(env).autoUpdate, true);
   });
 });

@@ -1,5 +1,5 @@
-import { useMemo, useRef, useState, type ReactElement } from 'react';
-import { Box, Text, useApp, useInput } from 'ink';
+import { useEffect, useMemo, useRef, useState, type ReactElement } from 'react';
+import { Box, Text, useApp, useInput, useStdout } from 'ink';
 import type { ActionResult, ConflictChoice } from '../actions/types.js';
 import { readConfig } from '../config.js';
 import type { Scope } from '../fsdDir.js';
@@ -10,7 +10,7 @@ import { phases, type Phase, type RunOutcome } from '../run.js';
 import { Pick } from './Pick.js';
 import { progressFraction, stepLabel, stepsFor, type Flow, type StepId } from './progress.js';
 import { listSkills } from '../skills.js';
-import { resolveTheme, Theme, themes, tint, useTheme } from './theme.js';
+import { DEFAULT_THEME, resolveTheme, Theme, themes, tint, useTheme } from './theme.js';
 
 type Screen = { kind: 'menu' } | { kind: 'step'; flow: Flow; step: StepId } | { kind: 'running' } | { kind: 'result'; lines: string[]; code: number };
 
@@ -37,6 +37,7 @@ const line = (r: ActionResult) => `${r.action}${r.note ? ` (${r.note})` : ''} ${
 
 export function App({ version, onExit, lastUpdateCheck }: { version: string; onExit: (code: number) => void; lastUpdateCheck?: string }) {
   const { exit } = useApp();
+  const size = useTerminalSize();
   const config = useMemo(() => readConfig(), []);
   const allSkills = useMemo(() => listSkills().map((skill) => skill.name), []);
   const [screen, setScreen] = useState<Screen>({ kind: 'menu' });
@@ -127,7 +128,6 @@ export function App({ version, onExit, lastUpdateCheck }: { version: string; onE
     if (key.leftArrow && screen.kind === 'step') move(-1);
   });
 
-  const detail = screen.kind === 'step' ? `${choices.scope === 'global' ? '~' : '.'}/.fsd/skills` : undefined;
 
   let body: ReactElement;
   let hint = HINT_MOVE;
@@ -212,7 +212,7 @@ export function App({ version, onExit, lastUpdateCheck }: { version: string; onE
       ]} />;
     }
     if (step === 'theme') {
-      return <Pick multi={false} selected={[choices.theme]} onChange={([value]) => set({ theme: value ?? 'dracula' })} options={Object.entries(themes).map(([id, t]) => ({ value: id, label: t.label }))} />;
+      return <Pick multi={false} selected={[choices.theme]} onChange={([value]) => set({ theme: value ?? DEFAULT_THEME })} options={Object.entries(themes).map(([id, t]) => ({ value: id, label: t.label }))} />;
     }
     return renderSummary();
   }
@@ -233,15 +233,35 @@ export function App({ version, onExit, lastUpdateCheck }: { version: string; onE
     );
   }
 
+  const where = screen.kind === 'step' ? `${choices.scope} · ${label}` : undefined;
+
   return (
     <Theme.Provider value={theme}>
-      <Box flexDirection="column" paddingX={1}>
-        <Header version={version} {...(detail ? { detail } : {})} />
-        {body}
+      <Box flexDirection="column" paddingX={1} width={size.columns} height={size.rows}>
+        <Header version={version} {...(where ? { where } : {})} hero={screen.kind === 'menu'} columns={size.columns} />
+        <Box flexDirection="column" flexGrow={1}>
+          {body}
+        </Box>
         <Footer fraction={fraction} label={label} hint={hint} />
       </Box>
     </Theme.Provider>
   );
+}
+
+// Current terminal size, updated on resize, so the wizard always fills the whole terminal.
+function useTerminalSize(): { columns: number; rows: number } {
+  // Ink types its stdout as a WritableStream; at runtime it is the terminal (or a test double) with columns and rows.
+  const { stdout } = useStdout() as unknown as { stdout: NodeJS.WriteStream };
+  const read = () => ({ columns: stdout.columns || 80, rows: stdout.rows || 24 });
+  const [size, setSize] = useState(read);
+  useEffect(() => {
+    const onResize = () => setSize(read);
+    stdout.on('resize', onResize);
+    return () => {
+      stdout.off('resize', onResize);
+    };
+  }, [stdout]);
+  return size;
 }
 
 function Title({ text }: { text: string }) {

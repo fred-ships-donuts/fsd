@@ -49,7 +49,7 @@ describe('a failed run is undone completely (SPEC 6.9)', () => {
   it('config write failure also undoes the registry', async () => {
     const env = tempEnv();
     const before = tree(env);
-    const plan = planInstall('global', [request], env, { ensureBase: true, config: { schema: 1, theme: 'dracula', autoUpdate: true, updateSkills: false } });
+    const plan = planInstall('global', [request], env, { ensureBase: true, config: { schema: 1, theme: 'donut', autoUpdate: true, updateSkills: false } });
     const outcome = await runPlan(plan, { ops: failingOps('writeJson', endsWith('config.json')) });
     assert.equal(outcome.status, 'failed');
     assert.deepEqual(tree(env), before);

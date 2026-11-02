@@ -11,7 +11,7 @@ export interface Config {
 
 export const defaultConfig = (): Config => ({
   schema: 1,
-  theme: 'dracula',
+  theme: 'donut',
   autoUpdate: true,
   updateSkills: false,
 });

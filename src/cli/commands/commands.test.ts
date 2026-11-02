@@ -213,10 +213,10 @@ describe('init', () => {
 
   it('saves the check time right away only when config.json already exists', async () => {
     const env = tempEnv();
-    writeConfig({ ...defaultConfig(), theme: 'dark' }, env);
+    writeConfig({ ...defaultConfig(), autoUpdate: true }, env);
     await initCommand('1.0.0', capture().io, deps(env));
     assert.equal(readConfig(env).lastUpdateCheck, '2026-11-01T12:00:00.000Z');
-    assert.equal(readConfig(env).theme, 'dark');
+    assert.equal(readConfig(env).theme, 'donut');
   });
 
   it('autoUpdate off, npx, or a check made less than 24h ago: no network, no file', async () => {
