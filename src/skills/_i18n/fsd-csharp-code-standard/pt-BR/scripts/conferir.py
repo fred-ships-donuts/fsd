@@ -3,8 +3,7 @@
 
 Cobre: comentário `//` e `/* */`, TODO/FIXME/HACK, `!` (null-forgiving), `#pragma warning disable`, `.Result`,
 `.Wait()`, `async void`, `DateTime.Now`/`UtcNow` e `DateTimeOffset.Now`, linha acima de 120 colunas, log com
-interpolação, `Result` sem tipo genérico, status escolhido por quem instancia o Result<T>, DataAnnotations, `HandleAsync` sem `Invalid` na primeira linha, `== null`/`!= null`, método assíncrono sem sufixo `Async` e arquivo sem
-terminador CRLF.
+interpolação, `Result` sem tipo genérico, status escolhido por quem instancia o Result<T>, DataAnnotations, `HandleAsync` sem `Invalid` na primeira linha, `== null`/`!= null`, método assíncrono sem sufixo `Async`.
 A varredura é por regex sobre o texto sem o conteúdo de strings: pode haver falso positivo, e quem revisa confirma.
 
 Uso: conferir.py <arquivo-ou-pasta> [...]
@@ -114,8 +113,6 @@ def conferir_arquivo(caminho):
     original = caminho.read_text(encoding="utf-8-sig")
     limpo = limpar(original)
     achados = []
-    if re.search(rb"(?<!\r)\n", caminho.read_bytes()):
-        achados.append((1, "terminador-de-linha", "terminador de linha CRLF (padrão Windows)"))
     for numero, (linha, bruta) in enumerate(zip(limpo.splitlines(), original.splitlines()), start=1):
         if len(bruta) > MAX_COLUNAS:
             achados.append((numero, "colunas", f"{len(bruta)} colunas: no máximo {MAX_COLUNAS}"))

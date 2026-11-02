@@ -3,8 +3,7 @@
 
 Covers: `//` and `/* */` comments, TODO/FIXME/HACK, `!` (null-forgiving), `#pragma warning disable`, `.Result`,
 `.Wait()`, `async void`, `DateTime.Now`/`UtcNow` and `DateTimeOffset.Now`, lines over 120 columns, log with
-interpolation, `Result` without a generic type, status chosen by whoever instantiates Result<T>, DataAnnotations, `HandleAsync` without `Invalid` on the first line, `== null`/`!= null`, asynchronous method without the `Async` suffix and file without the
-CRLF terminator.
+interpolation, `Result` without a generic type, status chosen by whoever instantiates Result<T>, DataAnnotations, `HandleAsync` without `Invalid` on the first line, `== null`/`!= null`, asynchronous method without the `Async` suffix.
 The scan is by regex over the text without the contents of strings: there may be false positives, and the reviewer confirms.
 
 Usage: check.py <file-or-folder> [...]
@@ -114,8 +113,6 @@ def check_file(path):
     original = path.read_text(encoding="utf-8-sig")
     cleaned = clean(original)
     findings = []
-    if re.search(rb"(?<!\r)\n", path.read_bytes()):
-        findings.append((1, "line-terminator", "CRLF line terminator (Windows standard)"))
     for number, (line, raw) in enumerate(zip(cleaned.splitlines(), original.splitlines()), start=1):
         if len(raw) > MAX_COLUMNS:
             findings.append((number, "columns", f"{len(raw)} columns: at most {MAX_COLUMNS}"))

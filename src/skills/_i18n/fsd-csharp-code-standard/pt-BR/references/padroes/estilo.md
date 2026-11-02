@@ -13,7 +13,7 @@ A base é o coding-style do dotnet/runtime, com `var`.
 | Nunca mais de uma linha em branco seguida; sem espaço sobrando | |
 | Vírgula final no último item de `switch` de expressão, inicializador e expressão de coleção em várias linhas | `_ => null,` |
 | Um atributo por linha, cada um no seu `[...]`; atributo de parâmetro fica na mesma linha do parâmetro | `[Theory]` e, na linha de baixo, `[InlineData("")]` |
-| UTF-8 sem BOM, terminador de linha CRLF (padrão Windows); acentos literais no código, nas mensagens e nos comentários XML | `"Entidade não encontrada."` |
+| UTF-8 sem BOM; acentos literais no código, nas mensagens e nos comentários XML | `"Entidade não encontrada."` |
 
 | Não faça | Faça |
 |---|---|

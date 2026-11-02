@@ -55,6 +55,6 @@ fsd-csharp-code-standard/
 
 Os arquivos de `references/padroes/` são cópia de `my-project-api/docs/padroes-codigo/`. Os nomes
 perdem o prefixo `padroes-codigo-` (`padroes-codigo-estilo.md` vira `estilo.md`, `padroes-codigo.md` vira
-`visao-geral.md`). Para atualizar, rode `scripts/sincronia.py` (que ignora o prefixo e o terminador de linha) e leve as diferenças para a
+`visao-geral.md`). Para atualizar, rode `scripts/sincronia.py` (que ignora o prefixo) e leve as diferenças para a
 cópia, mantendo os nomes sem o prefixo, inclusive nas referências cruzadas do texto. O `classes.md` é da skill, tirado da
 funcionalidade `DadosBase/Navios`: não existe no projeto e não é sobrescrito pela cópia.

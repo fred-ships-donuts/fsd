@@ -2,8 +2,7 @@
 """Compares the skill's references/standards/ with a project's docs/coding-standards/ and lists what diverged.
 
 The skill's files drop the `coding-standards-` prefix (`coding-standards.md` is `overview.md`), including in the
-cross-references inside the text. The comparison ignores the prefix of those references and the line terminator
-(CRLF or LF): only content changes count.
+cross-references inside the text. The comparison ignores the prefix of those references: only content changes count.
 Usage: sync.py <project-docs-coding-standards-folder>
 Output: one line per diverging file, with the first line that differs.
 Exit code: 0 in sync · 1 with divergence · 2 invalid input. Standard library only. Changes nothing.
@@ -25,8 +24,7 @@ REFERENCE = re.compile(r"coding-standards-([\w-]+\.md)")
 
 
 def normalize(text, from_project):
-    """Replaces the line terminator with LF and, in the project's text, strips the prefix from file names."""
-    text = text.replace("\r\n", "\n")
+    """In the project's text, strips the prefix from file names."""
     if from_project:
         text = REFERENCE.sub(r"\1", text).replace("coding-standards.md", "overview.md")
     return text

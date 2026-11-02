@@ -55,6 +55,6 @@ fsd-csharp-code-standard/
 
 The files in `references/standards/` are a copy of `my-project-api/docs/coding-standards/`. The names
 drop the `coding-standards-` prefix (`coding-standards-style.md` becomes `style.md`, `coding-standards.md` becomes
-`overview.md`). To update, run `scripts/sync.py` (which ignores the prefix and the line terminator) and carry the differences to the
+`overview.md`). To update, run `scripts/sync.py` (which ignores the prefix) and carry the differences to the
 copy, keeping the names without the prefix, including in the cross-references in the text. `classes.md` belongs to the skill, taken from the
 `BaseData/Vessels` feature: it does not exist in the project and is not overwritten by the copy.

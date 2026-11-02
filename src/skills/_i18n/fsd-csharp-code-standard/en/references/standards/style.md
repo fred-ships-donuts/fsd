@@ -13,7 +13,7 @@ The base is the dotnet/runtime coding-style, with `var`.
 | Never more than one blank line in a row; no trailing whitespace | |
 | Trailing comma on the last item of an expression `switch`, initializer, and multi-line collection expression | `_ => null,` |
 | One attribute per line, each in its own `[...]`; a parameter attribute stays on the same line as the parameter | `[Theory]` and, on the line below, `[InlineData("")]` |
-| UTF-8 without BOM, CRLF line terminator (Windows standard) | |
+| UTF-8 without BOM | |
 
 | Don't | Do |
 |---|---|

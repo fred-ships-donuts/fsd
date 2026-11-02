@@ -91,8 +91,8 @@ copies the shape of the role, changing only the domain names; do not invent a di
 
 | I need | Use |
 |---|---|
-| Check what the build analyzer does not catch (`//`, `!`, `.Result`, `DateTime.Now`, 120 columns, interpolated log, DataAnnotations, `HandleAsync` without `Invalid` on the first line, `Result` without `<T>`, `== null`, async method without `Async`, CRLF) | `python <skill>/scripts/check.py <file-or-folder>`: one line `file:line: rule -> correct form` per deviation. Regex over the text without strings: confirm each finding in the code |
-| Know whether the copy of the standards has drifted out of sync with the project | `python <skill>/scripts/sync.py <project>/docs/coding-standards`: only reads and lists what diverged, ignoring the `coding-standards-` prefix of the references and the line terminator |
+| Check what the build analyzer does not catch (`//`, `!`, `.Result`, `DateTime.Now`, 120 columns, interpolated log, DataAnnotations, `HandleAsync` without `Invalid` on the first line, `Result` without `<T>`, `== null`, async method without `Async`) | `python <skill>/scripts/check.py <file-or-folder>`: one line `file:line: rule -> correct form` per deviation. Regex over the text without strings: confirm each finding in the code |
+| Know whether the copy of the standards has drifted out of sync with the project | `python <skill>/scripts/sync.py <project>/docs/coding-standards`: only reads and lists what diverged, ignoring the `coding-standards-` prefix of the references |
 | The reference code for `Result<T>` (constructors, status, `ServerErrorMessage`) | [Result.cs](templates/Result.cs). `Pagination` and `ToActionResult()` live in the project's `Platform`: they are not part of the skill |
 | Deliver the list of deviations from a review | [deviations-report.md](templates/deviations-report.md) |
 | A second, independent read of the diff | the agent [fsd-standards-reviewer](agents/fsd-standards-reviewer.md): only reads and returns the report. Install: copy `agents/*.md` to the project's or the user's `.claude/agents/` |
@@ -142,7 +142,7 @@ build analyzer does **not** catch and the review must check:
 - dependency captured once in a `_camelCase` field; the body uses the field, not the constructor parameter
 - concrete class `sealed`; DTO as `sealed record`; value with an invariant as `sealed class : Notifiable`
   with `Create`
-- UTF-8 without BOM and CRLF line terminator; `is null`/`is not null`; at most 120 columns; blank line before the final `return` (tight inside an `if`); members in the order
+- UTF-8 without BOM; `is null`/`is not null`; at most 120 columns; blank line before the final `return` (tight inside an `if`); members in the order
   fields, properties, constructors, operators, methods (`public` before `private`)
 - negative validation first: each failure condition becomes an `if` that returns right away, all at the same level, and the
   happy path comes last; no nested `if` for success (horizontal sprawl) and no `else` after

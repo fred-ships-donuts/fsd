@@ -91,8 +91,8 @@ copia a forma do papel, trocando só os nomes do domínio; não invente uma form
 
 | Preciso de | Use |
 |---|---|
-| Conferir o que o analisador do build não pega (`//`, `!`, `.Result`, `DateTime.Now`, 120 colunas, log interpolado, DataAnnotations, `HandleAsync` sem `Invalid` na primeira linha, `Result` sem `<T>`, DataAnnotations, `== null`, método assíncrono sem `Async`, CRLF) | `python <skill>/scripts/conferir.py <arquivo-ou-pasta>`: uma linha `arquivo:linha: regra -> forma correta` por desvio. Regex sobre o texto sem strings: confirme cada achado no código |
-| Saber se a cópia dos padrões saiu de sincronia com o projeto | `python <skill>/scripts/sincronia.py <projeto>/docs/padroes-codigo`: só lê e lista o que divergiu, ignorando o prefixo `padroes-codigo-` das referências e o terminador de linha |
+| Conferir o que o analisador do build não pega (`//`, `!`, `.Result`, `DateTime.Now`, 120 colunas, log interpolado, DataAnnotations, `HandleAsync` sem `Invalid` na primeira linha, `Result` sem `<T>`, DataAnnotations, `== null`, método assíncrono sem `Async`) | `python <skill>/scripts/conferir.py <arquivo-ou-pasta>`: uma linha `arquivo:linha: regra -> forma correta` por desvio. Regex sobre o texto sem strings: confirme cada achado no código |
+| Saber se a cópia dos padrões saiu de sincronia com o projeto | `python <skill>/scripts/sincronia.py <projeto>/docs/padroes-codigo`: só lê e lista o que divergiu, ignorando o prefixo `padroes-codigo-` das referências |
 | O código de referência do `Result<T>` (construtores, status, `ServerErrorMessage`) | [Result.cs](templates/Result.cs). `Pagination` e `ToActionResult()` ficam no `Platform` do projeto: não são da skill |
 | Entregar a lista de desvios de uma revisão | [relatorio-desvios.md](templates/relatorio-desvios.md) |
 | Uma segunda leitura independente do diff | o agente [fsd-revisor-padroes](agents/fsd-revisor-padroes.md): só lê e devolve o relatório. Instalar: copiar `agents/*.md` para `.claude/agents/` do projeto ou do usuário |
@@ -144,7 +144,7 @@ analisador do build **não** pega e a revisão precisa conferir:
 - dependência capturada uma vez em campo `_camelCase`; o corpo usa o campo, não o parâmetro do construtor
 - classe concreta `sealed`; DTO como `sealed record`; valor com invariante como `sealed class : Notifiable`
   com `Criar`
-- UTF-8 sem BOM e terminador de linha CRLF; `is null`/`is not null`; no máximo 120 colunas; linha em branco antes do `return` final (colado dentro de `if`); membros na ordem
+- UTF-8 sem BOM; `is null`/`is not null`; no máximo 120 colunas; linha em branco antes do `return` final (colado dentro de `if`); membros na ordem
   campos, propriedades, construtores, operadores, métodos (`public` antes de `private`)
 - validação negativa primeiro: cada condição de falha vira um `if` que devolve na hora, todos no mesmo nível, e o
   caminho feliz fica por último; sem `if` aninhado para o sucesso (alongamento horizontal) e sem `else` depois de

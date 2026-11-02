@@ -2,8 +2,7 @@
 """Compara references/padroes/ da skill com docs/padroes-codigo/ de um projeto e lista o que divergiu.
 
 Os arquivos da skill perdem o prefixo `padroes-codigo-` (`padroes-codigo.md` é `visao-geral.md`), inclusive nas
-referências cruzadas dentro do texto. A comparação ignora o prefixo dessas referências e o terminador de linha
-(CRLF ou LF): só conta o que mudou de conteúdo.
+referências cruzadas dentro do texto. A comparação ignora o prefixo dessas referências: só conta o que mudou de conteúdo.
 Uso: sincronia.py <pasta-docs-padroes-codigo-do-projeto>
 Saída: uma linha por arquivo divergente, com a primeira linha que difere.
 Código de saída: 0 em sincronia · 1 com divergência · 2 entrada inválida. Só biblioteca padrão. Não altera nada.
@@ -25,8 +24,7 @@ REFERENCIA = re.compile(r"padroes-codigo-([\w-]+\.md)")
 
 
 def normalizar(texto, do_projeto):
-    """Troca o terminador de linha por LF e, no texto do projeto, tira o prefixo dos nomes de arquivo."""
-    texto = texto.replace("\r\n", "\n")
+    """No texto do projeto, tira o prefixo dos nomes de arquivo."""
     if do_projeto:
         texto = REFERENCIA.sub(r"\1", texto).replace("padroes-codigo.md", "visao-geral.md")
     return texto
