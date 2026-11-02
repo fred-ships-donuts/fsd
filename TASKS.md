@@ -10,7 +10,7 @@ O código ainda é o rascunho antigo e está defasado em relação à `SPEC.md`;
 - `package.json`: nome `fred-ship-donuts`, dois `bin` (`fred-ships-donuts` e `fsd`) apontando para `dist/cli/index.js`, dependências `@clack/prompts` e `commander`, script `dev` em `src/cli/index.ts`.
 - Catálogo já migrado e commitado em `src/skills/_i18n/` (`fsd-csharp-code-standard`, `fsd-ui-approval`). Ainda existe a cópia antiga `src/skills/fsd-padroes-codigo-csharp/`.
 - `docs/` tem `FSD-INDEX.md`, `FSD-CONCEPT.md`, `FSD-DOUGH.md`, `FSD-ARCHITECTURE.md`, `FSD-DIRECTORY-STRUCTURE.md`, `FSD-IMPLEMENTATION-STRATEGY.md` e `GLOSSARY.md`. A `graft/` na raiz é ignorada pelo git e **não deve ser apagada**.
-- Executadas: F-1.1 a F-25. Layout (cabeçalho, paletas, símbolos) está **provisório** (ver F-23).
+- Executadas: F-1.1 a F-25. Layout (cabeçalho, paletas) está **provisório** (ver F-23).
 
 **Regra de estrutura:** ao fim da F-1.2, todas as demais tasks (F-2 a F-25) são atualizadas para a nova estrutura de diretórios (`nook/` + `.fsd/`, com `nook/cookbook/` no lugar de `nook/recipes/`). Até lá, os caminhos `~/.fsd` e `./.fsd` das tasks da Fase 1 em diante são provisórios.
 
@@ -63,7 +63,7 @@ O código ainda é o rascunho antigo e está defasado em relação à `SPEC.md`;
 
   Entregáveis:
   1. **Documento da estrutura** em `docs/`, com a função de cada diretório, o formato dos arquivos e o ciclo de vida de uma task por `status` (`nook/bench` → `nook/rack` → `nook/fridge`), ligado ao índice pivô da F-1.2.
-  2. **Conciliação com a `SPEC.md` 4.2:** hoje o `.fsd/` da CLI guarda `installed.json` (global e projeto) e `~/.fsd/config.json`. Com a nova estrutura, `.fsd/` é o diretório de sistema (`oven`, `cache`, `logs`) e `nook/kitchen/` guarda configuração, regras e contexto. **Decidido:** `installed.json` (global e projeto) e `config.json` (só global, com `theme`, `symbols`, `autoUpdate`, `updateSkills`) ficam em `.fsd/`, não em `nook/kitchen/`. Falta atualizar a SPEC 4.2 e as tasks já ajustadas se o documento da estrutura divergir.
+  2. **Conciliação com a `SPEC.md` 4.2:** hoje o `.fsd/` da CLI guarda `installed.json` (global e projeto) e `~/.fsd/config.json`. Com a nova estrutura, `.fsd/` é o diretório de sistema (`oven`, `cache`, `logs`) e `nook/kitchen/` guarda configuração, regras e contexto. **Decidido:** `installed.json` (global e projeto) e `config.json` (só global, com `theme`, `autoUpdate`, `updateSkills`) ficam em `.fsd/`, não em `nook/kitchen/`. Falta atualizar a SPEC 4.2 e as tasks já ajustadas se o documento da estrutura divergir.
   3. **Decisões em aberto** para o autor: ~~o que `fsd init` cria~~ (decidido: ver abaixo), o que entra no `.gitignore` (por exemplo `.fsd/cache`, `.fsd/logs`), formato das tasks (`.md` ou `.yaml`) e o formato do campo `status`.
      **Decidido pelo autor:** ao confirmar o fluxo Instalar (não ao abrir o `init`), a CLI cria uma estrutura base, em `~` no escopo global: `nook/` com `kitchen/` e `bakers/`, e `.fsd/` completo, com `oven/`, `cache/` e `logs/`. `bench/`, `cookbook/`, `rack/` e `fridge/` não são criados pelo `init`.
   4. **Impacto nas tasks:** se `fsd init` ou o assistente passam a criar essa estrutura, e quais tasks e seções da spec mudam.
@@ -81,9 +81,9 @@ O código ainda é o rascunho antigo e está defasado em relação à `SPEC.md`;
 
 - [x] **F-5 `fsdDir.ts`** (SPEC 4.2): caminhos `~/.fsd` e `./.fsd`, criação da estrutura base (`nook/kitchen`, `nook/bakers`, `.fsd/oven|cache|logs`) e dos arquivos sob demanda, gravação atômica (arquivo temporário + rename). Testes. Depende de: F-2.
 - [x] **F-6 `registry.ts`** (SPEC 4.3, 4.4): ler/gravar `installed.json`, registrar/remover, calcular estado (`not installed`, `up to date`, `outdated`, `missing`). Arquivo ausente ou ilegível = `not installed`. Testes. Depende de: F-2, F-5.
-- [x] **F-7 `config.ts`** (SPEC 8.2): `theme`, `symbols`, `autoUpdate`, `updateSkills`, `lastUpdateCheck`; padrões para arquivo ausente, ilegível ou `schema` desconhecido. Testes. Depende de: F-2, F-5.
+- [x] **F-7 `config.ts`** (SPEC 8.2): `theme`, `autoUpdate`, `updateSkills`, `lastUpdateCheck`; padrões para arquivo ausente, ilegível ou `schema` desconhecido. Testes. Depende de: F-2, F-5.
 - [x] **F-8 Ajustar `skills.ts`** (SPEC 3, 4.4): remover `.fsd.json` por skill e a decisão "instalada" pela pasta; manter catálogo `_i18n`, frontmatter, semver com pré-release e cópia sem `evals/` e `README.md`. Atualizar testes. Depende de: F-4.
-- [x] **F-9 `actions/install.ts`** (SPEC 6.2): `install`, `upgrade`, `skip (up to date)`, `missing`, conflito fora do registro (sobrescrever só com autorização), substituição completa, bit de execução, registro gravado só após a cópia. **Não** cria a estrutura base (`nook/`, `.fsd/oven|cache|logs`): isso é do assistente (F-19), para o `update skill` não criá-la. Testes com `HOME`/`cwd` temporários. Depende de: F-6, F-8.
+- [x] **F-9 `actions/install.ts`** (SPEC 6.2): `install`, `upgrade`, `skip (up to date)`, `missing`, link simbólico em `.claude/skills/<nome>`, instalação tudo ou nada (falha desfaz a tentativa e devolve o que foi deslocado), conflito de skill de mesmo nome (substituir só com escolha explícita no resumo), substituição completa, bit de execução, registro gravado só após a cópia. **Não** cria a estrutura base (`nook/`, `.fsd/oven|cache|logs`): isso é do assistente (F-19), para o `update skill` não criá-la. Testes com `HOME`/`cwd` temporários. Depende de: F-6, F-8.
 - [x] **F-10 `actions/uninstall.ts`** (SPEC 6.8): remove pasta do `path` registrado e a entrada; `missing` só limpa a entrada; nunca apaga o que não está no registro. Testes. Depende de: F-6.
 - [x] **F-11 `selfUpdate.ts`** (SPEC 7): consulta ao npm (timeout 2 s), decisão de checar como função pura (`autoUpdate`, 24 h, instalação global vs `npx`), atualização da CLI. Testes sem rede. Depende de: F-7.
 
@@ -95,11 +95,11 @@ O código ainda é o rascunho antigo e está defasado em relação à `SPEC.md`;
 
 ## Fase 3 — Assistente (Ink)
 
-- [x] **F-15 `progress.ts`** (SPEC 6.4): lista de passos dos fluxos Instalar (7 ou 6 sem idioma) e Apagar (3) e cálculo da barra, funções puras. Testes.
-- [x] **F-16 `theme.ts`** (SPEC 6.5): 4 temas e conjuntos de símbolos como contexto React, `NO_COLOR`. Depende de: pendências de layout do autor (paletas, símbolos).
-- [x] **F-17 `Header`/`Footer`/`App`** (SPEC 6.1): cabeçalho, rodapé com dica de teclas e barra, navegação (`enter`, `esc`, `ctrl+c` = exit 130, nada gravado antes do resumo). Depende de: F-15, F-16 e do logotipo/cabeçalho definido pelo autor (SPEC 6.7).
+- [x] **F-15 `progress.ts`** (SPEC 6.4): lista de passos dos fluxos Instalar (6 ou 5 sem idioma) e Apagar (3) e cálculo da barra, funções puras. Testes.
+- [x] **F-16 `theme.ts`** (SPEC 6.5): 4 temas e o conjunto de símbolos como contexto React, `NO_COLOR`. Depende de: pendências de layout do autor (paletas).
+- [x] **F-17 `Header`/`Footer`/`App`** (SPEC 6.1): cabeçalho, rodapé com dica de teclas e barra, navegação (`enter`, `←`, `ctrl+c` = exit 130, nada gravado antes do resumo). Depende de: F-15, F-16 e do logotipo/cabeçalho definido pelo autor (SPEC 6.7).
 - [x] **F-18 Menu** (SPEC 6.2): Instalar, Apagar, Sair (sem "Atualizar"). Depende de: F-17.
-- [x] **F-19 Passos do fluxo Instalar** (SPEC 6.2): escopo, skills (com estado), idioma condicional, atualização (`autoUpdate` e `updateSkills`), tema, símbolos, resumo com conflitos e resultado. Ao confirmar, cria a estrutura base (SPEC 4.2: `nook/kitchen`, `nook/bakers`, `.fsd/oven|cache|logs`; em `~` no escopo global), instala e grava `config.json`. Depende de: F-6, F-7, F-9, F-17.
+- [x] **F-19 Passos do fluxo Instalar** (SPEC 6.2): escopo, skills (com estado), idioma condicional, atualização (`autoUpdate` e `updateSkills`), tema, resumo com conflitos e resultado. Ao confirmar, cria a estrutura base (SPEC 4.2: `nook/kitchen`, `nook/bakers`, `.fsd/oven|cache|logs`; em `~` no escopo global), instala e grava `config.json`. Depende de: F-6, F-7, F-9, F-17.
 - [x] **F-20 Fluxo Apagar** (SPEC 6.8): escopo, skills do registro, resumo. Depende de: F-10, F-17.
 - [x] **F-21 Testes do assistente** (SPEC 11): `ink-testing-library` nos componentes; validação final manual em terminal real. Depende de: F-17, F-18, F-19, F-20.
 
@@ -109,6 +109,28 @@ O código ainda é o rascunho antigo e está defasado em relação à `SPEC.md`;
 - [x] **F-23 Critérios de aceitação** (SPEC 12): percorrer todos os itens da seção 12 (a quantidade vem da spec vigente) e registrar o resultado. Depende de: F-13, F-14, F-21, F-22.
 - [x] **F-24 Empacotamento** (SPEC 10): bit de execução em `dist/cli/fsd.js`, `npm pack --dry-run` contendo `dist/` e `src/skills/_i18n/`, teste de `npx -p fred-ships-donuts fsd init`. Depende de: F-3, F-12.
 - [x] **F-25 README**: uso (`fsd init`, `fsd update`, `fsd update skill`, atalhos `-u`/`-s`, `-h`, `-v`). Depende de: F-12, F-13, F-14.
+
+## Fase 5 — Conflito, `--force`, `link`, interrupção e testes de falha (novas, em revisão da spec)
+
+Mudanças pedidas depois da entrega das F-1 a F-25. Spec: SPEC 4.3, 5, 5.3, 5.4, 6.2 (regras 3, 9, 10 e 11), 6.4, 8.1, 9, 11 e 12 (critérios 21 a 30). Implementadas depois da revisão da spec (ver `HANDOFF.md`).
+
+- [x] **F-26 Conflito: três escolhas e o passo Conflitos** (SPEC 6.2 regra 3, 6.4, 4.3): `keep` (padrão), `unlinked` e `replace`. Estende `actions/install.ts` (escolha por conflito no lugar de `overwriteConflict`), `registry.ts` (campo `linked`), `uninstall.ts` (não toca a original de uma skill `unlinked`), `progress.ts` (passo condicional Conflitos; total 7, 6 ou 5) e o assistente (passo novo, escolha por conflito, resumo mostrando as escolhas). Testes. Depende de: F-9, F-10, F-15, F-19.
+- [x] **F-27 `--force` / `-f` em `update skill`** (SPEC 5, 5.3, 8.1): opção do commander; atalho `-f` em `args.ts` como argumento separado e na ordem `-u -s -f` (fora de ordem e agrupados são erro); conflito sem `--force` = mensagem e exit 1; com `--force` substitui; `linked: false` fica fora. Testes de `args`, de `update skill` e do binário. Depende de: F-26, F-12, F-13.
+- [x] **F-28 `fsd link skill [nome]`** (SPEC 5.4): comando novo com `--force`/`-f` e `-s`; liga skills sem link, grava `linked: true`, conflito sem `--force` = exit 1. Testes. Depende de: F-26, F-27.
+- [x] **F-29 Interrupção antes de confirmar** (SPEC 6.2 regra 10, critério 26): testes do assistente com `ctrl+c` em cada passo e instalação normal logo em seguida, conferindo a árvore exata (sem sobras, sem duplicatas, sem link faltando) e repetindo a instalação sem mudar nada. Depende de: F-21, F-26.
+- [x] **F-30 Testes de rollback sem depender de permissões** (SPEC 6.9 regra 8, 9, 11, critério 27): trocar os testes baseados em `chmod` por falhas injetadas no motor de fases (F-32), sem `skip` em root, outro usuário ou Windows; instalação nova, `upgrade` e `replace`, com a original voltando byte a byte. Depende de: F-32.
+- [x] **F-32 Motor de execução em fases** (SPEC 6.9, 4.2, critérios 31 e 32): `run.ts` com o plano, as fases Verificar, Preparar, Aplicar, Registrar e Concluir, o diário em `.fsd/cache/run-<id>/`, desfazer (execução inteira), recuperação de execução morta, trava contra duas execuções, cancelamento entre operações (`ctrl+c`/`SIGTERM`) e operações injetáveis. Migra `actions/install.ts` e `uninstall.ts` para produzir planos; `update skill` e `link skill` usam o mesmo motor. Testes por fase. Depende de: F-9, F-10, F-26.
+- [x] **F-33 Tela de execução** (SPEC 6.9 regras 5 e 6): fases e skills com estado na tela, falha com fase e motivo, cancelamento, volta ao resumo quando o estado mudou. Testes com `ink-testing-library`. Depende de: F-32, F-19, F-20.
+- [x] **F-34 `lastUpdateCheck` sem arquivo ao abrir** (SPEC 7, critério 33): o auto-update do `fsd init` guarda a hora em memória e a entrega à fase Registrar; só grava na hora se o `config.json` já existir. Teste de que `fsd init` ao abrir não cria nada. Depende de: F-32, F-14.
+- [x] **F-35 Documentação**: README (`--force`/`-f`, `link skill`, conflito, fases), HANDOFF e glossário se surgir termo novo. Depende de: F-26 a F-34.
+
+## Pontos para a revisão da spec
+
+**Decididos pelo autor:** `unlinked` sem link (proposta A); ligar depois com `fsd link skill [nome]` (com `-f`/`--force`); passo separado para os conflitos; exit 1 no conflito sem `--force`; `--force` sem nome vale para todos, sem confirmação; `--force` só resolve conflito; a regra 11 entra; testes de rollback sem `skip` por permissão (falha injetada); atalhos como argumentos separados `-u -s -f`, não agrupados.
+
+**Decididos na revisão (fases, SPEC 6.9):** a falha desfaz a execução inteira; a área de trabalho `.fsd/cache/run-<id>/` é criada sob demanda por qualquer operação e removida ao fim; execução morta reconhecida pelo pid; `lastUpdateCheck` em memória e gravado na fase Registrar; atalhos na ordem `-u -s -f` (fora de ordem é erro); `-s` e `-f` valem em `fsd link`, `-u` não.
+
+**Em aberto:** nenhum. A spec está pronta para implementação.
 
 ## Contratos entre tasks
 
@@ -121,11 +143,11 @@ Interfaces que, depois de fechadas, não devem mudar sem revisar as tasks depend
 - **F-9 e F-10 `actions/`:** sem UI, sem estrutura base. Devolvem um resultado por skill (nome, ação `install`/`upgrade`/`skip`/`remove`, versão, idioma, destino) que serve tanto ao assistente quanto ao `update skill`. O registro só é gravado depois da cópia.
 - **F-12 e `commands/`:** cada comando é uma função que recebe os argumentos e devolve o exit code; `fsd.ts` só roteia.
 - **F-15 `progress.ts`:** funções puras; entra o fluxo e se o passo de idioma se aplica, sai a lista de passos e o total.
-- **F-17 `App`:** cada passo é um componente que recebe as escolhas atuais e os callbacks de avançar e voltar; a navegação (`enter`, `esc`, `ctrl+c`) fica no `App`, não nos passos.
+- **F-17 `App`:** cada passo é um componente que recebe as escolhas atuais e os callbacks de avançar e voltar; a navegação (`enter`, `←`, `ctrl+c`) fica no `App`, não nos passos.
 
 ## Pendências do autor que bloqueiam tasks
 
-- Logotipo e itens do cabeçalho, conjuntos de símbolos, largura mínima, paletas dos temas (SPEC 6.7): F-16, F-17.
+- Logotipo e itens do cabeçalho, largura mínima, paletas dos temas (SPEC 6.7): F-16, F-17.
 - Apagar ou manter o `SKILL.md` roteador e a cópia antiga `fsd-padroes-codigo-csharp/`: F-4.
 - Decisões em aberto da F-2 (`.gitignore`, formato das tasks e do `status`; onde ficam `installed.json` e as preferências da CLI: decidido, em `.fsd/`): F-5, F-6, F-7.
 - Revisar as decisões marcadas em SPEC 13 ("Revisar"): afetam F-13 e F-19.
@@ -139,4 +161,4 @@ Verificado por testes automáticos (`npm test`, 61 testes) e por uma execução 
 - 14 e 15: `readConfig`/`shouldCheck` testados; o pré-seleção na UI usa `readConfig()`, sem teste de interface.
 - 18: o encadeamento é testado com dependências simuladas; o `spawn` real de `fsd update skill` não foi exercitado.
 
-**Não verificado:** consulta e instalação reais no npm (o pacote ainda não foi publicado), e a validação manual completa do assistente em um terminal real. Layout provisório, a confirmar pelo autor: logotipo (`🍩 F S D`), paletas dos 4 temas, conjuntos de símbolos (`unicode`, `ascii`) e largura mínima (40 colunas).
+**Não verificado:** consulta e instalação reais no npm (o pacote ainda não foi publicado), e a validação manual completa do assistente em um terminal real. Layout provisório, a confirmar pelo autor: logotipo (`🍩 F S D`), paletas dos 4 temas e largura mínima (40 colunas).
