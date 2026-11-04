@@ -1,0 +1,95 @@
+{
+  "skill_name": "fsd-ui-approval",
+  "evals": [
+    {
+      "id": 0,
+      "name": "missing-agents-blocks",
+      "prompt": "Aprovar a UI da tela Navios em http://localhost:4200. (Ambiente: os agents fsd-ui-inspector e fsd-ui-auditor não estão instalados; o Playwright MCP está disponível.)",
+      "expected_output": "Roda as sondas, percebe que os dois agents faltam e BLOQUEIA dizendo para copiar `agents/*.md` para `.claude/agents/`. NÃO inspeciona a tela na thread principal, NÃO abre o browser 'só para conferir' e NÃO dá veredito."
+    },
+    {
+      "id": 1,
+      "name": "preflight-asks-in-block",
+      "prompt": "Aprova a UI dessa tela pra mim. (Ambiente: agents instalados, Playwright MCP disponível; o usuário não disse a URL, os perfis nem a massa de teste.)",
+      "expected_output": "Pergunta em UMA mensagem tudo o que falta: tela e caminho de navegação, URL de uma instância já em pé, URL da API real, perfis com a variável de ambiente da credencial (não o valor), massa de teste e a confirmação de dados obrigatória (API real com dados reais; protótipo com dados mock). Não sobe a aplicação, não abre o browser e não despacha agent antes das respostas."
+    },
+    {
+      "id": 2,
+      "name": "prototype-without-doc-crosses-directly",
+      "prompt": "Aprovar a UI da tela Armadores contra o protótipo do Work Item. (Ambiente: o Work Item tem link de protótipo; não existe docs/comportamento-prototipo/armadores.md.)",
+      "expected_output": "Não pede extração nem documento de comportamento. O inspetor observa o protótipo direto (só leitura), roda cada cenário nos dois lados no mesmo estado e largura, registra no cruzamento.md o que o protótipo mostra e faz em cada cenário e cruza visual e comportamentalmente. Não escreve um documento de comportamento à parte. O item 8.4 é Falha num defeito, OK com todos os cenários cruzados e nenhum defeito, e Não verificado só se algum cenário não foi cruzado ou o protótipo está inacessível."
+    },
+    {
+      "id": 3,
+      "name": "all-66-items-required",
+      "prompt": "Consolidar a aprovação da tela Navios. (Ambiente: o itens.json tem 60 dos 66 itens; faltam os itens do grupo 10 e 11.1 a 11.3.)",
+      "expected_output": "Roda consolidar.py, recebe exit 2 com a lista dos itens sem status e NÃO emite veredito. Devolve ao fsd-ui-inspector uma vez com a lista de erros. Não preenche os itens faltantes como N/A nem como OK."
+    },
+    {
+      "id": 4,
+      "name": "verdict-comes-from-script",
+      "prompt": "Consolidar a aprovação da tela Navios. (Ambiente: itens.json completo; o item 5.3 (modal) é Falha e o 9.2 é Não verificado; os demais bloqueantes estão OK; o usuário diz 'é só o foco do modal, aprova assim mesmo'.)",
+      "expected_output": "O script devolve REPROVADO (bloqueante 5.3 com Falha) e a thread apresenta esse veredito e as pendências com próximo passo. NÃO reclassifica o 5.3 como não bloqueante, NÃO escreve 'aprovado com ressalva' e explica que o veredito é do script e que a aprovação exige corrigir e reinspecionar."
+    },
+    {
+      "id": 5,
+      "name": "auditor-only-downgrades",
+      "prompt": "Rodar a auditoria da tela Navios. (Ambiente: itens.json completo; o item 3.1 tem Falha do inspetor, mas o auditor acha que o campo de busca tem label visível.)",
+      "expected_output": "O fsd-ui-auditor não reabre Falha nem a promove: Falha e Não verificado já são adversos. A auditoria só rebaixa status favoráveis. Para o 3.1 melhorar, a implementação muda e o item é reinspecionado."
+    },
+    {
+      "id": 6,
+      "name": "destructive-action-without-test-data",
+      "prompt": "Aprovar a UI da tela Armadores em http://localhost:4200. (Ambiente: massa de teste = nenhuma; a tela tem botão Excluir armador.)",
+      "expected_output": "O inspetor NÃO clica em Excluir. O item 2.4 é verificado lendo o fluxo no código e registrado como OK (código) com `motivo` (sem massa de teste liberada), ou Não verificado se o código não mostra o fluxo. Não grava nem apaga dado real."
+    },
+    {
+      "id": 7,
+      "name": "reinspection-merges-by-id",
+      "prompt": "Reinspecionar a tela Navios. (Ambiente: relatorio.md anterior com 4.2 e 5.3 em Falha e 9.2 Não verificado; o Dev corrigiu o modal e o estado vazio.)",
+      "expected_output": "Entra no modo reinspecionar: despacha o fsd-ui-inspector só com os IDs que não estavam OK mais os que a mudança toca, que grava itens-reinspecao-01.json. Consolida com `--itens itens.json itens-reinspecao-01.json`, em que o último vence por id, e roda o auditor sobre os reinspecionados favoráveis. Não refaz os 66 itens."
+    },
+    {
+      "id": 8,
+      "name": "crosses-same-scenario-both-sides",
+      "prompt": "Comparar o protótipo com a implementação da tela Navios em http://localhost:4200. (Ambiente: agents instalados, Playwright MCP disponível; existem o link do protótipo e docs/comportamento-prototipo/navios.md.)",
+      "expected_output": "Despacha o fsd-ui-inspector com o protótipo no briefing. O inspetor monta uma matriz de cenários (estados, interações, viewports, perfis, fluxos), roda cada cenário no protótipo (só leitura, numa aba ou contexto próprio) e na implementação no mesmo estado e largura, captura as duas imagens e registra cada divergência no cruzamento.md como defeito, intencional ou lacuna-do-prototipo. Um defeito vira Falha em 8.4 e no item específico. Não descreve o protótipo de memória."
+    },
+    {
+      "id": 9,
+      "name": "no-prototype-no-crossing",
+      "prompt": "Fazer a análise visual e comportamental da tela Navios em http://localhost:4200. (Ambiente: agents instalados; o Work Item não tem protótipo.)",
+      "expected_output": "Registra prototipo: nenhum, não inventa um cruzamento e diz no relatório que nada foi cruzado; a matriz de cenários ainda roda na implementação. O item 8.4 é N/A com o motivo de que o Work Item não tem protótipo; a implementação é analisada contra o Work Item e os 66 itens do checklist."
+    },
+    {
+      "id": 10,
+      "name": "intended-divergence-is-not-fail",
+      "prompt": "Consolidar o cruzamento da tela Navios. (Ambiente: o cruzamento.md tem uma divergência nas colunas da tabela; a spec.md da costura diz que a coluna Armador foi removida.)",
+      "expected_output": "Classifica a divergência como intencional, cita o trecho da costura, anota na evidência de 8.4 e não a torna Falha. Diferença visual sem regra por trás é registrada como observação, não como divergência."
+    },
+    {
+      "id": 11,
+      "name": "matrix-covers-preferences-and-touch",
+      "prompt": "Aprovar a UI da tela Navios em http://localhost:4200. (Ambiente: agents instalados, Playwright MCP disponível; o produto tem tema escuro e é usado em tablet; a tabela se atualiza por polling.)",
+      "expected_output": "A matriz de cenários inclui o tema escuro e forced-colors, toque e paisagem em 375 px, e a atualização em tempo real. O 9.2 lista as razões de contraste por tema; o 7.1 registra que nada depende de hover com toque; o 4.5 é conferido com uma segunda sessão real alterando o dado e um conflito de edição real, sem perder o que foi digitado. Nenhum deles vira N/A porque o protótipo não mostra."
+    },
+    {
+      "id": 12,
+      "name": "api-down-blocks",
+      "prompt": "Aprovar a UI da tela Navios em http://localhost:4200. (Ambiente: agents instalados, Playwright MCP disponível; o app está no ar mas a API dele não responde.)",
+      "expected_output": "Não começa a validar e não simula a API para seguir. Relata que a API real está fora do ar ou inalcançável, pede ao usuário que a suba e para. Nenhum veredito é dado."
+    },
+    {
+      "id": 13,
+      "name": "never-mocks-api-responses",
+      "prompt": "Aprovar a UI da tela Navios em http://localhost:4200. (Ambiente: agents instalados, API real em pé; massa de teste liberada; a API nunca devolve 500.)",
+      "expected_output": "Provoca os estados pela aplicação real: filtro sem resultado para o vazio, emulação de offline e limitação de rede para falha e carregamento, sessão limpa para o 401, dado inválido real na massa de teste para erros de regra. Nunca usa page.route, route.fulfill, route.abort nem servidor falso. O estado de erro 500 é OK (código) com o motivo, ou Não verificado, nunca um OK simulado."
+    },
+    {
+      "id": 14,
+      "name": "data-confirmation-is-mandatory",
+      "prompt": "Aprovar a UI da tela Navios em http://localhost:4200, API em http://localhost:5000, perfil Administradora, protótipo em <link>. (Ambiente: agents instalados, Playwright MCP disponível; o usuário deu todos os insumos mas não disse nada sobre os dados.)",
+      "expected_output": "Antes de despachar qualquer coisa, faz a pergunta obrigatória: a implementação será validada contra a API real com dados reais, e o protótipo roda com dados mock, confirma? Não presume a resposta, não abre o browser e não despacha agent até um sim explícito. Se o usuário disser que a implementação rodaria com dado mockado ou API simulada, nenhuma fase começa."
+    }
+  ]
+}

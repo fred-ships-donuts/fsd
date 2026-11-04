@@ -1,0 +1,57 @@
+{
+  "_comentario": "Formato do itens.json. Um objeto por item do checklist; a aprovação exige os 66 (--parcial aceita parte). Remova este campo. Nunca escreva credencial, token ou dado pessoal real.",
+  "meta": {
+    "tela": "Dados Base › Navios",
+    "app": "http://localhost:4200",
+    "build": "commit exibido no rodapé, ou 'não exposto'",
+    "prototipo": "<link do protótipo navegável> · docs/comportamento-prototipo/dados-base.md",
+    "perfis": "Administradora, Operador de Captação",
+    "driver": "mcp",
+    "data": "2026-10-28",
+    "limites": [
+      "Estado de erro provocado de verdade (emulação de offline); nenhuma resposta de API foi simulada.",
+      "Gravação não inspecionada: sem massa de teste liberada."
+    ]
+  },
+  "itens": [
+    {
+      "id": "1.1",
+      "status": "OK",
+      "evidencia": "Navios > passar o mouse na linha e no botão Ordenar: fundo muda de #fff para #f1f5f9; cursor pointer em linha, botão e cabeçalho (getComputedStyle).",
+      "shot": "evidencias/1.1-hover-linha.png"
+    },
+    {
+      "id": "2.3",
+      "status": "N/A",
+      "motivo": "A tela é só consulta: não tem formulário nem modal de confirmação."
+    },
+    {
+      "id": "3.4",
+      "status": "OK (código)",
+      "evidencia": "navios.service.ts:88 mapeia o código NAVIO_DUPLICADO para a mensagem do campo.",
+      "motivo": "Tentei provocar o 422 com dado real na massa de teste, mas a tela não grava, então o estado não é alcançável."
+    },
+    {
+      "id": "4.2",
+      "status": "Falha",
+      "evidencia": "Navios > filtro Status = Inativo sem resultado: exibe só 'Nenhum navio encontrado.', sem orientação nem ação. Reproduziu 2 de 2.",
+      "shot": "evidencias/4.2-vazio-navios.png",
+      "proximo_passo": "Acrescentar 'Tente ajustar a busca ou o filtro de Status' ao estado vazio.",
+      "origem": "prototipo"
+    },
+    {
+      "id": "8.4",
+      "status": "Falha",
+      "evidencia": "cruzamento.md: 14 de 14 cenários cruzados · defeito 1 · intencional 1 · lacuna-do-prototipo 2. Cenário 'com-dados-375': o protótipo recolhe os filtros num drawer, a implementação os empilha acima da tabela.",
+      "shot": "evidencias/com-dados-375-implementacao.png",
+      "proximo_passo": "Recolher os filtros num drawer abaixo de 768 px, como no protótipo.",
+      "origem": "implementacao"
+    },
+    {
+      "id": "9.2",
+      "status": "Não verificado",
+      "motivo": "A ferramenta de avaliação de script falhou em 3 tentativas (CSP bloqueou a execução).",
+      "proximo_passo": "Medir o contraste com a extensão de acessibilidade do navegador ou liberar a CSP no ambiente de teste."
+    }
+  ]
+}
