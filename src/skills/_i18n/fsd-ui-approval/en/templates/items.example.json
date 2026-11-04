@@ -4,12 +4,12 @@
     "screen": "Base Data › Vessels",
     "app": "http://localhost:4200",
     "build": "commit shown in the footer, or 'not exposed'",
-    "prototype": "docs/prototype-behavior/base-data.md",
+    "prototype": "<navigable prototype link> · docs/prototype-behavior/base-data.md",
     "profiles": "Administrator, Intake Operator",
     "driver": "mcp",
     "date": "2026-10-28",
     "limits": [
-      "Error state simulated by a route returning a 500 response; the backend was not changed.",
+      "Error state provoked for real (offline emulation); no API response was simulated.",
       "Saving not inspected: no test data released."
     ]
   },
@@ -29,7 +29,7 @@
       "id": "3.4",
       "status": "OK (code)",
       "evidence": "vessels.service.ts:88 maps the code DUPLICATE_VESSEL to the field message.",
-      "reason": "I tried to simulate the 422 response with a route, but the screen does not save, so the state is not reachable."
+      "reason": "I tried to provoke the 422 with real data on the test data, but the screen does not save, so the state is not reachable."
     },
     {
       "id": "4.2",
@@ -38,6 +38,14 @@
       "shot": "evidence/4.2-empty-vessels.png",
       "next_step": "Add 'Try adjusting the search or the Status filter' to the empty state.",
       "origin": "prototype"
+    },
+    {
+      "id": "8.4",
+      "status": "Fail",
+      "evidence": "crossing.md: 14 of 14 scenarios crossed · defect 1 · intended 1 · prototype-gap 2. Scenario 'populated-375': the prototype collapses the filters into a drawer, the implementation stacks them above the table.",
+      "shot": "evidence/populated-375-implementation.png",
+      "next_step": "Collapse the filters into a drawer below 768 px, as in the prototype.",
+      "origin": "implementation"
     },
     {
       "id": "9.2",

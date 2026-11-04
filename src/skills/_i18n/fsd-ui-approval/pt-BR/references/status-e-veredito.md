@@ -24,16 +24,17 @@ não é evidência.
 - `implementacao`: o protótipo ou o PRD definem o comportamento e a implementação não o cumpre
 - `prototipo`: o protótipo também não tem o comportamento (a falha é de design ou de produto, e a
   implementação fiel a ele ainda descumpre o checklist)
-- `indefinida`: não foi possível decidir. Use só depois de conferir o documento do protótipo e o PRD
+- `indefinida`: não foi possível decidir. Use só depois de conferir o protótipo (e o documento de comportamento dele, quando houver) e o PRD
 
 O checklist é obrigatório mesmo quando o protótipo não o cumpre. A origem não perdoa a falha: só a
 encaminha.
 
 ### OK (código)
 
-Aceito quando o estado não pode ser provocado de forma legítima: erro de regra de negócio sem como
-simular a resposta, ação destrutiva fora de massa de teste, estado que só existe em outro ambiente. Antes de
-usar, tente provocar (rota com resposta simulada, atraso, offline). Se o estado é alcançável, o status é OK ou
+Aceito quando o estado não pode ser provocado contra a API real: erro de regra de negócio que a API real e
+a massa de teste não produzem, ação destrutiva fora de massa de teste, estado que só existe em outro ambiente.
+Resposta nunca é simulada para chegar a ele. Antes de usar, tente provocar de verdade (dado real, limitação
+de rede, offline, uma segunda sessão). Se o estado é alcançável, o status é OK ou
 Falha, nunca OK (código). O auditor reabre os OK (código) em itens bloqueantes.
 
 ### N/A

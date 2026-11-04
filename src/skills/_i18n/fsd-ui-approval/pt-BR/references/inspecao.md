@@ -9,22 +9,35 @@ Em ordem, sem pular:
 
 1. **O Work Item**: PRD, costura (`spec.md` ou `plan.md`) e critérios de aceite. O PRD prevalece sobre o
    protótipo
-2. **O documento de comportamento do protótipo**: `docs/comportamento-prototipo/<tela>.md`, produzido pela
-   skill `fsd-extracao-comportamento-prototipo`. Tem os mesmos 12 grupos do checklist e é a base dos itens
+2. **O protótipo**: o próprio protótipo navegável, observado só para leitura no mesmo cenário, e o documento de
+   comportamento dele quando houver ([abaixo](#o-documento-de-comportamento-do-protótipo)). É a base dos itens
    8.2, 8.3 e 8.4 e do 12.1
 3. **O checklist**, que vale mesmo quando as duas fontes acima não dizem nada: comportamento que nenhuma fonte
    define e que o checklist exige é Falha com `origem: prototipo`
 
-Sem o documento do protótipo e com protótipo no Work Item, o item 8.4 não é verificável: pare e peça ao
-usuário a extração (a skill de extração é um pedido à parte, esta skill não a executa). Não compare com o
-protótipo de memória.
+Sem o documento de comportamento e com protótipo navegável, nada se pergunta: o inspetor observa o protótipo
+direto e extrai o comportamento esperado ao cruzar cada cenário, registrando no `cruzamento.md` o que o protótipo
+mostra e faz. Nenhum documento à parte é produzido. O cruzamento visual e o comportamental rodam, e o 8.4 segue a
+[regra de fechamento](#cruzar-protótipo--implementação) do cruzamento. Não compare com o protótipo de memória.
+
+## O documento de comportamento do protótipo
+
+**Opcional.** Escrito pelo usuário ou por outro fluxo, a partir do protótipo rodando com dados mock; esta skill
+não depende de nenhuma skill ou ferramenta específica para produzi-lo. Caminho:
+`docs/comportamento-prototipo/<tela>.md`. Formato:
+
+- Os mesmos 12 grupos do [checklist](checklist.md), na mesma ordem e com os mesmos títulos
+  (`## 1. Estados dos elementos` … `## 12. Fluxo, desempenho e segurança percebida`)
+- Em cada grupo, o comportamento esperado do protótipo: estrutura, textos, estados, ações, feedback e
+  transições, com o caminho de navegação que leva a cada um. Grupo que o protótipo não cobre diz isso
+- O que os dados moldam (colunas, formatos, vazio, texto longo), nunca o conteúdo mock em si
+
+O PRD prevalece sobre ele, como prevalece sobre o protótipo. Quando existe, ele guia a matriz de cenários e os
+itens 8.2, 8.3, 8.4 e 12.1; o protótipo continua sendo observado em cada cenário.
 
 ## O app
 
 - **Esta skill não sobe a aplicação.** O usuário informa a URL de uma instância já em pé
-- **Banco de dados.** Se a aplicação consulta banco, navegar nela dispara consultas, e a regra global
-  `SQL_AUTORIZACAO_CODIGO` vale. Antes de navegar, pergunte se a instância é a dos dados que o usuário
-  autorizou (ou usa dado simulado). Sem isso, não abra a tela
 - **Perfis.** Um login por perfil do briefing, com a credencial lida de variável de ambiente ou de
   referência. Nunca peça nem registre o valor. Nada de `storageState`, cookie ou token salvo em disco
 - **Massa de teste.** Gravar, excluir e confirmar só em dados que o usuário declarou como de teste. Sem
@@ -40,30 +53,108 @@ protótipo de memória.
 4. Nenhum ⇒ pare e diga como configurar. Não confira a tela só pelo código: isso rebaixa todos os itens a OK
    (código) ou Não verificado
 
-O **protótipo** é a exceção: segue a regra global `PROTOTIPO_NAVEGADOR`. Abra-o no Edge, em aba nova, só para
-leitura. A implementação é inspecionada pelo driver acima.
+O **protótipo** é a exceção: só é observado, nunca alterado. Abra-o só para leitura numa aba ou
+contexto de browser próprio (o mesmo driver, nunca a sessão logada da implementação), e nunca interaja de modo
+que o altere. A implementação é inspecionada pelo driver acima. Os dois
+ficam abertos ao mesmo tempo só para a captura lado a lado; a interação é em sequência.
 
 Um browser, uma sessão por vez: as inspeções rodam em sequência.
 
+## Cruzar protótipo × implementação
+
+Uma análise visual e comportamental: o mesmo cenário roda nos dois lados e os dois resultados são postos lado
+a lado. Sem protótipo não há cruzamento, mas a matriz do passo 1 ainda é montada e percorrida só na
+implementação, como mapa de cobertura do checklist, e o `cruzamento.md` abre com "sem protótipo: nada foi
+cruzado".
+
+**1. Matriz de cenários.** Antes de cruzar, liste os cenários e grave em `cruzamento.md`. As fontes são o próprio protótipo, o documento de comportamento dele quando houver (seus 12 grupos), os
+critérios de aceite do PRD e os estados do checklist. Mínimo:
+
+| Eixo | Cenários |
+|---|---|
+| Estado | carga inicial, carregando, com dados, vazio, erro de API, erro de validação, erro de regra, sucesso, desabilitado, offline, sessão expirada, conflito de edição, atualização em tempo real |
+| Interação | cada ação da tela, hover, foco (teclado), atalhos, abrir/fechar de overlays, ordenação, filtro, busca, paginação ou scroll infinito, seleção, arrastar e soltar, copiar/colar, upload/download, sair com alteração não salva |
+| Dados | realistas, texto longo, muitos registros, zero e negativos, caracteres especiais |
+| Viewport | 1440 e 375 px; some 1024 e 768 quando o protótipo se adapta; toque e paisagem em 375 |
+| Preferência | cada tema que o produto oferece, `forced-colors`, `prefers-reduced-motion`, zoom de 200%, cada idioma suportado |
+| Perfil | cada perfil cuja visão difere |
+| Fluxo | caminho feliz, alternativos (cancelar, voltar, vazio), de erro, interrupção e retomada |
+
+Cenário que o protótipo não alcança (ele não tem aquele estado) se registra como `lacuna-do-prototipo`, não
+se pula. Célula que a tela não tem (sem troca de tema, um idioma só) fica de fora, com o motivo no
+`cruzamento.md`.
+
+**2. Cruzar cada cenário.** Ponha protótipo e implementação no mesmo estado, na mesma largura, cada um com os
+seus dados (**mock no protótipo, reais na implementação**, um nunca no lugar do outro), e capture os dois: `evidencias/<cenário>-prototipo.png` e `evidencias/<cenário>-implementacao.png`.
+Compare, nesta ordem:
+
+- **Visual:** estrutura e ordem dos blocos; alinhamento e espaçamento; tipografia (família, tamanho, peso);
+  cores; ícones; textos e rótulos; proporção e truncamento. Meça pelo estilo computado na implementação e a
+  olho ou por medição no protótipo; diferença abaixo da tolerância do próprio protótipo (antialiasing, 1 px de
+  renderização) não é divergência
+- **Comportamental:** o que acontece no hover, clique, foco e teclado; o feedback e o tempo dele; transições e
+  animação (duração, easing, o que se move); em que estado a tela fica depois da ação; navegação e URL; o que
+  cada perfil enxerga
+
+**3. Registrar cada divergência** em `cruzamento.md`: cenário, o que o protótipo mostra ou faz, o que a
+implementação mostra ou faz, as duas capturas, o item do checklist que ela afeta e a classe:
+
+| Classe | Quando | Efeito |
+|---|---|---|
+| `defeito` | a implementação se afasta do protótipo e nada determina isso | Falha no item 8.4 e no item específico, `origem: implementacao` |
+| `intencional` | o PRD ou a costura determina a diferença (cite o trecho) | anotada na `evidencia`, não é Falha |
+| `lacuna-do-prototipo` | o protótipo não define o comportamento, ou o define errado | cai no checklist; a Falha seria `origem: prototipo` |
+
+**O protótipo roda com dados mock e a implementação roda com dados reais, vindos da API real.** Nomes, números, datas, quantidades e a ordem dos registros diferem entre
+o protótipo e a aplicação real, e isso é esperado: nunca é divergência. Cruze o que os dados *moldam*, não os
+dados em si: a estrutura e as colunas, o formato (data, moeda, número), o truncamento e a quebra, o estado que
+cada tipo de dado produz (vazio, texto longo, muitos registros, erro, um valor fora do usual) e como a tela
+reage a ele. Para comparar, ponha a implementação na situação equivalente, sempre com dado real (um registro do mesmo
+tipo, um filtro que esvazia a lista, texto longo na `massa`); o mock do protótipo pode ser o único lugar onde
+certa situação aparece, e isso o torna a referência do comportamento, não do conteúdo. Nunca simule a API para
+a implementação mostrar os dados do protótipo.
+
+Divergência de gosto, sem regra por trás, não é divergência: registre como observação. Reproduza a
+divergência uma segunda vez antes de registrá-la como `defeito`.
+
+**4. Fechar.** O item 8.4 só é OK com todo cenário cruzado e nenhum `defeito` aberto; a `evidencia` dele cita
+o `cruzamento.md` e a contagem por classe. `defeito` aberto o torna Falha; sem `defeito` e com algum cenário
+não cruzado, é Não verificado. Cenário não cruzado vai para "Fora da cobertura" do inspetor e para
+`meta.limites`, nunca para OK.
+
 ## Provocar os estados
 
-Estado que só aparece em condição especial se provoca, não se imagina:
+Estado que só aparece em condição especial se provoca, não se imagina, e **sempre contra a API real**:
+nenhuma resposta é simulada, interceptada, abortada ou forjada, e nenhum servidor falso faz as vezes da API.
+O estado é provocado pela aplicação real: filtros reais, entrada inválida real, sessões reais, dados reais na
+`massa`. Condições do browser que não tocam no tráfego (offline, limitação de rede, mídia, viewport, idioma)
+são permitidas:
 
 | Estado | Como provocar |
 |---|---|
-| Carregando | Rota com atraso (3 s) na API da tela |
-| Vazio | Filtro sem resultado; ou resposta simulada com lista vazia |
-| Erro de API | Rota abortada ou resposta 500 simulada |
-| Erro de regra | Resposta simulada com o código de erro do contrato |
+| Carregando | Limitação de rede com 3 s de latência na API real |
+| Vazio | Filtro sem resultado |
+| Erro de API | Uma falha real: emulação de offline, URL de registro inexistente, ação que o perfil não pode fazer |
+| Erro de regra | Dado real que quebra a regra na `massa` (por exemplo, registro duplicado), devolvendo o código de erro do contrato |
 | Offline | Emulação de offline do contexto do browser |
-| Sessão expirada | Resposta 401 simulada |
-| Texto longo | Dado simulado com 120 caracteres sem espaço |
+| Sessão expirada | Limpar o cookie ou token de sessão no cliente; a API real responde 401 |
+| Texto longo | Registro com 120 caracteres sem espaço criado na `massa` |
 | Movimento reduzido | Emulação da mídia `prefers-reduced-motion: reduce` |
-| Rede lenta | Atraso em todas as respostas |
+| Rede lenta | Limitação de rede (latência e banda) em todo o tráfego |
+| Conflito de edição | Duas sessões reais editando o mesmo registro da `massa` |
+| Atualização em tempo real | Uma segunda sessão real altera o dado, e a primeira recebe o push ou o polling |
+| Muitos registros | O volume que existe na instância, ou criado na `massa` |
+| Tema e cores forçadas | `page.emulateMedia` com `colorScheme: 'dark'` e com `forcedColors: 'active'`, ou a troca de tema do produto |
+| Toque e orientação | Contexto novo com `hasTouch` e `isMobile`, viewport 375 × 667 e 667 × 375 |
+| Idioma e fuso | Contexto novo com `locale` e `timezoneId`, ou a troca de idioma do produto |
 
-No Playwright MCP, use a ferramenta de código (`browser_run_code`) para `page.route`, `context.setOffline` e
-`page.emulateMedia`. Simular resposta é leitura da interface: não altera o backend. Registre em `evidencia`
-qual estado foi provocado e como.
+No Playwright MCP, use a ferramenta de código (`browser_run_code`) para `context.setOffline`, limitação de
+rede (Chrome DevTools Protocol `Network.emulateNetworkConditions`), `page.emulateMedia` e contexto novo
+(`page.context().browser().newContext`); no contexto novo, entre de novo, nunca com estado salvo. **Nunca**
+`page.route`, `route.fulfill`, `route.abort`, `page.routeWebSocket` ou qualquer outra interceptação da API.
+Estado que a API real e a `massa` não produzem (falha que a API nunca devolve, volume que não existe) não se
+simula: é OK (código) com o motivo, ou Não verificado. Estado simulado nunca vale como prova.
+Registre em `evidencia` qual estado foi provocado e como.
 
 ## Zoom de 200% e larguras
 

@@ -230,7 +230,11 @@ def main():
                     help="aceita subconjunto dos itens e não emite veredito (conferência do inspetor)")
     args = ap.parse_args()
 
-    itens_checklist, grupos = carregar_checklist(args.checklist)
+    try:
+        itens_checklist, grupos = carregar_checklist(args.checklist)
+    except (OSError, ValueError) as e:
+        print(json.dumps({"erro": str(e)}, ensure_ascii=False))
+        return 2
     if len(itens_checklist) != 66:
         print(json.dumps({"erro": f"checklist com {len(itens_checklist)} itens, esperado 66"}))
         return 2
@@ -241,7 +245,7 @@ def main():
         if args.auditoria and not erros:
             erros += aplicar_auditoria(por_id, args.auditoria)
             erros += validar(itens_checklist, por_id, args.parcial)
-    except (OSError, ValueError) as e:
+    except (OSError, ValueError, AttributeError, TypeError) as e:
         print(json.dumps({"erro": str(e)}, ensure_ascii=False))
         return 2
     if erros:

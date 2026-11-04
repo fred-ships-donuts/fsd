@@ -31,9 +31,10 @@ it only routes it.
 
 ### OK (code)
 
-Accepted when the state cannot be triggered legitimately: a business-rule error with no way to simulate the
-response, a destructive action outside test data, a state that only exists in another environment. Before
-using it, try to trigger it (route with a simulated response, delay, offline). If the state is reachable, the
+Accepted when the state cannot be triggered against the real API: a business-rule error the real API and
+`test_data` cannot produce, a destructive action outside test data, a state that only exists in another
+environment. Responses are never simulated to reach it. Before using it, try to trigger it for real (real
+data, throttling, offline, a second session). If the state is reachable, the
 status is OK or Fail, never OK (code). The auditor reopens the OK (code) items that are blocking.
 
 ### N/A
