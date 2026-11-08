@@ -27,7 +27,7 @@ Skills go to `~/.fsd/skills` (global) or `./.fsd/skills` (local), and a symbolic
 ```bash
 npm install
 npm run dev -- --help   # runs src/cli/fsd.ts with tsx
-npm test                # tsc + node --test
+npm run build           # tsc to dist/
 ```
 
 Documentation starts at [`docs/FSD-INDEX.md`](docs/FSD-INDEX.md); behavior is specified in [`SPEC.md`](SPEC.md).

@@ -1,89 +1,62 @@
-# Proposta: organização do projeto completo
+# Arquitetura do código
 
-Só um plano. Nada foi movido. (`docs/FSD-ARCHITECTURE.md` descreve o produto; este arquivo descreve onde cada coisa do repositório deveria morar.)
+Como o código de `src/cli/` está dividido, por que, e onde entra cada coisa nova. (`docs/FSD-ARCHITECTURE.md` descreve o produto; `SPEC.md` 9 tem a árvore de arquivos.)
 
-## Problemas hoje (raiz)
-
-1. Quatro documentos de projeto soltos na raiz (`SPEC.md` 68 KB, `TASKS.md`, `HANDOFF.md`, `README.md`), enquanto `docs/` guarda só os documentos do produto e o `FSD-INDEX.md` aponta para `../SPEC.md` e `../TASKS.md`.
-2. `header/`, `logos/` e `words/` são três pastas de raiz que não têm código do produto: só `save.sh` (versionamento físico, que o autor aboliu: a partir de agora só git), READMEs e a trava dos trechos congelados (`check-frozen.mjs` + JSON), também abolida.
-3. Documentos desatualizados: `README.md` manda rodar `npm test`; `HANDOFF.md` fala em "181 testes" e `TASKS.md` tem um "Estado atual do código" que descreve o rascunho antigo (Clack, `cli.ts`, `index.ts`). `SPEC.md` e `TASKS.md` ainda citam testes.
-4. `HANDOFF.md` mistura estado da sessão, regras do autor e histórico; é o arquivo que mais envelhece.
-5. `.ignore` e `.gitignore` coexistem; `graft/` é gerado e já está ignorado (não apagar).
-6. `src/`: ver abaixo.
-
-## Árvore proposta
+## Camadas
 
 ```
-fred-ships-donuts/
-  README.md                 uso e desenvolvimento (fica na raiz)
-  package.json  package-lock.json  tsconfig.json  .gitignore
-  src/                      código (estrutura detalhada abaixo)
-  docs/
-    FSD-INDEX.md            índice geral (atualizado com os novos caminhos)
-    produto/                CONCEPT, DOUGH, IMPLEMENTATION-STRATEGY, ARCHITECTURE, DIRECTORY-STRUCTURE, GLOSSARY
-    cli/                    SPEC.md, TASKS.md
-    design/                 PALETAS-DONUT.md, ARQUITETURA.md (este arquivo)
-  HANDOFF.md                fica na raiz, enxuto (só estado atual e regras do autor)
+fsd.ts ──► commands/ ──┐
+                       ├──► engine/ ──► plan/ ──► core/
+ui/ ────► wizard/ ─────┘
 ```
 
-Versionamento físico e trava acabaram: `header/`, `logos/` e `words/` somem inteiros (`save.sh`, READMEs, `check-frozen.mjs`, JSON congelado). O histórico é o git. O que existe é só o arquivo em uso (`donutArt.ts`, `donutMap.ts`, `wordArt.ts` etc.).
+| Camada | Responsabilidade | Pode importar |
+|---|---|---|
+| `core/` | Domínio e disco: escopos e caminhos, catálogo, registro, configuração, conflitos, leitura do diário, versões, npm. Só lê, exceto a gravação atômica de JSON. | só `node:` |
+| `plan/` | Planejadores: leem o disco e devolvem um `Plan` com o que fazer e o resultado de cada skill. **Nunca escrevem.** | `core/` |
+| `engine/` | Executa um `Plan` em fases (6.9), com diário, desfazer e recuperação. **Toda escrita do disco passa por aqui** (`ops.ts`). | `core/`, `plan/` |
+| `commands/` | Um arquivo por comando da CLI: valida a entrada, chama planejador e motor, imprime e devolve o exit code. | `core/`, `plan/`, `engine/` |
+| `wizard/` | Regras do assistente sem React: passos, escolhas, o que as telas mostram, executar depois do resumo. | `core/`, `plan/`, `engine/` |
+| `ui/` | Só apresentação, em Ink: telas, componentes, cabeçalho, arte em células, escrita no terminal. | `wizard/`; de `core/`, `plan/` e `engine/` só tipos e o que é de exibição (`version`, `phases`, `formatResult`) |
+| `fsd.ts` | Ponto de entrada: atalhos (`args.ts`), commander e exit code. Nenhuma regra. | `commands/` |
 
-Decisões embutidas (dizer se discorda):
-- **README e HANDOFF ficam na raiz**: são o que se espera encontrar ali e o que o Claude lê primeiro.
-- **SPEC e TASKS vão para `docs/cli/`**: junto da documentação, e o `FSD-INDEX.md` deixa de usar `../`.
-- **Subpastas em `docs/`** só valem com 10+ arquivos; hoje são 8. Se preferir, `docs/` fica plano e só SPEC/TASKS entram nele.
+Regras:
 
-### Estrutura de `src/`
+1. **Dependência só para baixo.** Nada de `core/`, `plan/`, `engine/` ou `wizard/` importa React, Ink ou commander. `ui/` não importa de `commands/` (os códigos de saída estão em `exitCodes.ts`, compartilhado).
+2. **Ler e escrever separados.** Quem decide (`plan/`) não escreve; quem escreve (`engine/`) não decide. O que uma camada precisa saber do disco para decidir e o motor precisa conferir na fase Verificar (os conflitos, o diário de execuções mortas) fica em `core/`, para os dois usarem a mesma resposta.
+3. **Uma regra, um lugar.** Texto de resultado (`formatResult`), escopos com registro (`installedScopes`), "este caminho é um link para aquele" (`isLinkTo`), códigos de saída e os textos da interface (`ui/labels.ts`) existem uma vez só.
+4. **Dependências injetáveis nas bordas.** O motor recebe `Ops` (as operações de arquivo) e `now`; os comandos recebem `Io`, `Env` e as dependências de rede/npm, com as reais por padrão.
 
-```
-src/cli/
-  fsd.ts                 entrada (bin)
-  env.ts                 NODE_ENV, precisa ser o 1º import da entrada
-  args.ts                normalização de argumentos
-  commands/              init, link, update            (como está)
-  actions/               install, uninstall, link, conflicts, types   (como está)
-  core/                  domínio e sistema de arquivos, sem Ink/React
-    config.ts  fsdDir.ts  registry.ts  skills.ts  link.ts
-    ops.ts  run.ts  recovery.ts  selfUpdate.ts
-  ui/
-    run.ts               monta o Ink
-    screens/             App.tsx  Pick.tsx  Conflicts.tsx  Chrome.tsx  flows.ts  progress.ts
-    header/              donutArt  donutMap  emojiDonut  wordArt  pixelFont  shadowFont
-                         sextant  snow  frameWriter  theme
-src/skills/              (como está)
-```
+## Por dentro de cada camada
 
-O projeto não tem testes (removidos por decisão do autor).
+**`core/`**: `scope.ts` (onde ficam `.fsd/`, `nook/` e o cache de cada escopo), `fs.ts` (consultas ao disco e `writeJsonAtomic`), `semver.ts`, `catalog.ts`, `registry.ts`, `config.ts`, `claudeLink.ts`, `conflicts.ts`, `runJournal.ts` (formato do diário e quais execuções estão mortas), `selfUpdate.ts`, `package.ts` (raiz, nome e versão do pacote).
 
-### Regra de dependência
+**`plan/`**: `types.ts` (o `Plan`, seus itens e `emptyPlan`/`addItem`), `install.ts`, `uninstall.ts`, `link.ts`.
 
-`ui → actions → core`, `commands → actions/core`. `core` nunca importa de `ui`, `actions` ou `commands`. `header/` não importa de `screens/` (o contrário vale). `ui/theme.ts` fica em `header/` porque a paleta é do cabeçalho; as telas só consomem.
+**`engine/`**: `run.ts` orquestra as cinco fases; `verify.ts` é a fase Verificar; `transaction.ts` é a classe `Transaction`, que grava no diário **antes** de cada mudança (criar, copiar, mover, ligar, deslocar, gravar JSON com cópia de segurança) e marca o ponto de não retorno (`commit`); `recovery.ts` desfaz pelo diário e recupera execuções mortas; `ops.ts` são as operações reais.
 
-### O que quebra ao mover em `src/`
+**`commands/`**: `init.ts`, `update.ts`, `link.ts`; `skillPlans.ts` é o que `update skill` e `link skill` têm em comum (escopos, rodar um plano por escopo, relatório e exit code); `io.ts` é a saída.
 
-- `docs/PALETAS-DONUT.md` cita `src/cli/ui/...`.
-- A hierarquia de pastas muda os imports relativos (`../fsdDir.js` → `../core/fsdDir.js`); o `tsc` acusa tudo que sobrar.
+**`wizard/`**: `choices.ts` (o que o usuário escolheu e o estado inicial), `steps.ts` (passos e progresso, puro), `queries.ts` (linhas do catálogo, instaladas, idiomas, conflitos), `execute.ts` (montar o pedido e as preferências, planejar e executar).
 
+**`ui/`**:
+- `run.ts` monta o Ink no terminal (tamanho como propriedade, resize síncrono, escritor de quadros).
+- `App.tsx` guarda o estado e a navegação entre telas; não desenha os passos.
+- `screens/`: `Menu`, `Step` (corpo de cada passo e o resumo), `Running`, `Result`.
+- `components/`: `Header`, `Footer`, `Title`, `Pick`, `Conflicts`.
+- `hero/`: o cabeçalho grande do menu; `layout.ts` decide o que cabe (puro) e `Hero.tsx` compõe e anima.
+- `art/`: as figuras como grades de células, sem React: `donut.ts` (o mapa 22 × 9 feito à mão), `words.ts` (a fonte de 3 linhas), `snow.ts` (os granulados), `sextant.ts`, `cell.ts`.
+- `terminal/`: `frameWriter.ts` (diff de linhas, uma escrita por quadro) e `useTerminalSize.ts`.
+- `layout.ts` (linhas que o cabeçalho e o rodapé ocupam), `labels.ts` (textos), `theme.ts` (paletas e símbolos).
 
+## Onde entra algo novo
 
-1. Apagar `blockFont.ts` (confirmar antes: parece substituído por `pixelFont`/`shadowFont`).
-2. Criar `core/` e mover os 8 arquivos de domínio.
-3. Separar `ui/screens/` e `ui/header/` (só depois que o cabeçalho for dado como fechado e commitado, e com os scripts de versão ajustados no mesmo passo).
-4. Commit por passo.
+- **Um comando novo**: `commands/<nome>.ts` com a função que devolve o exit code, e uma linha em `fsd.ts`. Se ele muda o disco, um planejador em `plan/` e `runPlan` do motor.
+- **Uma regra nova de instalação**: no planejador (`plan/`), nunca no comando nem na tela.
+- **Um passo novo no assistente**: `StepId` e `stepsFor` em `wizard/steps.ts`, o título em `ui/labels.ts`, o corpo em `ui/screens/Step.tsx`.
+- **Uma mudança visual do cabeçalho**: `ui/art/` (pixels e cores) ou `ui/hero/` (layout); nada fora de `ui/` muda.
+- **Uma operação de arquivo nova no motor**: em `Ops` (`engine/ops.ts`) e um método na `Transaction` que a registre no diário antes de fazê-la; o desfazer em `engine/recovery.ts`.
 
+## Fora de `src/`
 
-## Ordem sugerida (cada passo compila com `tsc`, um commit por passo)
-
-0. Commitar o estado atual (a árvore está suja com cabeçalho, logos, words e UI; mover arquivos agora misturaria reorganização com mudança de comportamento).
-1. Atualizar os documentos desatualizados (README sem `npm test`; HANDOFF sem "181 testes"; TASKS sem o "Estado atual" do rascunho antigo; menções a testes em SPEC/TASKS).
-2. Apagar `src/cli/ui/blockFont.ts` (confirmar antes).
-3. `docs/`: reorganizar e atualizar `FSD-INDEX.md` e os links cruzados (`grep` por `SPEC.md`, `TASKS.md`, `docs/`).
-4. `src/cli/core/`: criar e mover os 8 arquivos de domínio.
-5. Apagar `header/`, `logos/` e `words/` por inteiro; tirar de `HANDOFF.md`, `SPEC.md` 6.12 e `docs/PALETAS-DONUT.md` as menções a versões, `save.sh` e trechos congelados.
-6. `src/cli/ui/screens/` e `ui/header/`.
-
-## Quebra ao mover fora de `src/`
-
-- `package.json` `files` e `bin` não mudam (`dist`, `src/skills`).
-- Citações de `save.sh` das três pastas, "versão 0.4.0 / 1.0.0" em `HANDOFF.md`, `SPEC.md` 6.12, `README.md` e `docs/PALETAS-DONUT.md`.
-- `~/Backups/fred-ships-donuts-versions/` fica fora do projeto e não é tocado por este plano; apagar ou não é decisão do autor.
+Raiz: `README.md`, `HANDOFF.md`, `SPEC.md`, `TASKS.md` e os arquivos do npm e do TypeScript. Documentos do produto em `docs/` (índice em `docs/FSD-INDEX.md`). Não há versionamento físico de arquivos nem testes (decisões do autor de 2026-11-07): o histórico é o git. `graft/` é gerado e ignorado pelo git.

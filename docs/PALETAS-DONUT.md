@@ -4,7 +4,7 @@ Referência das paletas testadas para a CLI. Os valores são os campos de `Palet
 
 ## 1. Donut (versão atual)
 
-As cores exatas da rosquinha feita à mão (`DONUT_MAP_22X9` em `src/cli/ui/donutMap.ts`), aplicadas a toda a identidade visual: a CLI, as palavras e a própria rosquinha usam os mesmos tons.
+As cores exatas da rosquinha feita à mão (`DONUT_MAP_22X9` em `src/cli/ui/art/donut.ts`), aplicadas a toda a identidade visual: a CLI, as palavras e a própria rosquinha usam os mesmos tons.
 
 | Campo | Hex | Cor de origem |
 |---|---|---|
@@ -19,7 +19,7 @@ As cores exatas da rosquinha feita à mão (`DONUT_MAP_22X9` em `src/cli/ui/donu
 | `warning` | `#de8013` | borda do furo |
 | `error` | `#fc5e5b` | granulado vermelho |
 
-Palavras `FRED` / `SHIPS` / `DONUTS` (`pixelFont.ts`): corpo na massa `#f5b03e`, sombra na cobertura `#875b4f`.
+Palavras `FRED` / `SHIPS` / `DONUTS` (`src/cli/ui/art/words.ts`): corpo na massa `#f5b03e`, sombra na cobertura `#875b4f`.
 
 A paleta anterior (cores aproximadas do emoji, com o azul `#90c0e0` no cabeçalho, letras em bege `#f5e6c8` e sombra `#4a4538`) foi substituída.
 
@@ -76,6 +76,6 @@ Versão mais colorida: cada elemento usa uma cor de granulado diferente. Azul, r
 
 ## Status
 
-- Paleta 1 guardada aqui. Em `theme.ts` ela é o tema `donut`, o padrão.
+- Paleta 1 guardada aqui. Em `src/cli/ui/theme.ts` ela é o tema `donut`, o padrão.
 - Alternativas A, B e C estão em `theme.ts` como `morango`, `chocolate` e `granulado`, para comparar.
 - O passo **Tema** do assistente (6 de 7 no fluxo Instalar) escolhe entre os quatro. Também dá para trocar direto no campo `theme` de `~/.fsd/config.json`.

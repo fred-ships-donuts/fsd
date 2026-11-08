@@ -1,77 +1,63 @@
-import { useEffect, useMemo, useRef, useState, type ReactElement } from 'react';
-import { Box, Text, useApp, useInput, useStdout } from 'ink';
-import type { ActionResult, ConflictChoice } from '../actions/types.js';
-import { readConfig } from '../config.js';
-import type { Scope } from '../fsdDir.js';
-import { Footer, Header, listRows } from './Chrome.js';
-import { Conflicts, type ConflictRow } from './Conflicts.js';
-import { catalogRows, conflictsFor, conflictWhere, executeInstall, executeUninstall, languageApplies, languageOptions, registeredRows, unlinkedAvailable, type InstallChoices } from './flows.js';
-import { phases, type Phase, type RunOutcome } from '../run.js';
-import { Pick } from './Pick.js';
-import { progressFraction, stepLabel, stepsFor, type Flow, type StepId } from './progress.js';
-import { listSkills } from '../skills.js';
-import { DEFAULT_THEME, resolveTheme, Theme, themes, tint, useTheme } from './theme.js';
+import { useMemo, useRef, useState, type ReactElement } from 'react';
+import { Box, useApp, useInput } from 'ink';
+import type { RunEvent, RunOutcome } from '../engine/run.js';
+import { EXIT_CANCELLED, EXIT_FAILED, EXIT_OK } from '../exitCodes.js';
+import { formatResult } from '../plan/types.js';
+import { startingChoices, type InstallChoices } from '../wizard/choices.js';
+import { executeInstall, executeUninstall } from '../wizard/execute.js';
+import { catalogRows, conflictsFor, installedRows, languageApplies, languageOptions } from '../wizard/queries.js';
+import { progressFraction, stepLabel, stepsFor, type Flow, type StepId } from '../wizard/steps.js';
+import { Footer } from './components/Footer.js';
+import { Header } from './components/Header.js';
+import { Title } from './components/Title.js';
+import { HINT_MARK, HINT_MOVE, HINT_RESULT, HINT_RUNNING, STEP_TITLE } from './labels.js';
+import { listRows } from './layout.js';
+import { Menu, type MenuChoice } from './screens/Menu.js';
+import { Result } from './screens/Result.js';
+import { pendingPhases, Running, type PhaseStates } from './screens/Running.js';
+import { Step } from './screens/Step.js';
+import { useTerminalSize, type TerminalSize } from './terminal/useTerminalSize.js';
+import { resolveTheme, Theme } from './theme.js';
+
+// The wizard (SPEC 6): which screen is shown, the user's choices, and the keys that move between screens.
 
 type Screen = { kind: 'menu' } | { kind: 'step'; flow: Flow; step: StepId } | { kind: 'running' } | { kind: 'result'; lines: string[]; code: number };
 
-type PhaseState = 'pending' | 'running' | 'done' | 'failed';
+const STEPS_WITH_MARKS: StepId[] = ['skills', 'update', 'summary'];
 
-const HINT_MOVE = '↑↓ move · enter confirm · ← back';
-const HINT_MARK = '↑↓ move · space mark · enter confirm · ← back';
+export interface AppProps {
+  version: string;
+  onExit: (code: number) => void;
+  lastUpdateCheck?: string;
+  terminal?: TerminalSize;
+}
 
-const stepTitle: Record<StepId, string> = {
-  scope: 'Scope',
-  skills: 'Skills',
-  language: 'Language',
-  update: 'Updates',
-  conflicts: 'Conflicts',
-  theme: 'Theme',
-  summary: 'Summary',
-};
-
-const CHOICE_TEXT: Record<ConflictChoice, string> = { keep: 'keep the original, skip ours', unlinked: 'install ours, keep the original (not linked)', replace: 'replace the original with ours' };
-
-const phaseLabel: Record<Phase, string> = { verify: 'Verify', prepare: 'Prepare', apply: 'Apply', register: 'Register', conclude: 'Conclude' };
-
-const line = (r: ActionResult) => `${r.action}${r.note ? ` (${r.note})` : ''} ${r.name} ${r.version} [${r.lang}] ${r.destination}`;
-
-export function App({ version, onExit, lastUpdateCheck, terminal }: { version: string; onExit: (code: number) => void; lastUpdateCheck?: string; terminal?: { columns: number; rows: number } }) {
+export function App({ version, onExit, lastUpdateCheck, terminal }: AppProps) {
   const { exit } = useApp();
   const size = useTerminalSize(terminal);
-  const config = useMemo(() => readConfig(), []);
-  const allSkills = useMemo(() => listSkills().map((skill) => skill.name), []);
   const [screen, setScreen] = useState<Screen>({ kind: 'menu' });
-  const [menu, setMenu] = useState('install');
+  const [menu, setMenu] = useState<MenuChoice>('install');
   const [removal, setRemoval] = useState<string[]>([]);
-  const [choices, setChoices] = useState<InstallChoices>({
-    scope: 'global',
-    skills: allSkills,
-    lang: '',
-    autoUpdate: config.autoUpdate,
-    updateSkills: config.updateSkills,
-    theme: config.theme,
-    conflicts: {},
-  });
-  const [phaseStates, setPhaseStates] = useState<Record<Phase, PhaseState>>({ verify: 'pending', prepare: 'pending', apply: 'pending', register: 'pending', conclude: 'pending' });
+  const [choices, setChoices] = useState<InstallChoices>(startingChoices);
+  const [phaseStates, setPhaseStates] = useState<PhaseStates>(pendingPhases);
   const [currentItem, setCurrentItem] = useState('');
   const control = useRef({ cancelled: false });
-  const set = (patch: Partial<InstallChoices>) => setChoices((current) => ({ ...current, ...patch }));
+
+  const catalog = useMemo(() => catalogRows(choices.scope), [choices.scope]);
+  const installed = useMemo(() => installedRows(choices.scope), [choices.scope]);
+  const conflicts = useMemo(() => (screen.kind === 'menu' ? [] : conflictsFor(choices)), [choices.scope, choices.skills, screen.kind]);
+  const hasLang = languageApplies(choices.skills, catalog);
+  const langs = languageOptions(choices.skills, catalog);
+  const flow: Flow = screen.kind === 'step' ? screen.flow : 'install';
+  const steps = stepsFor(flow, hasLang, flow === 'install' && conflicts.length > 0);
+  const theme = resolveTheme(choices.theme);
+
+  const updateChoices = (patch: Partial<InstallChoices>) => setChoices((current) => ({ ...current, ...patch }));
   const finish = (code: number) => {
     onExit(code);
     exit();
   };
-
-  const rows = useMemo(() => catalogRows(choices.scope), [choices.scope]);
-  const registered = useMemo(() => registeredRows(choices.scope), [choices.scope]);
-  const hasLang = languageApplies(choices.skills, rows);
-  const conflictNames = useMemo(() => (screen.kind === 'menu' ? [] : conflictsFor(choices)), [choices.scope, choices.skills, screen.kind]);
-  const hasConflicts = conflictNames.length > 0;
-  const langs = languageOptions(choices.skills, rows);
-  const flow = screen.kind === 'step' ? screen.flow : 'install';
-  const steps = stepsFor(flow, hasLang, flow === 'install' && hasConflicts);
-  const theme = resolveTheme(choices.theme);
-
-  const go = (step: StepId, f: Flow = flow) => setScreen({ kind: 'step', flow: f, step });
+  const go = (step: StepId, next: Flow = flow) => setScreen({ kind: 'step', flow: next, step });
   const move = (delta: 1 | -1) => {
     if (screen.kind !== 'step') return;
     const index = steps.indexOf(screen.step) + delta;
@@ -82,45 +68,41 @@ export function App({ version, onExit, lastUpdateCheck, terminal }: { version: s
 
   const confirm = () => {
     if (screen.kind === 'menu') {
-      if (menu === 'exit') return finish(0);
-      return go('scope', menu === 'install' ? 'install' : 'uninstall');
+      if (menu === 'exit') return finish(EXIT_OK);
+      return go('scope', menu);
     }
     if (screen.kind === 'result') return finish(screen.code);
     if (screen.kind !== 'step') return;
-    const { step } = screen;
-    if (step === 'skills') {
+    if (screen.step === 'skills') {
       if (flow === 'install' && choices.skills.length === 0) return;
       if (flow === 'uninstall' && removal.length === 0) return;
-      if (flow === 'install' && languageApplies(choices.skills, rows) && !langs.includes(choices.lang)) set({ lang: langs[0] ?? '' });
+      if (flow === 'install' && hasLang && !langs.includes(choices.lang)) updateChoices({ lang: langs[0] ?? '' });
     }
-    if (step === 'summary') return void run();
+    if (screen.step === 'summary') return void run();
     move(1);
   };
 
   // After the summary is confirmed the run does its own undo; ctrl+c asks it to stop between operations.
   async function run() {
     control.current.cancelled = false;
-    setPhaseStates({ verify: 'pending', prepare: 'pending', apply: 'pending', register: 'pending', conclude: 'pending' });
+    setPhaseStates(pendingPhases());
     setScreen({ kind: 'running' });
-    const options = {
+    const runOptions = {
       control: control.current,
-      onEvent: (event: { phase: Phase; state: PhaseState; item?: string }) => {
+      onEvent: (event: RunEvent) => {
         setPhaseStates((current) => ({ ...current, [event.phase]: event.state }));
         if (event.item) setCurrentItem(event.item);
       },
     };
-    const outcome: RunOutcome = await (flow === 'install' ? executeInstall(choices, undefined, options, lastUpdateCheck) : executeUninstall(choices.scope, removal, undefined, options));
-    if (outcome.status === 'done') {
-      setScreen({ kind: 'result', lines: [...outcome.results.map(line), ...outcome.warnings], code: 0 });
-    } else {
-      setScreen({ kind: 'result', lines: [outcome.message, ...outcome.warnings], code: outcome.status === 'cancelled' ? 130 : 1 });
-    }
+    const outcome: RunOutcome = await (flow === 'install' ? executeInstall(choices, { run: runOptions, lastUpdateCheck }) : executeUninstall(choices.scope, removal, { run: runOptions }));
+    if (outcome.status === 'done') setScreen({ kind: 'result', lines: [...outcome.results.map(formatResult), ...outcome.warnings], code: EXIT_OK });
+    else setScreen({ kind: 'result', lines: [outcome.message, ...outcome.warnings], code: outcome.status === 'cancelled' ? EXIT_CANCELLED : EXIT_FAILED });
   }
 
   useInput((input, key) => {
     if (key.ctrl && input === 'c') {
       if (screen.kind === 'running') control.current.cancelled = true;
-      else finish(130);
+      else finish(EXIT_CANCELLED);
       return;
     }
     if (screen.kind === 'running') return;
@@ -128,107 +110,47 @@ export function App({ version, onExit, lastUpdateCheck, terminal }: { version: s
     if (key.leftArrow && screen.kind === 'step') move(-1);
   });
 
-
   let body: ReactElement;
   let hint = HINT_MOVE;
   let fraction = 0;
   let label = '';
-
   if (screen.kind === 'menu') {
-    body = (
-      <>
-        <Title text="What do you want to do?" />
-        <Pick multi={false} selected={[menu]} onChange={([value]) => setMenu(value ?? 'install')} options={[
-          { value: 'install', label: 'Install', hint: 'install and update skills' },
-          { value: 'uninstall', label: 'Uninstall' },
-          { value: 'exit', label: 'Exit' },
-        ]} />
-      </>
-    );
+    body = <Menu selected={menu} onChange={setMenu} />;
   } else if (screen.kind === 'running') {
-    const mark: Record<PhaseState, string> = { pending: ' ', running: '…', done: '✔', failed: '✖' };
-    body = (
-      <>
-        <Title text="Working" />
-        {phases.map((phase) => (
-          <Text key={phase}>{mark[phaseStates[phase]]} {phaseLabel[phase]}{phase === 'apply' && phaseStates.apply === 'running' && currentItem ? `  ${currentItem}` : ''}</Text>
-        ))}
-      </>
-    );
-    hint = 'ctrl+c cancel (everything done so far is undone)';
+    body = <Running states={phaseStates} item={currentItem} />;
+    hint = HINT_RUNNING;
     fraction = 1;
     label = 'running';
   } else if (screen.kind === 'result') {
-    body = (
-      <>
-        <Title text="Result" />
-        {screen.lines.length === 0 ? <Text>nothing to do</Text> : screen.lines.map((text) => <Text key={text}>{text}</Text>)}
-      </>
-    );
-    hint = 'enter exit';
+    body = <Result lines={screen.lines} />;
+    hint = HINT_RESULT;
     fraction = 1;
     label = 'done';
   } else {
     const { step } = screen;
     fraction = progressFraction(steps, step);
     label = stepLabel(steps, step);
-    if (step === 'skills' || step === 'update' || step === 'summary') hint = HINT_MARK;
+    if (STEPS_WITH_MARKS.includes(step)) hint = HINT_MARK;
     body = (
       <>
-        <Title text={stepTitle[step]} />
-        <Box key={step} flexDirection="column">{renderStep()}</Box>
-      </>
-    );
-  }
-
-  function renderStep(): ReactElement | null {
-    if (screen.kind !== 'step') return null;
-    const { step } = screen;
-    if (step === 'scope') {
-      return <Pick maxRows={listRows(size.rows, size.columns)} multi={false} selected={[choices.scope]} onChange={([value]) => { set({ scope: (value as Scope) ?? 'global', skills: allSkills, conflicts: {} }); setRemoval([]); }} options={[
-        { value: 'global', label: 'Global', hint: '~/.fsd/skills' },
-        { value: 'project', label: 'Local', hint: './.fsd/skills' },
-      ]} />;
-    }
-    if (step === 'skills' && flow === 'uninstall') {
-      if (registered.length === 0) return <Text>nothing installed</Text>;
-      return <Pick maxRows={listRows(size.rows, size.columns)} multi withAll selected={removal} onChange={setRemoval} options={registered.map((row) => ({ value: row.name, label: row.name, hint: `${row.version} [${row.lang}] ${row.state}` }))} />;
-    }
-    if (step === 'skills') {
-      return <Pick maxRows={listRows(size.rows, size.columns)} multi withAll selected={choices.skills} onChange={(skills) => set({ skills })} options={rows.map((row) => ({ value: row.name, label: row.name, hint: `${row.version} [${row.langs.join(', ')}] ${row.state}` }))} />;
-    }
-    if (step === 'language') {
-      return <Pick maxRows={listRows(size.rows, size.columns)} multi={false} selected={[choices.lang]} onChange={([value]) => set({ lang: value ?? '' })} options={langs.map((lang) => ({ value: lang, label: lang }))} />;
-    }
-    if (step === 'conflicts') {
-      const rowsData: ConflictRow[] = conflictNames.map((name) => ({ name, paths: conflictWhere(choices, name), canUnlinked: unlinkedAvailable(choices, name) }));
-      return <Conflicts rows={rowsData} choices={choices.conflicts} onChange={(name, choice) => set({ conflicts: { ...choices.conflicts, [name]: choice } })} />;
-    }
-    if (step === 'update') {
-      const selected = [...(choices.autoUpdate ? ['autoUpdate'] : []), ...(choices.updateSkills ? ['updateSkills'] : [])];
-      return <Pick maxRows={listRows(size.rows, size.columns)} multi selected={selected} onChange={(next) => set({ autoUpdate: next.includes('autoUpdate'), updateSkills: next.includes('updateSkills') })} options={[
-        { value: 'autoUpdate', label: 'Update the CLI when `fsd init` opens' },
-        { value: 'updateSkills', label: 'Make `fsd update` update the skills too' },
-      ]} />;
-    }
-    if (step === 'theme') {
-      return <Pick maxRows={listRows(size.rows, size.columns)} multi={false} selected={[choices.theme]} onChange={([value]) => set({ theme: value ?? DEFAULT_THEME })} options={Object.entries(themes).map(([id, t]) => ({ value: id, label: t.label }))} />;
-    }
-    return renderSummary();
-  }
-
-  function renderSummary(): ReactElement {
-    const { palette, color } = theme;
-    if (flow === 'uninstall') {
-      return <><Text>Remove from {choices.scope === 'global' ? 'global' : 'local'} scope:</Text>{removal.map((name) => <Text key={name}>  {name}</Text>)}</>;
-    }
-    const conflicts = conflictsFor(choices);
-    return (
-      <>
-        <Text>Scope: {choices.scope} · Theme: {themes[choices.theme]?.label}</Text>
-        <Text>Skills: {choices.skills.join(', ')}{hasLang ? ` · Language: ${choices.lang}` : ''}</Text>
-        <Text>CLI auto-update: {String(choices.autoUpdate)} · Update skills with `fsd update`: {String(choices.updateSkills)}</Text>
-        {conflicts.length > 0 && conflicts.map((name) => <Text key={name} {...tint(palette.warning, color)}>Conflict {name}: {CHOICE_TEXT[choices.conflicts[name] ?? 'keep']}</Text>)}
+        <Title text={STEP_TITLE[step]} />
+        {/* Keyed by step: each step's list starts with its own cursor. */}
+        <Box key={step} flexDirection="column">
+          <Step
+            step={step}
+            flow={flow}
+            choices={choices}
+            onChoices={updateChoices}
+            removal={removal}
+            onRemoval={setRemoval}
+            catalog={catalog}
+            installed={installed}
+            langs={langs}
+            hasLang={hasLang}
+            conflicts={conflicts}
+            maxRows={listRows(size.rows, size.columns)}
+          />
+        </Box>
       </>
     );
   }
@@ -252,26 +174,4 @@ export function App({ version, onExit, lastUpdateCheck, terminal }: { version: s
       </Box>
     </Theme.Provider>
   );
-}
-
-// Current terminal size, updated on resize, so the wizard always fills the whole terminal.
-function useTerminalSize(given?: { columns: number; rows: number }): { columns: number; rows: number } {
-  // Ink types its stdout as a WritableStream; at runtime it is the terminal (or a test double) with columns and rows.
-  const { stdout } = useStdout() as unknown as { stdout: NodeJS.WriteStream };
-  const read = () => ({ columns: stdout.columns || 80, rows: stdout.rows || 24 });
-  const [size, setSize] = useState(read);
-  useEffect(() => {
-    if (given) return; // the caller keeps the size up to date (see run.ts)
-    const onResize = () => setSize(read);
-    stdout.on('resize', onResize);
-    return () => {
-      stdout.off('resize', onResize);
-    };
-  }, [stdout, given]);
-  return given ?? size;
-}
-
-function Title({ text }: { text: string }) {
-  const { palette, color } = useTheme();
-  return <Text bold {...tint(palette.title, color)}>{text}{'\n'}</Text>;
 }

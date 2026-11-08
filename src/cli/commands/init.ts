@@ -1,13 +1,11 @@
 import { existsSync } from 'node:fs';
-import { readConfig, writeConfig } from '../config.js';
-import { realEnv, scopePaths, type Env } from '../fsdDir.js';
-import { fetchLatestVersion, installLatest, isGlobalInstall, isNewer, shouldCheck } from '../selfUpdate.js';
-import { consoleIo, type Io } from './update.js';
-
-export interface WizardOptions {
-  // When the npm check ran in this session; the wizard saves it with the preferences (SPEC 7).
-  lastUpdateCheck?: string;
-}
+import { configPath, readConfig, writeConfig } from '../core/config.js';
+import { realEnv, type Env } from '../core/scope.js';
+import { fetchLatestVersion, installLatest, isGlobalInstall, shouldCheck } from '../core/selfUpdate.js';
+import { isNewer } from '../core/semver.js';
+import { EXIT_FAILED } from '../exitCodes.js';
+import type { WizardOptions } from '../ui/run.js';
+import { consoleIo, type Io } from './io.js';
 
 export interface InitDeps {
   isTTY: () => boolean;
@@ -39,7 +37,7 @@ async function autoUpdate(version: string, io: Io, deps: InitDeps): Promise<Wiza
   try {
     const latest = await deps.fetchLatest();
     const checkedAt = deps.now().toISOString();
-    if (existsSync(scopePaths('global', deps.env).config)) writeConfig({ ...config, lastUpdateCheck: checkedAt }, deps.env);
+    if (existsSync(configPath(deps.env))) writeConfig({ ...config, lastUpdateCheck: checkedAt }, deps.env);
     if (isNewer(latest, version) && deps.installLatest()) io.out(`fsd ${latest} installed; it takes effect on the next run`);
     return { lastUpdateCheck: checkedAt };
   } catch {
@@ -48,10 +46,11 @@ async function autoUpdate(version: string, io: Io, deps: InitDeps): Promise<Wiza
   }
 }
 
+// `fsd init`: the interactive wizard, after the auto-update.
 export async function initCommand(version: string, io: Io = consoleIo, deps: InitDeps = defaultDeps): Promise<number> {
   if (!deps.isTTY()) {
     io.err('fsd init requires an interactive terminal');
-    return 1;
+    return EXIT_FAILED;
   }
   return deps.openWizard(await autoUpdate(version, io, deps));
 }

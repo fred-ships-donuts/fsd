@@ -1,6 +1,7 @@
 import { createContext, useContext } from 'react';
 
-// The only palette: colors taken from the 🍩 emoji (Noto Color Emoji), SPEC 6.7.
+// Colours and symbols of the wizard (SPEC 6.7), handed down through a React context.
+
 export interface Palette {
   header: string;
   title: string;
@@ -16,7 +17,8 @@ export interface Palette {
 
 export const DEFAULT_THEME = 'donut';
 
-// `donut` is the palette of the hand-tuned 🍩 (donutMap.ts), the same colours as the picture (default); the others are alternatives to compare (docs/PALETAS-DONUT.md).
+// `donut` is the palette of the hand-tuned 🍩 (art/donut.ts), the same colours as the picture (default); the others are
+// alternatives to compare (docs/PALETAS-DONUT.md).
 export const themes: Record<string, { label: string; palette: Palette }> = {
   donut: {
     label: 'Donut',
@@ -37,17 +39,14 @@ export const themes: Record<string, { label: string; palette: Palette }> = {
 };
 
 export interface Symbols {
-  label: string;
   marker: string;
   checked: string;
   unchecked: string;
   barFull: string;
   barEmpty: string;
-  up: string;
-  down: string;
 }
 
-export const symbols: Symbols = { label: 'Unicode', marker: '❯', checked: '◉', unchecked: '○', barFull: '█', barEmpty: '░', up: '↑', down: '↓' };
+export const symbols: Symbols = { marker: '❯', checked: '◉', unchecked: '○', barFull: '█', barEmpty: '░' };
 
 export interface ThemeContext {
   palette: Palette;
@@ -55,7 +54,7 @@ export interface ThemeContext {
   color: boolean;
 }
 
-export const colorEnabled = (): boolean => !process.env['NO_COLOR'];
+const colorEnabled = (): boolean => !process.env['NO_COLOR'];
 
 export function resolveTheme(themeId: string): ThemeContext {
   return {

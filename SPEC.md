@@ -249,7 +249,7 @@ Regras da instalação, aplicadas ao confirmar o resumo:
 5. Cria o diretório de destino se não existir. Preserva o bit de execução dos scripts (`scripts/*.py`).
 6. Registra a skill em `.fsd/installed.json` do escopo (idioma, versão, caminho e datas). Nada é gravado dentro da pasta da skill. O registro é o último passo, gravado só depois da cópia e do link (quando há link) terem dado certo.
 7. Skill com um único idioma pula o passo de idioma (3) e instala esse idioma. Sem conflito algum, o passo Conflitos (4) também é pulado.
-8. A estrutura base (4.2) é criada pelo assistente na fase Preparar (6.9), depois da confirmação do resumo. `actions/install.ts` **não** a cria (só o destino da skill e o `installed.json`), para que `fsd update skill` nunca a crie.
+8. A estrutura base (4.2) é criada pelo assistente na fase Preparar (6.9), depois da confirmação do resumo. `plan/install.ts` **não** a cria (só o destino da skill e o `installed.json`), para que `fsd update skill` nunca a crie.
 9. **Tudo ou nada:** a execução depois da confirmação acontece em fases (6.9). Se qualquer fase falhar, a CLI desfaz tudo o que a tentativa fez e devolve o que deslocou, reporta `install failed and was undone (<motivo>)` e sai com exit 1.
 10. **Interrupção antes de confirmar.** Enquanto o resumo não é confirmado, nada é gravado: `ctrl+c` em qualquer passo (inclusive na tela do resumo, antes do `enter`) sai com 130 e deixa o disco idêntico ao de antes (sem `nook/`, `.fsd/`, `.claude/` nem `config.json` novos). Uma instalação feita logo em seguida, no fluxo normal, termina sem erro e sem sobras: uma pasta por skill em `.fsd/skills`, um único link por skill em `.claude/skills` apontando para ela, uma entrada por skill no registro, sem arquivos temporários nem cópias duplicadas, e as demais execuções (`skip (up to date)`) não mudam nada.
 11. **Interrupção durante a execução.** `ctrl+c` durante as fases desfaz a tentativa e sai com 130; se o processo morrer sem poder desfazer (kill, queda de energia), a próxima execução recupera pelo diário da execução, antes de qualquer outra coisa (6.9).
@@ -403,7 +403,7 @@ Cores: corpo `#f5e6c8` (bege claro); sombra `#9c9076` em 6 linhas e `#6a624e` em
 | 38 × 40 | 2 | — (sem espaço) | 8 |
 | 20 × 40 | — | 5 × 12 | 7 |
 
-**Arquivos**: `Chrome.tsx` (layout e desenho), `donutArt.ts`, `emojiDonut.ts`, `wordArt.ts`, `shadowFont.ts`, `pixelFont.ts`, `sextant.ts` (só as letras de 2 linhas usam os sextantes).
+**Arquivos** (histórico: removidos na reorganização de 2026-11-07, ver 6.12 e 9): `Chrome.tsx` (layout e desenho), `donutArt.ts`, `emojiDonut.ts`, `wordArt.ts`, `shadowFont.ts`, `pixelFont.ts`, `sextant.ts` (só as letras de 2 linhas usam os sextantes).
 
 **Testes**
 
@@ -413,10 +413,10 @@ Cores: corpo `#f5e6c8` (bege claro); sombra `#9c9076` em 6 linhas e `#6a624e` em
 
 ### 6.11 Redesenho e janelas pequenas
 
-- **Redesenho** (`frameWriter.ts`, instalado por `run.ts`): o Ink apaga o quadro anterior linha por linha e escreve o novo em pedaços, o que depois de um redimensionamento mostra tela em branco ou quadro rasgado. O escritor troca isso por um diff de linhas contra o quadro anterior, com posição absoluta de cada linha, em **uma única escrita** entre BSU e ESU (DEC 2026) quando o terminal é conhecido por respeitá-los (VTE 0.68 ou mais novo, kitty, ghostty, iTerm2, WezTerm, alacritty…; nunca no tmux; `FSD_SYNC=1` ou `0` força). No resize (ou no primeiro quadro) todas as linhas são reescritas, cada uma apagando o resto da linha, e o fim da tela é apagado; **a tela nunca é apagada antes de pintar**, então o terminal que ignora BSU também não mostra tela em branco. O cursor fica na última linha. O apagamento de linhas que o Ink faz sozinho ao estreitar a janela é descartado (ele apagaria o que o diff acha que está na tela) e o quadro seguinte é escrito inteiro.
-- **Resize** (`run.ts`): o tamanho entra no `App` como propriedade e um ouvinte de `resize` registrado antes do Ink chama `rerender` de forma síncrona, ignorando eventos de mesmo tamanho; sai um quadro só, já no tamanho novo.
+- **Redesenho** (`ui/terminal/frameWriter.ts`, instalado por `ui/run.ts`): o Ink apaga o quadro anterior linha por linha e escreve o novo em pedaços, o que depois de um redimensionamento mostra tela em branco ou quadro rasgado. O escritor troca isso por um diff de linhas contra o quadro anterior, com posição absoluta de cada linha, em **uma única escrita** entre BSU e ESU (DEC 2026) quando o terminal é conhecido por respeitá-los (VTE 0.68 ou mais novo, kitty, ghostty, iTerm2, WezTerm, alacritty…; nunca no tmux; `FSD_SYNC=1` ou `0` força). No resize (ou no primeiro quadro) todas as linhas são reescritas, cada uma apagando o resto da linha, e o fim da tela é apagado; **a tela nunca é apagada antes de pintar**, então o terminal que ignora BSU também não mostra tela em branco. O cursor fica na última linha. O apagamento de linhas que o Ink faz sozinho ao estreitar a janela é descartado (ele apagaria o que o diff acha que está na tela) e o quadro seguinte é escrito inteiro.
+- **Resize** (`ui/run.ts`): o tamanho entra no `App` como propriedade e um ouvinte de `resize` registrado antes do Ink chama `rerender` de forma síncrona, ignorando eventos de mesmo tamanho; sai um quadro só, já no tamanho novo.
 - **Janelas baixas e estreitas**: cabeçalho e rodapé não encolhem; o corpo corta o que não cabe (`overflowY` oculto, com o conteúdo interno sem encolher) em vez de comprimir as linhas umas sobre as outras. Abaixo de 20 linhas o cabeçalho dos passos vira uma linha, abaixo de 12 o rodapé perde a barra de progresso, o texto longo é cortado com `…` e as listas rolam para manter a linha focada visível (`listRows`).
-- **Desempenho**: `NODE_ENV=production` por `env.ts` (o React em modo de desenvolvimento é bem mais lento); pré-cálculo de todos os tamanhos do cabeçalho em segundo plano (`warmHero`); cache por tamanho.
+- **Desempenho**: `NODE_ENV=production` por `env.ts` (o React em modo de desenvolvimento é bem mais lento); o cabeçalho tem um só tamanho (6.12), então a rosquinha é desenhada uma vez e as figuras só são recompostas quando a janela muda.
 - **Verificado** no gnome-terminal real (VTE 0.76): 80 passos de redimensionamento (974 × 682 → 1374 × 784 → 700 × 380 e de volta), com a janela à esquerda e à direita do monitor, sem nenhuma amostra em branco. O arrasto foi com `wmctrl` (em passos); **não foi verificado** o arrasto com o mouse nem outros terminais, e o arrasto não foi repetido depois da troca do layout para o teto de 35% e as fontes de 2 e 4 linhas.
 - **Sextantes**: vêm de uma fonte reserva (Noto Sans Symbols2) no gnome-terminal; em outra fonte ou terminal podem sair desalinhados. Só as letras de 2 linhas dependem deles.
 - **Testes**: `frameWriter.test.ts` (diff, uma escrita, BSU/ESU, passagem de sequências que não são quadro, apagamento do Ink), `App.test.tsx` ("wizard in small windows": de 100 × 30 a 24 × 5, mais a rolagem da lista) e `resize.test.ts` (o programa de verdade num tmux: nenhum quadro maior que a janela, e o que sobra na tela depois de cada resize).
@@ -427,12 +427,10 @@ Substitui o que 6.10 e 6.11 dizem sobre tamanhos e moldura; o resto deles é his
 
 - **Um só tamanho, o do 80 × 24, em qualquer janela.** Nada escala com a janela: a rosquinha é sempre a de 22 × 9 células e as três palavras (`FRED`, `SHIPS`, `DONUTS`), empilhadas, são sempre as de 3 linhas cada (9 linhas de conteúdo). Janela estreita demais para os dois: só as palavras; nem elas: só a rosquinha; nem isso (ou menos de 9 linhas livres acima do menu): o cabeçalho de uma linha.
 - **Sem moldura.** O cabeçalho do menu e a caixa das telas de passos não têm borda (a azul `#90C0E0` saiu); o título dessas telas continua no azul da paleta. O cabeçalho do menu ocupa 9 linhas, o das telas de passos 2 a 3.
-- **A rosquinha é um mapa de pixels feito à mão** (`src/cli/ui/donutMap.ts`, `DONUT_MAP_22X9`: 44 × 27 pixels, 1 pixel = 1 sextante, paleta fixa de 9 cores, o preto é o fundo do terminal). Cada grupo de 2 × 3 pixels usa no máximo 2 cores (limite da célula). Três trechos estão **congelados** (o centro, linhas 8 a 14 e colunas 10 a 33; os cantos inferiores, linhas 15 a 26 e colunas 0 a 9 e 34 a 43): ficam em `logos/frozen/donut-22x9.frozen.json` e `node logos/check-frozen.mjs` acusa qualquer pixel mudado. Só mudam por ordem explícita do autor.
-- **As palavras** são a fonte de pixels de 3 linhas de `pixelFont.ts` (`MID`): letras de 8 pixels de altura (9 com a sombra), hastes de 3 e barras de 2, sombra de 1 pixel à direita e embaixo na cobertura `#875B4F`; numa célula com corpo, sombra e vazio, o vazio toma a cor da sombra. Cores: corpo na massa `#F5B03E`, sombra na cobertura `#875B4F` (a paleta da rosquinha, `docs/PALETAS-DONUT.md`). Por todo o cabeçalho (de uma borda à outra, sobre o fundo, as letras e a rosquinha) **caem granulados** (bastões de 3 pixels, em diagonal ou deitados, rosa, azul, vermelho, rosa claro e amarelo, cada um com movimento próprio: velocidade, deriva para um lado, balanço em curva ou em zigue-zague e giro, `snow.ts`), como neve; sobre a letra e a rosquinha só aparecem onde a célula cabe (duas cores no máximo), nas partes cheias.
-- **Versões.** A rosquinha e as palavras são versionadas por SemVer, **fora do projeto**, em `~/Backups/fred-ships-donuts-versions/{logos,words,header}/<semver>/` (com `SHA256SUMS` e README lá), com `save.sh` próprio em `logos/`, `words/` e `header/` (o autor diz "salve essa"); o terminal não mostra as versões. As versões `0.0.x` são as importadas dos backups de 2026-11-02.
-- **Versão do cabeçalho.** Além da rosquinha e das palavras, o próprio cabeçalho (layout, moldura, padding, tema e rodapé: `Chrome.tsx`, `theme.ts`, `App.tsx`) é versionado em `header/<semver>/` com `header/save.sh`; a `header/0.0.1` é o cabeçalho de tamanho fixo, sem moldura, com 1 linha de padding em cima, e a **`header/1.0.0` é a versão definitiva** (com a largura inteira da janela e os granulados caindo, `snow.ts`).
-- **Código que o cabeçalho deixou de usar** (mantido por ora): a reamostragem do emoji e as fontes de 6, 4 e 2 linhas de `donutArt.ts`, `wordArt.ts` e `pixelFont.ts`, e `emojiDonut.ts`.
-- **Testes.** Os testes de `heroLayout`, de `pixelFont` e os da rosquinha reamostrada descrevem o cabeçalho antigo e precisam ser reescritos ou removidos antes do próximo `npm test` (o autor pediu para não gastar tempo com testes visuais da rosquinha).
+- **A rosquinha é um mapa de pixels feito à mão** (`src/cli/ui/art/donut.ts`, `DONUT_MAP_22X9`: 44 × 27 pixels, 1 pixel = 1 sextante, paleta fixa de 9 cores, o preto é o fundo do terminal). Cada grupo de 2 × 3 pixels usa no máximo 2 cores (limite da célula). Só muda por ordem explícita do autor.
+- **As palavras** são a fonte de pixels de 3 linhas de `src/cli/ui/art/words.ts`: letras de 8 pixels de altura (9 com a sombra), hastes de 3 e barras de 2, sombra de 1 pixel à direita e embaixo na cobertura `#875B4F`; numa célula com corpo, sombra e vazio, o vazio toma a cor da sombra. Cores: corpo na massa `#F5B03E`, sombra na cobertura `#875B4F` (a paleta da rosquinha, `docs/PALETAS-DONUT.md`). Por todo o cabeçalho (de uma borda à outra, sobre o fundo, as letras e a rosquinha) **caem granulados** (bastões de 3 pixels, em diagonal ou deitados, rosa, azul, vermelho, rosa claro e amarelo, cada um com movimento próprio: velocidade, deriva para um lado, balanço em curva ou em zigue-zague e giro, `src/cli/ui/art/snow.ts`), como neve; sobre a letra e a rosquinha só aparecem onde a célula cabe (duas cores no máximo), nas partes cheias.
+- **Versões: só git.** O versionamento físico (pastas SemVer, `save.sh`, `logos/`, `words/`, `header/`) e a trava dos trechos congelados (`check-frozen.mjs`) foram abolidos em 2026-11-07; existe só o arquivo em uso, e o histórico é o do git.
+- **Código antigo do cabeçalho** (a reamostragem do emoji, `emojiDonut.ts`, e as fontes de 6, 4 e 2 linhas) foi removido na reorganização de 2026-11-07, assim como os testes.
 
 ## 7. Atualização da CLI
 
@@ -502,56 +500,74 @@ As preferências do assistente ficam em `~/.fsd/config.json`. É uma configuraç
 
 ## 9. Estrutura do código
 
+Camadas, de dentro para fora. Cada uma só importa das que estão acima dela na lista; nada de `core/` a `wizard/` conhece React, Ink ou commander. O detalhe (o que mora onde e por quê) está em `docs/ARQUITETURA.md`.
+
 ```
 src/
   cli/
-    fsd.ts              # bin `fsd`: shebang e definição dos comandos (commander); só importa ui/ dentro de `init`, via import dinâmico
-    commands/
-      link.ts           # `fsd link skill [nome]`
+    fsd.ts              # bin `fsd`: liga os comandos ao commander e define o exit code; só carrega ui/ dentro de `init`, por import dinâmico
+    env.ts              # NODE_ENV=production antes de qualquer import (o React em modo de desenvolvimento é lento)
+    args.ts             # tradução dos atalhos -u, -s e -f para os comandos longos (puro)
+    exitCodes.ts        # 0, 1 e 130
+    core/               # domínio e disco: só lê (a gravação atômica de JSON é a exceção, usada pelo config e pelo motor)
+      package.ts        # raiz, nome e versão do pacote
+      scope.ts          # escopos global e projeto, caminhos (.fsd/, nook/), estrutura base, escopos com registro
+      fs.ts             # consultas ao disco (lstat, link aponta para, ancestrais que faltam) e gravação atômica
+      semver.ts         # comparação e validação de versões
+      catalog.ts        # catálogo src/skills/_i18n: listSkills(), findSkill(), frontmatter, filtro de cópia
+      registry.ts       # installed.json: leitura e estado de uma skill (4.4)
+      config.ts         # config.json: tema, autoUpdate, updateSkills, lastUpdateCheck
+      claudeLink.ts     # caminho do link .claude/skills/<nome> e destino padrão da skill
+      conflicts.ts      # skills de mesmo nome que não são nossas (6.2 regra 3)
+      runJournal.ts     # o diário de uma execução e as execuções mortas (só leitura)
+      selfUpdate.ts     # verificação e atualização da própria CLI (7)
+    plan/               # planejadores: leem o disco e montam um Plan; nunca escrevem
+      types.ts          # Plan, PlanItem, ActionResult, formatResult
+      install.ts        # instalação e upgrade (6.2)
+      uninstall.ts      # remoção (6.8)
+      link.ts           # `fsd link skill` (5.4)
+    engine/             # execução de um Plan em fases (6.9)
+      run.ts            # as fases Verificar, Preparar, Aplicar, Registrar e Concluir
+      verify.ts         # a fase Verificar (só leitura)
+      transaction.ts    # cada mudança registrada no diário antes de ser feita
+      recovery.ts       # desfazer pelo diário e recuperar execuções mortas
+      ops.ts            # operações de arquivo (copiar, mover, link, gravar), substituíveis
+    commands/           # um arquivo por comando
       init.ts           # valida TTY, aplica auto-update e abre o assistente
       update.ts         # `fsd update` (CLI) e `fsd update skill [nome]`
-    args.ts             # tradução dos atalhos -u, -s e -f para os comandos longos (puro)
-    link.ts             # link simbólico .claude/skills/<nome> -> .fsd/skills/<nome>
-    skills.ts           # catálogo: listSkills(), readSkill(), skillsTarget(project), copySkill()
-    fsdDir.ts           # ~/.fsd e ./.fsd (e nook/): estrutura base, leitura e gravação atômica
-    registry.ts         # installed.json: registrar, consultar, remover entradas e estado (4.4)
-    config.ts           # config.json: tema, autoUpdate, lastUpdateCheck
-    run.ts              # motor de fases (6.9): verificar, preparar, aplicar, registrar, concluir
-    recovery.ts         # diário da execução, desfazer e recuperação de execução morta
-    ops.ts              # operações de arquivo injetáveis (copiar, mover, link, gravar)
-    selfUpdate.ts       # verificação e atualização da própria CLI (7)
-    actions/
-      install.ts        # regras de instalação e upgrade (6.2), sem UI; usado pelo assistente e por `update skill`
-      uninstall.ts      # regras de remoção (6.8), sem UI
-    env.ts              # NODE_ENV=production antes de qualquer import (o React em modo de desenvolvimento é lento)
+      link.ts           # `fsd link skill [nome]`
+      skillPlans.ts     # o que `update skill` e `link skill` compartilham: escopos, execução e relatório
+      io.ts             # saída padrão e de erro
+    wizard/             # regras do assistente, sem React
+      choices.ts        # o que o usuário escolheu
+      steps.ts          # passos de cada fluxo e progresso (6.2, 6.4)
+      queries.ts        # o que as telas mostram: catálogo, instaladas, idiomas, conflitos
+      execute.ts        # planejar e executar depois da confirmação do resumo
     ui/                 # assistente (6), em Ink + TSX
-      App.tsx
-      Chrome.tsx        # cabeçalho, rodapé e o layout responsivo do cabeçalho (6.10): heroLayout, prepareHero, warmHero
-      Pick.tsx          # lista com rolagem; Conflicts.tsx e steps/*.tsx
-      run.ts            # liga o assistente ao terminal: tamanho, resize síncrono, escritor de quadros
-      frameWriter.ts    # diff de linhas, uma escrita por quadro, BSU/ESU (6.11)
-      donutArt.ts       # a rosquinha em blocos de caractere (6.10)
-      emojiDonut.ts     # grade 192 x 96 do emoji 🍩, gerada uma vez
-      sextant.ts        # os blocos de sextante (U+1FB00…)
-      wordArt.ts        # o nome em 6 linhas (ANSI Shadow reamostrada)
-      shadowFont.ts     # a fonte ANSI Shadow
-      pixelFont.ts      # o nome em 4 linhas (quadrantes) e 2 linhas (sextantes)
+      run.ts            # monta o assistente no terminal: tamanho, resize síncrono, escritor de quadros
+      App.tsx           # estado e navegação entre as telas
+      screens/          # Menu, Step (corpo de cada passo e o resumo), Running, Result
+      components/       # Header, Footer, Title, Pick (lista com rolagem), Conflicts
+      hero/             # o cabeçalho grande do menu: layout.ts (puro) e Hero.tsx (desenho e granulados)
+      art/              # figuras em células, sem React: donut.ts, words.ts, snow.ts, sextant.ts, cell.ts
+      terminal/         # frameWriter.ts (6.11) e useTerminalSize.ts
+      layout.ts         # linhas que cabeçalho e rodapé ocupam nos passos
+      labels.ts         # textos dos passos, fases e escolhas de conflito
       theme.ts          # temas e símbolos (contexto React)
-      progress.ts       # lista de passos e cálculo da barra (funções puras)
   skills/               # catálogo (conteúdo, não é código)
     _i18n/<nome>/<lang>/
 ```
 
-- `run.ts` executa os planos das `actions/` em fases e recebe, opcionalmente, as operações que podem falhar (copiar, mover, criar o link, gravar registro e config) como parâmetro, com as reais por padrão. Os testes de rollback injetam a falha por esse ponto, sem depender de permissões do sistema de arquivos.
-- A lógica de catálogo fica em `skills.ts`, a de registro e configuração em `registry.ts`/`config.ts`, e as regras de instalar e apagar em `actions/`. Os componentes só chamam essas funções, para a lógica ser testável sem terminal.
-- O cálculo da barra e a lista de passos são funções puras (`progress.ts`), separadas da renderização.
+- `engine/run.ts` executa os planos de `plan/` em fases e recebe, opcionalmente, as operações que podem falhar (copiar, mover, criar o link, gravar registro e config) como parâmetro, com as reais por padrão. Uma falha pode ser injetada por esse ponto, sem depender de permissões do sistema de arquivos.
+- A lógica de catálogo fica em `core/catalog.ts`, a de registro e configuração em `core/registry.ts`/`core/config.ts`, e as regras de instalar, apagar e ligar em `plan/`. Os comandos (`commands/`) e o assistente (`wizard/` e `ui/`) só consomem essas camadas, sem duplicar regra.
+- A lista de passos e o progresso são funções puras (`wizard/steps.ts`), separadas da renderização.
 - `fsd.ts` importa `ui/` só dentro de `fsd init` (import dinâmico), então `fsd -v`, `fsd -h` e `fsd update` não pagam o custo do React.
 
 ## 10. Empacotamento
 
 - Nome do pacote npm: **`fred-ships-donuts`**.
 - `package.json`: `bin` é `{ "fsd": "./dist/cli/fsd.js" }`, `files: ["dist", "src/skills"]`, `engines.node` é `>=22`.
-- `ink` e `react` ficam em `dependencies`; `@types/react`, `tsx` e `ink-testing-library` em `devDependencies`. `commander` fica em `dependencies`; `@clack/prompts` sai.
+- `ink` e `react` ficam em `dependencies`; `@types/react` e `tsx` em `devDependencies`. `commander` fica em `dependencies`; `@clack/prompts` sai.
 - `tsconfig.json` com `jsx: react-jsx`; `tsc` compila os `.tsx` para `dist/`.
 - `tsc` não copia `.md`/`.py`, por isso o catálogo é lido de `src/skills` e não de `dist`.
 - `dist/cli/fsd.js` precisa do bit de execução e do shebang.
@@ -561,9 +577,11 @@ src/
 
 ## 11. Testes
 
+Os testes foram removidos do projeto por decisão do autor (2026-11-07). Esta seção fica como a lista do que cobrir caso eles voltem.
+
 - **Unitários** (`node:test`): `listSkills`, `skillsTarget`, leitura de frontmatter, comparação de versões, filtro de `evals/` e `README.md`.
 - **Registro e configuração**: `registry.ts` e `config.ts` (arquivo ausente, ilegível e de `schema` desconhecido; gravação atômica; estados `not installed`, `up to date`, `outdated`, `missing`).
-- **Ações**: `actions/install.ts` e `actions/uninstall.ts` com `HOME` e `cwd` apontando para diretórios temporários, conferindo a árvore resultante em instalação, reinstalação, `upgrade`, conflito (com e sem autorização), escopo de projeto e remoção.
+- **Ações**: `plan/install.ts` e `plan/uninstall.ts` com `HOME` e `cwd` apontando para diretórios temporários, conferindo a árvore resultante em instalação, reinstalação, `upgrade`, conflito (com e sem autorização), escopo de projeto e remoção.
 - **Auto-update**: a decisão de checar (autoUpdate, intervalo de 24 h, instalação global vs `npx`) como função pura, sem rede.
 - **Atalhos**: `-u`, `-s` e `-f` equivalem a `update`, `skill` e `--force`, como argumentos separados e **na ordem** `-u -s -f` (`fsd -u`, `fsd -u -s [nome]`, `fsd -u -s -f [nome]`, `fsd update -s [nome]`, `fsd -u skill [nome]`, `fsd update skill -f`, `fsd link -s -f [nome]`); `fsd -s` sozinho, `-f` sem `skill`, atalho misturado com outro comando, atalhos fora de ordem (`-s -u`, `-f -s`) e agrupados (`-us`, `-usf`) saem com 1.
 - **`update skill`**: com `HOME` e `cwd` temporários, todas as skills, uma só, nome não instalado, nome fora do catálogo, em dia (`skip`) e `missing`; conflito sem `--force` (original intacta, mensagem, exit 1, demais skills processadas), com `--force` e com `-f` (original substituída, link nosso), `--force` sem conflito (nada muda) e skill com `linked: false` (só a pasta é atualizada, o link não é tocado).

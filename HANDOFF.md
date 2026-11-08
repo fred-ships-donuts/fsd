@@ -2,11 +2,11 @@
 
 Estado em 2026-11-02. Leia nesta ordem: este arquivo, `TASKS.md`, `SPEC.md`, `docs/FSD-INDEX.md`.
 
-> **CABEÇALHO DEFINITIVO (2026-11-07): ver `SPEC.md` 6.12.** Rosquinha de 22 × 9 (mapa de pixels feito à mão, `logos/0.4.0`) e palavras de 3 linhas (`words/1.0.0`), sempre no tamanho do 80 × 24, sem moldura. Trechos do mapa congelados (`logos/frozen/`, `node logos/check-frozen.mjs`). Versionamento: `logos/save.sh`, `words/save.sh` e `header/save.sh` gravam **fora do projeto**, em `~/Backups/fred-ships-donuts-versions/` (cabeçalho definitivo: `header/1.0.0`); o autor diz "salve essa".
+> **CABEÇALHO DEFINITIVO (2026-11-07): ver `SPEC.md` 6.12.** Rosquinha de 22 × 9 (mapa de pixels feito à mão, `src/cli/ui/art/donut.ts`) e palavras de 3 linhas (`src/cli/ui/art/words.ts`), sempre no tamanho do 80 × 24, sem moldura. Sem versionamento físico nem trechos congelados: só git.
+>
+> **ARQUITETURA REORGANIZADA (2026-11-07): ver `docs/ARQUITETURA.md`.** `src/cli/` em camadas (`core/`, `plan/`, `engine/`, `commands/`, `wizard/`, `ui/`), dependência só para baixo; código morto do cabeçalho antigo removido. Comportamento idêntico ao de antes (conferido comparando a saída do assistente e de 37 cenários de disco antes e depois). Branch `refactor/architecture`, dois commits sobre a `main`. **Os nomes de arquivo nas seções "Sessão: …" abaixo são os de antes da reorganização.**
 >
 > **Regras do autor:** (1) não escrever nem rodar testes de verificação visual para a rosquinha e as letras; (2) **fazer exatamente o que ele manda e não mexer em mais nada**: se o pedido cria conflito (ex.: 3 cores numa célula), parar e perguntar qual cede; (3) usar sempre a mesma janela (`tmux respawn-pane -k -t fsd`, que roda `tsx watch ... init`).
->
-> **Pendências:** reescrever ou remover os testes do cabeçalho antigo (`heroLayout`, `pixelFont`, rosquinha reamostrada); remover o código sem uso (reamostragem do emoji, fontes de 6, 4 e 2 linhas, `emojiDonut.ts`); fazer o commit (nada disso está commitado).
 
 
 ## Onde o projeto está
@@ -15,20 +15,20 @@ Estado em 2026-11-02. Leia nesta ordem: este arquivo, `TASKS.md`, `SPEC.md`, `do
 - **A `main` está 4 commits à frente do `origin`** (`21d9d91`, `aed7af4`, `2b59314`, `aad0e6c`); o push ainda não foi feito. **Além de `HANDOFF.md`, há mudanças sem commit** no cabeçalho e no tema (ver "Sessão: cabeçalho e tema" abaixo). Nada desta sessão foi commitado.
 - **Backup da VERSÃO FINAL da rosquinha** (fora do repositório): `/home/fredericojacobi/Backups/fred-ships-donuts-header-FINAL-2026-11-02/`, com `README.md` de restauração e `SHA256SUMS`. O backup anterior, com a rosquinha em quadrantes, continua em `/home/fredericojacobi/Backups/fred-ships-donuts-header-2026-11-02/` e não deve ser sobrescrito.
 - **Todas as tasks F-1.1 a F-35 foram executadas** e estão marcadas em `TASKS.md`. A Fase 5 (F-26 a F-35) veio de uma revisão da spec, hoje sem pontos em aberto.
-- `npm test` passa (181 testes). Só o último commit compila e passa sozinho; os três anteriores dependem uns dos outros.
+- Não há testes no projeto (removidos por decisão do autor em 2026-11-07); `npm run build` compila.
 - O pacote ainda **não foi publicado** no npm.
 
 ## O que existe
 
 - Docs em `docs/`, com índice em `FSD-INDEX.md`. Estrutura de diretórios do framework em `FSD-DIRECTORY-STRUCTURE.md`: `nook/` (`kitchen/`, `bench/`, `cookbook/`, `bakers/`, `rack/`, `fridge/`) e `.fsd/` (`oven/`, `cache/`, `logs/`).
-- CLI em `src/cli/`:
-  - `fsd.ts` (commander) e `args.ts` (atalhos `-u -s -f`).
-  - `commands/{init,update,link}.ts`.
-  - `actions/`: planejadores `install.ts`, `uninstall.ts`, `link.ts`, mais `conflicts.ts` e `types.ts`. Eles só leem o disco e montam um plano.
-  - `run.ts` (motor de fases), `recovery.ts` (diário, desfazer, execução morta), `ops.ts` (operações de arquivo injetáveis), `link.ts` (link simbólico).
-  - `fsdDir.ts`, `registry.ts`, `config.ts`, `selfUpdate.ts`, `skills.ts`.
-  - `ui/`: assistente em Ink (`App.tsx`, `Conflicts.tsx`, `Pick.tsx`, `flows.ts`, `progress.ts`, `theme.ts`).
-  - Só para testes: `testing.ts` e `crashChild.ts` (ficam fora do pacote publicado).
+- CLI em `src/cli/`, em camadas (detalhe em `docs/ARQUITETURA.md`, árvore em `SPEC.md` 9):
+  - `fsd.ts` (commander), `args.ts` (atalhos `-u -s -f`), `env.ts`, `exitCodes.ts`.
+  - `core/`: escopos, catálogo, registro, configuração, conflitos, diário (leitura), semver, npm.
+  - `plan/`: planejadores `install.ts`, `uninstall.ts`, `link.ts` e `types.ts`. Só leem o disco e montam um plano.
+  - `engine/`: `run.ts` (fases), `verify.ts`, `transaction.ts` (diário antes de cada mudança), `recovery.ts` (desfazer, execução morta), `ops.ts`.
+  - `commands/`: `init.ts`, `update.ts`, `link.ts` e o que os dois últimos compartilham (`skillPlans.ts`).
+  - `wizard/`: regras do assistente sem React (passos, escolhas, consultas, execução).
+  - `ui/`: assistente em Ink (`App.tsx`, `screens/`, `components/`, `hero/`, `art/`, `terminal/`, `theme.ts`).
 - Catálogo em `src/skills/_i18n/` (`fsd-csharp-code-standard`, `fsd-ui-approval`). A pasta `graft/` é ignorada pelo git e **não** é apagada.
 
 ## Decisões do autor
@@ -144,15 +144,15 @@ Decisões minhas a confirmar (SPEC 13, "Revisar"): remoção do passo "Serviço 
 
 ## Cuidados ao mexer
 
-- Os planejadores em `actions/` não escrevem nada; toda escrita passa por `run.ts` e por `ops.ts`. Testes de falha trocam as operações de `ops.ts` (`failingOps`), nunca dependem de `chmod`.
+- Os planejadores em `plan/` não escrevem nada; toda escrita passa por `engine/` (`Transaction` e `ops.ts`). Uma falha se injeta trocando as operações de `ops.ts` (`RunOptions.ops`), nunca com `chmod`.
+- Respeitar a regra de dependência de `docs/ARQUITETURA.md`: nada abaixo de `ui/` importa React, Ink ou commander.
 - O cálculo de conflitos ignora o que pertence a uma execução morta (`deadRunPaths`); a recuperação em si só acontece na fase Verificar.
-- Testes de interface usam `HOME` e o diretório atual temporários (`process.env.HOME` + `process.chdir`).
 
 ## Como rodar
 
 ```bash
 cd /media/fredericojacobi/Projects/projetos/fred-ships-donuts
-npm test                         # tsc + node --test dist (149 testes)
+npm run build                    # tsc para dist/
 npm run dev -- --help            # src/cli/fsd.ts via tsx
 node dist/cli/fsd.js init        # assistente (precisa de terminal)
 ```
