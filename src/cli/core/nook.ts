@@ -46,7 +46,7 @@ export interface Step {
 
 export interface Invalid {
   // The file to fix, relative to the task folder: `.` is the folder itself, and the slug is the folder's own entry in
-  // nook/<dir> (a link).
+  // nook/<dir> (a link or a file).
   file: string;
   reason: string;
 }
@@ -80,12 +80,11 @@ function visibleEntries(dir: string): Array<{ name: string; isDir: boolean; isLi
 
 const SYMLINK = 'is a symbolic link';
 
-// The subfolders of nook/<dir>, and the links among its entries (a link is shown as invalid, never followed); none when
-// the folder does not exist or cannot be listed.
+// The visible entries of nook/<dir>, folders or not (a link or a file is shown as invalid, never followed), so the list
+// shows every name that `task new` refuses; none when the folder does not exist or cannot be listed.
 function taskFolders(dir: string): string[] {
   try {
     return visibleEntries(dir)
-      .filter((entry) => entry.isDir || entry.isLink)
       .map((entry) => entry.name)
       .sort();
   } catch {
@@ -135,7 +134,9 @@ export function readTask(env: Env, dir: TaskDir, slug: string): Task {
   };
   if (!isSlug(slug)) return fail('.', 'the folder name is not a task name (lowercase letters, digits and -)');
   // A linked folder would make the CLI read and write outside nook/.
-  if (exists(path)?.isSymbolicLink()) return fail(slug, SYMLINK);
+  const entry = exists(path);
+  if (entry?.isSymbolicLink()) return fail(slug, SYMLINK);
+  if (entry && !entry.isDirectory()) return fail(slug, 'is not a folder');
 
   try {
     if (exists(planPath)?.isSymbolicLink()) throw new InvalidTaskFileError(SYMLINK);
