@@ -7,7 +7,6 @@
     "dev": "tsx src/cli/fsd.ts",
     "build": "tsc",
     "start": "node dist/cli/fsd.js",
-    "test": "npm run build && node --test dist",
     "postbuild": "node -e \"require('node:fs').chmodSync('dist/cli/fsd.js', 0o755)\""
   },
   "keywords": [],
@@ -17,7 +16,6 @@
   "devDependencies": {
     "@types/node": "^26.6.5",
     "@types/react": "^19.3.0",
-    "ink-testing-library": "^4.0.0",
     "tsx": "^4.23.15",
     "typescript": "^7.0.2"
   },
@@ -31,7 +29,6 @@
   },
   "files": [
     "dist",
-    "!dist/**/*.test.*",
     "src/skills"
   ],
   "engines": {

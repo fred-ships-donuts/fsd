@@ -1,11 +1,15 @@
 #!/usr/bin/env node
-import { readFileSync } from 'node:fs';
+import './env.js';
 import { Command } from 'commander';
 import { normalizeArgs } from './args.js';
 import { initCommand } from './commands/init.js';
+import { linkSkillsCommand } from './commands/link.js';
 import { updateCliCommand, updateSkillsCommand } from './commands/update.js';
+import { version } from './core/package.js';
 
-const { version } = JSON.parse(readFileSync(new URL('../../package.json', import.meta.url), 'utf8')) as { version: string };
+// The `fsd` binary: translates the shortcuts, wires each command to commander and sets the exit code. No rules here.
+
+type ForceOption = { force?: boolean };
 
 function buildProgram(done: (code: number) => void): Command {
   const program = new Command('fsd')
@@ -13,7 +17,8 @@ function buildProgram(done: (code: number) => void): Command {
     .version(version, '-v, --version', 'print the version')
     .helpOption('-h, --help', 'show help')
     .option('-u', 'shortcut for `update`')
-    .option('-s', 'shortcut for `skill` (with update)')
+    .option('-s', 'shortcut for `skill` (with update or link)')
+    .option('-f', 'shortcut for `--force` (with update skill or link skill)')
     .showHelpAfterError('(run `fsd --help` for usage)');
 
   program.command('init').description('open the interactive wizard').action(async () => done(await initCommand(version)));
@@ -22,14 +27,21 @@ function buildProgram(done: (code: number) => void): Command {
   update
     .command('skill [name]')
     .description('update the installed skills (all, or only <name>)')
-    .action((name: string | undefined) => done(updateSkillsCommand(name)));
+    .option('-f, --force', 'replace a skill of the same name that is in the way')
+    .action(async (name: string | undefined, options: ForceOption) => done(await updateSkillsCommand(name, { force: options.force === true })));
+
+  const link = program.command('link').description('link installed skills that have no link');
+  link
+    .command('skill [name]')
+    .description('link the installed skills that have no link (all, or only <name>)')
+    .option('-f, --force', 'replace a skill of the same name that is in the way')
+    .action(async (name: string | undefined, options: ForceOption) => done(await linkSkillsCommand(name, { force: options.force === true })));
 
   return program;
 }
 
 async function main(): Promise<void> {
-  const raw = process.argv.slice(2);
-  const normalized = normalizeArgs(raw);
+  const normalized = normalizeArgs(process.argv.slice(2));
   if ('error' in normalized) {
     console.error(`error: ${normalized.error}\n(run \`fsd --help\` for usage)`);
     process.exit(1);
