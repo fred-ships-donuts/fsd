@@ -19,6 +19,14 @@ const LETTER_PATTERN = new RegExp(`[${Object.keys(LETTERS).join('')}]`, 'gu');
 // Names Windows refuses for a file or folder, whatever the extension.
 const RESERVED = /^(con|prn|aux|nul|com[1-9]|lpt[1-9])$/;
 
+/** A title as typed on one line: every control character (C0, tab and line breaks included, and DEL) becomes a space,
+ * repeated spaces become one, and the ends are trimmed. */
+export const normalizeTitle = (title: string): string =>
+  title
+    .replace(/[\x00-\x1f\x7f]/g, ' ')
+    .replace(/ {2,}/g, ' ')
+    .trim();
+
 /** True when `name` is something `slug()` could have produced: the only names that can address a task folder. */
 export const isSlug = (name: string): boolean => name.length <= SLUG_MAX && /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(name) && !RESERVED.test(name);
 

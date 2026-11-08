@@ -71,11 +71,13 @@ const reasonOf = (error: unknown): string =>
 
 // The entries of a folder that are visible (names starting with `.` are temporaries or the user's own). Throws when
 // the folder cannot be listed.
-function visibleEntries(dir: string): Array<{ name: string; isDir: boolean }> {
+function visibleEntries(dir: string): Array<{ name: string; isDir: boolean; isLink: boolean }> {
   return readdirSync(dir, { withFileTypes: true })
     .filter((entry) => !entry.name.startsWith('.'))
-    .map((entry) => ({ name: entry.name, isDir: entry.isDirectory() }));
+    .map((entry) => ({ name: entry.name, isDir: entry.isDirectory(), isLink: entry.isSymbolicLink() }));
 }
+
+const SYMLINK = 'is a symbolic link';
 
 // The subfolders of nook/<dir>; none when the folder does not exist or cannot be listed.
 function taskFolders(dir: string): string[] {
@@ -92,11 +94,18 @@ function taskFolders(dir: string): string[] {
 // Throws when the task folder cannot be listed: "no steps" must never stand for "steps not read".
 function readSteps(taskPath: string): Step[] {
   const steps: Step[] = [];
-  for (const { name, isDir } of visibleEntries(taskPath)) {
+  for (const { name, isDir, isLink } of visibleEntries(taskPath)) {
     const number = stepNumber(name);
     if (number === undefined || isDir) continue;
     const path = join(taskPath, name);
     const step: Step = { number, label: stepLabel(number), file: name, path, text: '' };
+    // A link would make the CLI read and rewrite a file outside the task; numbering starts at 01.
+    if (isLink) step.invalid = SYMLINK;
+    else if (number === 0) step.invalid = 'step numbers start at 01';
+    if (step.invalid) {
+      steps.push(step);
+      continue;
+    }
     try {
       step.text = readFileSync(path, 'utf8');
       const fields = parseStep(step.text);
@@ -125,6 +134,7 @@ export function readTask(env: Env, dir: TaskDir, slug: string): Task {
   if (!isSlug(slug)) return fail('.', 'the folder name is not a task name (lowercase letters, digits and -)');
 
   try {
+    if (exists(planPath)?.isSymbolicLink()) throw new InvalidTaskFileError(SYMLINK);
     task.planText = readFileSync(planPath, 'utf8');
     const plan = parsePlan(task.planText);
     task.title = plan.title;

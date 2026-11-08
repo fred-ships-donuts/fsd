@@ -1,4 +1,4 @@
-import { lstatSync, mkdirSync, readFileSync, readlinkSync, renameSync, rmSync, writeFileSync, type Stats } from 'node:fs';
+import { chmodSync, lstatSync, mkdirSync, readFileSync, readlinkSync, renameSync, rmSync, statSync, writeFileSync, type Stats } from 'node:fs';
 import { basename, dirname, join, resolve, sep } from 'node:path';
 
 // Small filesystem queries and the atomic writes (JSON and text) shared by the whole CLI.
@@ -87,11 +87,22 @@ export function writeTextAtomic(file: string, content: string, options: WriteTex
   const temp = tempPath(file);
   try {
     writeFileSync(temp, content);
+    // The rename replaces the file, so the new one gets the old one's permissions.
+    const mode = modeOf(file);
+    if (mode !== undefined) chmodSync(temp, mode);
     if (options.expected !== undefined && readTextOrNull(file) !== options.expected) throw new FileChangedError(file);
     renameSync(temp, file);
   } catch (error) {
     rmSync(temp, { force: true });
     throw error;
+  }
+}
+
+function modeOf(file: string): number | undefined {
+  try {
+    return statSync(file).mode & 0o7777;
+  } catch {
+    return undefined;
   }
 }
 

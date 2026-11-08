@@ -60,12 +60,14 @@ function parseMap(text: string, what: string): Document.Parsed {
   return doc;
 }
 
-function readText(doc: Document, key: string, required: boolean): string | undefined {
+// `loose`: a scalar number or boolean written by hand (`title: 2026`) is read as text; the file is not rewritten.
+function readText(doc: Document, key: string, required: boolean, loose = false): string | undefined {
   const node = doc.get(key, true);
   if (node === undefined || (isScalar(node) && node.value === null)) {
     if (required) throw new InvalidTaskFileError(`${key} is missing`);
     return undefined;
   }
+  if (loose && isScalar(node) && (typeof node.value === 'number' || typeof node.value === 'boolean')) return String(node.value);
   if (!isScalar(node) || typeof node.value !== 'string') throw new InvalidTaskFileError(`${key} is not text`);
   if (required && node.value.trim() === '') throw new InvalidTaskFileError(`${key} is empty`);
   return node.value;
@@ -94,7 +96,7 @@ export interface PlanFields {
 
 export function parsePlan(text: string): PlanFields {
   const doc = parseMap(splitFrontmatter(text).yaml, 'frontmatter');
-  return { title: readText(doc, 'title', true) as string, status: readStatus(doc, TASK_STATUSES) };
+  return { title: readText(doc, 'title', true, true) as string, status: readStatus(doc, TASK_STATUSES) };
 }
 
 /** `plan.md` with a new status and `updatedAt`; the body keeps its exact bytes. The same text when nothing changes. */
@@ -140,7 +142,7 @@ export const stepFileName = (n: number, slug: string): string => `${stepLabel(n)
 export function parseStep(text: string): StepFields {
   const doc = parseMap(text, 'step');
   const description = readText(doc, 'description', false);
-  return { title: readText(doc, 'title', true) as string, status: readStatus(doc, STEP_STATUSES), ...(description !== undefined ? { description } : {}) };
+  return { title: readText(doc, 'title', true, true) as string, status: readStatus(doc, STEP_STATUSES), ...(description !== undefined ? { description } : {}) };
 }
 
 /** The step with a new status and `updatedAt`, keeping its other fields and comments. The same text when nothing changes. */
