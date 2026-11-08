@@ -4,14 +4,19 @@ Fluxo de trabalho do projeto, seguindo o modelo do GitHub: **issue → branch �
 
 ## Papéis
 
-| Papel | Quem | O que faz |
-|---|---|---|
-| Autor | Frederico Jacobi | Decide o produto, aprova e faz o merge dos PRs na `main`. |
-| Product Manager | sessão do Claude | Mantém issues, milestones, labels e o Project; registra as decisões do autor nos issues; mantém a `SPEC.md`. |
-| Arquiteto | sessão do Claude | Prepara cada issue para o desenvolvimento e revisa os PRs. |
-| Desenvolvedor | sessão do Claude (Node Typescript Developer) | Implementa o issue num branch e abre o PR. |
+| Papel | Quem | Conta no GitHub | O que faz |
+|---|---|---|---|
+| Autor | Frederico Jacobi | `fredericojacobi` | Decide o produto e é o único que faz o merge na `main`. |
+| Product Manager | Kevin (agente) | `fsd-kevin[bot]` | Mantém issues, milestones, labels e o Project; registra as decisões do autor nos issues; mantém a `SPEC.md`, o `TASKS.md` e este arquivo. Revisa os PRs quanto ao escopo e ao aceite. |
+| Arquiteto | Mel (agente) | `fsd-mel[bot]` | Prepara cada issue para o desenvolvimento (comentário **Arquiteto: passagem**) e revisa o código dos PRs. Mantém o `docs/ARQUITETURA.md`. |
+| Desenvolvedor | Stuart (agente) | `fsd-stuart[bot]` | Implementa o issue num branch, abre o PR e responde às revisões. |
+| QA | Bob (agente) | `fsd-bob[bot]` | Verifica o PR rodando o app real contra o aceite do issue. Aprova ou pede mudanças, e abre issue de bug para o que estiver fora do escopo. Não corrige código. |
 
-Todos usam a conta do autor no GitHub. Por isso cada comentário ou revisão feito em nome de um papel começa com o nome dele, por exemplo **Arquiteto:** ou **Decisão (autor, 2026-11-07):**.
+Cada agente é um GitHub App com conta própria. Os comentários, as revisões e os commits saem assinados por quem os fez, e por isso não começam com o nome do papel. Duas marcas continuam:
+- o título **Arquiteto: passagem** na passagem;
+- o prefixo `Decisão (autor, <AAAA-MM-DD>): …` quando o Kevin registra uma decisão do autor.
+
+Ninguém aprova o próprio PR.
 
 ## 1. Issue
 
@@ -38,7 +43,7 @@ Todo trabalho começa num issue: uma task, um bug, uma ideia, uma decisão pende
 | Architecting | O Arquiteto prepara a passagem, num comentário **Arquiteto: passagem** com o que fazer, os arquivos, os riscos e a verificação. |
 | Waiting for Development | Preparado, esperando o desenvolvedor. |
 | Developing | Branch aberto, em implementação. |
-| Review | PR aberto; o Arquiteto revisa no PR. Um bloqueio devolve o issue para Developing. |
+| Review | PR aberto. O Arquiteto revisa o código, o QA verifica no app real e o PM confere o escopo. Um bloqueio do Arquiteto ou uma falha do QA devolve o issue para Developing. |
 | Done | PR mesclado na `main`; o issue foi fechado pelo `Closes #N`. |
 
 ## 3. Branch
@@ -51,15 +56,34 @@ Todo trabalho começa num issue: uma task, um bug, uma ideia, uma decisão pende
 
 - Um PR por issue, com base na `main`. O corpo traz `Closes #N`, como foi verificado e os desvios da `SPEC.md` (de preferência nenhum).
 - O Arquiteto revisa no PR. A revisão separa **bloqueia** de **melhoria** e é publicada como revisão do PR.
-- O autor aprova e faz o merge. O merge fecha o issue e o card vai para Done.
+- O QA verifica e publica uma revisão: aprova se tudo passou, ou pede mudanças com o passo a passo para reproduzir.
+- O Stuart responde com commits novos, sem force-push.
+- O autor faz o merge. O merge fecha o issue e o card vai para Done.
+
+A `main` é protegida pelo ruleset `ProtMain`:
+- o merge é só por **squash**, com histórico linear;
+- precisa de **1 aprovação**, de alguém que não é o autor do PR;
+- um push novo derruba as aprovações, e a aprovação tem que vir depois do último push. Depois de uma correção, quem aprovou aprova de novo;
+- todas as conversas da revisão precisam estar resolvidas;
+- ninguém dá push direto nem apaga a `main`; só o autor faz o merge.
 - Mudanças só de documentação (`SPEC.md`, `TASKS.md`, `docs/`) também entram por PR.
 
 ## 5. Verificação
 
 Os testes automatizados foram removidos por decisão do autor (`SPEC.md` 11). Cada issue traz em "Como verificar (aceite)" a verificação manual. O PR relata o que foi rodado e o que saiu.
 
+A verificação do PR é do QA (Bob):
+- **Ambiente próprio:** ele baixa o branch do PR num worktree só dele, compila e roda o fsd num tmux de 80x24, com `HOME` e pastas temporárias, sem tocar na janela nem nos arquivos do autor.
+- **O que confere:** cada item do aceite, mais os casos de borda óbvios da passagem. Anota o comando, o esperado e o obtido.
+- **Resultado:**
+  - tudo passou: aprova o PR com a lista do que rodou;
+  - falhou no escopo do PR: pede mudanças e o issue volta para Developing;
+  - bug fora do escopo: abre um issue `bug` com passos, esperado, obtido e ambiente (commit, versão do Node, terminal).
+- **Fora do QA:** o cabeçalho (a rosquinha) é conferido pelo autor; o QA não faz testes visuais dele.
+
 ## 6. Coordenação entre as sessões
 
 - Toda mensagem entre as sessões cita o commit ou o PR de onde ler.
 - Hashes são copiados do `git`, nunca escritos de memória.
-- O autor decide pela sessão do Product Manager, que registra a decisão no issue.
+- O autor decide pelo Kevin, que registra a decisão no issue. Dúvida técnica vai ao Mel; o que sobrar vai ao Kevin, que pergunta ao autor.
+- O que é oficial (decisão, passagem, revisão, resultado de QA, bug) fica num comentário ou numa revisão no GitHub. Mensagem direta entre as sessões serve só para conversa rápida.
