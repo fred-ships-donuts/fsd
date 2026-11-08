@@ -158,7 +158,7 @@ Ordem: F-36 → F-37 → F-38 → F-39 → F-40a → F-40b → F-42 → F-43 →
 
 **Em aberto:** nenhum. A Fase 6 está pronta para implementação.
 
-**Próximos passos (fora da Fase 6):** `--json` em `task new` e `task step add`, devolvendo o caminho criado; arquivo de trava `O_EXCL` se a janela entre checar e gravar virar problema; as próximas fatias do `nook/` (SPEC 13).
+**Backlog (fora da Fase 6), na coluna Backlog do Project:** publicar a v1 no npm #12; testes do motor #13; terminais sem Unicode #14; paleta e utilidade do tema #15; posição do passo de idioma #16; decisões antigas da SPEC 13 #17; `--json` em `task new` e `task step add` #18; trava `O_EXCL` #19; Kitchen #20; Cookbook #21; Bakers #22; Oven e `rack → fridge` #23; organização do `TASKS.md` e registro de decisões #24; regras de coordenação entre as sessões #25. Os marcados com o label `decisão` precisam de uma decisão do autor antes de virar task.
 
 ## Contratos entre tasks
 
