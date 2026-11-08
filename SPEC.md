@@ -98,7 +98,7 @@ Segue `docs/FSD-ARCHITECTURE.md`. Em cada escopo há um diretório de sistema `.
 
 Os caminhos são calculados só a partir de `os.homedir()` e do `cwd`: a CLI não procura nem lê outros diretórios para decidir onde `.fsd/` e `nook/` ficam. No escopo de projeto, `.fsd/installed.json`, `.fsd/oven/` e `nook/` são versionáveis junto com o repositório, a critério do usuário.
 
-**`.gitignore`.** No escopo de projeto, junto com a estrutura base (ao confirmar o fluxo Instalar), a CLI garante que `<cwd>/.gitignore` tenha as linhas `.fsd/cache/` e `.fsd/logs/`: acrescenta ao fim só as que faltam (comparação por linha exata, sem interpretar padrões) e cria o arquivo se ele não existir. Nada mais do arquivo é alterado, e uma segunda instalação não muda nada. O escopo global nunca toca em `.gitignore`. A gravação entra na fase Aplicar (6.9) e é desfeita junto com o resto.
+**`.gitignore`.** No escopo de projeto, junto com a estrutura base (ao confirmar o fluxo Instalar), a CLI garante que `<cwd>/.gitignore` tenha as linhas `.fsd/cache/` e `.fsd/logs/`: acrescenta ao fim só as que faltam (comparação por linha exata, sem interpretar padrões) e cria o arquivo se ele não existir. Nada mais do arquivo é alterado, e uma segunda instalação não muda nada. O escopo global nunca toca em `.gitignore`. A gravação entra na fase Aplicar (6.9), com backup (gravação de texto, não de JSON), e é desfeita junto com o resto. Se o arquivo não termina em quebra de linha, uma quebra vem antes das linhas acrescentadas; o fim de linha existente (LF ou CRLF) é mantido; a comparação ignora espaços nas pontas e o BOM. A verificação do plano passa a aceitar esse caminho, que fica fora de `.fsd/` e de `nook/`.
 
 Toda gravação em `.fsd/` é atômica (escreve em arquivo temporário e renomeia).
 
@@ -148,7 +148,7 @@ nook/bench/login-oauth/
   02-endpoint.yaml
 ```
 
-**Nome (slug).** A pasta tem o nome do slug do título: minúsculas, acentos removidos, qualquer sequência fora de `[a-z0-9]` vira um `-`, sem `-` no começo ou no fim (`"Login OAuth"` → `login-oauth`). O slug é único em todo o `nook/`: se já existe em `bench/`, `rack/` ou `fridge/`, é erro. Um título que gera slug vazio é erro.
+**Nome (slug).** A pasta tem o nome do slug do título: `normalize('NFD')`, marcas (`\p{M}`) removidas, minúsculas, qualquer sequência fora de `[a-z0-9]` vira um `-`, sem `-` nas pontas, e no máximo 60 caracteres (cortado no último `-` antes do limite, por causa dos caminhos longos no Windows). Letras sem decomposição viram `-` (`"Straße"` → `stra-e`), salvo se o autor decidir por um mapa pequeno (13, "Revisar"). Um slug que é nome reservado do Windows (`con`, `nul`, `aux`, `prn`, `com1`…`com9`, `lpt1`…`lpt9`) é erro. `"Login OAuth"` vira `login-oauth`. O slug é único em todo o `nook/`: se já existe em `bench/`, `rack/` ou `fridge/`, é erro, e a mensagem mostra o slug, porque títulos diferentes podem gerar o mesmo slug. Um título que gera slug vazio (por exemplo, todo em escrita não latina) é erro, e a mensagem sugere um título com letras latinas.
 
 **`plan.md`.** Frontmatter YAML seguido do corpo livre (spec e plano):
 
@@ -171,7 +171,7 @@ updatedAt: 2026-11-07T12:00:00.000Z
 
 A pasta e o `status` sempre combinam, e a CLI muda os dois juntos (5.5). Uma task cuja pasta não bate com o `status` aparece como `invalid` no `fsd task list`.
 
-**Passo `NN-<slug>.yaml`.** `NN` tem dois dígitos e é sequencial a partir de `01` (o próximo é o maior existente mais um; números vagos não são reaproveitados). O `<slug>` vem do título do passo, pela regra acima.
+**Passo `NN-<slug>.yaml`.** `NN` tem pelo menos dois dígitos e é sequencial a partir de `01` (o próximo é o maior existente mais um; números vagos não são reaproveitados; depois do `99` vem `100`). Os passos são ordenados pelo número, não pelo nome. O `<slug>` vem do título do passo, pela regra acima. Só contam como passo os arquivos que casam com `^\d{2,}-[a-z0-9-]+\.yaml$`; os demais arquivos da pasta (anotações, `foo.yaml`, `1-x.yaml`, temporários) são ignorados.
 
 ```yaml
 title: Criar o schema
@@ -181,13 +181,15 @@ description: |
 updatedAt: 2026-11-07T12:00:00.000Z
 ```
 
-`status` do passo: `pending`, `in_progress` ou `done`. `description` é opcional.
+`status` do passo: `pending`, `in_progress`, `done` ou `skipped` (o passo deixou de fazer sentido; conta como fechado para o `task done`). `description` é opcional. `title` é texto não vazio e `status` precisa ser um desses valores; um campo obrigatório faltando ou fora do tipo deixa a task `invalid`, com o motivo. Um passo ilegível invalida a task inteira: `task done` sai com `task <task> is invalid: <motivo>`, não com `open steps`.
 
-**Preservação.** A CLI só lê e grava os campos acima. Os demais campos, os comentários do YAML e o corpo do `plan.md` ficam como o usuário ou o agente escreveram. Frontmatter ou YAML ilegível: a task aparece como `invalid` no `list`, e os comandos que a alteram saem com exit 1, sem mexer em nada.
+**Preservação.** A CLI só lê e grava os campos acima, e só grava quando algo mudou. Os demais campos e os comentários do YAML são preservados (o conteúdo, não necessariamente a formatação byte a byte dos nós não tocados). No `plan.md`, o parse é só do bloco entre os `---`, e o corpo fica com os bytes exatos (inclusive CRLF). O YAML é 1.2 core: `createdAt` sem aspas continua texto, e um título `no` não vira booleano. Linhas longas não são dobradas. O frontmatter é o bloco no início do arquivo entre duas linhas `---` (com BOM e CRLF aceitos); sem ele, a task é `invalid`. Ao regravar, o fim de linha do arquivo (LF ou CRLF) é mantido, e mudar um valor mantém o comentário da mesma linha (`status: pending # nota`). Frontmatter ou YAML ilegível (inclusive um bloco que não é um mapa): a task aparece como `invalid` no `list`, e os comandos que a alteram saem com exit 1, sem mexer em nada.
+
+**Edição concorrente.** O usuário e o agente podem editar o mesmo arquivo. Antes de renomear o temporário por cima, a CLI relê o arquivo e compara com o que leu no começo. Se mudou, refaz a leitura e a mudança uma vez; se mudou de novo, sai com `file changed while updating, try again` (exit 1). Os temporários ficam na mesma pasta com nome oculto (`.plan.md.<pid>.tmp`), e a listagem e a leitura dos passos ignoram arquivos que começam com `.`.
 
 **Ciclo.** `bench` (`in_progress`) → `fsd task done` → `rack` (`done`) → `fsd task archive` → `fridge` (`archived`). Não há volta nesta versão. Os passos só mudam enquanto a task está no `bench`.
 
-**Diretórios.** `fsd task new` cria `nook/bench/` se faltar, e `done` e `archive` criam `nook/rack/` e `nook/fridge/`. Nenhum comando de task cria a estrutura base (4.2) nem mexe em `.fsd/`, salvo o diário da execução (6.9).
+**Diretórios e raiz do projeto.** O `cwd` decide o projeto, e a CLI não procura diretórios acima (4.2). Para um agente não criar `src/nook/` sem querer, `fsd task new` exige que o `cwd` já tenha `nook/` ou `.fsd/`; sem nenhum dos dois, sai `no nook/ or .fsd/ here: run from the project root` (exit 1). Os demais comandos de task exigem `nook/` (sem ele, o mesmo erro; o `list` sem `nook/` sai vazio, com exit 0). `fsd task new` cria `nook/bench/` se faltar, e `done` e `archive` criam `nook/rack/` e `nook/fridge/`. Nenhum comando de task cria a estrutura base (4.2). O único efeito em `.fsd/` é o diário de `done`/`archive` (6.9), que cria `.fsd/cache/` se faltar.
 
 ## 5. Comandos
 
@@ -205,7 +207,7 @@ Um único binário, `fsd`, implementado com `commander`.
 | `fsd link skill [nome]`, `fsd link -s [nome]` | Cria o link das skills instaladas sem link (5.4). |
 | `fsd link skill [nome] --force`, `fsd link skill [nome] -f`, `fsd link -s -f [nome]` | Como a anterior, e substitui a original que ocupa o lugar do link (5.4). |
 | `fsd task new "<título>"`, `fsd task list [--all]`, `fsd task done <task>`, `fsd task archive <task>` | Cria, lista e move as tasks do `nook/` (5.5). |
-| `fsd task step add <task> "<título>" [--description <texto>]`, `fsd task step start <task> <n>`, `fsd task step done <task> <n>` | Cria e muda o status dos passos de uma task (5.5). |
+| `fsd task step add <task> "<título>" [--description <texto>]`, `fsd task step start <task> <n>`, `fsd task step done <task> <n>`, `fsd task step skip <task> <n>` | Cria e muda o status dos passos de uma task (5.5). |
 | comando ou opção desconhecidos | Mensagem de erro do commander, indicação de `fsd --help` e exit 1. |
 
 Não existem `list`, `install` nem `uninstall` de skills: o que faziam está no assistente (6.2 e 6.8). `fsd -h` lista `init`, `update`, `update skill`, `link skill` e `task`, com os atalhos. Os atalhos `-u`, `-s` e `-f` não valem em `fsd task`.
@@ -258,18 +260,19 @@ Comandos não interativos (não exigem TTY) sobre as tasks de `<cwd>/nook/` (4.5
 | Comando | Efeito | Saída de sucesso |
 |---|---|---|
 | `task new "<título>"` | Cria `nook/bench/<slug>/plan.md` com `status: in_progress`, as datas e o título como `#`. | `created nook/bench/<slug>/plan.md` |
-| `task list [--all]` | Lista as tasks do `bench` e do `rack` (com `--all`, também do `fridge`), uma por linha: slug, status e passos `done/total`. Sem `nook/`, a lista é vazia (exit 0). | linhas `<slug>  <status>  <done>/<total>` |
+| `task list [--all]` | Lista as tasks do `bench` e do `rack` (com `--all`, também do `fridge`), uma por linha, em colunas alinhadas: slug, status e passos fechados/total. A ordem é `bench`, `rack`, `fridge` e, dentro de cada um, por slug. Sem `nook/`, a lista é vazia (exit 0). | linhas `<slug>  <status>  <fechados>/<total>` |
 | `task step add <task> "<título>" [--description <texto>]` | Cria o próximo `NN-<slug>.yaml` com `status: pending`. | `created nook/bench/<task>/<NN>-<slug>.yaml` |
 | `task step start <task> <n>` | Passo para `in_progress`. | `step <NN> in_progress` |
 | `task step done <task> <n>` | Passo para `done`. | `step <NN> done` |
-| `task done <task>` | Exige todos os passos em `done` (uma task sem passos vale). Grava `status: done` e move a pasta para `nook/rack/`. | `moved <task> to nook/rack` |
+| `task step skip <task> <n>` | Passo para `skipped` (fechado sem ser feito). | `step <NN> skipped` |
+| `task done <task>` | Exige todos os passos fechados (`done` ou `skipped`; uma task sem passos vale). Grava `status: done` e move a pasta para `nook/rack/`. | `moved <task> to nook/rack` |
 | `task archive <task>` | Só para task no `rack`. Grava `status: archived` e move para `nook/fridge/`. | `moved <task> to nook/fridge` |
 
-Erros (exit 1): `task <slug> already exists in nook/<dir>`; `title produces an empty name`; `task <task> not found`; `task <task> is not in nook/bench` (passos, `done`) ou `is not in nook/rack` (`archive`); `step <n> not found`; `task <task> has open steps: 01, 03` (`done`); `task <task> is invalid: <motivo>`.
+Erros (exit 1): `task <slug> already exists in nook/<dir>`; `title produces an empty name (use latin letters)`; `no nook/ or .fsd/ here: run from the project root`; `task <task> not found`; `task <task> is not in nook/bench` (passos, `done`) ou `is not in nook/rack` (`archive`); `step <n> not found`; `task <task> has open steps: 01, 03` (`done`); `task <task> is invalid: <motivo>`; `file changed while updating, try again`; `another fsd run is in progress`; `task <task> is in use by another program, close it and try again`; `<slug> is a reserved name`.
 
-Mudar o status de um passo que já tem esse status não é erro: sai `step <NN> already <status>` com exit 0 e nada é gravado.
+Mudar o status de um passo que já tem esse status não é erro: sai `step <NN> already <status>` com exit 0 e nada é gravado. `<n>` é um número inteiro ≥ 1, comparado pelo valor (`1` = `01`). Um título que começa com `-` vai depois de `--` (`fsd task new -- "-x"`). `fsd task` e `fsd task step` sem subcomando mostram a ajuda com exit 1. As opções da raiz (`-u`, `-s`, `-f`) não são lidas dentro de `task`: `fsd task new x -f` é erro de uso do subcomando (opção desconhecida, exit 1, nada criado), nunca o `--force` da raiz. Em `new`, o `createdAt` e o `updatedAt` são o mesmo instante.
 
-**Gravação.** Criar ou mudar um único arquivo usa a gravação atômica (temporário + renomear). `task done` e `task archive` mudam o `plan.md` e movem a pasta, então rodam pelo motor de fases (6.9): uma falha ou `ctrl+c` deixa a task onde estava, com o status de antes. Valem a trava e a recuperação do motor. Se houver uma execução viva, sai `another fsd run is in progress`.
+**Gravação.** Os comandos `new` e `step` gravam um único arquivo pela gravação atômica de `core/fs.ts` (`writeTextAtomic`), sem o motor e sem diário. Antes de gravar, porém, checam a trava do motor: se houver uma execução viva no escopo (por exemplo, um `task done` de outro processo), saem com `another fsd run is in progress`. `task done` e `task archive` mudam o `plan.md` e movem a pasta, então rodam pelo núcleo de transação do motor (6.9, 9): uma falha ou `ctrl+c` deixa a task onde estava, com o status de antes, e valem a trava e a recuperação. A checagem "passos fechados" e o snapshot do `plan.md` são refeitos na verificação, já com a trava. A ordem é: regravar o `plan.md` ainda na origem e só depois mover a pasta. Desfazer um movimento move de volta, e o diário é desfeito do fim para o começo. A verificação também garante que o destino (`rack/<slug>` ou `fridge/<slug>`) não existe: no Linux, renomear uma pasta sobre uma pasta vazia a substitui em silêncio. Uma task não grava nem cria o `installed.json`. Se o sistema recusar o movimento porque um programa mantém a pasta aberta (`EPERM`/`EBUSY`, comum no Windows), a task fica onde estava e sai `task <task> is in use by another program, close it and try again` (exit 1).
 
 ## 6. Assistente interativo
 
@@ -599,16 +602,19 @@ src/
       runJournal.ts     # o diário de uma execução e as execuções mortas (só leitura)
       selfUpdate.ts     # verificação e atualização da própria CLI (7)
       slug.ts           # slug de títulos de task e de passo (4.5)
-      nook.ts           # tasks do nook/: localizar por slug, ler plan.md e passos, validar pasta × status (4.5)
+      nook.ts           # tasks do nook/ (só leitura): caminhos, localizar por slug, modelo da task, validar pasta × status (4.5)
+      taskFiles.ts      # formato dos arquivos de task: parse e serialize do frontmatter do plan.md e dos passos .yaml, preservando o resto (4.5)
       gitignore.ts      # linhas que faltam no .gitignore do projeto (4.2)
     plan/               # planejadores: leem o disco e montam um Plan; nunca escrevem
       types.ts          # Plan, PlanItem, ActionResult, formatResult
       install.ts        # instalação e upgrade (6.2)
       uninstall.ts      # remoção (6.8)
       link.ts           # `fsd link skill` (5.4)
-      task.ts           # `fsd task done` e `archive`: gravar o status e mover a pasta (5.5)
+      task.ts           # transições de task como funções puras: estado + comando → erro ou operações (5.5)
     engine/             # execução de um Plan em fases (6.9)
-      run.ts            # as fases Verificar, Preparar, Aplicar, Registrar e Concluir
+      transactionRun.ts # núcleo genérico: trava, diário, SIGINT/SIGTERM, commit, desfazer e eventos de fase; recebe verificar e aplicar como funções
+      run.ts            # as fases Verificar, Preparar, Aplicar, Registrar e Concluir das skills, cliente do transactionRun
+      taskRun.ts        # `task done`/`archive`, cliente do transactionRun (sem registro de skills)
       verify.ts         # a fase Verificar (só leitura)
       transaction.ts    # cada mudança registrada no diário antes de ser feita
       recovery.ts       # desfazer pelo diário e recuperar execuções mortas
@@ -714,8 +720,8 @@ Os testes foram removidos do projeto por decisão do autor (2026-11-07). Esta se
 32. `ctrl+c` durante as fases desfaz e sai com 130; um processo morto no meio é recuperado pelo diário na execução seguinte; duas execuções ao mesmo tempo não se atropelam.
 33. `fsd init` ao abrir, com `autoUpdate` ligado e CLI instalada globalmente, não cria nenhum arquivo ou diretório.
 34. `fsd task new "Login OAuth"` cria `nook/bench/login-oauth/plan.md` com `status: in_progress`; repetir o título (ou um slug que já existe no `rack` ou no `fridge`) sai com exit 1 sem alterar nada.
-35. `fsd task step add` numera os passos `01`, `02`, … e nunca reaproveita um número; `start` e `done` mudam só o `status` e o `updatedAt`, preservando os outros campos e os comentários do YAML.
-36. `fsd task done` só move para `nook/rack/` com todos os passos `done`, e `fsd task archive` só move do `rack` para o `fridge`; em ambos, a pasta e o `status` sempre combinam, e uma falha injetada deixa a task onde estava.
+35. `fsd task step add` numera os passos `01`, `02`, … e nunca reaproveita um número; `start`, `done` e `skip` mudam só o `status` e o `updatedAt`, preservando os outros campos e os comentários do YAML; uma edição do arquivo por outro processo durante o comando não se perde.
+36. `fsd task done` só move para `nook/rack/` com todos os passos fechados (`done` ou `skipped`), e `fsd task archive` só move do `rack` para o `fridge`; em ambos, a pasta e o `status` sempre combinam, e uma falha injetada em qualquer ponto (inclusive depois do movimento) deixa a task onde estava, inteira e com o status de antes.
 37. `fsd task list` mostra as tasks do `bench` e do `rack` com os passos `done/total`; com `--all`, também as do `fridge`; uma task ilegível ou com pasta e status divergentes aparece como `invalid` e não derruba a listagem.
 38. Ao confirmar o Instalar no escopo de projeto, o `.gitignore` passa a ter `.fsd/cache/` e `.fsd/logs/` sem duplicar linhas nem alterar o resto; no escopo global, nenhum `.gitignore` é tocado.
 
@@ -744,7 +750,7 @@ Os testes foram removidos do projeto por decisão do autor (2026-11-07). Esta se
 - **Revisão desta spec (conflito, `--force`, interrupção, testes):** ver a seção "Pontos para a revisão" no `TASKS.md`.
 - **Layout**: o cabeçalho (rosquinha, nome, 35% da altura, 80 × 24 como partida) está decidido em 6.10; pendem a posição do idioma, os símbolos Unicode e a paleta final (6.7). A estética das letras de 2 e 4 linhas e a definição da rosquinha de 6 linhas seguem em evolução.
 - **Utilidade do tema**: será definida pelo autor depois; a spec não assume nenhuma.
-- **Revisar (tasks do `nook/`, propostas minhas)**: nomes dos comandos (`fsd task …` e `fsd task step …`); status dos passos `pending | in_progress | done`; `task done` exige todos os passos `done`, sem `--force`; tasks só no escopo de projeto; sem volta `rack → bench` (sem `reopen`); a dependência `yaml` (eemeli/yaml), para preservar comentários e campos; a skill `fsd-nook-tasks` pede confirmação antes do `done` e nunca arquiva; os passos não aparecem no assistente.
+- **Revisar (tasks do `nook/`, propostas minhas, do Arquiteto e do Node Typescript Developer)**: nomes dos comandos (`fsd task …` e `fsd task step …`); status dos passos `pending | in_progress | done | skipped`, com `task step skip` para fechar um passo que deixou de fazer sentido (a outra opção é `task step remove`); `task done` exige os passos fechados, sem `--force`; tasks só no escopo de projeto; `task new` exige `nook/` ou `.fsd/` no `cwd` (falta decidir se também aceita um `--init` explícito); sem volta `rack → bench` (sem `reopen`; um bug achado depois vira task nova); a dependência `yaml` (eemeli/yaml), para preservar comentários e campos; slug de letras sem decomposição (`ß`, `æ`, `ø`, `ł`, `đ`, `œ`): virar `-` ou um mapa pequeno (`ß→ss`, `æ→ae`, `ø→o`, `ł→l`, `đ→d`, `œ→oe`); a skill `fsd-nook-tasks` pede confirmação antes do `done` e nunca arquiva; os passos não aparecem no assistente.
 - **Próximas fatias do `nook/`**: Kitchen (contexto e regras que a skill carrega), Cookbook (formato das recipes), Bakers (formato e craft), quem leva a task do `rack` ao `fridge` além do comando, e se o Oven passa a ter estado em `.fsd/oven/`.
 - **Revisar (decisões minhas)**: `update skill` cobre os escopos global e projeto (o de projeto só se existir `./.fsd/installed.json`); `updateSkills` vem desligado por padrão e é configurado no passo 4; não há flag para pular o auto-update, só a opção salva (se quiser `fsd init --no-update`, acrescentar); `fsd update` ignora o limite de 24 h.
 
