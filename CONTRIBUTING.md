@@ -1,13 +1,13 @@
 # Contribuindo com o fsd
 
-Fluxo de trabalho do projeto, seguindo o modelo do GitHub: **issue → branch → pull request → merge**. O desenho do produto fica na [`SPEC.md`](SPEC.md); o que fazer, por quê e em que estado está fica nos issues.
+Fluxo de trabalho do projeto, seguindo o modelo do GitHub: **issue → branch → pull request → merge**. A `develop` é a branch de integração da equipe e a branch padrão do repositório: todo branch de issue sai dela e todo PR volta para ela. A `main` recebe só o PR `develop → main`, mesclado pelo autor. O desenho do produto fica na [`SPEC.md`](SPEC.md); o que fazer, por quê e em que estado está fica nos issues.
 
 ## Papéis
 
 | Papel | Quem | Conta no GitHub | O que faz |
 |---|---|---|---|
 | Autor | Frederico Jacobi | `fredericojacobi` | Decide o produto e é o único que faz o merge na `main`. |
-| Product Manager | Kevin (agente) | `fsd-kevin[bot]` | Mantém issues, milestones, labels e o Project; registra as decisões do autor nos issues; mantém a `SPEC.md`, o `TASKS.md` e este arquivo. Revisa os PRs quanto ao escopo e ao aceite. |
+| Product Manager | Kevin (agente) | `fsd-kevin[bot]` | Mantém issues, milestones, labels e o Project; registra as decisões do autor nos issues; mantém a `SPEC.md`, o `TASKS.md` e este arquivo. Revisa os PRs quanto ao escopo e ao aceite. É o único que mescla na `develop`, por squash, os PRs aprovados. |
 | Arquiteto | Mel (agente) | `fsd-mel[bot]` | Prepara cada issue para o desenvolvimento (comentário **Arquiteto: passagem**) e revisa o código dos PRs. Mantém o `docs/ARQUITETURA.md`. |
 | Desenvolvedor | Stuart (agente) | `fsd-stuart[bot]` | Implementa o issue num branch, abre o PR e responde às revisões. |
 | QA | Bob (agente) | `fsd-bob[bot]` | Verifica o PR rodando o app real contra o aceite do issue. Aprova ou pede mudanças, e abre issue de bug para o que estiver fora do escopo. Não corrige código. |
@@ -44,29 +44,42 @@ Todo trabalho começa num issue: uma task, um bug, uma ideia, uma decisão pende
 | Waiting for Development | Preparado, esperando o desenvolvedor. |
 | Developing | Branch aberto, em implementação. |
 | Review | PR aberto. O Arquiteto revisa o código, o QA verifica no app real e o PM confere o escopo. Um bloqueio do Arquiteto ou uma falha do QA devolve o issue para Developing. |
-| Done | PR mesclado na `main`; o issue foi fechado pelo `Closes #N`. |
+| Done | PR mesclado na `develop`; o issue foi fechado pelo `Closes #N` (a `develop` é a branch padrão). |
 
 ## 3. Branch
 
-- Um branch por issue, a partir da `main`: `<número>-<slug>`, por exemplo `6-transaction-core`.
+- Um branch por issue, a partir da `origin/develop` atualizada: `git fetch origin && git switch -c feature/6-transaction-core origin/develop`.
+- Nome: `<tipo>/<número>-<slug>`, com o slug em minúsculas e hífens. Os tipos são:
+  - `feature/`: funcionalidade;
+  - `fix/`: correção;
+  - `docs/`: só documentação;
+  - `chore/`: manutenção, sem mudar comportamento.
+- As branches antigas (`feat/nook-tasks`, `plan/nook-tasks`) não são renomeadas.
 - Os commits citam o issue: `feat(F-40a): núcleo de transação (#6)`.
-- Ninguém dá push na `main`, nem force-push.
+- Ninguém dá push direto na `develop` nem na `main`, e ninguém faz force-push.
 
 ## 4. Pull request
 
-- Um PR por issue, com base na `main`. O corpo traz `Closes #N`, como foi verificado e os desvios da `SPEC.md` (de preferência nenhum).
+- Um PR por issue, com base na `develop` (`gh pr create --base develop`). O corpo traz `Closes #N`, como foi verificado e os desvios da `SPEC.md` (de preferência nenhum).
 - O Arquiteto revisa no PR. A revisão separa **bloqueia** de **melhoria** e é publicada como revisão do PR.
 - O QA verifica e publica uma revisão: aprova se tudo passou, ou pede mudanças com o passo a passo para reproduzir.
 - O Stuart responde com commits novos, sem force-push.
-- O autor faz o merge. O merge fecha o issue e o card vai para Done.
+- O Kevin (PM) mescla na `develop` com `gh pr merge <n> --squash`. O merge fecha o issue, e o card vai para Done. Nenhum outro agente roda `gh pr merge`.
+- Mudanças só de documentação (`SPEC.md`, `TASKS.md`, `CONTRIBUTING.md`, `docs/`) também entram por PR.
 
-A `main` é protegida pelo ruleset `ProtMain`:
-- o merge é só por **squash**, com histórico linear;
-- precisa de **1 aprovação**, de alguém que não é o autor do PR;
+Regras da `develop`:
+- o merge é só por **squash**;
+- precisa de **1 aprovação de outro agente**, nunca do autor do PR;
 - um push novo derruba as aprovações, e a aprovação tem que vir depois do último push. Depois de uma correção, quem aprovou aprova de novo;
+- todas as conversas da revisão precisam estar resolvidas, sem nenhum pedido de mudança em aberto;
+- só o Kevin mescla, e só por PR. Ninguém dá push direto.
+
+A `main` é do autor e é protegida pelo ruleset `ProtMain`:
+- ela recebe só o PR `develop → main`, e só o autor o mescla;
+- o merge é só por **squash**, com histórico linear;
+- precisa de **1 aprovação**, de alguém que não é o autor do PR, vinda depois do último push;
 - todas as conversas da revisão precisam estar resolvidas;
-- ninguém dá push direto nem apaga a `main`; só o autor faz o merge.
-- Mudanças só de documentação (`SPEC.md`, `TASKS.md`, `docs/`) também entram por PR.
+- ninguém dá push direto nem apaga a `main`.
 
 ## 5. Verificação
 
@@ -87,3 +100,21 @@ A verificação do PR é do QA (Bob):
 - Hashes são copiados do `git`, nunca escritos de memória.
 - O autor decide pelo Kevin, que registra a decisão no issue. Dúvida técnica vai ao Mel; o que sobrar vai ao Kevin, que pergunta ao autor.
 - O que é oficial (decisão, passagem, revisão, resultado de QA, bug) fica num comentário ou numa revisão no GitHub. Mensagem direta entre as sessões serve só para conversa rápida.
+
+### O time trabalha sozinho
+
+Ninguém espera o autor nem uma sessão humana para seguir.
+- **Esperar:** quem espera outro agente ou o GitHub (aprovação, merge, PR novo, comentário) arma um `Monitor` com um laço sobre o `gh` e segue quando ele avisar.
+- **Passagem nos dois canais:** cada passagem tem o registro oficial no GitHub (comentário, revisão, PR) e um `SendMessage` para quem segue, citando o link. Quem recebe começa sem esperar outra pessoa.
+  - O Stuart abre ou atualiza um PR → avisa a Mel, o Bob e o Kevin.
+  - A Mel revisa → com bloqueio, pede mudanças e avisa o Stuart; aprovado, avisa o Kevin.
+  - O Bob verifica → se falhou, pede mudanças e avisa o Stuart; se passou, aprova e avisa o Kevin; um bug fora do escopo vira issue, e ele avisa o Kevin.
+  - O Kevin mescla na `develop` → avisa o Stuart (próximo issue liberado), a Mel e o Bob.
+  - A Mel publica a passagem de um issue → avisa o Kevin e o Stuart.
+- **Dúvidas:**
+  - técnica (do Stuart ou do Bob): vai à Mel;
+  - de escopo ou de aceite: vai ao Kevin;
+  - de produto: vai ao Kevin, que a registra no issue com a label `decisão` e a recomendação dele. Ele é o único que leva a dúvida ao autor.
+  - Ninguém fica parado esperando a resposta: segue com o que não depende dela. Só uma decisão do autor desbloqueia uma dúvida de produto, e ninguém inventa a decisão.
+- **Ação bloqueada** (permissão, modo automático, App sem acesso): tente outro caminho legítimo. Se não houver, registre no issue ou no PR e siga com o resto.
+- **Só com o autor:** o merge na `main`, as decisões de produto e as ações destrutivas.
