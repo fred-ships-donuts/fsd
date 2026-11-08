@@ -52,6 +52,11 @@ export function isAlive(pid: number): boolean {
   }
 }
 
+/** The run directory of a live run (other than `except`), or undefined when no other fsd run is in progress. */
+export function liveRun(cacheDir: string, except?: string): string | undefined {
+  return runDirs(cacheDir).find((runDir) => runDir !== except && isAlive(pidOf(runDir)));
+}
+
 // Paths created by runs that died before committing: leftovers, not skills "in the way".
 export function deadRunPaths(scope: Scope, env: Env): string[] {
   const paths: string[] = [];

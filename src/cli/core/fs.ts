@@ -1,4 +1,4 @@
-import { chmodSync, lstatSync, mkdirSync, readFileSync, readlinkSync, renameSync, rmSync, statSync, writeFileSync, type Stats } from 'node:fs';
+import { chmodSync, lstatSync, mkdirSync, readFileSync, readlinkSync, renameSync, rmdirSync, rmSync, statSync, writeFileSync, type Stats } from 'node:fs';
 import { basename, dirname, join, resolve, sep } from 'node:path';
 
 // Small filesystem queries and the atomic writes (JSON and text) shared by the whole CLI.
@@ -103,6 +103,27 @@ function modeOf(file: string): number | undefined {
     return statSync(file).mode & 0o7777;
   } catch {
     return undefined;
+  }
+}
+
+/**
+ * Creates a file that must not exist yet, with the directories it needs. Throws FileChangedError when the file appeared
+ * meanwhile; on any failure, removes the directories it created (so a failed `task new` leaves no empty folder).
+ */
+export function createTextFile(file: string, content: string): void {
+  const created = missingAncestors(dirname(file));
+  mkdirSync(dirname(file), { recursive: true });
+  try {
+    writeTextAtomic(file, content, { expected: null });
+  } catch (error) {
+    for (const dir of [...created].reverse()) {
+      try {
+        rmdirSync(dir); // only when empty
+      } catch {
+        break;
+      }
+    }
+    throw error;
   }
 }
 

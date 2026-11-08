@@ -8,6 +8,8 @@ const PASSTHROUGH = new Set(['-h', '--help', '-v', '--version']);
 const ORDER = ['-u', '-s', '-f'];
 
 export function normalizeArgs(raw: string[]): Normalized {
+  // `task` takes free text (titles, descriptions) where `-u`, `-f` or `-h` may appear: no shortcut applies there.
+  if (raw[0] === 'task') return { args: raw };
   if (raw.some((arg) => PASSTHROUGH.has(arg))) return { args: raw };
   if (raw.some((arg) => /^-[usf]{2,}$/.test(arg))) return { error: 'shortcuts must be separate arguments: -u -s -f' };
 
