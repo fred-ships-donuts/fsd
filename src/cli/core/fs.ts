@@ -1,7 +1,7 @@
-import { lstatSync, mkdirSync, readlinkSync, renameSync, writeFileSync, type Stats } from 'node:fs';
-import { dirname, resolve, sep } from 'node:path';
+import { lstatSync, mkdirSync, readFileSync, readlinkSync, renameSync, rmSync, writeFileSync, type Stats } from 'node:fs';
+import { basename, dirname, join, resolve, sep } from 'node:path';
 
-// Small filesystem queries and the atomic JSON write shared by the whole CLI.
+// Small filesystem queries and the atomic writes (JSON and text) shared by the whole CLI.
 
 /** The entry at `path` itself (a link is not followed), or undefined when there is nothing there. */
 export function exists(path: string): Stats | undefined {
@@ -48,7 +48,74 @@ export function nearestExisting(path: string): string {
 
 export function writeJsonAtomic(file: string, data: unknown): void {
   mkdirSync(dirname(file), { recursive: true });
-  const temp = `${file}.${process.pid}.tmp`;
-  writeFileSync(temp, JSON.stringify(data, null, 2) + '\n');
-  renameSync(temp, file);
+  writeTextAtomic(file, JSON.stringify(data, null, 2) + '\n');
+}
+
+/** The file's text, or null when there is no file. Other read errors are thrown. */
+export function readTextOrNull(file: string): string | null {
+  try {
+    return readFileSync(file, 'utf8');
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return null;
+    throw error;
+  }
+}
+
+/** The file changed on disk between reading it and replacing it. */
+export class FileChangedError extends Error {
+  constructor(readonly file: string) {
+    super(`${file} changed while writing`);
+    this.name = 'FileChangedError';
+  }
+}
+
+export interface WriteTextOptions {
+  // What the file must still contain right before it is replaced (null: the file must not exist). Compared by content,
+  // not by mtime: editors that save by renaming change the mtime of an unchanged file.
+  expected?: string | null;
+}
+
+// Hidden, in the same directory (a rename across devices is not atomic), and per process.
+const tempPath = (file: string): string => join(dirname(file), `.${basename(file)}.${process.pid}.tmp`);
+
+/**
+ * Writes through a hidden temporary file and a rename, so a reader sees the old or the new text, never half of it.
+ * With `expected`, refuses (FileChangedError) when the file no longer holds that text. Guards against lost updates,
+ * not a lock: a write between the check and the rename can still be lost.
+ */
+export function writeTextAtomic(file: string, content: string, options: WriteTextOptions = {}): void {
+  const temp = tempPath(file);
+  try {
+    writeFileSync(temp, content);
+    if (options.expected !== undefined && readTextOrNull(file) !== options.expected) throw new FileChangedError(file);
+    renameSync(temp, file);
+  } catch (error) {
+    rmSync(temp, { force: true });
+    throw error;
+  }
+}
+
+export interface UpdateTextResult {
+  changed: boolean;
+  content: string;
+}
+
+/**
+ * Reads `file`, applies `transform` and writes the result only when it differs. When the file changes in between, reads
+ * and transforms again, up to `retries` more times, then throws FileChangedError. `transform` gets null when there is no
+ * file, and may throw to refuse the change (nothing is written).
+ */
+export function updateTextFile(file: string, transform: (current: string | null) => string, options: { retries?: number } = {}): UpdateTextResult {
+  const retries = options.retries ?? 1;
+  for (let attempt = 0; ; attempt++) {
+    const current = readTextOrNull(file);
+    const next = transform(current);
+    if (next === current) return { changed: false, content: next };
+    try {
+      writeTextAtomic(file, next, { expected: current });
+      return { changed: true, content: next };
+    } catch (error) {
+      if (!(error instanceof FileChangedError) || attempt >= retries) throw error;
+    }
+  }
 }

@@ -12,9 +12,9 @@ ui/ ────► wizard/ ─────┘
 
 | Camada | Responsabilidade | Pode importar |
 |---|---|---|
-| `core/` | Domínio e disco: escopos e caminhos, catálogo, registro, configuração, conflitos, leitura do diário, versões, npm. Só lê, exceto a gravação atômica de JSON. | só `node:` |
+| `core/` | Domínio e disco: escopos e caminhos, catálogo, registro, configuração, conflitos, leitura do diário, formato dos arquivos de task, versões, npm. Só lê, exceto as gravações atômicas de um arquivo (JSON e texto) de `core/fs.ts`. | `node:` e bibliotecas puras de formato de dados, cada uma isolada num único módulo (hoje: `yaml`, só em `core/taskFiles.ts`) |
 | `plan/` | Planejadores: leem o disco e devolvem um `Plan` com o que fazer e o resultado de cada skill. **Nunca escrevem.** | `core/` |
-| `engine/` | Executa um `Plan` em fases (6.9), com diário, desfazer e recuperação. **Toda escrita do disco passa por aqui** (`ops.ts`). | `core/`, `plan/` |
+| `engine/` | Executa um `Plan` em fases (6.9), com diário, desfazer e recuperação. Toda mudança com mais de uma operação passa por aqui; uma gravação de um arquivo só usa `core/fs.ts`. | `core/`, `plan/` |
 | `commands/` | Um arquivo por comando da CLI: valida a entrada, chama planejador e motor, imprime e devolve o exit code. | `core/`, `plan/`, `engine/` |
 | `wizard/` | Regras do assistente sem React: passos, escolhas, o que as telas mostram, executar depois do resumo. | `core/`, `plan/`, `engine/` |
 | `ui/` | Só apresentação, em Ink: telas, componentes, cabeçalho, arte em células, escrita no terminal. | `wizard/`; de `core/`, `plan/` e `engine/` só tipos e o que é de exibição (`version`, `phases`, `formatResult`) |
@@ -23,13 +23,13 @@ ui/ ────► wizard/ ─────┘
 Regras:
 
 1. **Dependência só para baixo.** Nada de `core/`, `plan/`, `engine/` ou `wizard/` importa React, Ink ou commander. `ui/` não importa de `commands/` (os códigos de saída estão em `exitCodes.ts`, compartilhado).
-2. **Ler e escrever separados.** Quem decide (`plan/`) não escreve; quem escreve (`engine/`) não decide. O que uma camada precisa saber do disco para decidir e o motor precisa conferir na fase Verificar (os conflitos, o diário de execuções mortas) fica em `core/`, para os dois usarem a mesma resposta.
+2. **Ler e escrever separados.** Quem decide (`plan/`) não escreve. Escrever é com o `engine/` (várias operações, com desfazer) ou com as gravações atômicas de `core/fs.ts` (um arquivo). O que uma camada precisa saber do disco para decidir e o motor precisa conferir na fase Verificar (os conflitos, o diário de execuções mortas) fica em `core/`, para os dois usarem a mesma resposta.
 3. **Uma regra, um lugar.** Texto de resultado (`formatResult`), escopos com registro (`installedScopes`), "este caminho é um link para aquele" (`isLinkTo`), códigos de saída e os textos da interface (`ui/labels.ts`) existem uma vez só.
 4. **Dependências injetáveis nas bordas.** O motor recebe `Ops` (as operações de arquivo) e `now`; os comandos recebem `Io`, `Env` e as dependências de rede/npm, com as reais por padrão.
 
 ## Por dentro de cada camada
 
-**`core/`**: `scope.ts` (onde ficam `.fsd/`, `nook/` e o cache de cada escopo), `fs.ts` (consultas ao disco e `writeJsonAtomic`), `semver.ts`, `catalog.ts`, `registry.ts`, `config.ts`, `claudeLink.ts`, `conflicts.ts`, `runJournal.ts` (formato do diário e quais execuções estão mortas), `selfUpdate.ts`, `package.ts` (raiz, nome e versão do pacote).
+**`core/`**: `scope.ts` (onde ficam `.fsd/`, `nook/` e o cache de cada escopo), `fs.ts` (consultas ao disco, `writeJsonAtomic`, `writeTextAtomic` e `updateTextFile`, que compara o conteúdo antes de gravar), `semver.ts`, `catalog.ts`, `registry.ts`, `config.ts`, `claudeLink.ts`, `conflicts.ts`, `runJournal.ts` (formato do diário e quais execuções estão mortas), `selfUpdate.ts`, `package.ts` (raiz, nome e versão do pacote), `slug.ts` (nome de task e de passo a partir do título), `taskFiles.ts` (formato do `plan.md` e dos passos, puro, o único que importa `yaml`) e `nook.ts` (tasks do `nook/`: localizar, ler e validar, só leitura).
 
 **`plan/`**: `types.ts` (o `Plan`, seus itens e `emptyPlan`/`addItem`), `install.ts`, `uninstall.ts`, `link.ts`.
 
