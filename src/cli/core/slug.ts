@@ -19,6 +19,9 @@ const LETTER_PATTERN = new RegExp(`[${Object.keys(LETTERS).join('')}]`, 'gu');
 // Names Windows refuses for a file or folder, whatever the extension.
 const RESERVED = /^(con|prn|aux|nul|com[1-9]|lpt[1-9])$/;
 
+/** True when `name` is something `slug()` could have produced: the only names that can address a task folder. */
+export const isSlug = (name: string): boolean => name.length <= SLUG_MAX && /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(name) && !RESERVED.test(name);
+
 export function slug(title: string): SlugResult {
   let value = title
     .replace(LETTER_PATTERN, (letter) => LETTERS[letter] ?? letter)

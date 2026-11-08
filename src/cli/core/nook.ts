@@ -1,6 +1,7 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { exists } from './fs.js';
+import { isSlug } from './slug.js';
 import { scopePaths, type Env } from './scope.js';
 import { InvalidTaskFileError, parsePlan, parseStep, PLAN_FILE, stepLabel, stepNumber, type StepStatus, type TaskStatus } from './taskFiles.js';
 
@@ -109,7 +110,10 @@ function readSteps(taskPath: string): Step[] {
   return steps.sort((a, b) => a.number - b.number || (a.file < b.file ? -1 : 1));
 }
 
-/** Reads the task in `nook/<dir>/<slug>/`. Never throws: what is wrong goes in `invalid`. */
+/**
+ * Reads the task in `nook/<dir>/<slug>/`. Never throws: what is wrong goes in `invalid`. A name that is not a slug is
+ * not read at all (`../x` would leave nook/), only reported.
+ */
 export function readTask(env: Env, dir: TaskDir, slug: string): Task {
   const path = join(nookPaths(env).dirs[dir], slug);
   const planPath = join(path, PLAN_FILE);
@@ -118,6 +122,7 @@ export function readTask(env: Env, dir: TaskDir, slug: string): Task {
     task.invalid ??= { file, reason };
     return task;
   };
+  if (!isSlug(slug)) return fail('.', 'the folder name is not a task name (lowercase letters, digits and -)');
 
   try {
     task.planText = readFileSync(planPath, 'utf8');
@@ -146,12 +151,13 @@ export function readTask(env: Env, dir: TaskDir, slug: string): Task {
 
 /** The folders where a task with this slug exists, in bench, rack, fridge order. */
 export function locateTask(env: Env, slug: string): TaskDir[] {
+  if (!isSlug(slug)) return [];
   const { dirs } = nookPaths(env);
   return TASK_DIRS.filter((dir) => exists(join(dirs[dir], slug))?.isDirectory() === true);
 }
 
 /**
- * The task with this slug, or undefined when there is none. A slug in more than one folder is invalid (the folder
+ * The task with this slug, or undefined when there is none (or `slug` is not a slug, so it can never leave nook/). A slug in more than one folder is invalid (the folder
  * names are unique in all of nook/).
  */
 export function findTask(env: Env, slug: string): Task | undefined {
