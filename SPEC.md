@@ -10,6 +10,7 @@ A CLI tem **um único binário, `fsd`**, com poucos comandos:
 
 - `fsd init` abre o assistente interativo, onde se instala e apaga skills e se escolhe escopo, idioma, tema e atualização.
 - `fsd update` atualiza a própria CLI; `fsd update skill [nome]` atualiza as skills instaladas.
+- `fsd task ...` cria e acompanha as tasks do projeto em `nook/` (bench → rack → fridge, 4.5 e 5.5).
 - `fsd -h`/`--help` mostra a ajuda (também mostrada quando `fsd` é chamado sem argumentos) e `fsd -v`/`--version` mostra a versão.
 
 Instalar e apagar skills só existe dentro do assistente: não há `fsd install` nem `fsd uninstall`.
@@ -30,7 +31,7 @@ Instalar e apagar skills só existe dentro do assistente: não há `fsd install`
 | Runtime | Node >= 22 (exigência do Ink 8) |
 | Parser de CLI | `commander`: comandos `init`, `update` e `update skill`, ajuda gerada e erros de uso padronizados. A versão usa `-v` (não o `-V` padrão do commander) |
 | Interface interativa | Ink 8 (React para terminal); ver apêndice A |
-| Dependências de runtime | `commander`, `ink`, `react` (>= 19.3) |
+| Dependências de runtime | `commander`, `ink`, `react` (>= 19.3), `yaml` (>= 2.9, eemeli/yaml: frontmatter e passos das tasks, 4.5) |
 | Binário | Um só: `fsd` → `dist/cli/fsd.js` |
 
 ## 3. Catálogo de skills
@@ -41,7 +42,7 @@ O catálogo fica em `src/skills/_i18n/`. Há um único formato: uma árvore comp
 src/skills/_i18n/<nome>/<lang>/SKILL.md   # + references/, scripts/, templates/, agents/
 ```
 
-Exemplos: `_i18n/fsd-csharp-code-standard/{en,pt-BR}`, `_i18n/fsd-ui-approval/{en,pt-BR}`. Os idiomas de uma skill são as subpastas de `_i18n/<nome>/` que contêm `SKILL.md`. Diretórios soltos em `src/skills/` (fora de `_i18n/`) **não fazem parte do catálogo** e são ignorados pela CLI.
+Exemplos: `_i18n/fsd-csharp-code-standard/{en,pt-BR}`, `_i18n/fsd-ui-approval/{en,pt-BR}`, `_i18n/fsd-nook-tasks/{en,pt-BR}`. A `fsd-nook-tasks` ensina o agente a trabalhar com as tasks do `nook/` (4.5): ler o `plan.md`, quebrar o plano em passos com `fsd task step add`, marcar cada passo com `start`/`done` pelos comandos (nunca editar o `status` nem mover pastas à mão), e **pedir a confirmação do usuário antes de `fsd task done`**. `archive` fica só com o usuário. Os idiomas de uma skill são as subpastas de `_i18n/<nome>/` que contêm `SKILL.md`. Diretórios soltos em `src/skills/` (fora de `_i18n/`) **não fazem parte do catálogo** e são ignorados pela CLI.
 
 Regras:
 
@@ -95,7 +96,9 @@ Segue `docs/FSD-ARCHITECTURE.md`. Em cada escopo há um diretório de sistema `.
 
 **Estrutura base.** Ao confirmar o resumo do fluxo Instalar (como uma instalação de software qualquer), a CLI cria, no escopo escolhido e se ainda não existirem, `nook/kitchen/`, `nook/bakers/`, `.fsd/oven/`, `.fsd/cache/` e `.fsd/logs/`. Os demais diretórios de `nook/` (`bench/`, `cookbook/`, `rack/`, `fridge/`) não são criados. Cancelar não cria nada, e o fluxo Apagar não cria nem remove a estrutura. `fsd init` ao abrir não grava nada.
 
-Os caminhos são calculados só a partir de `os.homedir()` e do `cwd`: a CLI não procura nem lê outros diretórios para decidir onde `.fsd/` e `nook/` ficam. No escopo de projeto, `.fsd/installed.json` e `nook/` são versionáveis junto com o repositório, a critério do usuário; a CLI não mexe no `.gitignore`.
+Os caminhos são calculados só a partir de `os.homedir()` e do `cwd`: a CLI não procura nem lê outros diretórios para decidir onde `.fsd/` e `nook/` ficam. No escopo de projeto, `.fsd/installed.json`, `.fsd/oven/` e `nook/` são versionáveis junto com o repositório, a critério do usuário.
+
+**`.gitignore`.** No escopo de projeto, junto com a estrutura base (ao confirmar o fluxo Instalar), a CLI garante que `<cwd>/.gitignore` tenha as linhas `.fsd/cache/` e `.fsd/logs/`: acrescenta ao fim só as que faltam (comparação por linha exata, sem interpretar padrões) e cria o arquivo se ele não existir. Nada mais do arquivo é alterado, e uma segunda instalação não muda nada. O escopo global nunca toca em `.gitignore`. A gravação entra na fase Aplicar (6.9), com backup (gravação de texto, não de JSON), e é desfeita junto com o resto. Se o arquivo não termina em quebra de linha, uma quebra vem antes das linhas acrescentadas; o fim de linha existente (LF ou CRLF) é mantido; a comparação ignora espaços nas pontas e o BOM. A verificação do plano passa a aceitar esse caminho, que fica fora de `.fsd/` e de `nook/`.
 
 Toda gravação em `.fsd/` é atômica (escreve em arquivo temporário e renomeia).
 
@@ -134,6 +137,64 @@ O estado vem da comparação entre a versão registrada e o `metadata.version` d
 
 `missing` é resolvido por `Instalar` (reinstala e atualiza o registro) ou por `Apagar` (só limpa a entrada). Se `installed.json` estiver ausente ou ilegível, o estado de todas as skills é `not installed`; nada é descoberto nem apagado no diretório do Claude.
 
+### 4.5 Tasks no `nook/`
+
+Uma task é uma **pasta** com um plano em Markdown e passos curtos em YAML. Tasks existem só no escopo de projeto (`<cwd>/nook/`); o escopo global não tem tasks. Quem executa o trabalho é o agente (Claude Code), guiado pela skill `fsd-nook-tasks` (3); a CLI só cria, lê, muda o status e move os arquivos.
+
+```text
+nook/bench/login-oauth/
+  plan.md            # spec e plano da task; status da task no frontmatter
+  01-schema.yaml     # passo curto, com status próprio
+  02-endpoint.yaml
+```
+
+**Título.** Todo caractere de controle (C0, `\x00`–`\x1f`, inclusive `\t`, `\r` e `\n`, e o DEL `\x7f`) no título de uma task ou de um passo vira espaço, os espaços repetidos viram um só e as pontas são aparadas, antes do slug e da gravação (`normalizeTitle` em `core/slug.ts`, usada por `task new` e `task step add`). Assim, o `# <título>` do `plan.md` fica numa linha só, e nenhuma sequência de terminal chega aos arquivos. Na leitura, um `title` escrito à mão como número ou booleano (`title: 2026`) vale como texto e não é regravado.
+
+**Nome vindo do argumento.** O `<task>` dos comandos é entrada não confiável (vem do agente). O `core/` só aceita um nome que seja um slug válido (`isSlug`: `^[a-z0-9]+(-[a-z0-9]+)*$`, até 60 caracteres); qualquer outro valor, como `../x`, `a/b` ou `.`, nunca vira caminho e é tratado como task inexistente (`task <x> not found`). Isso vale para todo chamador (`readTask`, `locateTask`, `findTask`), não só para `commands/`.
+
+**Nome (slug).** A pasta tem o nome do slug do título: letras sem decomposição trocadas por um mapa pequeno (`ß→ss`, `æ→ae`, `ø→o`, `ł→l`, `đ→d`, `œ→oe`, `þ→th`, e as maiúsculas correspondentes), `normalize('NFD')`, marcas (`\p{M}`) removidas, minúsculas, qualquer sequência fora de `[a-z0-9]` vira um `-`, sem `-` nas pontas, e no máximo 60 caracteres (cortado no último `-` antes do limite, por causa dos caminhos longos no Windows). `"Straße"` vira `strasse`. Um slug que é nome reservado do Windows (`con`, `nul`, `aux`, `prn`, `com1`…`com9`, `lpt1`…`lpt9`) é erro. `"Login OAuth"` vira `login-oauth`. O slug é único em todo o `nook/`: se já existe em `bench/`, `rack/` ou `fridge/`, é erro, e a mensagem mostra o slug, porque títulos diferentes podem gerar o mesmo slug. Um título que gera slug vazio (por exemplo, todo em escrita não latina) é erro, e a mensagem sugere um título com letras latinas.
+
+**`plan.md`.** Frontmatter YAML seguido do corpo livre (spec e plano):
+
+```markdown
+---
+title: Login OAuth
+status: in_progress
+createdAt: 2026-11-07T12:00:00.000Z
+updatedAt: 2026-11-07T12:00:00.000Z
+---
+
+# Login OAuth
+```
+
+| `status` da task | Pasta |
+|---|---|
+| `in_progress` | `nook/bench/<slug>/` |
+| `done` | `nook/rack/<slug>/` |
+| `archived` | `nook/fridge/<slug>/` |
+
+A pasta e o `status` sempre combinam, e a CLI muda os dois juntos (5.5). Uma task cuja pasta não bate com o `status` aparece como `invalid` no `fsd task list`.
+
+**Passo `NN-<slug>.yaml`.** `NN` tem pelo menos dois dígitos e é sequencial a partir de `01` (o próximo é o maior existente mais um; números vagos não são reaproveitados; depois do `99` vem `100`). Os passos são ordenados pelo número, não pelo nome. O `<slug>` vem do título do passo, pela regra acima. Só contam como passo os arquivos que casam com `^\d{2,}-[a-z0-9-]+\.yaml$`; os demais arquivos da pasta (anotações, `foo.yaml`, `1-x.yaml`, temporários) são ignorados. Dois arquivos com o mesmo número (`01-a.yaml` e `01-b.yaml`, ou `01-a.yaml` e `001-b.yaml`) deixam a task `invalid` (`step number 01 is used by more than one file`), e um passo de número zero (`00-x.yaml`) também (`step numbers start at 01`). Um `plan.md` ou passo que seja link simbólico deixa a task `invalid` (`<arquivo>: is a symbolic link`, no formato `<arquivo>: <motivo>` dos demais): a gravação troca o arquivo por um novo e transformaria o link num arquivo comum. Ao regravar, o arquivo novo recebe a permissão (modo) do original. Em `bench/`, `rack/` e `fridge/`, contam como task: toda pasta (uma pasta com nome que não é slug fica `invalid`), toda pasta que é link simbólico (`invalid`, `<slug>: is a symbolic link`) e todo arquivo comum **cujo nome é um slug** (`invalid`, `<slug>: is not a folder`). Essas entradas aparecem no `list`, não são lidas e, quando o nome é um slug, fazem o `task new` recusar o nome (`already exists`). Um arquivo solto cujo nome não é slug (`README.md`, `notas.txt`) é ignorado, como os arquivos soltos dentro da pasta da task.
+
+```yaml
+title: Criar o schema
+status: pending
+description: |
+  Tabela users_oauth com provider, subject e user_id.
+updatedAt: 2026-11-07T12:00:00.000Z
+```
+
+`status` do passo: `pending`, `in_progress`, `done` ou `skipped` (o passo deixou de fazer sentido; conta como fechado para o `task done`). `description` é opcional. `title` é texto não vazio e `status` precisa ser um desses valores; um campo obrigatório faltando ou fora do tipo deixa a task `invalid`, com o motivo. Um passo ilegível invalida a task inteira: `task done` sai com `task <task> is invalid: <motivo>`, não com `open steps`.
+
+**Preservação.** A CLI só lê e grava os campos acima, e só grava quando algo mudou. Os demais campos e os comentários do YAML são preservados (o conteúdo, não necessariamente a formatação byte a byte dos nós não tocados). No `plan.md`, o parse é só do bloco entre os `---`, e o corpo fica com os bytes exatos (inclusive CRLF). O YAML é 1.2 core: `createdAt` sem aspas continua texto, e um título `no` não vira booleano. Linhas longas não são dobradas. O frontmatter é o bloco no início do arquivo entre duas linhas `---` (com BOM e CRLF aceitos); sem ele, a task é `invalid`. Ao regravar, o fim de linha do arquivo (LF ou CRLF) é mantido, e mudar um valor mantém o comentário da mesma linha (`status: pending # nota`). Frontmatter ou YAML ilegível (inclusive um bloco que não é um mapa): a task aparece como `invalid` no `list`, e os comandos que a alteram saem com exit 1, sem mexer em nada.
+
+**Edição concorrente.** O usuário e o agente podem editar o mesmo arquivo. Antes de renomear o temporário por cima, a CLI relê o arquivo e compara com o que leu no começo. Se mudou, refaz a leitura e a mudança uma vez; se mudou de novo, sai com `<arquivo> changed while writing, try again` (exit 1, com o caminho relativo do arquivo). Os temporários ficam na mesma pasta com nome oculto (`.plan.md.<pid>.tmp`), e a listagem e a leitura dos passos ignoram arquivos que começam com `.`.
+
+**Ciclo.** `bench` (`in_progress`) → `fsd task done` → `rack` (`done`) → `fsd task archive` → `fridge` (`archived`). Não há volta nesta versão. Os passos só mudam enquanto a task está no `bench`.
+
+**Diretórios e raiz do projeto.** O `cwd` decide o projeto, e a CLI não procura diretórios acima (4.2). Para um agente não criar `src/nook/` sem querer, `fsd task new` exige que o `cwd` já tenha `nook/` ou `.fsd/`; sem nenhum dos dois, sai `no nook/ or .fsd/ here: run from the project root` (exit 1). Os demais comandos de task exigem `nook/` (sem ele, o mesmo erro; o `list` sem `nook/` sai vazio, com exit 0). `fsd task new` cria `nook/bench/` se faltar, e `done` e `archive` criam `nook/rack/` e `nook/fridge/`. Nenhum comando de task cria a estrutura base (4.2). O único efeito em `.fsd/` é o diário de `done`/`archive` (6.9), que cria `.fsd/cache/` se faltar.
+
 ## 5. Comandos
 
 Um único binário, `fsd`, implementado com `commander`.
@@ -149,9 +210,11 @@ Um único binário, `fsd`, implementado com `commander`.
 | `fsd update skill [nome] --force`, `fsd update skill [nome] -f`, `fsd -u -s -f [nome]` | Como a anterior, e substitui a original quando há conflito de skill de mesmo nome (5.3). |
 | `fsd link skill [nome]`, `fsd link -s [nome]` | Cria o link das skills instaladas sem link (5.4). |
 | `fsd link skill [nome] --force`, `fsd link skill [nome] -f`, `fsd link -s -f [nome]` | Como a anterior, e substitui a original que ocupa o lugar do link (5.4). |
+| `fsd task new "<título>"`, `fsd task list [--all] [--json]`, `fsd task done <task>`, `fsd task archive <task>` | Cria, lista e move as tasks do `nook/` (5.5). |
+| `fsd task step add <task> "<título>" [--description <texto>]`, `fsd task step start <task> <n>`, `fsd task step done <task> <n>`, `fsd task step skip <task> <n>` | Cria e muda o status dos passos de uma task (5.5). |
 | comando ou opção desconhecidos | Mensagem de erro do commander, indicação de `fsd --help` e exit 1. |
 
-Não existem `list`, `install` nem `uninstall`: o que faziam está no assistente (6.2 e 6.8). `fsd -h` lista `init`, `update`, `update skill` e `link skill`, com os atalhos.
+Não existem `list`, `install` nem `uninstall` de skills: o que faziam está no assistente (6.2 e 6.8). `fsd -h` lista `init`, `update`, `update skill`, `link skill` e `task`, com os atalhos. Os atalhos `-u`, `-s` e `-f` não valem em `fsd task`.
 
 **Atalhos `-u`, `-s` e `-f`.** `-u` (`--update`) equivale ao comando `update`, `-s` (`--skill`, com `nome` opcional) equivale a `skill`, e `-f` é a forma curta de `--force`, opção de `update skill` e `link skill`. Os atalhos são opções da raiz que o `fsd.ts` traduz para os comandos antes de despachar:
 
@@ -193,6 +256,60 @@ Não existem `list`, `install` nem `uninstall`: o que faziam está no assistente
 - Com `--force` / `-f`, a original é substituída pelo link, tudo ou nada (a original só some depois do sucesso, 6.2 regra 9), e o registro passa a `linked: true`.
 - Skill já com link correto: `skip (already linked)`. `nome` não instalado: `skill <nome> is not installed`, exit 1.
 - Não cria a estrutura base nem instala skills: só trabalha sobre o que o registro já tem.
+
+### 5.5 `fsd task`
+
+Comandos não interativos (não exigem TTY) sobre as tasks de `<cwd>/nook/` (4.5). Servem ao usuário e ao agente, que os chama pela skill `fsd-nook-tasks`. `<task>` é o slug, e `<n>` é o número do passo (`1` e `01` valem o mesmo). As mensagens saem em inglês; erro sai em stderr com exit 1 e não altera nada.
+
+| Comando | Efeito | Saída de sucesso |
+|---|---|---|
+| `task new "<título>"` | Cria `nook/bench/<slug>/plan.md` com `status: in_progress`, as datas e o título como `#`. | `created nook/bench/<slug>/plan.md` |
+| `task list [--all] [--json]` | Lista as tasks do `bench` e do `rack` (com `--all`, também do `fridge`), uma por linha, em colunas alinhadas: slug, status e passos fechados/total. A ordem é `bench`, `rack`, `fridge` e, dentro de cada um, por slug. Sem `nook/`, a lista é vazia (exit 0). | linhas `<slug>  <status>  <fechados>/<total>` |
+| `task step add <task> "<título>" [--description <texto>]` | Cria o próximo `NN-<slug>.yaml` com `status: pending`. | `created nook/bench/<task>/<NN>-<slug>.yaml` |
+| `task step start <task> <n>` | Passo para `in_progress`. | `step <NN> in_progress` |
+| `task step done <task> <n>` | Passo para `done`. | `step <NN> done` |
+| `task step skip <task> <n>` | Passo para `skipped` (fechado sem ser feito). | `step <NN> skipped` |
+| `task done <task>` | Exige todos os passos fechados (`done` ou `skipped`; uma task sem passos vale). Grava `status: done` e move a pasta para `nook/rack/`. | `moved <task> to nook/rack` |
+| `task archive <task>` | Só para task no `rack`. Grava `status: archived` e move para `nook/fridge/`. | `moved <task> to nook/fridge` |
+
+**Saída para o agente (`--json`).** `task list --json` imprime em stdout um único objeto JSON, no mesmo filtro e ordem do texto:
+
+```json
+{
+  "schema": 1,
+  "tasks": [
+    { "slug": "login-oauth", "status": "in_progress", "dir": "bench",
+      "steps": { "total": 3, "done": 1, "skipped": 1, "pending": 0, "inProgress": 1 } },
+    { "slug": "quebrada", "status": null, "dir": "bench", "steps": null,
+      "invalid": "plan.md: frontmatter is not a map" }
+  ]
+}
+```
+
+`dir` é `bench`, `rack` ou `fridge`. Numa task inválida, `invalid` traz o motivo (`<arquivo>: <motivo>`). `status` sai `null` quando o `plan.md` não pôde ser lido, e `steps` sai `null` quando o `plan.md` ou algum passo não pôde ser lido (inclusive uma pasta de task que não pode ser listada). Uma task inválida só por pasta × status divergentes traz `status` e `steps` preenchidos, além de `invalid`. Sem `nook/`, sai `{"schema": 1, "tasks": []}`. Esse formato é o contrato com o agente: dentro do mesmo `schema`, só ganha campos; mudar ou tirar um campo sobe o `schema`. A saída em texto pode mudar livremente. Os demais comandos de task não têm `--json` nesta versão (próximo passo: `task new` e `task step add` devolvendo o caminho criado); a skill lê o exit code e a linha de sucesso.
+
+**Erros que dizem o próximo passo.** Todo erro de `task` termina com o comando que resolve, entre parênteses, para o agente corrigir sozinho:
+
+| Erro (exit 1) | Fim da mensagem |
+|---|---|
+| `task <slug> already exists in nook/<dir>` | `(run: fsd task list --all)` |
+| `title produces an empty name (use latin letters)` | (sem comando) |
+| `<slug> is a reserved name` | (sem comando) |
+| `no nook/ or .fsd/ here: run from the project root` | (sem comando: a mensagem já diz o que fazer) |
+| `task <task> not found` | `(run: fsd task list --all)` |
+| `task <task> is not in nook/bench: it is in nook/<dir>` (passos e `done`) | `(run: fsd task new "<novo título>")` quando está no `rack` ou no `fridge` |
+| `task <task> is not in nook/rack: it is in nook/bench` (`archive`) | `(run: fsd task done <task>)` |
+| `step <n> not found in task <task>` | `(run: fsd task list)` |
+| `invalid step number <n>: use a whole number from 1` | (sem comando) |
+| `task <task> has open steps: 01, 03` (`done`) | `(run: fsd task step done <task> 01)`, com o primeiro passo aberto |
+| `task <task> is invalid: <motivo>` | `(fix <arquivo> and run again)` |
+| `<arquivo> changed while writing, try again` | (sem comando: repetir o mesmo) |
+| `another fsd run is in progress` | (sem comando: repetir quando terminar) |
+| `task <task> is in use by another program, close it and try again` | (sem comando) |
+
+Repetir um comando não é erro, porque o agente às vezes repete um comando depois de um timeout. Mudar o status de um passo que já tem esse status sai `step <NN> already <status>` com exit 0 e nada é gravado. `task done` numa task que já está no `rack` com `status: done` sai `task <task> already done` com exit 0, e `task archive` numa task que já está no `fridge` com `status: archived` sai `task <task> already archived` com exit 0; nada é gravado e o motor nem roda. Continuam erro o estado incoerente (pasta × status, que é `invalid`) e o `archive` de uma task que ainda está no `bench`. `<n>` é um número inteiro ≥ 1, comparado pelo valor (`1` = `01`). Um título que começa com `-` vai depois de `--` (`fsd task new -- "-x"`). `fsd task` e `fsd task step` sem subcomando mostram a ajuda com exit 1. As opções da raiz (`-u`, `-s`, `-f`) não são lidas dentro de `task`: `fsd task new x -f` é erro de uso do subcomando (opção desconhecida, exit 1, nada criado), nunca o `--force` da raiz. Em `new`, o `createdAt` e o `updatedAt` são o mesmo instante.
+
+**Gravação.** Os comandos `new` e `step` gravam um único arquivo por `core/fs.ts` (`updateTextFile`, que relê e compara o conteúdo antes do rename, 4.5), sem o motor e sem diário. Antes de gravar, porém, checam a trava do motor (sem criar arquivo de trava): se houver uma execução viva no escopo (por exemplo, um `task done` de outro processo), saem com `another fsd run is in progress`. `task done` e `task archive` mudam o `plan.md` e movem a pasta, então rodam pelo núcleo de transação do motor (6.9, 9): uma falha ou `ctrl+c` deixa a task onde estava, com o status de antes, e valem a trava e a recuperação. A checagem "passos fechados" e o snapshot do `plan.md` são refeitos na verificação, já com a trava. Checar a trava e depois gravar não é atômico: um `step` pode cair entre o planejamento de um `task done` e a sua verificação. Isso é aceito nesta versão porque a verificação do `done` relê os passos e o `plan.md` e para se algo mudou, o `list` ignora os temporários, e o erro sai sem stack trace. Também é risco aceito: dois `task step add` **simultâneos** na mesma task calculam o mesmo `NN`. Com títulos diferentes, os dois arquivos são criados e a task fica `invalid` por número repetido (o `list` mostra, e o usuário renomeia um). Com o mesmo título, o segundo sai `changed while writing`. O agente cria os passos em sequência, então isso não ocorre no uso normal. A ordem é: regravar o `plan.md` ainda na origem e só depois mover a pasta. Desfazer um movimento move de volta, e o diário é desfeito do fim para o começo. A verificação também garante que o destino (`rack/<slug>` ou `fridge/<slug>`) não existe: no Linux, renomear uma pasta sobre uma pasta vazia a substitui em silêncio. Uma task não grava nem cria o `installed.json`. Se o sistema recusar o movimento porque um programa mantém a pasta aberta (`EPERM`/`EBUSY`, comum no Windows), a task fica onde estava e sai `task <task> is in use by another program, close it and try again` (exit 1).
 
 ## 6. Assistente interativo
 
@@ -322,7 +439,7 @@ Regras:
 1. **Falha em qualquer fase 1 a 4 desfaz a execução inteira** (não só a skill que falhou): remove o que foi criado, devolve o que foi deslocado e apaga o diário. Exit 1, com a fase, a skill e o motivo. Depois da fase 4 nada é desfeito.
 2. **Verificar muda o plano?** Se a releitura achar um conflito que o usuário não decidiu (algo apareceu desde o resumo), a CLI não grava nada e volta ao resumo com o aviso `state changed since the summary`. Em `update skill` e `link skill`, que não têm resumo, é erro com exit 1.
 3. **Diário da execução.** Antes da primeira alteração, a CLI cria `.fsd/cache/run-<id>/` com `journal.json` (cada caminho criado e cada caminho deslocado, com o endereço do apoio) e a área de apoio onde ficam os deslocados. Cada alteração é anotada no diário *antes* de ser feita. Esse diretório é da execução: criado sob demanda (inclusive por `update skill` e `link skill`, que não criam a estrutura base) e removido na fase 5 (ou no desfazer); se não existia `.fsd/cache`, ele é removido também.
-4. **Recuperação.** Na fase 1 de qualquer execução, se houver `run-<id>/` de uma execução que não está viva (o `id` guarda o pid e a hora de início), a CLI desfaz pelo diário (devolve o deslocado, remove o criado, apaga o `run-<id>/`) e avisa `recovered an interrupted run`. Se a execução anterior ainda está viva, esta termina com `another fsd run is in progress` e exit 1; nada é alterado.
+4. **Recuperação.** Na fase 1 de qualquer execução, se houver `run-<id>/` de uma execução que não está viva (o `id` guarda o pid e a hora de início), a CLI desfaz pelo diário (devolve o deslocado, remove o criado, apaga o `run-<id>/`) e avisa `recovered an interrupted run`. Se a execução anterior ainda está viva, esta termina com `another fsd run is in progress` e exit 1; nada é alterado. A checagem de execução viva vem **antes** de qualquer recuperação: com uma viva, nem as mortas são desfeitas (o código anterior à F-38 podia desfazer as mortas e só então parar).
 5. **Cancelar durante as fases.** `ctrl+c` (ou `SIGINT`/`SIGTERM`) não corta uma operação no meio: marca o cancelamento, a operação atual termina, a CLI desfaz as anteriores e sai com `cancelled (changes undone)` e exit 130. Um segundo `ctrl+c` durante o desfazer é ignorado. Depois da fase 4, o cancelamento só pula a fase 5 (a próxima execução limpa o apoio).
 6. **A tela de execução** lista as fases e, na fase 3, cada skill com seu estado. A barra do rodapé não conta as fases (os passos 1 a 7 já estão concluídos). Falha mostra a fase, o motivo e `undone`.
 7. **Nada fora do plano.** A execução só escreve nos caminhos do plano, no diário e no `installed.json`/`config.json`. Verificar falha se o plano apontar para fora de `<raiz>/.fsd`, `<raiz>/nook` ou `<raiz>/.claude/skills`.
@@ -519,15 +636,22 @@ src/
       config.ts         # config.json: tema, autoUpdate, updateSkills, lastUpdateCheck
       claudeLink.ts     # caminho do link .claude/skills/<nome> e destino padrão da skill
       conflicts.ts      # skills de mesmo nome que não são nossas (6.2 regra 3)
-      runJournal.ts     # o diário de uma execução e as execuções mortas (só leitura)
+      runJournal.ts     # o diário de uma execução (`schema: 2`), as execuções mortas e `liveRun()` (só leitura)
       selfUpdate.ts     # verificação e atualização da própria CLI (7)
+      slug.ts           # slug de títulos de task e de passo (4.5)
+      nook.ts           # tasks do nook/ (só leitura): caminhos, localizar por slug, modelo da task, validar pasta × status (4.5)
+      taskFiles.ts      # formato dos arquivos de task: parse e serialize do frontmatter do plan.md e dos passos .yaml, preservando o resto (4.5)
+      gitignore.ts      # linhas que faltam no .gitignore do projeto (4.2)
     plan/               # planejadores: leem o disco e montam um Plan; nunca escrevem
       types.ts          # Plan, PlanItem, ActionResult, formatResult
       install.ts        # instalação e upgrade (6.2)
       uninstall.ts      # remoção (6.8)
       link.ts           # `fsd link skill` (5.4)
+      task.ts           # transições de task como funções puras: estado + comando → erro ou operações (5.5)
     engine/             # execução de um Plan em fases (6.9)
-      run.ts            # as fases Verificar, Preparar, Aplicar, Registrar e Concluir
+      transactionRun.ts # núcleo genérico: trava, diário, SIGINT/SIGTERM, commit, desfazer e eventos de fase; recebe verificar e aplicar como funções
+      run.ts            # as fases Verificar, Preparar, Aplicar, Registrar e Concluir das skills, cliente do transactionRun
+      taskRun.ts        # `task done`/`archive`, cliente do transactionRun (sem registro de skills)
       verify.ts         # a fase Verificar (só leitura)
       transaction.ts    # cada mudança registrada no diário antes de ser feita
       recovery.ts       # desfazer pelo diário e recuperar execuções mortas
@@ -536,8 +660,10 @@ src/
       init.ts           # valida TTY, aplica auto-update e abre o assistente
       update.ts         # `fsd update` (CLI) e `fsd update skill [nome]`
       link.ts           # `fsd link skill [nome]`
+      task.ts           # `fsd task …` e `fsd task step …` (5.5)
       skillPlans.ts     # o que `update skill` e `link skill` compartilham: escopos, execução e relatório
       io.ts             # saída padrão e de erro
+      guards.ts         # recusas compartilhadas, como `another fsd run is in progress` fora do motor (5.5)
     wizard/             # regras do assistente, sem React
       choices.ts        # o que o usuário escolheu
       steps.ts          # passos de cada fluxo e progresso (6.2, 6.4)
@@ -631,6 +757,12 @@ Os testes foram removidos do projeto por decisão do autor (2026-11-07). Esta se
 31. Depois do `enter` no resumo, a execução passa pelas fases Verificar, Preparar, Aplicar, Registrar e Concluir, visíveis na tela; falha em qualquer uma das quatro primeiras deixa o disco como estava antes da confirmação, e as skills já aplicadas na mesma execução também são desfeitas.
 32. `ctrl+c` durante as fases desfaz e sai com 130; um processo morto no meio é recuperado pelo diário na execução seguinte; duas execuções ao mesmo tempo não se atropelam.
 33. `fsd init` ao abrir, com `autoUpdate` ligado e CLI instalada globalmente, não cria nenhum arquivo ou diretório.
+34. `fsd task new "Login OAuth"` cria `nook/bench/login-oauth/plan.md` com `status: in_progress`; repetir o título (ou um slug que já existe no `rack` ou no `fridge`) sai com exit 1 sem alterar nada.
+35. `fsd task step add` numera os passos `01`, `02`, … e nunca reaproveita um número; `start`, `done` e `skip` mudam só o `status` e o `updatedAt`, preservando os outros campos e os comentários do YAML; uma edição do arquivo por outro processo durante o comando não se perde.
+36. `fsd task done` só move para `nook/rack/` com todos os passos fechados (`done` ou `skipped`), e `fsd task archive` só move do `rack` para o `fridge`; em ambos, a pasta e o `status` sempre combinam, e uma falha injetada em qualquer ponto (inclusive depois do movimento) deixa a task onde estava, inteira e com o status de antes.
+37. `fsd task list` mostra as tasks do `bench` e do `rack` com os passos `done/total`; com `--all`, também as do `fridge`; uma task ilegível ou com pasta e status divergentes aparece como `invalid` e não derruba a listagem.
+38. Ao confirmar o Instalar no escopo de projeto, o `.gitignore` passa a ter `.fsd/cache/` e `.fsd/logs/` sem duplicar linhas nem alterar o resto; no escopo global, nenhum `.gitignore` é tocado.
+39. `fsd task list --json` imprime `{"schema": 1, "tasks": [...]}`, com `slug`, `status`, `dir`, `steps` (`total`, `done`, `skipped`, `pending`, `inProgress`) e, nas inválidas, `invalid`; cada erro de `fsd task` termina com o comando que resolve, quando há um; repetir `task done`, `task archive` ou uma mudança de passo já feita sai com exit 0 sem gravar nada.
 
 ## 13. Decisões e pendências
 
@@ -650,12 +782,15 @@ Os testes foram removidos do projeto por decisão do autor (2026-11-07). Esta se
 - **Catálogo**: a cópia antiga `fsd-padroes-codigo-csharp/` foi apagada; só vale `_i18n/`.
 - **Interface**: Ink 8 com React >= 19.3, escrita em TSX (`jsx: react-jsx`), desenvolvida com `tsx`; fixa Node >= 22.
 - **Assistente**: menu (Instalar, Apagar, Sair); fluxo Instalar com escopo, skills, idioma (condicional), auto-update, tema e resumo; fluxo Apagar com escopo, skills e resumo; barra de progresso no rodapé.
+- **Tasks do `nook/` (2026-11-07)**: o agente executa o trabalho pelas skills, e a CLI só organiza os arquivos (o Oven continua conceitual nesta versão). Cada task é uma pasta com `plan.md` (spec e plano, `status` no frontmatter) e passos `NN-<slug>.yaml` com `status` próprio. O nome é o slug do título, único no `nook/`. Comandos da CLI movem as tasks entre bench → rack → fridge. O `.gitignore` do projeto recebe só `.fsd/cache/` e `.fsd/logs/`. A primeira fatia do framework `nook/` é esse ciclo (4.5, 5.5).
+- **Tasks do `nook/`, detalhes (decididos pelo autor em 2026-11-07, depois das revisões do Arquiteto e do Node Typescript Developer)**: comandos `fsd task new|list|done|archive` e `fsd task step add|start|done|skip`; status dos passos `pending | in_progress | done | skipped`, e um passo que deixou de fazer sentido é fechado com `task step skip` (não há `remove`); `task done` exige os passos fechados, sem `--force`; tasks só no escopo de projeto; `task new` fora da raiz do projeto (sem `nook/` nem `.fsd/` no `cwd`) só dá erro, sem `--init`; sem volta `rack → bench` (sem `reopen`; um bug achado depois vira task nova); dependência `yaml` (eemeli/yaml); slug com mapa pequeno para `ß`, `æ`, `ø`, `ł`, `đ`, `œ`, `þ`; a skill `fsd-nook-tasks` pede confirmação antes do `done` e nunca arquiva; os passos não aparecem no assistente.
 
 **Pendente (itens do autor)**
 
 - **Revisão desta spec (conflito, `--force`, interrupção, testes):** ver a seção "Pontos para a revisão" no `TASKS.md`.
 - **Layout**: o cabeçalho (rosquinha, nome, 35% da altura, 80 × 24 como partida) está decidido em 6.10; pendem a posição do idioma, os símbolos Unicode e a paleta final (6.7). A estética das letras de 2 e 4 linhas e a definição da rosquinha de 6 linhas seguem em evolução.
 - **Utilidade do tema**: será definida pelo autor depois; a spec não assume nenhuma.
+- **Próximas fatias do `nook/`**: Kitchen (contexto e regras que a skill carrega), Cookbook (formato das recipes), Bakers (formato e craft), quem leva a task do `rack` ao `fridge` além do comando, e se o Oven passa a ter estado em `.fsd/oven/`.
 - **Revisar (decisões minhas)**: `update skill` cobre os escopos global e projeto (o de projeto só se existir `./.fsd/installed.json`); `updateSkills` vem desligado por padrão e é configurado no passo 4; não há flag para pular o auto-update, só a opção salva (se quiser `fsd init --no-update`, acrescentar); `fsd update` ignora o limite de 24 h.
 
 ## Apêndice A — Bibliotecas de interface avaliadas

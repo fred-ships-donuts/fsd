@@ -124,13 +124,39 @@ Mudanças pedidas depois da entrega das F-1 a F-25. Spec: SPEC 4.3, 5, 5.3, 5.4,
 - [x] **F-34 `lastUpdateCheck` sem arquivo ao abrir** (SPEC 7, critério 33): o auto-update do `fsd init` guarda a hora em memória e a entrega à fase Registrar; só grava na hora se o `config.json` já existir. Teste de que `fsd init` ao abrir não cria nada. Depende de: F-32, F-14.
 - [x] **F-35 Documentação**: README (`--force`/`-f`, `link skill`, conflito, fases), HANDOFF e glossário se surgir termo novo. Depende de: F-26 a F-34.
 
+## Fase 6 — Tasks do `nook/` (bench → rack → fridge)
+
+Primeira fatia do framework `nook/`, decidida pelo autor em 2026-11-07: o ciclo de tasks bench → rack → fridge, executado pelo agente via skills, com a CLI organizando os arquivos. Desenho: `SPEC.md` 1, 3, 4.2, 4.5, 5, 5.5, 6.9, 9, 12 (critérios 34 a 39) e 13.
+
+**As tasks vivem nos issues do GitHub** (milestone [Fase 6 — tasks do nook/](https://github.com/fredericojacobi/fred-ships-donuts/milestone/1)): cada issue tem o que fazer, por quê, como verificar e as decisões nos comentários. O fluxo de trabalho (issue → branch → PR → merge, o Project e os papéis) está no [`CONTRIBUTING.md`](CONTRIBUTING.md). Esta lista é só o índice, na ordem de execução, que é estritamente sequencial:
+
+- F-36 Dependência `yaml` e `core/slug.ts`: #2
+- F-37 `core/nook.ts` e `core/taskFiles.ts`: #3
+- F-38 `fsd task new` e `fsd task list`: #4
+- F-39 `fsd task step add|start|done|skip`: #5
+- F-40a Núcleo de transação genérico, sem mudar o comportamento: #6
+- F-40b `fsd task done|archive`: #7
+- F-42 `.gitignore` no Instalar: #8
+- F-43 Skill `fsd-nook-tasks`: #9
+- F-44 Documentação da Fase 6: #10
+
+A F-41 foi absorvida pela F-38 e pela F-39. O backlog fora da fase está nos issues com o label `backlog` (#12 a #25).
+
 ## Pontos para a revisão da spec
 
 **Decididos pelo autor:** `unlinked` sem link (proposta A); ligar depois com `fsd link skill [nome]` (com `-f`/`--force`); passo separado para os conflitos; exit 1 no conflito sem `--force`; `--force` sem nome vale para todos, sem confirmação; `--force` só resolve conflito; a regra 11 entra; testes de rollback sem `skip` por permissão (falha injetada); atalhos como argumentos separados `-u -s -f`, não agrupados.
 
 **Decididos na revisão (fases, SPEC 6.9):** a falha desfaz a execução inteira; a área de trabalho `.fsd/cache/run-<id>/` é criada sob demanda por qualquer operação e removida ao fim; execução morta reconhecida pelo pid; `lastUpdateCheck` em memória e gravado na fase Registrar; atalhos na ordem `-u -s -f` (fora de ordem é erro); `-s` e `-f` valem em `fsd link`, `-u` não.
 
-**Em aberto:** nenhum. A spec está pronta para implementação.
+**Decididos pelo autor (tasks do `nook/`, 2026-11-07):** o agente executa pelas skills, e a CLI só organiza; task = pasta com `plan.md` e passos `NN-<slug>.yaml`; nome = slug do título; a CLI move bench → rack → fridge; a primeira fatia é esse ciclo; o `.gitignore` recebe só `.fsd/cache/` e `.fsd/logs/`.
+
+**Decididos pelo autor (detalhes da Fase 6, depois das revisões do Arquiteto e do Node Typescript Developer):** os comandos propostos; `skipped` com `task step skip` (sem `remove`); `task done` sem `--force`; só no escopo de projeto; `task new` fora da raiz só dá erro (sem `--init`); sem `reopen`; a dependência `yaml`; slug com mapa pequeno (`ß→ss`…`þ→th`); a skill pede confirmação antes do `done` e nunca arquiva; os passos fora do assistente.
+
+**Decididos depois (2026-11-07, Arquiteto e Node Typescript Developer, aplicados por mim):** `task list --json` no envelope `{"schema": 1, "tasks": [...]}` com `steps` detalhado (inclusive `skipped`); a mensagem de edição concorrente é `<arquivo> changed while writing, try again`; slug também com `þ→th`; diário `schema: 2`, `moveIn`/`relocate`, `liveRun()` + `commands/guards.ts`, `updateTextFile` comparando conteúdo.
+
+**Em aberto:** nenhum. A Fase 6 está pronta para implementação.
+
+**Backlog (fora da Fase 6):** nos issues com o label `backlog` (#12 a #25), na coluna Backlog do Project.
 
 ## Contratos entre tasks
 
@@ -149,7 +175,7 @@ Interfaces que, depois de fechadas, não devem mudar sem revisar as tasks depend
 
 - Logotipo e itens do cabeçalho, largura mínima, paletas dos temas (SPEC 6.7): F-16, F-17.
 - Apagar ou manter o `SKILL.md` roteador e a cópia antiga `fsd-padroes-codigo-csharp/`: F-4.
-- Decisões em aberto da F-2 (`.gitignore`, formato das tasks e do `status`; onde ficam `installed.json` e as preferências da CLI: decidido, em `.fsd/`): F-5, F-6, F-7.
+- ~~Decisões em aberto da F-2 (`.gitignore`, formato das tasks e do `status`)~~: decididas em 2026-11-07 (SPEC 4.2 e 4.5, Fase 6). `installed.json` e preferências: em `.fsd/`.
 - Revisar as decisões marcadas em SPEC 13 ("Revisar"): afetam F-13 e F-19.
 
 ## Resultado da F-23 (critérios de aceitação, SPEC 12)
