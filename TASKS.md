@@ -165,7 +165,7 @@ Interfaces que, depois de fechadas, não devem mudar sem revisar as tasks depend
 
 - Logotipo e itens do cabeçalho, largura mínima, paletas dos temas (SPEC 6.7): F-16, F-17.
 - Apagar ou manter o `SKILL.md` roteador e a cópia antiga `fsd-padroes-codigo-csharp/`: F-4.
-- Decisões em aberto da F-2 (`.gitignore`, formato das tasks e do `status`; onde ficam `installed.json` e as preferências da CLI: decidido, em `.fsd/`): F-5, F-6, F-7.
+- ~~Decisões em aberto da F-2 (`.gitignore`, formato das tasks e do `status`)~~: decididas em 2026-11-07 (SPEC 4.2 e 4.5, Fase 6). `installed.json` e preferências: em `.fsd/`.
 - Revisar as decisões marcadas em SPEC 13 ("Revisar"): afetam F-13 e F-19.
 
 ## Resultado da F-23 (critérios de aceitação, SPEC 12)
