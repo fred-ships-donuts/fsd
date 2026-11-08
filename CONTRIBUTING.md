@@ -43,7 +43,8 @@ Todo trabalho começa num issue: uma task, um bug, uma ideia, uma decisão pende
 | Architecting | O Arquiteto prepara a passagem, num comentário **Arquiteto: passagem** com o que fazer, os arquivos, os riscos e a verificação. |
 | Waiting for Development | Preparado, esperando o desenvolvedor. |
 | Developing | Branch aberto, em implementação. |
-| Review | PR aberto. O Arquiteto revisa o código, o QA verifica no app real e o PM confere o escopo. Um bloqueio do Arquiteto ou uma falha do QA devolve o issue para Developing. |
+| Review | PR aberto. O Arquiteto revisa o código, o QA verifica no app real e o PM confere o escopo. Um bloqueio do Arquiteto ou uma falha do QA devolve o issue para Developing. Com o Arquiteto e o QA aprovando, o card vai para Waiting for Release. |
+| Waiting for Release | Review terminada: o Arquiteto e o QA aprovaram o head atual do PR, sem pedido de mudança nem conversa aberta. O comentário de aprovação pede **→ Waiting for Release**. O card espera ali o merge ou a publicação. Um commit novo que peça outra rodada, ou um pedido de mudança, devolve o issue para Developing. |
 | Done | PR mesclado na `main`; o issue foi fechado pelo `Closes #N`. |
 
 ## 3. Branch
