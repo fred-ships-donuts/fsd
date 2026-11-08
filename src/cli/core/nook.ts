@@ -80,11 +80,13 @@ function visibleEntries(dir: string): Array<{ name: string; isDir: boolean; isLi
 
 const SYMLINK = 'is a symbolic link';
 
-// The visible entries of nook/<dir>, folders or not (a link or a file is shown as invalid, never followed), so the list
-// shows every name that `task new` refuses; none when the folder does not exist or cannot be listed.
+// The entries of nook/<dir> that can be tasks: folders, links and files named like a task (a link or a file is shown as
+// invalid, never followed), so the list shows every name that `task new` refuses. Other loose files (README.md) are
+// ignored (SPEC 4.5). None when the folder does not exist or cannot be listed.
 function taskFolders(dir: string): string[] {
   try {
     return visibleEntries(dir)
+      .filter((entry) => entry.isDir || entry.isLink || isSlug(entry.name))
       .map((entry) => entry.name)
       .sort();
   } catch {
