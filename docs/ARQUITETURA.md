@@ -33,7 +33,7 @@ Regras:
 
 **`plan/`**: `types.ts` (o `Plan`, seus itens e `emptyPlan`/`addItem`), `install.ts`, `uninstall.ts`, `link.ts`.
 
-**`engine/`**: `run.ts` orquestra as cinco fases; `verify.ts` é a fase Verificar; `transaction.ts` é a classe `Transaction`, que grava no diário **antes** de cada mudança (criar, copiar, mover, ligar, deslocar, gravar JSON com cópia de segurança) e marca o ponto de não retorno (`commit`); `recovery.ts` desfaz pelo diário e recupera execuções mortas; `ops.ts` são as operações reais.
+**`engine/`**: `transactionRun.ts` é o núcleo genérico de uma execução (trava e recuperação de execuções mortas, diário, `SIGINT`/`SIGTERM`, ponto de não retorno, Concluir, desfazer e eventos de fase); cada cliente dá a sua fase Verificar e o trabalho entre ela e o `commit`, com as próprias fases, e decide o que grava (o das skills grava o `installed.json`, o das tasks nunca). `run.ts` é o cliente das skills, com as cinco fases; `verify.ts` é a fase Verificar das skills; `transaction.ts` é a classe `Transaction`, que grava no diário (`schema: 2`, uma lista ordenada de ações) **antes** de cada mudança (`created` ao copiar, ao trazer uma cópia de preparo com `moveIn` e ao ligar; `createdDir` nas pastas criadas; `moved` ao mover uma pasta real com `relocate`; `displaced` ao deslocar; `restore` ao regravar um arquivo de texto com cópia de segurança e o conteúdo esperado) e marca o ponto de não retorno (`commit`); `recovery.ts` desfaz pelo diário, da última ação para a primeira, com cada desfazer podendo rodar de novo sem estragar nada, converte o diário antigo e não toca num diário de `schema` mais novo; `ops.ts` são as operações reais.
 
 **`commands/`**: `init.ts`, `update.ts`, `link.ts`, `task.ts` (`fsd task …`: mensagens, `--json` do `list` e exit code); `guards.ts` (as checagens comuns aos comandos que gravam fora do motor, como a de execução viva). Exceção ao motor, como o `config.json`: `task new` e `task step add|start|done|skip` gravam um único arquivo por `core/fs.ts` (`createTextFile`, `updateTextFile`), sem diário, depois de recusar quando há outra execução viva; `skillPlans.ts` é o que `update skill` e `link skill` têm em comum (escopos, rodar um plano por escopo, relatório e exit code); `io.ts` é a saída.
 
@@ -55,7 +55,8 @@ Regras:
 - **Uma regra nova de instalação**: no planejador (`plan/`), nunca no comando nem na tela.
 - **Um passo novo no assistente**: `StepId` e `stepsFor` em `wizard/steps.ts`, o título em `ui/labels.ts`, o corpo em `ui/screens/Step.tsx`.
 - **Uma mudança visual do cabeçalho**: `ui/art/` (pixels e cores) ou `ui/hero/` (layout); nada fora de `ui/` muda.
-- **Uma operação de arquivo nova no motor**: em `Ops` (`engine/ops.ts`) e um método na `Transaction` que a registre no diário antes de fazê-la; o desfazer em `engine/recovery.ts`.
+- **Uma operação de arquivo nova no motor**: em `Ops` (`engine/ops.ts`), uma ação nova em `core/runJournal.ts` e um método na `Transaction` que a registre no diário antes de fazê-la; o desfazer em `engine/recovery.ts`, idempotente.
+- **Uma execução nova com desfazer** (como `task done`): um cliente de `engine/transactionRun.ts`, com o seu `verify` e o seu `work`.
 
 ## Fora de `src/`
 
