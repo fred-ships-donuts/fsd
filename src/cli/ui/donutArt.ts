@@ -1,3 +1,4 @@
+import { mapDonut } from './donutMap.js';
 import { DONUT_SOURCE, DONUT_SOURCE_HEIGHT, DONUT_SOURCE_WIDTH } from './emojiDonut.js';
 
 // One character cell: a block character, its foreground and its background (undefined = terminal default).
@@ -7,12 +8,12 @@ export interface Cell {
   bg?: string;
 }
 
-type Rgb = readonly [number, number, number];
+export type Rgb = readonly [number, number, number];
 
 // Each cell is looked at as an 8 x 8 grid of samples, and drawn with the block character (and two colours) that fits
 // those samples best. Beyond the 2 x 2 quadrants, the lower and left eighths put an edge at any of 8 positions, which
 // is what gives the picture its definition at a size where a cell is only a few pixels.
-const SUB = 8;
+export const SUB = 8;
 
 interface Glyph {
   char: string;
@@ -69,7 +70,7 @@ export function emojiCols(rows: number): number {
   return Math.round((rows * (BOX.right - BOX.left)) / (BOX.bottom - BOX.top));
 }
 
-const hex = (rgb: Rgb) => `#${rgb.map((v) => v.toString(16).padStart(2, '0')).join('')}`;
+export const hex = (rgb: Rgb) => `#${rgb.map((v) => v.toString(16).padStart(2, '0')).join('')}`;
 
 // Area average of the source over [x0, x1) x [y0, y1) (fractional); null when under OPAQUE_SHARE of it is opaque.
 const OPAQUE_SHARE = 0.7;
@@ -107,32 +108,53 @@ function spread(points: Rgb[]): number {
 }
 
 // The best block character and colours for one cell's 8 x 8 samples.
-function fit(samples: (Rgb | null)[]): Cell {
+export function fit(samples: (Rgb | null)[]): Cell {
   if (samples.every((p) => p === null)) return { char: ' ' };
+  // One flat colour over the whole cell is the full block (the usual cell inside a stroke or a big area): the search
+  // below would arrive at the same answer, only slower.
+  const first = samples[0];
+  if (first && samples.every((p) => p !== null && p[0] === first[0] && p[1] === first[1] && p[2] === first[2])) return { char: '█', fg: hex(first) };
+  // Per glyph, the foreground and background statistics are gathered in one pass (count, colour sums, squared sums), and
+  // the spread around the rounded mean follows from them exactly: sum |p - c|^2 = sum |p|^2 - 2 c.sum + n |c|^2.
+  const n = samples.length;
+  const red = new Int32Array(n);
+  const green = new Int32Array(n);
+  const blue = new Int32Array(n);
+  const solid = new Uint8Array(n);
+  samples.forEach((p, i) => {
+    if (!p) return;
+    solid[i] = 1;
+    red[i] = p[0];
+    green[i] = p[1];
+    blue[i] = p[2];
+  });
+  const stats = (count: number, sr: number, sg: number, sb: number, sq: number) => {
+    const c: Rgb = [Math.round(sr / count), Math.round(sg / count), Math.round(sb / count)];
+    return { c, spread: sq - 2 * (c[0] * sr + c[1] * sg + c[2] * sb) + count * (c[0] * c[0] + c[1] * c[1] + c[2] * c[2]) };
+  };
   let best: { cost: number; cell: Cell } | undefined;
   for (const { char, mask } of GLYPHS) {
-    const front: Rgb[] = [];
-    const back: Rgb[] = [];
-    let frontClear = 0;
-    let backClear = 0;
-    samples.forEach((p, i) => {
-      if (mask[i]) p ? front.push(p) : frontClear++;
-      else p ? back.push(p) : backClear++;
-    });
+    let fN = 0, fR = 0, fG = 0, fB = 0, fQ = 0, fClear = 0;
+    let bN = 0, bR = 0, bG = 0, bB = 0, bQ = 0, bClear = 0;
+    for (let i = 0; i < n; i++) {
+      if (mask[i]) {
+        if (solid[i]) { fN++; fR += red[i]!; fG += green[i]!; fB += blue[i]!; fQ += red[i]! ** 2 + green[i]! ** 2 + blue[i]! ** 2; } else fClear++;
+      } else if (solid[i]) { bN++; bR += red[i]!; bG += green[i]!; bB += blue[i]!; bQ += red[i]! ** 2 + green[i]! ** 2 + blue[i]! ** 2; } else bClear++;
+    }
     // The foreground cannot be left to the terminal, so it must hold something.
-    if (front.length === 0) continue;
-    const backColoured = back.length > 0 && back.length >= backClear;
-    const cost =
-      spread(front) + frontClear * MISMATCH + (backColoured ? spread(back) + backClear * MISMATCH : back.length * MISMATCH);
+    if (fN === 0) continue;
+    const front = stats(fN, fR, fG, fB, fQ);
+    const backColoured = bN > 0 && bN >= bClear;
+    const back = backColoured ? stats(bN, bR, bG, bB, bQ) : null;
+    const cost = front.spread + fClear * MISMATCH + (back ? back.spread + bClear * MISMATCH : bN * MISMATCH);
     if (!best || cost < best.cost) {
-      const cell: Cell = { char, fg: hex(mean(front)) };
-      if (backColoured) cell.bg = hex(mean(back));
+      const cell: Cell = { char, fg: hex(front.c) };
+      if (back) cell.bg = hex(back.c);
       best = { cost, cell };
     }
   }
   // A cell whose samples are all solid is cheapest as the full block when nothing splits it.
-  const solid = samples.every((p) => p !== null);
-  if (solid) {
+  if (samples.every((p) => p !== null)) {
     const all = samples as Rgb[];
     if (!best || spread(all) <= best.cost) return { char: '█', fg: hex(mean(all)) };
   }
@@ -140,7 +162,21 @@ function fit(samples: (Rgb | null)[]): Cell {
 }
 
 // The 🍩 as `rows` lines of `cols` cells (use emojiCols for the emoji's proportions).
+const artCache = new Map<string, Cell[][]>();
+const ART_CACHE_SIZE = 64; // a drag across the window visits a size per step, and goes back and forth over the same ones
+
 export function donutArt(cols: number, rows: number): Cell[][] {
+  const key = `${cols}x${rows}`;
+  const hit = artCache.get(key);
+  if (hit) return hit;
+  const art = drawDonut(cols, rows);
+  artCache.set(key, art);
+  if (artCache.size > ART_CACHE_SIZE) artCache.delete(artCache.keys().next().value!);
+  return art;
+}
+
+function drawDonut(cols: number, rows: number): Cell[][] {
+  return mapDonut(cols, rows); // every size is the hand-tuned map (resampled when it is not 22 x 9)
   const width = BOX.right - BOX.left;
   const height = BOX.bottom - BOX.top;
   const gridW = cols * SUB;

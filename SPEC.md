@@ -210,7 +210,7 @@ Não existem `list`, `install` nem `uninstall`: o que faziam está no assistente
   [██████░░░░░░░░░░░░░░░░░░]  passo 3 de 7        <rodapé>
 ```
 
-- **Cabeçalho**: na tela inicial, o emoji 🍩 em blocos de quadrante, com metade do maior tamanho que a janela permite (a origem é uma grade de 192 × 96 sub-pixels, reduzida em `donutArt.ts`; o VTE não mostra imagens), o nome em letras de bloco engrossadas (traço com uma coluna a mais), numa linha só (`FRED SHIPS DONUTS`, a rosquinha mantém o formato redondo inteiro, e as letras seguem a altura visível dela, com precisão de meia linha; a rosquinha encolhe até frase e rosquinha caberem lado a lado), a versão da CLI (a de `package.json`), o escopo e o passo atual nos passos, o link do projeto e o autor (6.7). Só a tela inicial mostra o 🍩 grande; nos passos, o cabeçalho é uma linha. Para o terminal de 112 × 35 (110 colunas úteis, descontado o padding da raiz), o cabeçalho ocupa a largura toda e tem 14 linhas. A rosquinha é uma elipse de 14 linhas que ocupa cerca de 30% da largura da tela (34 colunas); a rosquinha fica à esquerda e as palavras à direita dela, junto da moldura. O tamanho é fixo, independente do terminal. A frase fica à direita, uma palavra por linha, centralizada na altura da rosquinha. Sem cor, volta o logotipo de uma linha.
+- **Cabeçalho**: na tela inicial, o emoji 🍩 em blocos de caractere e o nome `FRED` / `SHIPS` / `DONUTS` em letras de pixel, empilhados à direita da rosquinha, dentro de uma moldura que ocupa a largura da janela e no máximo 35% da altura (o conteúdo fica alinhado à esquerda). Tudo acompanha o tamanho da janela, com o 80 × 24 como tamanho de partida; as regras, os tamanhos e a origem das imagens estão em 6.10. Nos passos, o cabeçalho é uma moldura pequena (ou uma linha, em janela baixa) com o nome da CLI, a versão (a de `package.json`), o escopo e o passo atual. Sem cor, volta o logotipo de uma linha.
 - **Corpo**: um passo por tela. O assistente ocupa o terminal inteiro (largura e altura, acompanhando redimensionamento) e roda na tela alternativa do terminal; ao sair, o terminal volta ao que era antes.
 - **Rodapé**: barra de progresso (6.4) e a dica de teclas do passo (ex.: `↑↓ mover · espaço marcar · enter confirmar · ← voltar`).
 
@@ -285,10 +285,10 @@ O assistente nunca abre sem TTY (`fsd init`). Ver 5.1.
 
 ### 6.7 Pendências do layout
 
-1. ~~**Logotipo e itens do cabeçalho**~~: decidido. O emoji 🍩 em tamanho grande, gerado uma vez a partir da fonte Noto Color Emoji e guardado em `emojiDonut.ts` (a CLI não depende da fonte em tempo de execução); `F S D`, escopo e passo, link e autor. O destino (`~/.fsd/skills`) saiu do cabeçalho.
+1. ~~**Logotipo e itens do cabeçalho**~~: decidido, e descrito por inteiro em 6.10 (a rosquinha, o nome, o layout responsivo e os testes). O emoji 🍩 é gerado uma vez a partir da fonte Noto Color Emoji e guardado em `emojiDonut.ts` (a CLI não depende da fonte em tempo de execução). O destino (`~/.fsd/skills`) saiu do cabeçalho.
 2. **Posição do idioma**: confirmar que o passo de idioma fica logo após o passo 2.
 3. **Símbolos**: o conjunto Unicode único atual é provisório; falta decidir se há alternativa para terminais sem Unicode.
-4. **Largura do terminal**: comportamento em terminais estreitos (o logotipo pode ser omitido abaixo de uma largura mínima).
+4. ~~**Largura do terminal**~~: decidido em 6.10 e 6.11: o cabeçalho segue a janela a partir de 17 linhas e 18 colunas (os mínimos exatos estão em 6.10; abaixo deles, o cabeçalho de uma linha), e o corpo corta o que não cabe em vez de comprimir.
 5. **Paleta final**: escolher entre Donut, Morango, Chocolate ao leite e Granulado (6.5).
 
 ### 6.8 Fluxo Apagar
@@ -327,6 +327,112 @@ Regras:
 6. **A tela de execução** lista as fases e, na fase 3, cada skill com seu estado. A barra do rodapé não conta as fases (os passos 1 a 7 já estão concluídos). Falha mostra a fase, o motivo e `undone`.
 7. **Nada fora do plano.** A execução só escreve nos caminhos do plano, no diário e no `installed.json`/`config.json`. Verificar falha se o plano apontar para fora de `<raiz>/.fsd`, `<raiz>/nook` ou `<raiz>/.claude/skills`.
 8. **Ponto de injeção de falha** (seção 9): cada operação (copiar, mover, criar link, gravar registro, gravar config) passa por um conjunto de operações que os testes substituem para forçar a falha em qualquer fase.
+
+### 6.10 A rosquinha e o nome no cabeçalho
+
+O cabeçalho da tela inicial (6.1) é a rosquinha 🍩 e o nome `FRED` / `SHIPS` / `DONUTS`. Esta seção é a referência de como ele é feito e do que ficou decidido; a versão aprovada pelo autor está no backup `~/Backups/fred-ships-donuts-responsive-FINAL-2026-11-02`.
+
+**Regras do autor**
+
+- O conteúdo da moldura fica alinhado à esquerda.
+- A moldura (o conteúdo mais a borda de 2 linhas) ocupa **no máximo 35% da altura da janela**.
+- As três palavras, **na vertical**, são o mínimo que o cabeçalho tem de mostrar e têm de ficar legíveis: quando brigam com o teto de 35%, elas vencem.
+- O tamanho de partida é **80 × 24**.
+- A rosquinha adotada é a do backup `…-responsive-FINAL` (o autor a chamou de perfeita); o limite nos tamanhos pequenos é o que um terminal de blocos consegue desenhar (abaixo).
+
+**A origem da rosquinha**
+
+- `emojiDonut.ts` guarda o emoji 🍩 da fonte Noto Color Emoji como uma grade de 192 × 96 sub-pixels, gerada uma vez; a CLI não lê a fonte em tempo de execução.
+- O terminal do autor (gnome-terminal, VTE 0.76) não anuncia sixel (resposta a DA1 `61;1;21;22`) e não tem protocolo gráfico, então a rosquinha é sempre **blocos de caractere** com duas cores por célula. O emoji de uma linha parece perfeito porque o terminal o desenha com pixels de verdade; a rosquinha de blocos não alcança isso.
+
+**O algoritmo** (`donutArt.ts`)
+
+1. O emoji é recortado pela caixa dos seus pixels opacos (`BOX`) e encaixado inteiro na grade: nada é cortado e nenhuma máscara é imposta (o topo de chocolate, a lateral dourada e o confeito do topo ficam como no ícone). Máscaras de elipse e de superelipse foram testadas e descartadas (a elipse afina as pontas, a superelipse fica quadrada).
+2. As colunas seguem a proporção do emoji: `emojiCols(linhas)` = 12 (5 linhas), 15 (6), 22 (9), 25 (10), 30 (12), 35 (14), 65 (26).
+3. Cada célula é uma grade de 8 × 8 amostras (`SUB`), cada uma a média de área da fonte; uma amostra com menos de 70% de opacidade (`OPAQUE_SHARE`) é transparente. Limiares menores criam fiapos nas bordas.
+4. `fit` escolhe, por célula, o bloco e as duas cores que melhor representam as amostras. Candidatos: os 15 quadrantes, os oitavos inferiores `▁▂▃▅▆▇`, os oitavos à esquerda `▏▎▍▋▊▉` e `▔`. O custo é a dispersão das cores em torno da média, de cada lado, mais 15 000 por amostra do lado errado da transparência. O fundo só fica transparente quando metade ou mais das amostras de trás é transparente; uma célula de cor única vira `█`.
+5. Lascas soltas de um oitavo na vertical (`▏` `▕`), sem nada acima nem abaixo, são apagadas.
+6. Um bloco de primeiro plano nunca fica sem cor (o terminal usaria a cor padrão); só o fundo pode ficar transparente.
+7. O desenho é guardado em cache por tamanho (64 entradas), porque arrastar a janela passa por um tamanho a cada passo.
+
+**Versão no código (não confirmada como a boa: o autor a rejeitou no fim da sessão de 2026-11-02, e a versão boa está por identificar).** É a do backup `…-responsive-FINAL`, que ele havia chamado de perfeita: quadrantes e oitavos, sem mais nada, em todos os tamanhos (a impressão digital sha256 do 35 × 14 está nos testes). Erro de cor contra o emoji (menor é melhor) e sobreposição da silhueta, medidos nesta versão:
+
+| Linhas | Erro | Silhueta |
+|---|---|---|
+| 5 | 920 | 0,933 |
+| 6 | 802 | 0,943 |
+| 7 | 670 | 0,951 |
+| 8 | 591 | 0,954 |
+| 9 | 527 | 0,963 |
+| 10 | 439 | 0,968 |
+
+Em 6 linhas são 15 × 6 células, no máximo uns 30 × 12 pixels de cor: o serrilhado é do meio (blocos), não do algoritmo. Só uma imagem real ou mais linhas resolveriam; a segunda passa do teto de 35%.
+
+**Tentativa descartada: sextantes.** Até 9 linhas, os 60 sextantes de 2 × 3 pixels (U+1FB00…) como candidatos, mais uma penalização de 3 vezes para perder cor onde a imagem tem cor (um pontinho do fundo no meio do chocolate), baixaram o erro (6 linhas: 737; 8: 433; 9: 387) e deixaram o furo e os confeitos mais nítidos, mas o autor voltou à versão do backup. O código e o teste dessa versão estão guardados fora do projeto (`scratchpad/parked/donutArt.with-sextants.ts` e `donutQuality.with-sextants.test.ts`). Também foram testados e descartados o preenchimento de amostras transparentes isoladas e a cor dominante da amostra em vez da média (as manchas cinza-arroxeadas, de um granulado misturado ao chocolate dentro da mesma célula, continuam: vêm de a célula ter só duas cores).
+
+**O nome** (`wordArt.ts`, `shadowFont.ts`, `pixelFont.ts`)
+
+As palavras só são desenhadas em tamanhos que têm letras nítidas; a fonte `ANSI Shadow` (a do banner do GSD) só é nítida no seu tamanho de 6 linhas e, espremida em 3, 4 ou 5, vira papa (a perna do `R` e a barra do `E` se fundem, sobram fiapos sob as letras). Por isso há uma fonte para cada tamanho:
+
+| Linhas por palavra | Fonte | Células por palavra (`FRED` / `SHIPS` / `DONUTS`) |
+|---|---|---|
+| 6 | `ANSI Shadow` no tamanho nativo (`shadowFont.ts`, reamostrada por `wordArt.ts`); sombra de `╗ ║ ╝` como faixa cheia | 32 / 35 / 53 |
+| 4 | fonte de pixels em quadrantes: letras de 10 × 7 pixels, curvas e diagonais, sombra de 2 pixels à direita e 1 abaixo; a sombra não é desenhada dentro do vazio da própria letra | 24 / 28 / 36 |
+| 2 | fonte de pixels em sextantes (2 × 3 por célula): letras de 8 × 5 pixels, hastes de 2 pixels, **sem sombra** (ela pesava tanto quanto a letra e virava um xadrez cinza) e uma linha de pixels de folga entre as palavras | 20 / 24 / 30 |
+
+Cores: corpo `#f5e6c8` (bege claro); sombra `#9c9076` em 6 linhas e `#6a624e` em 4 (escura o bastante para o corpo ser o que o olho lê); a moldura usa a cor de cabeçalho do tema.
+
+**O layout** (`heroLayout` em `Chrome.tsx`)
+
+- A moldura toma a largura da janela menos 2 (o padding da raiz); `heroShareRows(linhas)` = `floor(linhas × 0,35) − 2` é o máximo de linhas de conteúdo dentro dos 35%, e `HERO_RESERVED_ROWS = 11` é o que o menu ocupa abaixo do conteúdo da moldura (borda 2, margem 1, título 2, três opções, rodapé 3).
+- Ordem de escolha: (1) as maiores palavras (6, 4 ou 2 linhas) que cabem dentro dos 35%, com a maior rosquinha ao lado (até 26 linhas, no máximo a altura permitida); (2) as mesmas palavras sozinhas, se a rosquinha não cabe na largura; (3) passando dos 35% só o necessário, as palavras de 2 linhas (6 linhas de conteúdo) com a rosquinha não mais alta que elas; (4) essas palavras sozinhas; (5) só a rosquinha, a maior dentro dos 35%; (6) o cabeçalho de uma linha.
+- Com 6 a 11 linhas de conteúdo dentro dos 35% as palavras têm 2 linhas, de 12 a 17 têm 4, e de 18 em diante têm 6; o teto manda, mesmo com espaço sobrando na janela.
+- Menores janelas: as palavras (de 2 linhas) cabem a partir de 17 linhas e 36 colunas (com a rosquinha, a partir de 51 colunas); só a rosquinha, a partir de 20 linhas e 18 colunas; abaixo disso, o cabeçalho de uma linha.
+
+| Janela | Palavras (linhas) | Rosquinha (linhas × colunas) | Moldura |
+|---|---|---|---|
+| 80 × 24 | 2 | 6 × 15 | 8 linhas (33%) |
+| 100 × 28 | 2 | 7 × 17 | 9 (32%) |
+| 120 × 30 | 2 | 8 × 20 | 10 (33%) |
+| 120 × 35 | 2 | 10 × 25 | 12 (34%) |
+| 120 × 40 | 4 | 12 × 30 | 14 (35%) |
+| 150 × 60 | 6 | 19 × 47 | 21 (35%) |
+| 80 × 20 | 2 | 6 × 15 | 8 (40%, passa do teto: as palavras vencem) |
+| 80 × 17 | 2 | 6 × 15 | 8 (47%) |
+| 80 × 16 | uma linha | — | — |
+| 38 × 40 | 2 | — (sem espaço) | 8 |
+| 20 × 40 | — | 5 × 12 | 7 |
+
+**Arquivos**: `Chrome.tsx` (layout e desenho), `donutArt.ts`, `emojiDonut.ts`, `wordArt.ts`, `shadowFont.ts`, `pixelFont.ts`, `sextant.ts` (só as letras de 2 linhas usam os sextantes).
+
+**Testes**
+
+- `donutQuality.test.ts`: contra o próprio emoji, em todas as alturas de 5 a 40 linhas (erro abaixo da curva `7200 / linhas^1,15`, sobreposição da silhueta acima de um piso, sem queda de mais de 10% ao subir uma linha), limites próprios em 8 tamanhos (erro máximo 870, 640, 475, 375, 340, 255, 190 e 148 em 6, 8, 10, 12, 14, 18, 22 e 28 linhas), larguras de metade ao dobro da proporção, proporção, sem corte, furo no meio, cores, sem células soltas e a impressão digital do 35 × 14.
+- `heroLayout.test.ts`: em toda janela de 20 a 200 colunas por 10 a 60 linhas, nada passa da janela, a proporção do emoji se mantém, a moldura tem no máximo 35% (a única exceção são as palavras de 2 linhas, e então a moldura é só as palavras), as palavras aparecem onde cabem e nunca encolhem quando a janela cresce (exceto quando a rosquinha entra ao lado); o 80 × 24 como caso explícito.
+- `pixelFont.test.ts`: cada letra do nome nos tamanhos de 2 e 4 linhas, só blocos de quadrante (4 linhas) e de sextante (2 linhas), numeração dos sextantes como no Unicode, o vazio de um `O` sem sombra, a linha de folga vazia e o contraste da sombra.
+
+### 6.11 Redesenho e janelas pequenas
+
+- **Redesenho** (`frameWriter.ts`, instalado por `run.ts`): o Ink apaga o quadro anterior linha por linha e escreve o novo em pedaços, o que depois de um redimensionamento mostra tela em branco ou quadro rasgado. O escritor troca isso por um diff de linhas contra o quadro anterior, com posição absoluta de cada linha, em **uma única escrita** entre BSU e ESU (DEC 2026) quando o terminal é conhecido por respeitá-los (VTE 0.68 ou mais novo, kitty, ghostty, iTerm2, WezTerm, alacritty…; nunca no tmux; `FSD_SYNC=1` ou `0` força). No resize (ou no primeiro quadro) todas as linhas são reescritas, cada uma apagando o resto da linha, e o fim da tela é apagado; **a tela nunca é apagada antes de pintar**, então o terminal que ignora BSU também não mostra tela em branco. O cursor fica na última linha. O apagamento de linhas que o Ink faz sozinho ao estreitar a janela é descartado (ele apagaria o que o diff acha que está na tela) e o quadro seguinte é escrito inteiro.
+- **Resize** (`run.ts`): o tamanho entra no `App` como propriedade e um ouvinte de `resize` registrado antes do Ink chama `rerender` de forma síncrona, ignorando eventos de mesmo tamanho; sai um quadro só, já no tamanho novo.
+- **Janelas baixas e estreitas**: cabeçalho e rodapé não encolhem; o corpo corta o que não cabe (`overflowY` oculto, com o conteúdo interno sem encolher) em vez de comprimir as linhas umas sobre as outras. Abaixo de 20 linhas o cabeçalho dos passos vira uma linha, abaixo de 12 o rodapé perde a barra de progresso, o texto longo é cortado com `…` e as listas rolam para manter a linha focada visível (`listRows`).
+- **Desempenho**: `NODE_ENV=production` por `env.ts` (o React em modo de desenvolvimento é bem mais lento); pré-cálculo de todos os tamanhos do cabeçalho em segundo plano (`warmHero`); cache por tamanho.
+- **Verificado** no gnome-terminal real (VTE 0.76): 80 passos de redimensionamento (974 × 682 → 1374 × 784 → 700 × 380 e de volta), com a janela à esquerda e à direita do monitor, sem nenhuma amostra em branco. O arrasto foi com `wmctrl` (em passos); **não foi verificado** o arrasto com o mouse nem outros terminais, e o arrasto não foi repetido depois da troca do layout para o teto de 35% e as fontes de 2 e 4 linhas.
+- **Sextantes**: vêm de uma fonte reserva (Noto Sans Symbols2) no gnome-terminal; em outra fonte ou terminal podem sair desalinhados. Só as letras de 2 linhas dependem deles.
+- **Testes**: `frameWriter.test.ts` (diff, uma escrita, BSU/ESU, passagem de sequências que não são quadro, apagamento do Ink), `App.test.tsx` ("wizard in small windows": de 100 × 30 a 24 × 5, mais a rolagem da lista) e `resize.test.ts` (o programa de verdade num tmux: nenhum quadro maior que a janela, e o que sobra na tela depois de cada resize).
+
+### 6.12 O cabeçalho definitivo (2026-11-07)
+
+Substitui o que 6.10 e 6.11 dizem sobre tamanhos e moldura; o resto deles é histórico.
+
+- **Um só tamanho, o do 80 × 24, em qualquer janela.** Nada escala com a janela: a rosquinha é sempre a de 22 × 9 células e as três palavras (`FRED`, `SHIPS`, `DONUTS`), empilhadas, são sempre as de 3 linhas cada (9 linhas de conteúdo). Janela estreita demais para os dois: só as palavras; nem elas: só a rosquinha; nem isso (ou menos de 9 linhas livres acima do menu): o cabeçalho de uma linha.
+- **Sem moldura.** O cabeçalho do menu e a caixa das telas de passos não têm borda (a azul `#90C0E0` saiu); o título dessas telas continua no azul da paleta. O cabeçalho do menu ocupa 9 linhas, o das telas de passos 2 a 3.
+- **A rosquinha é um mapa de pixels feito à mão** (`src/cli/ui/donutMap.ts`, `DONUT_MAP_22X9`: 44 × 27 pixels, 1 pixel = 1 sextante, paleta fixa de 9 cores, o preto é o fundo do terminal). Cada grupo de 2 × 3 pixels usa no máximo 2 cores (limite da célula). Três trechos estão **congelados** (o centro, linhas 8 a 14 e colunas 10 a 33; os cantos inferiores, linhas 15 a 26 e colunas 0 a 9 e 34 a 43): ficam em `logos/frozen/donut-22x9.frozen.json` e `node logos/check-frozen.mjs` acusa qualquer pixel mudado. Só mudam por ordem explícita do autor.
+- **As palavras** são a fonte de pixels de 3 linhas de `pixelFont.ts` (`MID`): letras de 8 pixels de altura (9 com a sombra), hastes de 3 e barras de 2, sombra de 1 pixel à direita e embaixo na cobertura `#875B4F`; numa célula com corpo, sombra e vazio, o vazio toma a cor da sombra. Cores: corpo na massa `#F5B03E`, sombra na cobertura `#875B4F` (a paleta da rosquinha, `docs/PALETAS-DONUT.md`). Por todo o cabeçalho (de uma borda à outra, sobre o fundo, as letras e a rosquinha) **caem granulados** (bastões de 3 pixels, em diagonal ou deitados, rosa, azul, vermelho, rosa claro e amarelo, cada um com movimento próprio: velocidade, deriva para um lado, balanço em curva ou em zigue-zague e giro, `snow.ts`), como neve; sobre a letra e a rosquinha só aparecem onde a célula cabe (duas cores no máximo), nas partes cheias.
+- **Versões.** A rosquinha e as palavras são versionadas por SemVer, **fora do projeto**, em `~/Backups/fred-ships-donuts-versions/{logos,words,header}/<semver>/` (com `SHA256SUMS` e README lá), com `save.sh` próprio em `logos/`, `words/` e `header/` (o autor diz "salve essa"); o terminal não mostra as versões. As versões `0.0.x` são as importadas dos backups de 2026-11-02.
+- **Versão do cabeçalho.** Além da rosquinha e das palavras, o próprio cabeçalho (layout, moldura, padding, tema e rodapé: `Chrome.tsx`, `theme.ts`, `App.tsx`) é versionado em `header/<semver>/` com `header/save.sh`; a `header/0.0.1` é o cabeçalho de tamanho fixo, sem moldura, com 1 linha de padding em cima, e a **`header/1.0.0` é a versão definitiva** (com a largura inteira da janela e os granulados caindo, `snow.ts`).
+- **Código que o cabeçalho deixou de usar** (mantido por ora): a reamostragem do emoji e as fontes de 6, 4 e 2 linhas de `donutArt.ts`, `wordArt.ts` e `pixelFont.ts`, e `emojiDonut.ts`.
+- **Testes.** Os testes de `heroLayout`, de `pixelFont` e os da rosquinha reamostrada descrevem o cabeçalho antigo e precisam ser reescritos ou removidos antes do próximo `npm test` (o autor pediu para não gastar tempo com testes visuais da rosquinha).
 
 ## 7. Atualização da CLI
 
@@ -417,11 +523,19 @@ src/
     actions/
       install.ts        # regras de instalação e upgrade (6.2), sem UI; usado pelo assistente e por `update skill`
       uninstall.ts      # regras de remoção (6.8), sem UI
+    env.ts              # NODE_ENV=production antes de qualquer import (o React em modo de desenvolvimento é lento)
     ui/                 # assistente (6), em Ink + TSX
       App.tsx
-      Header.tsx
-      Footer.tsx
-      steps/*.tsx
+      Chrome.tsx        # cabeçalho, rodapé e o layout responsivo do cabeçalho (6.10): heroLayout, prepareHero, warmHero
+      Pick.tsx          # lista com rolagem; Conflicts.tsx e steps/*.tsx
+      run.ts            # liga o assistente ao terminal: tamanho, resize síncrono, escritor de quadros
+      frameWriter.ts    # diff de linhas, uma escrita por quadro, BSU/ESU (6.11)
+      donutArt.ts       # a rosquinha em blocos de caractere (6.10)
+      emojiDonut.ts     # grade 192 x 96 do emoji 🍩, gerada uma vez
+      sextant.ts        # os blocos de sextante (U+1FB00…)
+      wordArt.ts        # o nome em 6 linhas (ANSI Shadow reamostrada)
+      shadowFont.ts     # a fonte ANSI Shadow
+      pixelFont.ts      # o nome em 4 linhas (quadrantes) e 2 linhas (sextantes)
       theme.ts          # temas e símbolos (contexto React)
       progress.ts       # lista de passos e cálculo da barra (funções puras)
   skills/               # catálogo (conteúdo, não é código)
@@ -459,6 +573,7 @@ src/
 - **Rollback**: falha injetada (6.2 regra 9 e seção 9) em cada passo (copiar, criar o link, registrar) em instalação nova, `upgrade` e `replace`: nada da tentativa permanece, a versão anterior e a original voltam byte a byte, e não sobra pasta de apoio. **Estes testes não dependem de permissões nem de plataforma e não são pulados** em root, em outro usuário ou no Windows; só se pula um teste quando nem a fixture temporária pode ser criada.
 - **Fases (6.9)**: falha injetada em cada fase 1 a 4 desfaz a execução inteira (inclusive as skills que já tinham sido aplicadas), e depois da fase 4 nada é desfeito; estado que muda entre o resumo e a fase Verificar; `ctrl+c`/`SIGTERM` entre operações; `Apagar` e `update skill` pelas mesmas fases; o `fsd init` ao abrir e o `lastUpdateCheck` em memória não criam arquivo algum.
 - **Recuperação (regra 11 e 6.9)**: criar à mão um `run-<id>/` com diário de uma execução morta (e outro de uma execução viva) e conferir a recuperação ou o `another fsd run is in progress`. Em ambos os casos a pasta de preparo `*.fsd-new-*` da execução morta também some, e a tentativa seguinte não vê falso conflito.
+- **Cabeçalho (6.10 e 6.11)**: qualidade da rosquinha contra o emoji em todas as alturas, layout do cabeçalho em todas as janelas de 20 a 200 colunas por 10 a 60 linhas (teto de 35%), fontes de pixel do nome, escritor de quadros, assistente em janelas pequenas e redimensionamento do programa real num tmux; a lista completa está em 6.10 e 6.11.
 - **Assistente**: o cálculo da barra e a lista de passos dos dois fluxos (com e sem o passo de idioma) como funções puras. Os componentes podem ser testados com `ink-testing-library`. A validação final é manual, em um terminal real.
 - **Binário**: executar `fsd`, `fsd -h`, `fsd --help`, `fsd -v`, `fsd --version`, `fsd foo`, `fsd init x` e `fsd init` sem TTY e conferir saída e exit code.
 - **Catálogo**: cada skill tem `SKILL.md` com `name` igual ao diretório e `metadata.version` semver válido (pré-release incluído); toda variante de idioma de uma mesma skill tem o mesmo `name` e o mesmo `metadata.version`.
@@ -521,7 +636,7 @@ src/
 **Pendente (itens do autor)**
 
 - **Revisão desta spec (conflito, `--force`, interrupção, testes):** ver a seção "Pontos para a revisão" no `TASKS.md`.
-- **Layout** (hoje provisório na implementação): logotipo e cabeçalho, posição do idioma, largura mínima do terminal e paleta final (6.7).
+- **Layout**: o cabeçalho (rosquinha, nome, 35% da altura, 80 × 24 como partida) está decidido em 6.10; pendem a posição do idioma, os símbolos Unicode e a paleta final (6.7). A estética das letras de 2 e 4 linhas e a definição da rosquinha de 6 linhas seguem em evolução.
 - **Utilidade do tema**: será definida pelo autor depois; a spec não assume nenhuma.
 - **Revisar (decisões minhas)**: `update skill` cobre os escopos global e projeto (o de projeto só se existir `./.fsd/installed.json`); `updateSkills` vem desligado por padrão e é configurado no passo 4; não há flag para pular o auto-update, só a opção salva (se quiser `fsd init --no-update`, acrescentar); `fsd update` ignora o limite de 24 h.
 

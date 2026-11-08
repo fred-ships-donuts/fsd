@@ -2,24 +2,26 @@
 
 Referência das paletas testadas para a CLI. Os valores são os campos de `Palette` em `src/cli/ui/theme.ts`.
 
-## 1. Donut Noto (versão atual, guardada)
+## 1. Donut (versão atual)
 
-Cores tiradas do emoji 🍩 renderizado pela fonte Noto Color Emoji, por contagem das cores dominantes (valores aproximados).
+As cores exatas da rosquinha feita à mão (`DONUT_MAP_22X9` em `src/cli/ui/donutMap.ts`), aplicadas a toda a identidade visual: a CLI, as palavras e a própria rosquinha usam os mesmos tons.
 
 | Campo | Hex | Cor de origem |
 |---|---|---|
-| `header` | `#90c0e0` | granulado azul |
-| `title` | `#f0b030` | massa dourada |
-| `focus` | `#f070a0` | cobertura rosa |
-| `checked` | `#f0a0a0` | rosa claro |
-| `hint` | `#806050` | marrom discreto |
-| `barFull` | `#d08010` | massa laranja |
-| `barEmpty` | `#805040` | cobertura de chocolate |
-| `success` | `#f0b030` | dourado |
-| `warning` | `#d08010` | laranja |
-| `error` | `#f05050` | granulado vermelho |
+| `header` | `#f5b03e` | massa |
+| `title` | `#fcb702` | granulado amarelo |
+| `focus` | `#f57ba8` | granulado rosa |
+| `checked` | `#fca8a6` | granulado rosa claro |
+| `hint` | `#b79279` | risco claro |
+| `barFull` | `#de8013` | borda do furo |
+| `barEmpty` | `#875b4f` | cobertura de chocolate |
+| `success` | `#fcb702` | granulado amarelo |
+| `warning` | `#de8013` | borda do furo |
+| `error` | `#fc5e5b` | granulado vermelho |
 
-Ponto de atenção: `hint` e `barEmpty` têm pouco contraste sobre fundo escuro.
+Palavras `FRED` / `SHIPS` / `DONUTS` (`pixelFont.ts`): corpo na massa `#f5b03e`, sombra na cobertura `#875b4f`.
+
+A paleta anterior (cores aproximadas do emoji, com o azul `#90c0e0` no cabeçalho, letras em bege `#f5e6c8` e sombra `#4a4538`) foi substituída.
 
 ## 2. Alternativa A: Morango
 

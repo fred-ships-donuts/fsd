@@ -9,11 +9,12 @@ export interface Option {
 }
 
 // Controlled list. Enter and esc belong to the App; the step handles only cursor and marking.
-export function Pick({ options, selected, multi, withAll, onChange }: {
+export function Pick({ options, selected, multi, withAll, maxRows, onChange }: {
   options: Option[];
   selected: string[];
   multi: boolean;
   withAll?: boolean;
+  maxRows?: number; // the list scrolls to keep the focused row visible when it has more rows than this
   onChange: (selected: string[], focused: string) => void;
 }) {
   const { palette, symbols, color } = useTheme();
@@ -41,12 +42,15 @@ export function Pick({ options, selected, multi, withAll, onChange }: {
     }
   });
 
+  const limit = Math.max(1, maxRows ?? rows.length);
+  const start = rows.length <= limit ? 0 : Math.min(Math.max(0, cursor - Math.floor(limit / 2)), rows.length - limit);
   return (
     <Box flexDirection="column">
-      {rows.map((row, index) => {
+      {rows.slice(start, start + limit).map((row, offset) => {
+        const index = start + offset;
         const focused = index === cursor;
         return (
-          <Text key={row.value} {...tint(palette.focus, focused && color)}>
+          <Text key={row.value} wrap="truncate-end" {...tint(palette.focus, focused && color)}>
             {focused ? symbols.marker : ' '} {isChecked(row) ? symbols.checked : symbols.unchecked} {row.label}
             {row.hint ? <Text {...tint(palette.hint, color)}>  {row.hint}</Text> : null}
           </Text>

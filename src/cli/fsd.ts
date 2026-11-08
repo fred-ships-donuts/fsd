@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import './env.js';
 import { readFileSync } from 'node:fs';
 import { Command } from 'commander';
 import { normalizeArgs } from './args.js';

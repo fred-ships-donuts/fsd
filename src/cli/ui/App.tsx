@@ -3,7 +3,7 @@ import { Box, Text, useApp, useInput, useStdout } from 'ink';
 import type { ActionResult, ConflictChoice } from '../actions/types.js';
 import { readConfig } from '../config.js';
 import type { Scope } from '../fsdDir.js';
-import { Footer, Header } from './Chrome.js';
+import { Footer, Header, listRows } from './Chrome.js';
 import { Conflicts, type ConflictRow } from './Conflicts.js';
 import { catalogRows, conflictsFor, conflictWhere, executeInstall, executeUninstall, languageApplies, languageOptions, registeredRows, unlinkedAvailable, type InstallChoices } from './flows.js';
 import { phases, type Phase, type RunOutcome } from '../run.js';
@@ -35,9 +35,9 @@ const phaseLabel: Record<Phase, string> = { verify: 'Verify', prepare: 'Prepare'
 
 const line = (r: ActionResult) => `${r.action}${r.note ? ` (${r.note})` : ''} ${r.name} ${r.version} [${r.lang}] ${r.destination}`;
 
-export function App({ version, onExit, lastUpdateCheck }: { version: string; onExit: (code: number) => void; lastUpdateCheck?: string }) {
+export function App({ version, onExit, lastUpdateCheck, terminal }: { version: string; onExit: (code: number) => void; lastUpdateCheck?: string; terminal?: { columns: number; rows: number } }) {
   const { exit } = useApp();
-  const size = useTerminalSize();
+  const size = useTerminalSize(terminal);
   const config = useMemo(() => readConfig(), []);
   const allSkills = useMemo(() => listSkills().map((skill) => skill.name), []);
   const [screen, setScreen] = useState<Screen>({ kind: 'menu' });
@@ -185,20 +185,20 @@ export function App({ version, onExit, lastUpdateCheck }: { version: string; onE
     if (screen.kind !== 'step') return null;
     const { step } = screen;
     if (step === 'scope') {
-      return <Pick multi={false} selected={[choices.scope]} onChange={([value]) => { set({ scope: (value as Scope) ?? 'global', skills: allSkills, conflicts: {} }); setRemoval([]); }} options={[
+      return <Pick maxRows={listRows(size.rows, size.columns)} multi={false} selected={[choices.scope]} onChange={([value]) => { set({ scope: (value as Scope) ?? 'global', skills: allSkills, conflicts: {} }); setRemoval([]); }} options={[
         { value: 'global', label: 'Global', hint: '~/.fsd/skills' },
         { value: 'project', label: 'Local', hint: './.fsd/skills' },
       ]} />;
     }
     if (step === 'skills' && flow === 'uninstall') {
       if (registered.length === 0) return <Text>nothing installed</Text>;
-      return <Pick multi withAll selected={removal} onChange={setRemoval} options={registered.map((row) => ({ value: row.name, label: row.name, hint: `${row.version} [${row.lang}] ${row.state}` }))} />;
+      return <Pick maxRows={listRows(size.rows, size.columns)} multi withAll selected={removal} onChange={setRemoval} options={registered.map((row) => ({ value: row.name, label: row.name, hint: `${row.version} [${row.lang}] ${row.state}` }))} />;
     }
     if (step === 'skills') {
-      return <Pick multi withAll selected={choices.skills} onChange={(skills) => set({ skills })} options={rows.map((row) => ({ value: row.name, label: row.name, hint: `${row.version} [${row.langs.join(', ')}] ${row.state}` }))} />;
+      return <Pick maxRows={listRows(size.rows, size.columns)} multi withAll selected={choices.skills} onChange={(skills) => set({ skills })} options={rows.map((row) => ({ value: row.name, label: row.name, hint: `${row.version} [${row.langs.join(', ')}] ${row.state}` }))} />;
     }
     if (step === 'language') {
-      return <Pick multi={false} selected={[choices.lang]} onChange={([value]) => set({ lang: value ?? '' })} options={langs.map((lang) => ({ value: lang, label: lang }))} />;
+      return <Pick maxRows={listRows(size.rows, size.columns)} multi={false} selected={[choices.lang]} onChange={([value]) => set({ lang: value ?? '' })} options={langs.map((lang) => ({ value: lang, label: lang }))} />;
     }
     if (step === 'conflicts') {
       const rowsData: ConflictRow[] = conflictNames.map((name) => ({ name, paths: conflictWhere(choices, name), canUnlinked: unlinkedAvailable(choices, name) }));
@@ -206,13 +206,13 @@ export function App({ version, onExit, lastUpdateCheck }: { version: string; onE
     }
     if (step === 'update') {
       const selected = [...(choices.autoUpdate ? ['autoUpdate'] : []), ...(choices.updateSkills ? ['updateSkills'] : [])];
-      return <Pick multi selected={selected} onChange={(next) => set({ autoUpdate: next.includes('autoUpdate'), updateSkills: next.includes('updateSkills') })} options={[
+      return <Pick maxRows={listRows(size.rows, size.columns)} multi selected={selected} onChange={(next) => set({ autoUpdate: next.includes('autoUpdate'), updateSkills: next.includes('updateSkills') })} options={[
         { value: 'autoUpdate', label: 'Update the CLI when `fsd init` opens' },
         { value: 'updateSkills', label: 'Make `fsd update` update the skills too' },
       ]} />;
     }
     if (step === 'theme') {
-      return <Pick multi={false} selected={[choices.theme]} onChange={([value]) => set({ theme: value ?? DEFAULT_THEME })} options={Object.entries(themes).map(([id, t]) => ({ value: id, label: t.label }))} />;
+      return <Pick maxRows={listRows(size.rows, size.columns)} multi={false} selected={[choices.theme]} onChange={([value]) => set({ theme: value ?? DEFAULT_THEME })} options={Object.entries(themes).map(([id, t]) => ({ value: id, label: t.label }))} />;
     }
     return renderSummary();
   }
@@ -237,31 +237,38 @@ export function App({ version, onExit, lastUpdateCheck }: { version: string; onE
 
   return (
     <Theme.Provider value={theme}>
-      <Box flexDirection="column" paddingX={1} width={size.columns} height={size.rows}>
-        <Header version={version} {...(where ? { where } : {})} hero={screen.kind === 'menu'} columns={size.columns} />
-        <Box flexDirection="column" flexGrow={1}>
-          {body}
+      <Box flexDirection="column" paddingTop={1} width={size.columns} height={size.rows}>
+        <Header version={version} {...(where ? { where } : {})} hero={screen.kind === 'menu'} columns={size.columns} rows={size.rows} />
+        {/* The body takes what the header and the footer leave and cuts what does not fit; it never squeezes its rows. The window's side padding
+            is on the body and the footer, not on the root: the big header (the snow in it) goes edge to edge. */}
+        <Box flexDirection="column" flexGrow={1} flexShrink={1} overflowY="hidden" paddingX={1}>
+          <Box flexDirection="column" flexShrink={0}>
+            {body}
+          </Box>
         </Box>
-        <Footer fraction={fraction} label={label} hint={hint} />
+        <Box flexDirection="column" paddingX={1}>
+          <Footer fraction={fraction} label={label} hint={hint} rows={size.rows} columns={size.columns} />
+        </Box>
       </Box>
     </Theme.Provider>
   );
 }
 
 // Current terminal size, updated on resize, so the wizard always fills the whole terminal.
-function useTerminalSize(): { columns: number; rows: number } {
+function useTerminalSize(given?: { columns: number; rows: number }): { columns: number; rows: number } {
   // Ink types its stdout as a WritableStream; at runtime it is the terminal (or a test double) with columns and rows.
   const { stdout } = useStdout() as unknown as { stdout: NodeJS.WriteStream };
   const read = () => ({ columns: stdout.columns || 80, rows: stdout.rows || 24 });
   const [size, setSize] = useState(read);
   useEffect(() => {
+    if (given) return; // the caller keeps the size up to date (see run.ts)
     const onResize = () => setSize(read);
     stdout.on('resize', onResize);
     return () => {
       stdout.off('resize', onResize);
     };
-  }, [stdout]);
-  return size;
+  }, [stdout, given]);
+  return given ?? size;
 }
 
 function Title({ text }: { text: string }) {

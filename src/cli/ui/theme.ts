@@ -16,11 +16,11 @@ export interface Palette {
 
 export const DEFAULT_THEME = 'donut';
 
-// `donut` is the Noto emoji palette (default); the others are alternatives to compare (docs/PALETAS-DONUT.md).
+// `donut` is the palette of the hand-tuned 🍩 (donutMap.ts), the same colours as the picture (default); the others are alternatives to compare (docs/PALETAS-DONUT.md).
 export const themes: Record<string, { label: string; palette: Palette }> = {
   donut: {
     label: 'Donut',
-    palette: { header: '#90c0e0', title: '#f0b030', focus: '#f070a0', checked: '#f0a0a0', hint: '#806050', barFull: '#d08010', barEmpty: '#805040', success: '#f0b030', warning: '#d08010', error: '#f05050' },
+    palette: { header: '#f5b03e', title: '#fcb702', focus: '#f57ba8', checked: '#fca8a6', hint: '#b79279', barFull: '#de8013', barEmpty: '#875b4f', success: '#fcb702', warning: '#de8013', error: '#fc5e5b' },
   },
   morango: {
     label: 'Morango',
