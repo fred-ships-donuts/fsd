@@ -35,7 +35,7 @@ Regras:
 
 **`engine/`**: `run.ts` orquestra as cinco fases; `verify.ts` é a fase Verificar; `transaction.ts` é a classe `Transaction`, que grava no diário **antes** de cada mudança (criar, copiar, mover, ligar, deslocar, gravar JSON com cópia de segurança) e marca o ponto de não retorno (`commit`); `recovery.ts` desfaz pelo diário e recupera execuções mortas; `ops.ts` são as operações reais.
 
-**`commands/`**: `init.ts`, `update.ts`, `link.ts`, `task.ts` (`fsd task …`: mensagens, `--json` do `list` e exit code); `guards.ts` (as checagens comuns aos comandos que gravam fora do motor, como a de execução viva); `skillPlans.ts` é o que `update skill` e `link skill` têm em comum (escopos, rodar um plano por escopo, relatório e exit code); `io.ts` é a saída.
+**`commands/`**: `init.ts`, `update.ts`, `link.ts`, `task.ts` (`fsd task …`: mensagens, `--json` do `list` e exit code); `guards.ts` (as checagens comuns aos comandos que gravam fora do motor, como a de execução viva). Exceção ao motor, como o `config.json`: `task new` e `task step add|start|done|skip` gravam um único arquivo por `core/fs.ts` (`createTextFile`, `updateTextFile`), sem diário, depois de recusar quando há outra execução viva; `skillPlans.ts` é o que `update skill` e `link skill` têm em comum (escopos, rodar um plano por escopo, relatório e exit code); `io.ts` é a saída.
 
 **`wizard/`**: `choices.ts` (o que o usuário escolheu e o estado inicial), `steps.ts` (passos e progresso, puro), `queries.ts` (linhas do catálogo, instaladas, idiomas, conflitos), `execute.ts` (montar o pedido e as preferências, planejar e executar).
 

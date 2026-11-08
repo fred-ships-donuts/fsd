@@ -1,9 +1,9 @@
 import { join } from 'node:path';
-import { createTextFile, FileChangedError } from '../core/fs.js';
-import { invalidText, isProjectRoot, listTasks, locateTask, nookPaths, stepCounts, TASK_DIRS, type StepCounts, type Task, type TaskDir } from '../core/nook.js';
+import { createTextFile, FileChangedError, updateTextFile } from '../core/fs.js';
+import { findStep, findTask, hasNook, invalidText, isProjectRoot, listTasks, locateTask, nextStepNumber, nookPaths, stepCounts, TASK_DIRS, type StepCounts, type Task, type TaskDir } from '../core/nook.js';
 import { realEnv, type Env } from '../core/scope.js';
 import { normalizeTitle, slug } from '../core/slug.js';
-import { newPlan, PLAN_FILE } from '../core/taskFiles.js';
+import { InvalidTaskFileError, newPlan, newStep, PLAN_FILE, setStepStatus, stepFileName, stepLabel, type StepStatus } from '../core/taskFiles.js';
 import { EXIT_FAILED, EXIT_OK } from '../exitCodes.js';
 import { busyError } from './guards.js';
 import { consoleIo, type Io } from './io.js';
@@ -131,6 +131,86 @@ export function taskListCommand(listOptions: TaskListOptions, options: TaskComma
     const tasks = listTasks(env, dirs);
     if (listOptions.json) io.out(JSON.stringify(taskListJson(tasks), null, 2));
     else for (const line of taskListText(tasks)) io.out(line);
+    return EXIT_OK;
+  });
+}
+
+// ---------------------------------------------------------------------------------------------------------------
+// task step add | start | done | skip
+
+const invalidError = (task: Task): TaskError => {
+  const invalid = task.invalid as NonNullable<Task['invalid']>;
+  const file = invalid.file === '.' ? nookRel(task.dir, task.slug) : nookRel(task.dir, task.slug, invalid.file);
+  return new TaskError(`task ${task.slug} is invalid: ${invalidText(invalid)} (fix ${file} and run again)`);
+};
+
+const changedError = (task: Task, file: string): TaskError => new TaskError(`${nookRel(task.dir, task.slug, file)} changed while writing, try again`);
+
+/** The task the step commands work on: it must exist, be readable and be on the bench (SPEC 4.5 "Ciclo"). */
+function benchTask(env: Env, name: string): Task {
+  if (!hasNook(env)) throw new TaskError(NOT_ROOT);
+  const task = findTask(env, name);
+  if (!task) throw new TaskError(`task ${name} not found ${LIST_ALL}`);
+  if (task.invalid) throw invalidError(task);
+  if (task.dir !== 'bench') throw new TaskError(`task ${name} is not in nook/bench: it is in ${nookRel(task.dir)} (run: fsd task new "<new title>")`);
+  return task;
+}
+
+/** `<n>`: a whole number from 1, compared by value (1 = 01). */
+export function parseStepNumber(raw: string): number {
+  const n = /^\d+$/.test(raw) ? Number(raw) : NaN;
+  if (!Number.isSafeInteger(n) || n < 1) throw new TaskError(`invalid step number ${raw}: use a whole number from 1`);
+  return n;
+}
+
+export interface StepAddOptions {
+  description?: string;
+}
+
+export function taskStepAddCommand(name: string, rawTitle: string, addOptions: StepAddOptions, options: TaskCommandOptions = {}): number {
+  const { io, env, now } = contextOf(options);
+  return guarded(io, () => {
+    const task = benchTask(env, name);
+    const { title, slug: stepSlug } = slugOf(rawTitle);
+    refuseWhenBusy(env);
+    const file = stepFileName(nextStepNumber(task), stepSlug);
+    try {
+      createTextFile(join(task.path, file), newStep(title, addOptions.description, now()));
+    } catch (error) {
+      if (error instanceof FileChangedError) throw changedError(task, file);
+      throw error;
+    }
+    io.out(`created ${nookRel('bench', task.slug, file)}`);
+    return EXIT_OK;
+  });
+}
+
+export function taskStepStatusCommand(name: string, rawNumber: string, status: StepStatus, options: TaskCommandOptions = {}): number {
+  const { io, env, now } = contextOf(options);
+  return guarded(io, () => {
+    const n = parseStepNumber(rawNumber);
+    const task = benchTask(env, name);
+    const step = findStep(task, n);
+    if (!step) throw new TaskError(`step ${stepLabel(n)} not found in task ${task.slug} (run: fsd task list)`);
+    // Repeating a change is not an error: the agent may retry after a timeout (SPEC 5.5).
+    if (step.status === status) {
+      io.out(`step ${step.label} already ${status}`);
+      return EXIT_OK;
+    }
+    refuseWhenBusy(env);
+
+    let result;
+    try {
+      result = updateTextFile(step.path, (current) => {
+        if (current === null) throw new TaskError(`step ${step.label} not found in task ${task.slug} (run: fsd task list)`);
+        return setStepStatus(current, status, now());
+      });
+    } catch (error) {
+      if (error instanceof FileChangedError) throw changedError(task, step.file);
+      if (error instanceof InvalidTaskFileError) throw invalidError({ ...task, invalid: { file: step.file, reason: error.reason } });
+      throw error;
+    }
+    io.out(result.changed ? `step ${step.label} ${status}` : `step ${step.label} already ${status}`);
     return EXIT_OK;
   });
 }
