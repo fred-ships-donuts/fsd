@@ -140,7 +140,7 @@ export function taskListCommand(listOptions: TaskListOptions, options: TaskComma
 
 const invalidError = (task: Task): TaskError => {
   const invalid = task.invalid as NonNullable<Task['invalid']>;
-  const file = invalid.file === '.' ? nookRel(task.dir, task.slug) : nookRel(task.dir, task.slug, invalid.file);
+  const file = invalid.file === '.' || invalid.file === task.slug ? nookRel(task.dir, task.slug) : nookRel(task.dir, task.slug, invalid.file);
   return new TaskError(`task ${task.slug} is invalid: ${invalidText(invalid)} (fix ${file} and run again)`);
 };
 

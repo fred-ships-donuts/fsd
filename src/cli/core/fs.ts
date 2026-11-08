@@ -1,4 +1,4 @@
-import { chmodSync, lstatSync, mkdirSync, readFileSync, readlinkSync, renameSync, rmdirSync, rmSync, statSync, writeFileSync, type Stats } from 'node:fs';
+import { chmodSync, lstatSync, mkdirSync, readFileSync, readlinkSync, renameSync, rmdirSync, rmSync, writeFileSync, type Stats } from 'node:fs';
 import { basename, dirname, join, resolve, sep } from 'node:path';
 
 // Small filesystem queries and the atomic writes (JSON and text) shared by the whole CLI.
@@ -98,17 +98,17 @@ export function writeTextAtomic(file: string, content: string, options: WriteTex
   }
 }
 
+// lstat, like the rest of this module: the mode of the entry the rename replaces, not of what a link points to.
 function modeOf(file: string): number | undefined {
-  try {
-    return statSync(file).mode & 0o7777;
-  } catch {
-    return undefined;
-  }
+  const stats = exists(file);
+  return stats === undefined ? undefined : stats.mode & 0o7777;
 }
 
 /**
  * Creates a file that must not exist yet, with the directories it needs. Throws FileChangedError when the file appeared
  * meanwhile; on any failure, removes the directories it created (so a failed `task new` leaves no empty folder).
+ * Not exclusive: a file created between the check and the rename is replaced. SPEC 5.5 accepts this window ("checar a
+ * trava e depois gravar não é atômico").
  */
 export function createTextFile(file: string, content: string): void {
   const created = missingAncestors(dirname(file));
