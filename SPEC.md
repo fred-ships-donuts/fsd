@@ -148,6 +148,8 @@ nook/bench/login-oauth/
   02-endpoint.yaml
 ```
 
+**Título.** Quebras de linha (`\r`, `\n`) no título de uma task ou de um passo viram espaço, e as pontas são aparadas, antes do slug e da gravação; o `# <título>` do `plan.md` fica numa linha só.
+
 **Nome (slug).** A pasta tem o nome do slug do título: letras sem decomposição trocadas por um mapa pequeno (`ß→ss`, `æ→ae`, `ø→o`, `ł→l`, `đ→d`, `œ→oe`, `þ→th`, e as maiúsculas correspondentes), `normalize('NFD')`, marcas (`\p{M}`) removidas, minúsculas, qualquer sequência fora de `[a-z0-9]` vira um `-`, sem `-` nas pontas, e no máximo 60 caracteres (cortado no último `-` antes do limite, por causa dos caminhos longos no Windows). `"Straße"` vira `strasse`. Um slug que é nome reservado do Windows (`con`, `nul`, `aux`, `prn`, `com1`…`com9`, `lpt1`…`lpt9`) é erro. `"Login OAuth"` vira `login-oauth`. O slug é único em todo o `nook/`: se já existe em `bench/`, `rack/` ou `fridge/`, é erro, e a mensagem mostra o slug, porque títulos diferentes podem gerar o mesmo slug. Um título que gera slug vazio (por exemplo, todo em escrita não latina) é erro, e a mensagem sugere um título com letras latinas.
 
 **`plan.md`.** Frontmatter YAML seguido do corpo livre (spec e plano):
@@ -171,7 +173,7 @@ updatedAt: 2026-11-07T12:00:00.000Z
 
 A pasta e o `status` sempre combinam, e a CLI muda os dois juntos (5.5). Uma task cuja pasta não bate com o `status` aparece como `invalid` no `fsd task list`.
 
-**Passo `NN-<slug>.yaml`.** `NN` tem pelo menos dois dígitos e é sequencial a partir de `01` (o próximo é o maior existente mais um; números vagos não são reaproveitados; depois do `99` vem `100`). Os passos são ordenados pelo número, não pelo nome. O `<slug>` vem do título do passo, pela regra acima. Só contam como passo os arquivos que casam com `^\d{2,}-[a-z0-9-]+\.yaml$`; os demais arquivos da pasta (anotações, `foo.yaml`, `1-x.yaml`, temporários) são ignorados.
+**Passo `NN-<slug>.yaml`.** `NN` tem pelo menos dois dígitos e é sequencial a partir de `01` (o próximo é o maior existente mais um; números vagos não são reaproveitados; depois do `99` vem `100`). Os passos são ordenados pelo número, não pelo nome. O `<slug>` vem do título do passo, pela regra acima. Só contam como passo os arquivos que casam com `^\d{2,}-[a-z0-9-]+\.yaml$`; os demais arquivos da pasta (anotações, `foo.yaml`, `1-x.yaml`, temporários) são ignorados. Dois arquivos com o mesmo número (`01-a.yaml` e `01-b.yaml`, ou `01-a.yaml` e `001-b.yaml`) deixam a task `invalid` (`step number 01 is used by more than one file`).
 
 ```yaml
 title: Criar o schema
@@ -282,7 +284,7 @@ Comandos não interativos (não exigem TTY) sobre as tasks de `<cwd>/nook/` (4.5
 }
 ```
 
-`dir` é `bench`, `rack` ou `fridge`. Numa task inválida, `invalid` traz o motivo, e `status` e `steps` saem `null` quando não puderam ser lidos. Sem `nook/`, sai `{"schema": 1, "tasks": []}`. Esse formato é o contrato com o agente: dentro do mesmo `schema`, só ganha campos; mudar ou tirar um campo sobe o `schema`. A saída em texto pode mudar livremente. Os demais comandos de task não têm `--json` nesta versão (próximo passo: `task new` e `task step add` devolvendo o caminho criado); a skill lê o exit code e a linha de sucesso.
+`dir` é `bench`, `rack` ou `fridge`. Numa task inválida, `invalid` traz o motivo (`<arquivo>: <motivo>`). `status` sai `null` quando o `plan.md` não pôde ser lido, e `steps` sai `null` quando o `plan.md` ou algum passo não pôde ser lido (inclusive uma pasta de task que não pode ser listada). Uma task inválida só por pasta × status divergentes traz `status` e `steps` preenchidos, além de `invalid`. Sem `nook/`, sai `{"schema": 1, "tasks": []}`. Esse formato é o contrato com o agente: dentro do mesmo `schema`, só ganha campos; mudar ou tirar um campo sobe o `schema`. A saída em texto pode mudar livremente. Os demais comandos de task não têm `--json` nesta versão (próximo passo: `task new` e `task step add` devolvendo o caminho criado); a skill lê o exit code e a linha de sucesso.
 
 **Erros que dizem o próximo passo.** Todo erro de `task` termina com o comando que resolve, entre parênteses, para o agente corrigir sozinho:
 
