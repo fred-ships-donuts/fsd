@@ -15,6 +15,7 @@ Estado em 2026-11-02. Leia nesta ordem: este arquivo, `TASKS.md`, `SPEC.md`, `do
 - **A `main` está 4 commits à frente do `origin`** (`21d9d91`, `aed7af4`, `2b59314`, `aad0e6c`); o push ainda não foi feito. **Além de `HANDOFF.md`, há mudanças sem commit** no cabeçalho e no tema (ver "Sessão: cabeçalho e tema" abaixo). Nada desta sessão foi commitado.
 - **Backup da VERSÃO FINAL da rosquinha** (fora do repositório): `/home/fredericojacobi/Backups/fred-ships-donuts-header-FINAL-2026-11-02/`, com `README.md` de restauração e `SHA256SUMS`. O backup anterior, com a rosquinha em quadrantes, continua em `/home/fredericojacobi/Backups/fred-ships-donuts-header-2026-11-02/` e não deve ser sobrescrito.
 - **Todas as tasks F-1.1 a F-35 foram executadas** e estão marcadas em `TASKS.md`. A Fase 5 (F-26 a F-35) veio de uma revisão da spec, hoje sem pontos em aberto.
+- **Fase 6 (`fsd task`)**: F-36 a F-39 (`task new`, `list`, `step`) e F-43 (skill `fsd-nook-tasks`) estão na `develop`, assim como F-40a (#6, núcleo de transação). **Pendentes:** F-40b (#7, `task done` e `task archive`) e F-42 (#8, `.gitignore` do Install); a documentação (F-44, #10) é esta. Na `develop`, não na `main`.
 - Não há testes no projeto (removidos por decisão do autor em 2026-11-07); `npm run build` compila.
 - O pacote ainda **não foi publicado** no npm.
 
@@ -26,10 +27,11 @@ Estado em 2026-11-02. Leia nesta ordem: este arquivo, `TASKS.md`, `SPEC.md`, `do
   - `core/`: escopos, catálogo, registro, configuração, conflitos, diário (leitura), semver, npm.
   - `plan/`: planejadores `install.ts`, `uninstall.ts`, `link.ts` e `types.ts`. Só leem o disco e montam um plano.
   - `engine/`: `run.ts` (fases), `verify.ts`, `transaction.ts` (diário antes de cada mudança), `recovery.ts` (desfazer, execução morta), `ops.ts`.
-  - `commands/`: `init.ts`, `update.ts`, `link.ts` e o que os dois últimos compartilham (`skillPlans.ts`).
+  - `commands/`: `init.ts`, `update.ts`, `link.ts` e o que os dois últimos compartilham (`skillPlans.ts`); `task.ts` (`fsd task new|list|step`).
+  - Tasks: `core/nook.ts`, `core/taskFiles.ts` e `core/slug.ts` (pasta da task, `plan.md`, passos `.yaml`, slug do título). `engine/transactionRun.ts` é o núcleo de transação reutilizável (F-40a), que `task done`/`archive` vão usar (#7).
   - `wizard/`: regras do assistente sem React (passos, escolhas, consultas, execução).
   - `ui/`: assistente em Ink (`App.tsx`, `screens/`, `components/`, `hero/`, `art/`, `terminal/`, `theme.ts`).
-- Catálogo em `src/skills/_i18n/` (`fsd-csharp-code-standard`, `fsd-ui-approval`). A pasta `graft/` é ignorada pelo git e **não** é apagada.
+- Catálogo em `src/skills/_i18n/` (`fsd-csharp-code-standard`, `fsd-nook-tasks`, `fsd-ui-approval`). A pasta `graft/` é ignorada pelo git e **não** é apagada.
 
 ## Decisões do autor
 
@@ -165,3 +167,4 @@ Para testar sem sujar `~/.claude` e `~/.fsd`, use `HOME=$(mktemp -d)`.
 1. Fazer o push dos 4 commits.
 2. Rodar o assistente num terminal real e conferir que o Claude Code enxerga uma skill pelo link.
 3. Decidir o layout (logotipo, paletas) e publicar o pacote para testar `fsd update` e `npx -p fred-ships-donuts fsd init` de verdade.
+4. Fase 6: mesclar #7 (`task done`/`archive`) e #8 (`.gitignore`) e, com cada um, tirar a marca "(F-40b, #7)" / "(F-42, #8)" do README e de `docs/FSD-DIRECTORY-STRUCTURE.md`.

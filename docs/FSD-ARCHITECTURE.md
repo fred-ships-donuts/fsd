@@ -86,12 +86,12 @@ Kitchen represents the environment required before execution.
 
 # Bench
 
-The Bench is the workspace directory where task definitions, inputs, and work items are placed before execution.
+The Bench is the workspace directory where task folders (a `plan.md` and its steps) are placed while they are worked on.
 
 Responsibilities:
 
-- host active task files and input specifications;
-- provide the directory structure for files processed by the Oven.
+- host active task folders and their steps;
+- keep the work of a task in one place: in this version the **agent** (Claude Code, guided by the `fsd-nook-tasks` skill) does the work, and the CLI only creates, reads, changes status and moves files.
 
 The Bench does not store logs or execution state. The `status` of a task lives in the task file itself; logs and execution state live in `.fsd/logs` and `.fsd/oven`.
 
@@ -108,6 +108,8 @@ Responsibilities:
 - invoke workflows.
 
 The Oven should remain independent from specific development domains.
+
+In this version the Oven is conceptual: it holds no state in `.fsd/oven/`, and there is no execution engine for tasks. The agent executes.
 
 ---
 
@@ -243,11 +245,11 @@ The conceptual model separates user-facing project workspaces from internal CLI 
 The `nook/` directory serves as the user-friendly interface store where developers manage tasks, contexts, and deliverables:
 
 - **`nook/kitchen/`**: Project rules, project settings, and user-provided context.
-- **`nook/bench/`**: Active workspace hosting input task files (`status: in_progress`).
+- **`nook/bench/`**: Active workspace hosting task folders (`status: in_progress`).
 - **`nook/cookbook/`**: The cookbook, containing the Recipes (declarative workflow definitions).
 - **`nook/bakers/`**: Specialized AI worker definitions and craft metadata.
 - **`nook/rack/`**: Showcase area hosting finished deliverables (`status: done` Donuts).
-- **`nook/fridge/`**: Archive holding past completed work items and historical tasks.
+- **`nook/fridge/`**: Archive holding archived task folders and historical tasks.
 
 ### 2. System Directory (`.fsd/`)
 
