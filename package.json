@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "tsx src/cli/fsd.ts",
     "prepack": "npm run build",
+    "test": "node --import tsx --test \"src/**/*.test.ts\"",
     "build": "tsc",
     "start": "node dist/cli/fsd.js",
     "postbuild": "node -e \"require('node:fs').chmodSync('dist/cli/fsd.js', 0o755)\""
