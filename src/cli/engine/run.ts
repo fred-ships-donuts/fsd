@@ -1,30 +1,25 @@
 import { dirname, join } from 'node:path';
 import { claudeLinkPath } from '../core/claudeLink.js';
-import { exists, isLinkTo, missingAncestors } from '../core/fs.js';
+import { exists, isLinkTo } from '../core/fs.js';
 import { readRegistry, type Entry } from '../core/registry.js';
-import type { Journal } from '../core/runJournal.js';
 import { baseDirs, scopePaths } from '../core/scope.js';
 import type { ActionResult, InstallItem, LinkItem, Plan, PlanItem, RemoveItem } from '../plan/types.js';
 import { realOps, type Ops } from './ops.js';
-import { discard, recoverRuns, Stop, undo, type StopKind } from './recovery.js';
-import { Transaction } from './transaction.js';
+import type { StopKind } from './recovery.js';
+import { runTransaction, type PhaseEvent, type RunControl } from './transactionRun.js';
+import type { Transaction } from './transaction.js';
 import { verifyPlan } from './verify.js';
 
-// SPEC 6.9: the run after the user confirms. Five phases; a failure or a cancel before the end of Register undoes
-// everything the run did.
+// SPEC 6.9: the run after the user confirms, as a client of the transaction core (engine/transactionRun.ts). A failure or
+// a cancel before the end of Register undoes everything the run did.
 
 export type Phase = 'verify' | 'prepare' | 'apply' | 'register' | 'conclude';
 export const phases: Phase[] = ['verify', 'prepare', 'apply', 'register', 'conclude'];
 
-export interface RunEvent {
-  phase: Phase;
-  state: 'running' | 'done' | 'failed';
-  item?: string;
-}
+type SkillPhase = 'prepare' | 'apply' | 'register';
 
-export interface RunControl {
-  cancelled: boolean;
-}
+export type RunEvent = PhaseEvent<SkillPhase>;
+export type { RunControl };
 
 export interface RunOptions {
   ops?: Ops;
@@ -37,113 +32,49 @@ export type RunOutcome =
   | { status: 'done'; results: ActionResult[]; warnings: string[] }
   | { status: StopKind; phase: Phase; message: string; warnings: string[] };
 
-const tick = () => new Promise<void>((resolve) => setImmediate(resolve));
-const errorText = (error: unknown) => (error instanceof Error ? error.message : String(error));
-
 export async function runPlan(plan: Plan, options: RunOptions = {}): Promise<RunOutcome> {
-  const ops = options.ops ?? realOps;
-  const control = options.control ?? { cancelled: false };
-  const emit = options.onEvent ?? (() => {});
+  if (plan.items.length === 0 && !plan.ensureBase && plan.config === undefined) return { status: 'done', results: plan.results, warnings: [] };
   const now = options.now ?? (() => new Date());
   const paths = scopePaths(plan.scope, plan.env);
-  const warnings: string[] = [];
-  const id = `${process.pid}-${now().getTime().toString(36)}`;
-  const runDir = join(paths.cache, `run-${id}`);
-  let phase: Phase = 'verify';
-  let tx: Transaction | undefined;
-
-  const onSignal = () => {
-    control.cancelled = true;
-  };
-  process.on('SIGINT', onSignal);
-  process.on('SIGTERM', onSignal);
-
-  // Between operations: lets the event loop deliver ctrl+c, and stops when it was asked to.
-  const step = async () => {
-    await tick();
-    if (control.cancelled && !tx?.committed) throw new Stop('cancelled', 'cancelled (changes undone)');
-  };
-  const enter = (next: Phase) => {
-    phase = next;
-    emit({ phase, state: 'running' });
-  };
-  const leave = () => emit({ phase, state: 'done' });
-
-  try {
-    if (plan.items.length > 0 || plan.ensureBase || plan.config !== undefined) {
-      // 1. Verify: reads, and recovers dead runs.
-      enter('verify');
-      recoverRuns(paths.cache, warnings);
-      verifyPlan(plan, paths);
-      await step();
-      leave();
-
-      // 2. Prepare: journal, base structure, staging copies.
-      enter('prepare');
-      const runAncestors = missingAncestors(runDir);
-      for (const dir of runAncestors) ops.mkdir(dir);
-      tx = new Transaction(ops, runDir, newJournal(id, plan, now(), runAncestors, runAncestors.includes(paths.cache) && !plan.ensureBase));
-      tx.save();
-      recoverRuns(paths.cache, warnings, runDir);
-      await step();
-      if (plan.ensureBase) {
-        for (const dir of baseDirs) {
-          tx.ensureDirs(join(paths.root, dir));
+  const outcome = await runTransaction<SkillPhase, void>(
+    {
+      scope: plan.scope,
+      cacheDir: paths.cache,
+      // Every skills plan says "install", whatever it does (removing, linking): the text is part of what users see today.
+      label: 'install',
+      firstPhase: 'prepare',
+      keepAncestors: plan.ensureBase,
+      verify: () => verifyPlan(plan, paths),
+      work: async ({ tx, id, enter, item, step }) => {
+        // Prepare: base structure, staging copies.
+        if (plan.ensureBase) {
+          for (const dir of baseDirs) {
+            tx.ensureDirs(join(paths.root, dir));
+            await step();
+          }
+        }
+        for (const planned of plan.items) {
+          if (planned.kind !== 'install') continue;
+          stage(tx, planned, id);
           await step();
         }
-      }
-      for (const item of plan.items) {
-        if (item.kind !== 'install') continue;
-        stage(tx, item, id);
-        await step();
-      }
-      leave();
 
-      // 3. Apply: displace what exists, move the staged copy in place, link.
-      enter('apply');
-      for (const item of plan.items) {
-        emit({ phase, state: 'running', item: item.name });
-        applyItem(tx, plan, item, id);
-        await step();
-      }
-      leave();
+        // Apply: displace what exists, move the staged copy in place, link.
+        enter('apply');
+        for (const planned of plan.items) {
+          item(planned.name);
+          applyItem(tx, plan, planned, id);
+          await step();
+        }
 
-      // 4. Register: the point of no return.
-      enter('register');
-      register(tx, plan, now());
-      tx.commit();
-      leave();
-
-      // 5. Conclude: a failure here is only a warning.
-      enter('conclude');
-      try {
-        discard(tx.journal, runDir, !tx.journal.cacheCreated);
-      } catch (error) {
-        warnings.push(`could not clean up ${runDir}: ${errorText(error)}`);
-      }
-      leave();
-    }
-    return { status: 'done', results: plan.results, warnings };
-  } catch (error) {
-    emit({ phase, state: 'failed' });
-    const kind = error instanceof Stop ? error.kind : 'failed';
-    let message = error instanceof Stop ? error.message : `install failed and was undone (${phase}: ${errorText(error)})`;
-    if (tx && !tx.committed) {
-      try {
-        undo(tx.journal, runDir);
-      } catch (undoError) {
-        message += `; undo failed (${errorText(undoError)}); run fsd again to recover`;
-      }
-    }
-    return { status: kind, phase, message, warnings };
-  } finally {
-    process.off('SIGINT', onSignal);
-    process.off('SIGTERM', onSignal);
-  }
-}
-
-function newJournal(id: string, plan: Plan, startedAt: Date, runAncestors: string[], cacheCreated: boolean): Journal {
-  return { id, pid: process.pid, startedAt: startedAt.toISOString(), scope: plan.scope, runAncestors, cacheCreated, created: [], displaced: [], restore: [], committed: false };
+        // Register: the core commits when this returns.
+        enter('register');
+        register(tx, plan, now());
+      },
+    },
+    { ...options, now },
+  );
+  return outcome.status === 'done' ? { status: 'done', results: plan.results, warnings: outcome.warnings } : outcome;
 }
 
 // The catalog copy is made next to its destination first, and moved in place in Apply.
@@ -158,7 +89,7 @@ function stage(tx: Transaction, item: InstallItem, id: string): void {
 function applyItem(tx: Transaction, plan: Plan, item: PlanItem, id: string): void {
   if (item.kind === 'install') {
     if (exists(item.destination)) tx.displace(item.destination);
-    tx.move(stagingPath(item, id), item.destination);
+    tx.moveIn(stagingPath(item, id), item.destination);
     if (item.link) linkIn(tx, plan, item);
   } else if (item.kind === 'link') {
     linkIn(tx, plan, item);
