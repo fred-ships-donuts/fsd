@@ -20,7 +20,7 @@ For architecture details, see:
 | Recipe | Workflow definition |
 | Cookbook | Collection of Recipes (`nook/cookbook/`) |
 | Dough | FSD principles and foundation (see `FSD-DOUGH.md`) |
-| Kitchen | Conceptual project preparation layer |
+| Kitchen | Conceptual project preparation layer; also holds the per-delivery preparation documents (`nook/kitchen/<slug>/`) |
 | Bench | Active workspace directory for task folders |
 | Oven | Execution coordination layer |
 | Donuts (Artifacts) | Generated output |
@@ -31,6 +31,23 @@ For architecture details, see:
 | Context | Information provided during execution |
 | nook/ | User-facing workspace directory |
 | .fsd/ | Internal system directory (execution state) |
+
+---
+
+## Document chain
+
+Each delivery moves through six documents. Each one answers one question and points to the exact section of the one before it.
+
+| Donut name | Plain name | Owner | Question it answers |
+|---|---|---|---|
+| Craving | PRD | PM | What problem, for whom, what result, what is out? |
+| Flavor | SPEC | PM + Architect | What exact behavior: inputs, outputs, messages, edge cases? |
+| Rise | TECH REVIEW | Architect | Is the Flavor feasible, what are the risks and the discarded alternatives? |
+| Tray | PLAN | Architect | In what order do we deliver, and which files change? |
+| Step | TASK | Dev | What is one executable, verifiable step? |
+| Taste | QA REVIEW | QA | Does the real app meet the Flavor's acceptance? |
+
+Step is not a new term: the TASK stage is the existing Step (`NN-<slug>.yaml`). Paths are in `FSD-DIRECTORY-STRUCTURE.md`.
 
 ---
 
