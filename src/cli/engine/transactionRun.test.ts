@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, it } from 'node:test';
 import { realOps } from './ops.js';
@@ -84,6 +84,39 @@ describe('runTransaction', () => {
     assert.equal(outcome.status, 'done');
     assert.equal(existsSync(join(t.env.cwd, 'out/staged.txt')), true);
   });
+
+  it('2d. an injected failure in each phase undoes everything (prepare and apply; register is in run.test.ts 10e)', async () => {
+    for (const failIn of ['prepare', 'apply'] as const) {
+      const work: TransactionSpec<P, string>['work'] = async (tx, { enter, step }) => {
+        tx.ensureDirs(join(t.env.cwd, 'out'));
+        await step();
+        if (failIn === 'prepare') throw new Error('in prepare');
+        enter('apply');
+        mkdirSync(join(t.env.cwd, 'made'));
+        tx.symlink(t.env.cwd, join(t.env.cwd, 'made2'));
+        throw new Error('in apply');
+      };
+      const outcome = await runTransaction(spec({ work }), { now });
+      assert.equal(outcome.status, 'failed');
+      assert.equal((outcome as { message: string }).message, `demo failed and was undone (${failIn}: in ${failIn})`);
+      assert.equal(existsSync(join(t.env.cwd, 'out')), false);
+      assert.equal(existsSync(join(t.env.cwd, 'made2')), false);
+      assert.equal(existsSync(join(t.env.cwd, '.fsd')), false);
+      rmSync(join(t.env.cwd, 'made'), { recursive: true, force: true });
+    }
+  });
+
+  for (const signal of ['SIGINT', 'SIGTERM'] as const) {
+    it(`3c. ${signal} between two operations cancels and undoes; the handlers are removed afterwards`, async () => {
+      const before = process.listenerCount(signal);
+      const outcome = await runTransaction(spec({ work: async (tx, { step }) => { tx.ensureDirs(join(t.env.cwd, 'out')); process.emit(signal); await step(); throw new Error('not reached'); } }), { now });
+      assert.equal(outcome.status, 'cancelled');
+      assert.equal((outcome as { message: string }).message, 'cancelled (changes undone)');
+      assert.equal(existsSync(join(t.env.cwd, 'out')), false);
+      assert.equal(existsSync(join(t.env.cwd, '.fsd')), false);
+      assert.equal(process.listenerCount(signal), before);
+    });
+  }
 
   it('4. keepAncestors true keeps the cache the run created, false removes it', async () => {
     const keep = await runTransaction(spec({ keepAncestors: true }), { now });
