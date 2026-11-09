@@ -62,5 +62,5 @@ When the Install flow is confirmed, the CLI creates only the base structure: `no
 ## Decided (2026-11-07)
 
 - **Task format** (`SPEC.md` 4.5): a folder with `plan.md` and `NN-<slug>.yaml` steps. The task `status` is in the `plan.md` frontmatter (`in_progress`, `done`, `archived`); the step `status` is `pending`, `in_progress`, `done` or `skipped`.
-- **`.gitignore`** (`SPEC.md` 4.2): the Install flow adds `.fsd/cache/` and `.fsd/logs/` in the project scope (F-42, #8: not available yet).
+- **`.gitignore`** (`SPEC.md` 4.2): the Install flow adds `.fsd/cache/` and `.fsd/logs/` in the project scope.
 - **Who moves `rack` to `fridge`**: only `fsd task archive`, run by the user; the agent never does (F-40b, #7: not available yet).

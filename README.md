@@ -41,7 +41,7 @@ nook/bench/login-oauth/
 
 The skill `fsd-nook-tasks` (installed by the wizard) is what lets Claude Code work a task through these commands: the agent does the work, and the CLI only creates, reads, changes status and moves files. Only `fsd task archive`, run by you, moves a task from `rack` to `fridge`.
 
-The Install flow will also add `.fsd/cache/` and `.fsd/logs/` to the project `.gitignore` (F-42, #8: not available yet).
+The Install flow will also add `.fsd/cache/` and `.fsd/logs/` to the project `.gitignore`.
 
 ## Development
 
