@@ -7,6 +7,7 @@ import { addItem, emptyPlan, snapshotOf, type ActionResult, type Plan } from './
 // Links installed skills that have no link yet (SPEC 5.4). `names` empty = all of them.
 export function planLink(scope: Scope, names: string[], force: boolean, env: Env = realEnv()): Plan {
   const plan = emptyPlan(scope, env);
+  plan.label = 'enable';
   const registry = readRegistry(scope, env);
   for (const [name, entry] of Object.entries(registry.skills)) {
     if (names.length > 0 && !names.includes(name)) continue;

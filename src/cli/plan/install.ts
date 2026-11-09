@@ -103,5 +103,8 @@ export function planInstall(scope: Scope, requests: InstallRequest[], env: Env =
       result: result(state === 'outdated' ? 'upgrade' : 'install', variant.lang, note),
     });
   }
+  // Named by the first rule that matches: install > upgrade > enable.
+  const actions = plan.items.map((item) => item.result.action);
+  plan.label = actions.includes('install') ? 'install' : actions.includes('upgrade') ? 'upgrade' : 'enable';
   return plan;
 }
