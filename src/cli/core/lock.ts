@@ -1,4 +1,4 @@
-import { closeSync, existsSync, mkdirSync, openSync, readFileSync, rmdirSync, unlinkSync, writeSync } from 'node:fs';
+import { existsSync, linkSync, mkdirSync, readFileSync, rmdirSync, unlinkSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { isAlive } from './runJournal.js';
 
@@ -40,24 +40,22 @@ const pidIn = (raw: string | undefined): number | undefined => {
   }
 };
 
-/** True when the file was created by this call; false when it already exists. */
+/**
+ * True when the file was created by this call; false when it already exists. The content is written to a temp file and
+ * linked into place, so the lock never exists empty: linkSync fails with EEXIST atomically.
+ */
 function tryCreate(file: string, now: Date): boolean {
-  let fd: number;
+  const temp = `${file}.${process.pid}.tmp`;
+  writeFileSync(temp, JSON.stringify({ pid: process.pid, startedAt: now.toISOString() }));
   try {
-    fd = openSync(file, 'wx');
+    linkSync(temp, file);
+    return true;
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'EEXIST') return false;
     throw error;
+  } finally {
+    unlinkSync(temp);
   }
-  try {
-    writeSync(fd, JSON.stringify({ pid: process.pid, startedAt: now.toISOString() }));
-  } catch (error) {
-    closeSync(fd);
-    unlinkSync(file);
-    throw error;
-  }
-  closeSync(fd); // Windows cannot unlink an open file
-  return true;
 }
 
 function removeEmptyDirs(dirs: string[]): void {
@@ -82,7 +80,13 @@ export function acquireLock(cacheDir: string, now: () => Date = () => new Date()
       if (pid !== undefined && isAlive(pid)) throw new LockBusyError();
       // Stale: take it over once. Re-read first, so a lock another process just retook is not deleted (the residual
       // race between the re-read and the unlink is accepted). A second EEXIST means another process won.
-      if (readRaw(file) === raw) unlinkSync(file);
+      if (readRaw(file) === raw) {
+        try {
+          unlinkSync(file);
+        } catch (error) {
+          if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error; // the holder released meanwhile
+        }
+      }
       if (!tryCreate(file, now())) throw new LockBusyError();
     }
   } catch (error) {

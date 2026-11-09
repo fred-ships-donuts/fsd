@@ -1,11 +1,9 @@
-import { acquireLock, BUSY, LockBusyError } from '../core/lock.js';
+import { acquireLock, LockBusyError } from '../core/lock.js';
 import { liveRun } from '../core/runJournal.js';
 import { scopePaths, type Env } from '../core/scope.js';
 
 // Checks shared by the commands that write outside the engine (task new, task step): one place for the rule and its
 // message (SPEC 5.5).
-
-export { BUSY };
 
 /**
  * Runs `body` (the check and the write of a task command) holding `.fsd/cache/lock` (SPEC 5.5 "Gravação"). Throws
