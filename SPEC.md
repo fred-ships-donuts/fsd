@@ -367,7 +367,7 @@ Regras da instalação, aplicadas ao confirmar o resumo:
 6. Registra a skill em `.fsd/installed.json` do escopo (idioma, versão, caminho e datas). Nada é gravado dentro da pasta da skill. O registro é o último passo, gravado só depois da cópia e do link (quando há link) terem dado certo.
 7. Skill com um único idioma pula o passo de idioma (3) e instala esse idioma. Sem conflito algum, o passo Conflitos (4) também é pulado.
 8. A estrutura base (4.2) é criada pelo assistente na fase Preparar (6.9), depois da confirmação do resumo. `plan/install.ts` **não** a cria (só o destino da skill e o `installed.json`), para que `fsd update skill` nunca a crie.
-9. **Tudo ou nada:** a execução depois da confirmação acontece em fases (6.9). Se qualquer fase falhar, a CLI desfaz tudo o que a tentativa fez e devolve o que deslocou, reporta `install failed and was undone (<motivo>)` e sai com exit 1.
+9. **Tudo ou nada:** a execução depois da confirmação acontece em fases (6.9). Se qualquer fase falhar, a CLI desfaz tudo o que a tentativa fez e devolve o que deslocou, reporta `<ação> failed and was undone (<fase>: <motivo>)`, onde `<ação>` é `install`, `upgrade`, `remove` ou `enable` (a ação do plano; num plano misto vale a primeira que se aplica: install > upgrade > enable), e sai com exit 1. Se o desfazer também falhar, acrescenta `; undo failed (<motivo>); run fsd again to recover`.
 10. **Interrupção antes de confirmar.** Enquanto o resumo não é confirmado, nada é gravado: `ctrl+c` em qualquer passo (inclusive na tela do resumo, antes do `enter`) sai com 130 e deixa o disco idêntico ao de antes (sem `nook/`, `.fsd/`, `.claude/` nem `config.json` novos). Uma instalação feita logo em seguida, no fluxo normal, termina sem erro e sem sobras: uma pasta por skill em `.fsd/skills`, um único link por skill em `.claude/skills` apontando para ela, uma entrada por skill no registro, sem arquivos temporários nem cópias duplicadas, e as demais execuções (`skip (up to date)`) não mudam nada.
 11. **Interrupção durante a execução.** `ctrl+c` durante as fases desfaz a tentativa e sai com 130; se o processo morrer sem poder desfazer (kill, queda de energia), a próxima execução recupera pelo diário da execução, antes de qualquer outra coisa (6.9).
 
@@ -579,7 +579,7 @@ Regras comuns:
 | Estado mudou depois do resumo (conflito novo) | `state changed since the summary` (nada gravado) | 1 |
 | Outra execução do fsd em andamento | `another fsd run is in progress` | 1 |
 | Execução anterior interrompida encontrada | `recovered an interrupted run` (aviso; segue) | — |
-| Falha em uma fase | `install failed and was undone (<fase>: <motivo>)` | 1 |
+| Falha em uma fase | `<ação> failed and was undone (<fase>: <motivo>)`, `<ação>` = `install`, `upgrade`, `remove` ou `enable` | 1 |
 | Cancelado durante as fases | `cancelled (changes undone)` | 130 |
 | `fsd update skill <nome>` não instalada | `skill <nome> is not installed` | 1 |
 | `fsd update skill <nome>` fora do catálogo | `skill <nome> not found in catalog` | 1 |
