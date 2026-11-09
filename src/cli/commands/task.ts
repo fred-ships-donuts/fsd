@@ -63,7 +63,20 @@ const alreadyExists = (name: string, dir: TaskDir): TaskError => new TaskError(`
 // ---------------------------------------------------------------------------------------------------------------
 // task new
 
-export function taskNewCommand(rawTitle: string, options: TaskCommandOptions = {}): number {
+export interface TaskNewOptions {
+  json?: boolean;
+}
+
+// The `--json` contract with the agent (SPEC 5.5): within schema 1, fields are only ever added.
+export interface TaskNewJson {
+  schema: 1;
+  task: string;
+  path: string;
+}
+
+export const taskNewJson = (task: string, path: string): TaskNewJson => ({ schema: 1, task, path });
+
+export function taskNewCommand(rawTitle: string, newOptions: TaskNewOptions = {}, options: TaskCommandOptions = {}): number {
   const { io, env, now } = contextOf(options);
   return guarded(io, () => {
     const { title, slug: name } = slugOf(rawTitle);
@@ -80,7 +93,8 @@ export function taskNewCommand(rawTitle: string, options: TaskCommandOptions = {
       if (error instanceof FileChangedError) throw alreadyExists(name, 'bench');
       throw error;
     }
-    io.out(`created ${nookRel('bench', name, PLAN_FILE)}`);
+    const path = nookRel('bench', name, PLAN_FILE);
+    io.out(newOptions.json ? JSON.stringify(taskNewJson(name, path), null, 2) : `created ${path}`);
     return EXIT_OK;
   });
 }
@@ -160,7 +174,18 @@ export function parseStepNumber(raw: string): number {
 
 export interface StepAddOptions {
   description?: string;
+  json?: boolean;
 }
+
+// The `--json` contract with the agent (SPEC 5.5): within schema 1, fields are only ever added.
+export interface TaskStepAddJson {
+  schema: 1;
+  task: string;
+  step: number;
+  path: string;
+}
+
+export const taskStepAddJson = (task: string, step: number, path: string): TaskStepAddJson => ({ schema: 1, task, step, path });
 
 export function taskStepAddCommand(name: string, rawTitle: string, addOptions: StepAddOptions, options: TaskCommandOptions = {}): number {
   const { io, env, now } = contextOf(options);
@@ -168,14 +193,16 @@ export function taskStepAddCommand(name: string, rawTitle: string, addOptions: S
     const task = benchTask(env, name);
     const { title, slug: stepSlug } = slugOf(rawTitle);
     refuseWhenBusy(env);
-    const file = stepFileName(nextStepNumber(task), stepSlug);
+    const number = nextStepNumber(task);
+    const file = stepFileName(number, stepSlug);
     try {
       createTextFile(join(task.path, file), newStep(title, addOptions.description, now()));
     } catch (error) {
       if (error instanceof FileChangedError) throw changedError(task, file);
       throw error;
     }
-    io.out(`created ${nookRel('bench', task.slug, file)}`);
+    const path = nookRel('bench', task.slug, file);
+    io.out(addOptions.json ? JSON.stringify(taskStepAddJson(task.slug, number, path), null, 2) : `created ${path}`);
     return EXIT_OK;
   });
 }
