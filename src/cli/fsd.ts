@@ -4,7 +4,7 @@ import { Command } from 'commander';
 import { normalizeArgs } from './args.js';
 import { initCommand } from './commands/init.js';
 import { linkSkillsCommand } from './commands/link.js';
-import { taskListCommand, taskNewCommand, taskStepAddCommand, taskStepStatusCommand } from './commands/task.js';
+import { taskListCommand, taskMoveCommand, taskNewCommand, taskStepAddCommand, taskStepStatusCommand } from './commands/task.js';
 import { updateCliCommand, updateSkillsCommand } from './commands/update.js';
 import { version } from './core/package.js';
 
@@ -52,6 +52,17 @@ function buildProgram(done: (code: number) => void): Command {
     .option('--all', 'also list nook/fridge')
     .option('--json', 'print one JSON object (the format the agent reads)')
     .action((options: { all?: boolean; json?: boolean }) => done(taskListCommand({ all: options.all === true, json: options.json === true })));
+
+  task
+    .command('done')
+    .argument('<task>', 'the task slug')
+    .description('move a task of nook/bench with every step closed to nook/rack')
+    .action(async (name: string) => done(await taskMoveCommand('done', name)));
+  task
+    .command('archive')
+    .argument('<task>', 'the task slug')
+    .description('move a task of nook/rack to nook/fridge')
+    .action(async (name: string) => done(await taskMoveCommand('archive', name)));
 
   const step = task.command('step').description('add steps to a task of nook/bench and change their status');
   step
