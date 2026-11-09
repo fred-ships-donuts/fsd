@@ -7,10 +7,15 @@ export interface Ops {
   mkdir(path: string): void;
   copyDir(from: string, to: string): void;
   copyFile(from: string, to: string): void;
+  // Falls back to copy + remove across filesystems: for staging copies, which can be made again.
   move(from: string, to: string): void;
+  // A plain rename, never a copy: for the user's own folders, which a half-made copy would damage.
+  rename(from: string, to: string): void;
   remove(path: string): void;
   symlink(target: string, link: string): void;
+  // The run's journal.
   writeJson(file: string, data: unknown): void;
+  // The files a run rewrites (registry, config, task files).
 }
 
 export const realOps: Ops = {
@@ -26,6 +31,7 @@ export const realOps: Ops = {
       rmSync(from, { recursive: true, force: true });
     }
   },
+  rename: (from, to) => renameSync(from, to),
   remove: (path) => rmSync(path, { recursive: true, force: true }),
   symlink: (target, link) => symlinkSync(target, link, process.platform === 'win32' ? 'junction' : 'dir'),
   writeJson: (file, data) => writeJsonAtomic(file, data),

@@ -44,5 +44,10 @@
   "include": [
     "src/**/*.ts",
     "src/**/*.tsx"
+  ],
+  // Tests and their helpers run with tsx (`npm test`); they are not part of the build.
+  "exclude": [
+    "src/**/*.test.ts",
+    "src/**/testkit.ts"
   ]
 }
