@@ -7,7 +7,7 @@ Fluxo de trabalho do projeto, seguindo o modelo do GitHub: **issue → branch �
 | Papel | Quem | Conta no GitHub | O que faz |
 |---|---|---|---|
 | Autor | Frederico Jacobi | `fredericojacobi` | Decide o produto e é o único que faz o merge na `main`. |
-| Product Manager | Kevin (agente) | `fsd-kevin[bot]` | Mantém issues, milestones, labels e o Project; registra as decisões do autor nos issues; mantém a `SPEC.md`, o `TASKS.md` e este arquivo. Revisa os PRs quanto ao escopo e ao aceite. É o único que mescla na `develop`, por squash, os PRs aprovados. |
+| Product Manager | Kevin (agente) | `fsd-kevin[bot]` | Mantém issues, milestones, labels e o Project; registra as decisões do autor nos issues; mantém a `SPEC.md`, o `TASKS.md` e este arquivo. Revisa os PRs quanto ao escopo e ao aceite. É o único que mescla na `develop` os PRs aprovados. |
 | Arquiteto | Mel (agente) | `fsd-mel[bot]` | Prepara cada issue para o desenvolvimento (comentário **Arquiteto: passagem**) e revisa o código dos PRs. Mantém o `docs/ARQUITETURA.md`. |
 | Desenvolvedor | Stuart (agente) | `fsd-stuart[bot]` | Implementa o issue num branch, abre o PR e responde às revisões. |
 | QA | Bob (agente) | `fsd-bob[bot]` | Verifica o PR rodando o app real contra o aceite do issue. Aprova ou pede mudanças, e abre issue de bug para o que estiver fora do escopo. Não corrige código. |
@@ -49,7 +49,8 @@ Todo trabalho começa num issue: uma task, um bug, uma ideia, uma decisão pende
 
 ## 3. Branch
 
-- Um branch por issue, a partir da `origin/develop` atualizada: `git fetch origin && git switch -c feature/6-transaction-core origin/develop`.
+- Um branch por issue, a partir da `develop` atualizada: `git checkout develop && git pull && git checkout -b feature/6-transaction-core`.
+- Git só com os comandos simples: `checkout`, `branch`, `commit`, `pull`, `push` e `merge`. Para trazer a `develop` para o branch: `git pull origin develop` (é um merge). Sem rebase, squash, cherry-pick nem reset.
 - Nome: `<tipo>/<número>-<slug>`, com o slug em minúsculas e hífens. Os tipos são:
   - `feature/`: funcionalidade;
   - `fix/`: correção;
@@ -65,11 +66,11 @@ Todo trabalho começa num issue: uma task, um bug, uma ideia, uma decisão pende
 - O Arquiteto revisa no PR. A revisão separa **bloqueia** de **melhoria** e é publicada como revisão do PR.
 - O QA verifica e publica uma revisão: aprova se tudo passou, ou pede mudanças com o passo a passo para reproduzir.
 - O Stuart responde com commits novos, sem force-push.
-- O Kevin (PM) mescla na `develop` com `gh pr merge <n> --squash`. O merge fecha o issue, e o card vai para Done. Nenhum outro agente roda `gh pr merge`.
+- O Kevin (PM) mescla na `develop` com `gh pr merge <n> --merge` (merge comum). O merge fecha o issue, e o card vai para Done. Nenhum outro agente roda `gh pr merge`.
 - Mudanças só de documentação (`SPEC.md`, `TASKS.md`, `CONTRIBUTING.md`, `docs/`) também entram por PR.
 
 Regras da `develop`:
-- o merge é só por **squash**;
+- o merge é um **merge comum** (merge commit), sem squash nem rebase: assim um branch que saiu de outro continua reconhecendo os commits já mesclados e não dá conflito à toa;
 - precisa de **1 aprovação de outro agente**, nunca do autor do PR;
 - um push novo derruba as aprovações, e a aprovação tem que vir depois do último push. Depois de uma correção, quem aprovou aprova de novo;
 - todas as conversas da revisão precisam estar resolvidas, sem nenhum pedido de mudança em aberto;
@@ -77,7 +78,7 @@ Regras da `develop`:
 
 A `main` é do autor e é protegida pelo ruleset `ProtMain`:
 - ela recebe só o PR `develop → main`, e só o autor o mescla;
-- o merge é só por **squash**, com histórico linear;
+- o merge é um **merge comum** (merge commit), sem squash nem rebase;
 - precisa de **1 aprovação**, de alguém que não é o autor do PR, vinda depois do último push;
 - todas as conversas da revisão precisam estar resolvidas;
 - ninguém dá push direto nem apaga a `main`.
