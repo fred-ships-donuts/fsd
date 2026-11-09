@@ -21,10 +21,11 @@ For architecture details, see:
 | Cookbook | Collection of Recipes (`nook/cookbook/`) |
 | Dough | FSD principles and foundation (see `FSD-DOUGH.md`) |
 | Kitchen | Conceptual project preparation layer |
-| Bench | Active workspace directory for tasks |
+| Bench | Active workspace directory for task folders |
 | Oven | Execution coordination layer |
 | Donuts (Artifacts) | Generated output |
 | Rack | Showcase layer for finished work |
+| Step | A `NN-<slug>.yaml` in a task folder; the unit the agent starts and finishes |
 | Fridge | Archiving and long-term storage layer |
 | Craft | Baker specialization description |
 | Context | Information provided during execution |
@@ -75,13 +76,13 @@ It describes how different capabilities are combined to produce a result. Recipe
 
 ### Bench
 
-The Bench is the active workspace directory (`nook/bench/`) where task definitions and inputs reside before being processed. It does not store logs or execution state.
+The Bench is the active workspace directory (`nook/bench/`) where task folders (`plan.md` and steps) reside while they are worked on. It does not store logs or execution state.
 
 ---
 
 ### Fridge
 
-The Fridge (`nook/fridge/`) is the cold storage and archiving layer used to preserve completed tasks and past work. It does not store logs or execution state.
+The Fridge (`nook/fridge/`) is the cold storage and archiving layer used to preserve archived task folders and past work. It does not store logs or execution state.
 
 ---
 
@@ -97,6 +98,12 @@ The Dough is the set of principles that guide FSD decisions. See `FSD-DOUGH.md`.
 
 ---
 
+### Step
+
+A Step is a `NN-<slug>.yaml` file in a task folder. It has a `title`, a `status` (`pending`, `in_progress`, `done` or `skipped`) and an optional `description`. It is the unit the agent starts and finishes (`fsd task step start|done|skip`).
+
+---
+
 ### Oven
 
 The Oven is the execution coordination layer. It manages the execution lifecycle and invokes workflows. Its runtime state lives in `.fsd/oven/`.
@@ -105,7 +112,7 @@ The Oven is the execution coordination layer. It manages the execution lifecycle
 
 ### Rack
 
-The Rack (`nook/rack/`) is the showcase layer where completed tasks (`status: done`) and delivered Donuts are placed for review.
+The Rack (`nook/rack/`) is the showcase layer where completed task folders (`status: done`) and delivered Donuts are placed for review.
 
 ---
 
