@@ -42,10 +42,10 @@ Each delivery moves through six documents. Each one answers one question and poi
 |---|---|---|---|
 | Craving | PRD | PM | What problem, for whom, what result, what is out? |
 | Flavor | SPEC | PM + Architect | What exact behavior: inputs, outputs, messages, edge cases? |
-| Rise | TECH REVIEW | Architect | Is the Flavor feasible, what are the risks and the discarded alternatives? |
+| Rise | TECH REVIEW | Architect | Is the specified behavior feasible, what are the risks and the discarded alternatives? |
 | Tray | PLAN | Architect | In what order do we deliver, and which files change? |
 | Step | TASK | Dev | What is one executable, verifiable step? |
-| Taste | QA REVIEW | QA | Does the real app meet the Flavor's acceptance? |
+| Taste | QA REVIEW | QA | Does the real app meet the acceptance criteria? |
 
 Step is not a new term: the TASK stage is the existing Step (`NN-<slug>.yaml`). Paths are in `FSD-DIRECTORY-STRUCTURE.md`.
 
