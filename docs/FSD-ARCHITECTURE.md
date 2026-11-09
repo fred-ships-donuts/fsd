@@ -93,7 +93,7 @@ Responsibilities:
 - host active task folders and their steps;
 - keep the work of a task in one place: in this version the **agent** (Claude Code, guided by the `fsd-nook-tasks` skill) does the work, and the CLI only creates, reads, changes status and moves files.
 
-The Bench does not store logs or execution state. The `status` of a task lives in the task file itself; logs and execution state live in `.fsd/logs` and `.fsd/oven`.
+The Bench does not store logs or execution state. The `status` of a task lives in the task file itself; logs live in `.fsd/logs`. There is no execution state in this version.
 
 ---
 
@@ -255,7 +255,7 @@ The `nook/` directory serves as the user-friendly interface store where develope
 
 The `.fsd/` directory contains internal, "under the hood" execution mechanisms managed automatically by the CLI:
 
-- **`.fsd/oven/`**: Execution engine orchestration state and runtime metadata.
+- **`.fsd/oven/`**: Reserved. The Oven is conceptual in this version and holds no state here.
 - **`.fsd/cache/`**: Internal resolution caches and temporary process data.
 - **`.fsd/logs/`**: Execution logs and diagnostic metadata.
 
@@ -270,7 +270,7 @@ my-project/
 │   └── fridge/            # Cold storage archive
 │
 └── .fsd/                  # Internal system & execution state
-    ├── oven/              # Runtime coordination engine
+    ├── oven/              # Reserved (Oven holds no state yet)
     ├── cache/             # System caches
     └── logs/              # Execution logs
 ```
