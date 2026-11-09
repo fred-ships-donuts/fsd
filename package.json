@@ -5,6 +5,7 @@
   "main": "dist/cli/fsd.js",
   "scripts": {
     "dev": "tsx src/cli/fsd.ts",
+    "prepack": "npm run build",
     "test": "node --import tsx --test \"src/**/*.test.ts\"",
     "build": "tsc",
     "start": "node dist/cli/fsd.js",
@@ -31,7 +32,9 @@
   },
   "files": [
     "dist",
-    "src/skills"
+    "src/skills",
+    "!src/skills/**/evals",
+    "!src/skills/**/README.md"
   ],
   "engines": {
     "node": ">=22"
