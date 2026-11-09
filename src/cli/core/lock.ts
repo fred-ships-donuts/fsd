@@ -1,4 +1,4 @@
-import { existsSync, linkSync, mkdirSync, readFileSync, rmdirSync, unlinkSync, writeFileSync } from 'node:fs';
+import { closeSync, existsSync, mkdirSync, openSync, readFileSync, rmdirSync, statSync, unlinkSync, writeSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { isAlive } from './runJournal.js';
 
@@ -41,22 +41,34 @@ const pidIn = (raw: string | undefined): number | undefined => {
 };
 
 /**
- * True when the file was created by this call; false when it already exists. The content is written to a temp file and
- * linked into place, so the lock never exists empty: linkSync fails with EEXIST atomically.
+ * True when the file was created by this call (`openSync` with `wx`, i.e. O_EXCL); false when it already exists.
+ * Between the open and the write the file is briefly empty: a reader treats an empty file younger than FRESH_MS as busy.
  */
 function tryCreate(file: string, now: Date): boolean {
-  const temp = `${file}.${process.pid}.tmp`;
-  writeFileSync(temp, JSON.stringify({ pid: process.pid, startedAt: now.toISOString() }));
+  let fd: number;
   try {
-    linkSync(temp, file);
-    return true;
+    fd = openSync(file, 'wx');
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'EEXIST') return false;
     throw error;
-  } finally {
-    unlinkSync(temp);
   }
+  try {
+    writeSync(fd, JSON.stringify({ pid: process.pid, startedAt: now.toISOString() }));
+  } finally {
+    closeSync(fd);
+  }
+  return true;
 }
+
+const FRESH_MS = 2000;
+
+const isFresh = (file: string): boolean => {
+  try {
+    return Date.now() - statSync(file).mtimeMs < FRESH_MS;
+  } catch {
+    return false;
+  }
+};
 
 function removeEmptyDirs(dirs: string[]): void {
   for (const dir of [...dirs].reverse()) {
@@ -77,7 +89,7 @@ export function acquireLock(cacheDir: string, now: () => Date = () => new Date()
     if (!tryCreate(file, now())) {
       const raw = readRaw(file);
       const pid = pidIn(raw);
-      if (pid !== undefined && isAlive(pid)) throw new LockBusyError();
+      if ((pid !== undefined && isAlive(pid)) || (pid === undefined && isFresh(file))) throw new LockBusyError();
       // Stale: take it over once. Re-read first, so a lock another process just retook is not deleted (the residual
       // race between the re-read and the unlink is accepted). A second EEXIST means another process won.
       if (readRaw(file) === raw) {
