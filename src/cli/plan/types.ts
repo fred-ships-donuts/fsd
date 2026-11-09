@@ -62,6 +62,8 @@ export interface Plan {
   errors: string[];
   ensureBase: boolean;
   config?: Config;
+  // Text files the run writes in Apply, with the text each held when planned (the project `.gitignore`).
+  textFiles?: Array<{ path: string; content: string; expected: string | null }>;
 }
 
 export interface PlanExtras {

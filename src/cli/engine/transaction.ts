@@ -65,7 +65,19 @@ export class Transaction {
    * are copied to `backup-<n>` (n: the index of the file's action) and recorded before any file is written.
    */
   writeJsonFiles(files: Array<[string, unknown]>): void {
-    for (const [path] of files) {
+    this.backUp(files.map(([path]) => path));
+    for (const [path, data] of files) this.ops.writeJson(path, data);
+  }
+
+  /** The same for text files; `expected` (the text the file held when planned) makes a change in between a FileChangedError. */
+  writeTextFiles(files: Array<{ path: string; content: string; expected?: string | null }>): void {
+    this.backUp(files.map((file) => file.path));
+    for (const { path, content, expected } of files) this.ops.writeText(path, content, expected);
+  }
+
+  // Copy the original to `backup-<n>` first, then record the restore; the writes come after every file is recorded.
+  private backUp(paths: string[]): void {
+    for (const path of paths) {
       let backup: string | null = null;
       if (exists(path)) {
         backup = join(this.runDir, `backup-${this.journal.actions.length}`);
@@ -73,7 +85,6 @@ export class Transaction {
       }
       this.record({ kind: 'restore', path, backup });
     }
-    for (const [path, data] of files) this.ops.writeJson(path, data);
   }
 
   /** The point of no return: from here on the run is finished, not undone. */
