@@ -393,8 +393,8 @@ Depois de confirmar o resumo, cada skill mostra uma linha de resultado (`install
 - Temas: **Donut** (padrão, cores do emoji 🍩 na fonte Noto Color Emoji: cobertura de chocolate, massa dourada e laranja, cobertura rosa, granulado azul e vermelho), **Morango**, **Chocolate ao leite** e **Granulado**. As três últimas são alternativas à Donut para comparação; os valores estão em `docs/PALETAS-DONUT.md`.
 - O passo **Tema** do fluxo Instalar (6) escolhe o tema e mostra a pré-visualização na própria tela. O tema gravado é o que vale desde a abertura da CLI.
 - O campo `theme` do `config.json` (8.2) guarda o nome do tema. Um valor desconhecido cai no Donut.
-- Os símbolos (marcador de seleção, setas, preenchimento da barra) são um conjunto único, Unicode; não há escolha de símbolos.
-- A utilidade do tema além da aparência será definida depois pelo autor; a spec não assume nenhuma.
+- Os símbolos (marcador de seleção, setas, preenchimento da barra) são um conjunto único, Unicode; não há escolha de símbolos nem alternativa ASCII na v1 (decidido em 2026-11-09, #14).
+- Os quatro temas ficam; não há paleta única final. Na v1 o tema é só aparência, sem outra utilidade (decidido em 2026-11-09, #15).
 
 ### 6.6 Entrada sem terminal
 
@@ -403,10 +403,10 @@ O assistente nunca abre sem TTY (`fsd init`). Ver 5.1.
 ### 6.7 Pendências do layout
 
 1. ~~**Logotipo e itens do cabeçalho**~~: decidido, e descrito por inteiro em 6.10 (a rosquinha, o nome, o layout responsivo e os testes). O emoji 🍩 é gerado uma vez a partir da fonte Noto Color Emoji e guardado em `emojiDonut.ts` (a CLI não depende da fonte em tempo de execução). O destino (`~/.fsd/skills`) saiu do cabeçalho.
-2. **Posição do idioma**: confirmar que o passo de idioma fica logo após o passo 2.
-3. **Símbolos**: o conjunto Unicode único atual é provisório; falta decidir se há alternativa para terminais sem Unicode.
+2. ~~**Posição do idioma**~~: decidido (2026-11-09, #16): o passo de idioma fica logo após o passo 2, porque depende das skills escolhidas.
+3. ~~**Símbolos**~~: decidido (2026-11-09, #14): o conjunto Unicode único é o definitivo; sem alternativa ASCII na v1.
 4. ~~**Largura do terminal**~~: decidido em 6.10 e 6.11: o cabeçalho segue a janela a partir de 17 linhas e 18 colunas (os mínimos exatos estão em 6.10; abaixo deles, o cabeçalho de uma linha), e o corpo corta o que não cabe em vez de comprimir.
-5. **Paleta final**: escolher entre Donut, Morango, Chocolate ao leite e Granulado (6.5).
+5. ~~**Paleta final**~~: decidido (2026-11-09, #15): os quatro temas continuam no passo Tema, com Donut como padrão (6.5).
 
 ### 6.8 Fluxo Apagar
 
@@ -703,7 +703,7 @@ src/
 
 ## 11. Testes
 
-Os testes foram removidos do projeto por decisão do autor (2026-11-07). Esta seção fica como a lista do que cobrir caso eles voltem.
+Os testes foram removidos do projeto por decisão do autor (2026-11-07). Em 2026-11-09 (#13) voltam só os do `engine/`, com `node:test` e sem dependência nova: fases, desfazer, recuperação e diário v1 → v2 (itens **Rollback**, **Fases** e **Recuperação** abaixo). Eles entram com a F-40a (#6). O resto da lista continua como referência caso os outros testes voltem.
 
 - **Unitários** (`node:test`): `listSkills`, `skillsTarget`, leitura de frontmatter, comparação de versões, filtro de `evals/` e `README.md`.
 - **Registro e configuração**: `registry.ts` e `config.ts` (arquivo ausente, ilegível e de `schema` desconhecido; gravação atômica; estados `not installed`, `up to date`, `outdated`, `missing`).
@@ -788,10 +788,10 @@ Os testes foram removidos do projeto por decisão do autor (2026-11-07). Esta se
 **Pendente (itens do autor)**
 
 - **Revisão desta spec (conflito, `--force`, interrupção, testes):** ver a seção "Pontos para a revisão" no `TASKS.md`.
-- **Layout**: o cabeçalho (rosquinha, nome, 35% da altura, 80 × 24 como partida) está decidido em 6.10; pendem a posição do idioma, os símbolos Unicode e a paleta final (6.7). A estética das letras de 2 e 4 linhas e a definição da rosquinha de 6 linhas seguem em evolução.
-- **Utilidade do tema**: será definida pelo autor depois; a spec não assume nenhuma.
-- **Próximas fatias do `nook/`**: Kitchen (contexto e regras que a skill carrega), Cookbook (formato das recipes), Bakers (formato e craft), quem leva a task do `rack` ao `fridge` além do comando, e se o Oven passa a ter estado em `.fsd/oven/`.
-- **Revisar (decisões minhas)**: `update skill` cobre os escopos global e projeto (o de projeto só se existir `./.fsd/installed.json`); `updateSkills` vem desligado por padrão e é configurado no passo 4; não há flag para pular o auto-update, só a opção salva (se quiser `fsd init --no-update`, acrescentar); `fsd update` ignora o limite de 24 h.
+- **Layout**: o cabeçalho (rosquinha, nome, 35% da altura, 80 × 24 como partida) está decidido em 6.10; a posição do idioma, os símbolos e a paleta foram decididos em 2026-11-09 (6.7). A estética das letras de 2 e 4 linhas e a definição da rosquinha de 6 linhas seguem em evolução.
+- **Próximas fatias do `nook/`** (fora da Fase 6 e da v1, decidido em 2026-11-09): na ordem Kitchen (#20), Cookbook (#21) e Bakers (#22). O Oven continua conceitual, sem estado em `.fsd/oven/`, e `fsd task archive` é o único caminho do `rack` ao `fridge` (#23).
+- ~~**Revisar**~~: confirmado em 2026-11-09 (#17): `update skill` cobre os escopos global e projeto (o de projeto só se existir `./.fsd/installed.json`); `updateSkills` vem desligado por padrão; não há `fsd init --no-update`; `fsd update` ignora o limite de 24 h.
+- **Publicação da v1** (#12, decidido em 2026-11-09): no fim da Fase 6. Antes dela, uma task de preparo confere o pacote com `npm pack` e instala e roda o tarball (via `npx` e global) num `HOME` temporário.
 
 ## Apêndice A — Bibliotecas de interface avaliadas
 
