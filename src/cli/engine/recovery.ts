@@ -1,6 +1,6 @@
 import { readdirSync } from 'node:fs';
 import { exists } from '../core/fs.js';
-import { isAlive, pidOf, readJournal, runDirs, type Journal } from '../core/runJournal.js';
+import { liveRun, readJournal, runDirs, type Journal } from '../core/runJournal.js';
 import { realOps } from './ops.js';
 
 // Undoing a run from its journal, and recovering runs whose process is gone (SPEC 6.9). Uses the real operations only.
@@ -52,11 +52,11 @@ export function discard(journal: Journal, runDir: string, keepAncestors: boolean
   if (!keepAncestors) removeEmptyAncestors(journal);
 }
 
-// Recovers runs whose process is gone; stops if another live run exists.
+// Recovers runs whose process is gone; stops, before touching anything, if another live run exists.
 export function recoverRuns(cacheDir: string, warnings: string[], self?: string): void {
+  if (liveRun(cacheDir, self)) throw new Stop('busy', 'another fsd run is in progress');
   for (const runDir of runDirs(cacheDir)) {
     if (runDir === self) continue;
-    if (isAlive(pidOf(runDir))) throw new Stop('busy', 'another fsd run is in progress');
     const journal = readJournal(runDir);
     if (!journal) realOps.remove(runDir);
     else if (journal.committed) discard(journal, runDir, journal.runAncestors.length === 0);
