@@ -51,8 +51,10 @@ Todo trabalho começa num issue: uma task, um bug, uma ideia, uma decisão pende
 ## 3. Branch
 
 - Um branch por issue, num worktree próprio criado a partir da `develop` por `fsd-dev start <n>` (ou `fsd-dev start - <slug> --docs` para documentação). Ninguém troca de branch na pasta principal.
-- Git só com os comandos simples: `checkout`, `branch`, `commit`, `pull`, `push` e `merge`. Para trazer a `develop` para o branch: `git pull origin develop` (é um merge). Sem rebase, squash, cherry-pick nem reset.
-- Nome: `<tipo>/<número>-<slug>`, com o slug em minúsculas e hífens. Os tipos são:
+- Git só com os comandos simples: `checkout`, `branch`, `commit`, `pull`, `push` e `merge`. Sem rebase, squash, cherry-pick nem `reset --hard`.
+- **Poucos commits:** 1 commit por PR e 1 por rodada de correção. Antes do push, os commits locais são juntados num só com `git reset --soft <base>` seguido de um commit; nada de `wip`, `fix typo` ou `checkpoint`. O `fsd-pr open` recusa o push com mais de 1 commit novo e mostra o comando para juntar.
+- `fsd-dev sync` (traz a `develop` para o branch, por merge) só quando o PR está em conflito.
+- Nome: `<tipo>/<número>-<slug>`, com o slug em minúsculas e hífens, por exemplo `feature/6-transaction-core`. Os tipos são:
   - `feature/`: funcionalidade;
   - `fix/`: correção;
   - `docs/`: só documentação;
@@ -66,7 +68,7 @@ Todo trabalho começa num issue: uma task, um bug, uma ideia, uma decisão pende
 - Um PR por issue, com base na `develop` (`fsd-pr open`). O corpo traz `Closes #N`, como foi verificado e os desvios da `SPEC.md` (de preferência nenhum).
 - O Arquiteto revisa no PR. A revisão separa **bloqueia** de **melhoria** e é publicada como revisão do PR.
 - O QA verifica e publica uma revisão: aprova se tudo passou, ou pede mudanças com o passo a passo para reproduzir.
-- O Stuart responde com commits novos, sem force-push.
+- O Stuart responde com um commit novo por rodada de correção, sem force-push.
 - Com 2 aprovações, o autor do PR mescla na `develop` com `fsd-merge <n>` (merge comum). O merge fecha o issue, e o card vai para Done. PR de agente pronto e parado há 10 minutos, o Kevin mescla com `fsd-merge --ready`.
 - Mudanças só de documentação (`SPEC.md`, `TASKS.md`, `CONTRIBUTING.md`, `docs/`) também entram por PR.
 
