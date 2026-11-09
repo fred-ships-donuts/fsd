@@ -4,8 +4,7 @@ import { findStep, findTask, hasNook, invalidText, isProjectRoot, listTasks, loc
 import { changedMessage, invalidMessage, LIST_ALL, nookRel, notFoundMessage, notInBenchMessage, planTaskMove, type TaskMoveCommand } from '../plan/task.js';
 import { runTaskMove, type TaskMove } from '../engine/taskRun.js';
 import { recoverRuns, Stop } from '../engine/recovery.js';
-import { scopePaths } from '../core/scope.js';
-import { realEnv, type Env } from '../core/scope.js';
+import { realEnv, scopePaths, type Env } from '../core/scope.js';
 import { normalizeTitle, slug } from '../core/slug.js';
 import { InvalidTaskFileError, newPlan, newStep, PLAN_FILE, setStepStatus, stepFileName, stepLabel, type StepStatus } from '../core/taskFiles.js';
 import { EXIT_CANCELLED, EXIT_FAILED, EXIT_OK } from '../exitCodes.js';
@@ -33,7 +32,6 @@ const contextOf = (options: TaskCommandOptions): Context => ({ io: options.io ??
 class TaskError extends Error {}
 
 const NOT_ROOT = 'no nook/ or .fsd/ here: run from the project root';
-export { nookRel };
 
 // Runs a command body: a TaskError is the message, anything else is reported in one line, never as a stack trace.
 function guarded(io: Io, body: () => number): number {
