@@ -1,10 +1,13 @@
 import { join } from 'node:path';
 import { createTextFile, FileChangedError, updateTextFile } from '../core/fs.js';
 import { findStep, findTask, hasNook, invalidText, isProjectRoot, listTasks, locateTask, nextStepNumber, nookPaths, stepCounts, TASK_DIRS, type StepCounts, type Task, type TaskDir } from '../core/nook.js';
-import { realEnv, type Env } from '../core/scope.js';
+import { changedMessage, invalidMessage, LIST_ALL, nookRel, notFoundMessage, notInBenchMessage, planTaskMove, type TaskMoveCommand } from '../plan/task.js';
+import { runTaskMove, type TaskMove } from '../engine/taskRun.js';
+import { recoverRuns, Stop } from '../engine/recovery.js';
+import { realEnv, scopePaths, type Env } from '../core/scope.js';
 import { normalizeTitle, slug } from '../core/slug.js';
 import { InvalidTaskFileError, newPlan, newStep, PLAN_FILE, setStepStatus, stepFileName, stepLabel, type StepStatus } from '../core/taskFiles.js';
-import { EXIT_FAILED, EXIT_OK } from '../exitCodes.js';
+import { EXIT_CANCELLED, EXIT_FAILED, EXIT_OK } from '../exitCodes.js';
 import { busyError } from './guards.js';
 import { consoleIo, type Io } from './io.js';
 
@@ -29,10 +32,6 @@ const contextOf = (options: TaskCommandOptions): Context => ({ io: options.io ??
 class TaskError extends Error {}
 
 const NOT_ROOT = 'no nook/ or .fsd/ here: run from the project root';
-const LIST_ALL = '(run: fsd task list --all)';
-
-// Paths in messages are relative to the project, with `/` on every platform.
-export const nookRel = (...parts: string[]): string => ['nook', ...parts].join('/');
 
 // Runs a command body: a TaskError is the message, anything else is reported in one line, never as a stack trace.
 function guarded(io: Io, body: () => number): number {
@@ -138,21 +137,17 @@ export function taskListCommand(listOptions: TaskListOptions, options: TaskComma
 // ---------------------------------------------------------------------------------------------------------------
 // task step add | start | done | skip
 
-const invalidError = (task: Task): TaskError => {
-  const invalid = task.invalid as NonNullable<Task['invalid']>;
-  const file = invalid.file === '.' || invalid.file === task.slug ? nookRel(task.dir, task.slug) : nookRel(task.dir, task.slug, invalid.file);
-  return new TaskError(`task ${task.slug} is invalid: ${invalidText(invalid)} (fix ${file} and run again)`);
-};
+const invalidError = (task: Task): TaskError => new TaskError(invalidMessage(task));
 
-const changedError = (task: Task, file: string): TaskError => new TaskError(`${nookRel(task.dir, task.slug, file)} changed while writing, try again`);
+const changedError = (task: Task, file: string): TaskError => new TaskError(changedMessage(nookRel(task.dir, task.slug, file)));
 
 /** The task the step commands work on: it must exist, be readable and be on the bench (SPEC 4.5 "Ciclo"). */
 function benchTask(env: Env, name: string): Task {
   if (!hasNook(env)) throw new TaskError(NOT_ROOT);
   const task = findTask(env, name);
-  if (!task) throw new TaskError(`task ${name} not found ${LIST_ALL}`);
+  if (!task) throw new TaskError(notFoundMessage(name));
   if (task.invalid) throw invalidError(task);
-  if (task.dir !== 'bench') throw new TaskError(`task ${name} is not in nook/bench: it is in ${nookRel(task.dir)} (run: fsd task new "<new title>")`);
+  if (task.dir !== 'bench') throw new TaskError(notInBenchMessage(task));
   return task;
 }
 
@@ -213,4 +208,44 @@ export function taskStepStatusCommand(name: string, rawNumber: string, status: S
     io.out(result.changed ? `step ${step.label} ${status}` : `step ${step.label} already ${status}`);
     return EXIT_OK;
   });
+}
+
+// ---------------------------------------------------------------------------------------------------------------
+// task done | archive
+
+export interface TaskMoveCommandOptions extends TaskCommandOptions {
+  run?: Parameters<typeof runTaskMove>[2];
+}
+
+export async function taskMoveCommand(command: TaskMoveCommand, name: string, options: TaskMoveCommandOptions = {}): Promise<number> {
+  const { io, env, now } = contextOf(options);
+  let move: TaskMove;
+  try {
+    if (!hasNook(env)) throw new TaskError(NOT_ROOT);
+    // A repeat after a timeout must see the disk as it is after the recovery of a run that died half way (SPEC 5.5).
+    const warnings: string[] = [];
+    try {
+      recoverRuns(scopePaths('project', env).cache, warnings);
+    } finally {
+      for (const warning of warnings) io.err(warning);
+    }
+    const plan = planTaskMove(env, findTask(env, name), name, command, now());
+    if (plan.kind === 'error') throw new TaskError(plan.message);
+    if (plan.kind === 'already') {
+      io.out(plan.message);
+      return EXIT_OK;
+    }
+    move = plan;
+  } catch (error) {
+    io.err(error instanceof TaskError || error instanceof Stop ? error.message : `error: ${error instanceof Error ? error.message : String(error)}`);
+    return EXIT_FAILED;
+  }
+  const outcome = await runTaskMove(env, move, { now, ...options.run });
+  for (const warning of outcome.warnings) io.err(warning);
+  if (outcome.status === 'done') {
+    io.out(outcome.result);
+    return EXIT_OK;
+  }
+  io.err(outcome.message);
+  return outcome.status === 'cancelled' ? EXIT_CANCELLED : EXIT_FAILED;
 }
