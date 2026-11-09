@@ -1,6 +1,7 @@
 import { listSkills, skillLangs, skillVersion } from '../core/catalog.js';
 import { defaultSkillPath } from '../core/claudeLink.js';
 import { conflictPaths, hasConflict } from '../core/conflicts.js';
+import { planGitignore } from '../core/gitignore.js';
 import { readRegistry, skillState, type SkillState } from '../core/registry.js';
 import { realEnv, type Env, type Scope } from '../core/scope.js';
 import { isValidVersion } from '../core/semver.js';
@@ -64,4 +65,13 @@ export const conflictWhere = (choices: InstallChoices, name: string, env: Env = 
 export function unlinkedAvailable(choices: InstallChoices, name: string, env: Env = realEnv()): boolean {
   const where = conflictWhere(choices, name, env);
   return where.length > 0 && !where.includes(defaultSkillPath(choices.scope, name, env));
+}
+
+/** The summary line for the project `.gitignore`: only when Install will change it (SPEC 4.2); null otherwise. */
+export function gitignoreNoteFor(scope: Scope, cwd: string): string | null {
+  if (scope !== 'project') return null;
+  const change = planGitignore(cwd);
+  if (!change) return null;
+  if ('error' in change) return change.error;
+  return change.expected === null ? `.gitignore: creates it with ${change.lines.join(', ')}` : `.gitignore: adds ${change.lines.join(', ')}`;
 }

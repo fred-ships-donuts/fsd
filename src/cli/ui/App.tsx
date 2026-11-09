@@ -1,3 +1,4 @@
+import type { Scope } from '../core/scope.js';
 import { useMemo, useRef, useState, type ReactElement } from 'react';
 import { Box, useApp, useInput } from 'ink';
 import type { RunEvent, RunOutcome } from '../engine/run.js';
@@ -5,7 +6,7 @@ import { EXIT_CANCELLED, EXIT_FAILED, EXIT_OK } from '../exitCodes.js';
 import { formatResult } from '../plan/types.js';
 import { startingChoices, type InstallChoices } from '../wizard/choices.js';
 import { executeInstall, executeUninstall } from '../wizard/execute.js';
-import { catalogRows, conflictsFor, installedRows, languageApplies, languageOptions } from '../wizard/queries.js';
+import { catalogRows, conflictsFor, gitignoreNoteFor, installedRows, languageApplies, languageOptions } from '../wizard/queries.js';
 import { progressFraction, stepLabel, stepsFor, type Flow, type StepId } from '../wizard/steps.js';
 import { Footer } from './components/Footer.js';
 import { Header } from './components/Header.js';
@@ -49,6 +50,7 @@ export function App({ version, onExit, lastUpdateCheck, terminal }: AppProps) {
   const hasLang = languageApplies(choices.skills, catalog);
   const langs = languageOptions(choices.skills, catalog);
   const flow: Flow = screen.kind === 'step' ? screen.flow : 'install';
+  const gitignoreNote = useMemo(() => (flow === 'install' && screen.kind !== 'menu' ? safeNote(choices.scope) : null), [flow, choices.scope, screen.kind]);
   const steps = stepsFor(flow, hasLang, flow === 'install' && conflicts.length > 0);
   const theme = resolveTheme(choices.theme);
 
@@ -148,6 +150,7 @@ export function App({ version, onExit, lastUpdateCheck, terminal }: AppProps) {
             langs={langs}
             hasLang={hasLang}
             conflicts={conflicts}
+            gitignoreNote={gitignoreNote}
             maxRows={listRows(size.rows, size.columns)}
           />
         </Box>
@@ -174,4 +177,13 @@ export function App({ version, onExit, lastUpdateCheck, terminal }: AppProps) {
       </Box>
     </Theme.Provider>
   );
+}
+
+// Reading the disk can fail (permissions); the summary then just leaves the line out.
+function safeNote(scope: Scope): string | null {
+  try {
+    return gitignoreNoteFor(scope, process.cwd());
+  } catch {
+    return null;
+  }
 }

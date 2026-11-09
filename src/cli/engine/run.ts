@@ -33,7 +33,7 @@ export type RunOutcome =
 type SkillPhase = 'prepare' | 'apply' | 'register';
 
 export async function runPlan(plan: Plan, options: RunOptions = {}): Promise<RunOutcome> {
-  if (plan.items.length === 0 && !plan.ensureBase && plan.config === undefined) return { status: 'done', results: plan.results, warnings: [] };
+  if (plan.items.length === 0 && !plan.ensureBase && plan.config === undefined && !plan.textFiles?.length) return { status: 'done', results: plan.results, warnings: [] };
   const now = options.now ?? (() => new Date());
   const paths = scopePaths(plan.scope, plan.env);
   const outcome = await runTransaction<SkillPhase, ActionResult[]>(
@@ -66,6 +66,8 @@ export async function runPlan(plan: Plan, options: RunOptions = {}): Promise<Run
           applyItem(tx, plan, item, ctx.id);
           await ctx.step();
         }
+
+        if (plan.textFiles?.length) tx.writeTextFiles(plan.textFiles);
 
         // 4. Register: the point of no return comes right after it.
         ctx.enter('register');

@@ -1,6 +1,6 @@
 import { cpSync, copyFileSync, mkdirSync, renameSync, rmSync, symlinkSync } from 'node:fs';
 import { copyFilter } from '../core/catalog.js';
-import { writeJsonAtomic } from '../core/fs.js';
+import { writeJsonAtomic, writeTextAtomic } from '../core/fs.js';
 
 // Every filesystem change of a run goes through these operations, so a caller can replace any of them.
 export interface Ops {
@@ -15,7 +15,8 @@ export interface Ops {
   symlink(target: string, link: string): void;
   // The run's journal.
   writeJson(file: string, data: unknown): void;
-  // The files a run rewrites (registry, config, task files).
+  // The files a run rewrites (registry, config, task files, .gitignore). `expected`: the text the file must still hold (null: no file).
+  writeText(file: string, content: string, expected?: string | null): void;
 }
 
 export const realOps: Ops = {
@@ -35,4 +36,5 @@ export const realOps: Ops = {
   remove: (path) => rmSync(path, { recursive: true, force: true }),
   symlink: (target, link) => symlinkSync(target, link, process.platform === 'win32' ? 'junction' : 'dir'),
   writeJson: (file, data) => writeJsonAtomic(file, data),
+  writeText: (file, content, expected) => writeTextAtomic(file, content, expected === undefined ? {} : { expected }),
 };

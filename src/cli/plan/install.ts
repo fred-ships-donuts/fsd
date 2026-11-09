@@ -2,6 +2,7 @@ import { findSkill, skillVersion } from '../core/catalog.js';
 import { claudeLinkPath, defaultSkillPath } from '../core/claudeLink.js';
 import { conflictPaths } from '../core/conflicts.js';
 import { exists, isLinkTo } from '../core/fs.js';
+import { planGitignore } from '../core/gitignore.js';
 import { readRegistry, skillState } from '../core/registry.js';
 import { realEnv, type Env, type Scope } from '../core/scope.js';
 import { isValidVersion } from '../core/semver.js';
@@ -22,6 +23,12 @@ const NOT_OURS = 'folder exists and is not managed by fsd';
 export function planInstall(scope: Scope, requests: InstallRequest[], env: Env = realEnv(), extras: PlanExtras = {}): Plan {
   const plan = emptyPlan(scope, env, extras);
   const registry = readRegistry(scope, env);
+  // The project `.gitignore` gets the lines of SPEC 4.2 with the base structure; the global scope never touches one.
+  if (scope === 'project' && extras.ensureBase) {
+    const change = planGitignore(env.cwd);
+    if (change && 'error' in change) plan.errors.push(change.error);
+    else if (change) plan.textFiles = [{ path: change.path, content: change.content, expected: change.expected }];
+  }
 
   for (const request of requests) {
     const skill = findSkill(request.name);

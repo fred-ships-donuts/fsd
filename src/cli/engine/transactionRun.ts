@@ -1,5 +1,5 @@
 import { join } from 'node:path';
-import { missingAncestors } from '../core/fs.js';
+import { FileChangedError, missingAncestors } from '../core/fs.js';
 import { JOURNAL_SCHEMA, type Journal } from '../core/runJournal.js';
 import { scopePaths, type Env, type Scope, type ScopePaths } from '../core/scope.js';
 import { realOps, type Ops } from './ops.js';
@@ -134,6 +134,8 @@ export async function runTransaction<P extends string, R>(spec: TransactionSpec<
     return { status: 'done', result: spec.result(), warnings };
   } catch (error) {
     emit({ phase, state: 'failed' });
+    // A file that changed under the run is a stop, not a failure: one place for every client (#8, #7).
+    if (error instanceof FileChangedError) error = new Stop('changed', `${error.file} changed while writing, try again`);
     const kind = error instanceof Stop ? error.kind : 'failed';
     let message = error instanceof Stop ? error.message : `${spec.label} failed and was undone (${phase}: ${errorText(error)})`;
     if (tx && !tx.committed) {

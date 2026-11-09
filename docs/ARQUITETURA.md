@@ -29,7 +29,7 @@ Regras:
 
 ## Por dentro de cada camada
 
-**`core/`**: `scope.ts` (onde ficam `.fsd/`, `nook/` e o cache de cada escopo), `fs.ts` (consultas ao disco, `writeJsonAtomic`, `writeTextAtomic` e `updateTextFile`, que compara o conteúdo antes de gravar), `semver.ts`, `catalog.ts`, `registry.ts`, `config.ts`, `claudeLink.ts`, `conflicts.ts`, `runJournal.ts` (formato do diário e quais execuções estão mortas), `selfUpdate.ts`, `package.ts` (raiz, nome e versão do pacote), `slug.ts` (nome de task e de passo a partir do título), `taskFiles.ts` (formato do `plan.md` e dos passos, puro, o único que importa `yaml`) e `nook.ts` (tasks do `nook/`: localizar, ler e validar, só leitura).
+**`core/`**: `scope.ts` (onde ficam `.fsd/`, `nook/` e o cache de cada escopo), `fs.ts` (consultas ao disco, `writeJsonAtomic`, `writeTextAtomic` e `updateTextFile`, que compara o conteúdo antes de gravar), `semver.ts`, `catalog.ts`, `registry.ts`, `config.ts`, `claudeLink.ts`, `conflicts.ts`, `gitignore.ts` (as linhas de `.fsd/cache/` e `.fsd/logs/` que faltam no `.gitignore` do projeto e o texto com elas, puro), `runJournal.ts` (formato do diário e quais execuções estão mortas), `selfUpdate.ts`, `package.ts` (raiz, nome e versão do pacote), `slug.ts` (nome de task e de passo a partir do título), `taskFiles.ts` (formato do `plan.md` e dos passos, puro, o único que importa `yaml`) e `nook.ts` (tasks do `nook/`: localizar, ler e validar, só leitura).
 
 **`plan/`**: `types.ts` (o `Plan`, seus itens e `emptyPlan`/`addItem`), `install.ts`, `uninstall.ts`, `link.ts`.
 
@@ -55,6 +55,7 @@ Regras:
 - **Uma regra nova de instalação**: no planejador (`plan/`), nunca no comando nem na tela.
 - **Um passo novo no assistente**: `StepId` e `stepsFor` em `wizard/steps.ts`, o título em `ui/labels.ts`, o corpo em `ui/screens/Step.tsx`.
 - **Uma mudança visual do cabeçalho**: `ui/art/` (pixels e cores) ou `ui/hero/` (layout); nada fora de `ui/` muda.
+- **Gravar texto no motor**: `Transaction.writeTextFiles` (par de `writeJsonFiles`: copia o original para `backup-<n>`, registra um `restore` e só então grava por `Ops.writeText`, com `expected`). Uma mudança do arquivo no meio vira `Stop('changed')` em `runTransaction`. O Instalar usa para o `.gitignore` do projeto (`Plan.textFiles`, na fase Aplicar); `verifyPlan` só aceita `<raiz>/.gitignore` fora de `.fsd/` e `nook/`.
 - **Uma operação de arquivo nova no motor**: em `Ops` (`engine/ops.ts`), uma ação nova em `core/runJournal.ts` e um método na `Transaction` que a registre no diário antes de fazê-la; o desfazer em `engine/recovery.ts`, idempotente.
 - **Uma execução nova com desfazer** (como `task done`): um cliente de `engine/transactionRun.ts`, com o seu `verify` e o seu `work`.
 
