@@ -210,8 +210,8 @@ Um único binário, `fsd`, implementado com `commander`.
 | `fsd update skill [nome] --force`, `fsd update skill [nome] -f`, `fsd -u -s -f [nome]` | Como a anterior, e substitui a original quando há conflito de skill de mesmo nome (5.3). |
 | `fsd link skill [nome]`, `fsd link -s [nome]` | Cria o link das skills instaladas sem link (5.4). |
 | `fsd link skill [nome] --force`, `fsd link skill [nome] -f`, `fsd link -s -f [nome]` | Como a anterior, e substitui a original que ocupa o lugar do link (5.4). |
-| `fsd task new "<título>"`, `fsd task list [--all] [--json]`, `fsd task done <task>`, `fsd task archive <task>` | Cria, lista e move as tasks do `nook/` (5.5). |
-| `fsd task step add <task> "<título>" [--description <texto>]`, `fsd task step start <task> <n>`, `fsd task step done <task> <n>`, `fsd task step skip <task> <n>` | Cria e muda o status dos passos de uma task (5.5). |
+| `fsd task new "<título>" [--json]`, `fsd task list [--all] [--json]`, `fsd task done <task>`, `fsd task archive <task>` | Cria, lista e move as tasks do `nook/` (5.5). |
+| `fsd task step add <task> "<título>" [--description <texto>] [--json]`, `fsd task step start <task> <n>`, `fsd task step done <task> <n>`, `fsd task step skip <task> <n>` | Cria e muda o status dos passos de uma task (5.5). |
 | comando ou opção desconhecidos | Mensagem de erro do commander, indicação de `fsd --help` e exit 1. |
 
 Não existem `list`, `install` nem `uninstall` de skills: o que faziam está no assistente (6.2 e 6.8). `fsd -h` lista `init`, `update`, `update skill`, `link skill` e `task`, com os atalhos. Os atalhos `-u`, `-s` e `-f` não valem em `fsd task`.
@@ -263,9 +263,9 @@ Comandos não interativos (não exigem TTY) sobre as tasks de `<cwd>/nook/` (4.5
 
 | Comando | Efeito | Saída de sucesso |
 |---|---|---|
-| `task new "<título>"` | Cria `nook/bench/<slug>/plan.md` com `status: in_progress`, as datas e o título como `#`. | `created nook/bench/<slug>/plan.md` |
+| `task new "<título>" [--json]` | Cria `nook/bench/<slug>/plan.md` com `status: in_progress`, as datas e o título como `#`. | `created nook/bench/<slug>/plan.md`; com `--json`, o objeto `{"schema": 1, "task": "<slug>", "path": "nook/bench/<slug>/plan.md"}` no lugar da linha |
 | `task list [--all] [--json]` | Lista as tasks do `bench` e do `rack` (com `--all`, também do `fridge`), uma por linha, em colunas alinhadas: slug, status e passos fechados/total. A ordem é `bench`, `rack`, `fridge` e, dentro de cada um, por slug. Sem `nook/`, a lista é vazia (exit 0). | linhas `<slug>  <status>  <fechados>/<total>` |
-| `task step add <task> "<título>" [--description <texto>]` | Cria o próximo `NN-<slug>.yaml` com `status: pending`. | `created nook/bench/<task>/<NN>-<slug>.yaml` |
+| `task step add <task> "<título>" [--description <texto>] [--json]` | Cria o próximo `NN-<slug>.yaml` com `status: pending`. | `created nook/bench/<task>/<NN>-<slug>.yaml`; com `--json`, o objeto `{"schema": 1, "task": "<task>", "step": <n>, "path": "nook/bench/<task>/<NN>-<slug>.yaml"}` no lugar da linha |
 | `task step start <task> <n>` | Passo para `in_progress`. | `step <NN> in_progress` |
 | `task step done <task> <n>` | Passo para `done`. | `step <NN> done` |
 | `task step skip <task> <n>` | Passo para `skipped` (fechado sem ser feito). | `step <NN> skipped` |
@@ -286,7 +286,7 @@ Comandos não interativos (não exigem TTY) sobre as tasks de `<cwd>/nook/` (4.5
 }
 ```
 
-`dir` é `bench`, `rack` ou `fridge`. Numa task inválida, `invalid` traz o motivo (`<arquivo>: <motivo>`). `status` sai `null` quando o `plan.md` não pôde ser lido, e `steps` sai `null` quando o `plan.md` ou algum passo não pôde ser lido (inclusive uma pasta de task que não pode ser listada). Uma task inválida só por pasta × status divergentes traz `status` e `steps` preenchidos, além de `invalid`. Sem `nook/`, sai `{"schema": 1, "tasks": []}`. Esse formato é o contrato com o agente: dentro do mesmo `schema`, só ganha campos; mudar ou tirar um campo sobe o `schema`. A saída em texto pode mudar livremente. Os demais comandos de task não têm `--json` nesta versão (próximo passo: `task new` e `task step add` devolvendo o caminho criado); a skill lê o exit code e a linha de sucesso.
+`dir` é `bench`, `rack` ou `fridge`. Numa task inválida, `invalid` traz o motivo (`<arquivo>: <motivo>`). `status` sai `null` quando o `plan.md` não pôde ser lido, e `steps` sai `null` quando o `plan.md` ou algum passo não pôde ser lido (inclusive uma pasta de task que não pode ser listada). Uma task inválida só por pasta × status divergentes traz `status` e `steps` preenchidos, além de `invalid`. Sem `nook/`, sai `{"schema": 1, "tasks": []}`. Esse formato é o contrato com o agente: dentro do mesmo `schema`, só ganha campos; mudar ou tirar um campo sobe o `schema`. A saída em texto pode mudar livremente. `task new --json` e `task step add --json` imprimem, no lugar da linha `created …`, um objeto com `schema: 1`, `task` (o slug) e `path` (o mesmo texto que a linha imprime depois de `created `, relativo à raiz do projeto, com `/`); o `step add` traz também `step`, o número do passo como inteiro (`1`, não `"01"`). Valem as mesmas regras do `list`: dentro do mesmo `schema`, só ganha campos. Com `--json`, um erro continua sendo texto no `stderr`, exit 1 e `stdout` vazio. Os demais comandos de task (`step start|done|skip`, `done`, `archive`) não têm `--json` nesta versão; a skill lê o exit code e a linha de sucesso.
 
 **Erros que dizem o próximo passo.** Todo erro de `task` termina com o comando que resolve, entre parênteses, para o agente corrigir sozinho:
 
