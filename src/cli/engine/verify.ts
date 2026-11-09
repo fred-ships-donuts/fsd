@@ -1,7 +1,8 @@
-import { accessSync, constants, existsSync, lstatSync } from 'node:fs';
+import { accessSync, constants, existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { claudeLinkPath } from '../core/claudeLink.js';
 import { conflictPaths } from '../core/conflicts.js';
+import { gitignoreProblem } from '../core/gitignore.js';
 import { exists, isInside, nearestExisting, readTextOrNull } from '../core/fs.js';
 import { readRegistry } from '../core/registry.js';
 import type { ScopePaths } from '../core/scope.js';
@@ -29,9 +30,8 @@ export function verifyPlan(plan: Plan, paths: ScopePaths): void {
   // The only file outside `.fsd/` and `nook/` a plan may write: `<root>/.gitignore`.
   for (const file of plan.textFiles ?? []) {
     if (file.path !== join(paths.root, '.gitignore')) throw new Error(`${file.path} is outside the scope directories`);
-    const stats = exists(file.path) && lstatSync(file.path);
-    if (stats && stats.isSymbolicLink()) throw new Error('.gitignore is a symbolic link');
-    if (stats && !stats.isFile()) throw new Error('.gitignore is not a regular file');
+    const problem = gitignoreProblem(file.path);
+    if (problem) throw new Error(problem);
     writable(file.path);
     if (readTextOrNull(file.path) !== file.expected) throw new Stop('changed', CHANGED);
   }

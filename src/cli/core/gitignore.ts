@@ -1,5 +1,5 @@
 import { join } from 'node:path';
-import { readTextOrNull } from './fs.js';
+import { exists, readTextOrNull } from './fs.js';
 
 // The `.gitignore` lines the Install flow adds in the project scope (SPEC 4.2).
 export const gitignoreLines = ['.fsd/cache/', '.fsd/logs/'];
@@ -29,9 +29,20 @@ export interface GitignoreChange {
   lines: string[];
 }
 
-/** What Install must write to `<root>/.gitignore`, or null when it already has every line. Reads the disk only. */
-export function planGitignore(root: string): GitignoreChange | null {
+/** Why the project `.gitignore` cannot be written (same text in Plan and Verify), or null when it can. Never throws. */
+export function gitignoreProblem(path: string): string | null {
+  const stats = exists(path);
+  if (!stats) return null;
+  if (stats.isSymbolicLink()) return '.gitignore is a symbolic link';
+  if (!stats.isFile()) return '.gitignore is not a regular file';
+  return null;
+}
+
+/** What Install must write to `<root>/.gitignore`: null when it already has every line, `{ error }` when it cannot be written. Reads the disk only. */
+export function planGitignore(root: string): GitignoreChange | { error: string } | null {
   const path = join(root, '.gitignore');
+  const error = gitignoreProblem(path);
+  if (error) return { error };
   const expected = readTextOrNull(path);
   const lines = missingGitignoreLines(expected);
   return lines.length === 0 ? null : { path, expected, content: appendGitignore(expected, lines), lines };

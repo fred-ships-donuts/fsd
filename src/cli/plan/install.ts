@@ -26,7 +26,8 @@ export function planInstall(scope: Scope, requests: InstallRequest[], env: Env =
   // The project `.gitignore` gets the lines of SPEC 4.2 with the base structure; the global scope never touches one.
   if (scope === 'project' && extras.ensureBase) {
     const change = planGitignore(env.cwd);
-    if (change) plan.textFiles = [{ path: change.path, content: change.content, expected: change.expected }];
+    if (change && 'error' in change) plan.errors.push(change.error);
+    else if (change) plan.textFiles = [{ path: change.path, content: change.content, expected: change.expected }];
   }
 
   for (const request of requests) {

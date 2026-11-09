@@ -1,5 +1,4 @@
 import { Text } from 'ink';
-import { planGitignore } from '../../core/gitignore.js';
 import type { Scope } from '../../core/scope.js';
 import { conflictChoiceOf, type InstallChoices } from '../../wizard/choices.js';
 import { conflictWhere, unlinkedAvailable, type InstalledRow, type SkillRow } from '../../wizard/queries.js';
@@ -22,6 +21,8 @@ export interface StepProps {
   langs: string[];
   hasLang: boolean;
   conflicts: string[];
+  // The `.gitignore` line of the summary, computed in wizard/queries.ts (null: nothing to show).
+  gitignoreNote: string | null;
   maxRows: number;
 }
 
@@ -67,7 +68,7 @@ export function Step(props: StepProps) {
   }
 }
 
-function Summary({ flow, choices, removal, hasLang, conflicts }: StepProps) {
+function Summary({ flow, choices, removal, hasLang, conflicts, gitignoreNote }: StepProps) {
   const { palette, color } = useTheme();
   if (flow === 'uninstall') {
     return (
@@ -82,20 +83,8 @@ function Summary({ flow, choices, removal, hasLang, conflicts }: StepProps) {
       <Text>Scope: {choices.scope} · Theme: {themes[choices.theme]?.label}</Text>
       <Text>Skills: {choices.skills.join(', ')}{hasLang ? ` · Language: ${choices.lang}` : ''}</Text>
       <Text>CLI auto-update: {String(choices.autoUpdate)} · Update skills with `fsd update`: {String(choices.updateSkills)}</Text>
-      {gitignoreNote(choices.scope) ? <Text>{gitignoreNote(choices.scope)}</Text> : null}
+      {gitignoreNote ? <Text>{gitignoreNote}</Text> : null}
       {conflicts.map((name) => <Text key={name} {...tint(palette.warning, color)}>Conflict {name}: {CONFLICT_CHOICE_TEXT[conflictChoiceOf(choices, name)]}</Text>)}
     </>
   );
-}
-
-// The summary line for the project `.gitignore`: only when Install will change it (SPEC 4.2).
-function gitignoreNote(scope: Scope): string | null {
-  if (scope !== 'project') return null;
-  try {
-    const change = planGitignore(process.cwd());
-    if (!change) return null;
-    return change.expected === null ? `.gitignore: creates it with ${change.lines.join(', ')}` : `.gitignore: adds ${change.lines.join(', ')}`;
-  } catch {
-    return null;
-  }
 }
