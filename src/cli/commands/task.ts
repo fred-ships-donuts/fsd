@@ -8,7 +8,8 @@ import { realEnv, scopePaths, type Env } from '../core/scope.js';
 import { normalizeTitle, slug } from '../core/slug.js';
 import { InvalidTaskFileError, newPlan, newStep, PLAN_FILE, setStepStatus, stepFileName, stepLabel, type StepStatus } from '../core/taskFiles.js';
 import { EXIT_CANCELLED, EXIT_FAILED, EXIT_OK } from '../exitCodes.js';
-import { busyError } from './guards.js';
+import { LockBusyError } from '../core/lock.js';
+import { withTaskLock } from './guards.js';
 import { consoleIo, type Io } from './io.js';
 
 // `fsd task …` (SPEC 5.5): non-interactive commands over `<cwd>/nook/`, for the user and for the agent. Messages are in
@@ -53,9 +54,14 @@ export function slugOf(rawTitle: string): { title: string; slug: string } {
   return { title, slug: result.slug };
 }
 
-function refuseWhenBusy(env: Env): void {
-  const busy = busyError(env);
-  if (busy) throw new TaskError(busy);
+// The check and the write of a command, under the project lock; a busy lock is the usual refusal.
+function locked<T>(env: Env, body: () => T): T {
+  try {
+    return withTaskLock(env, body);
+  } catch (error) {
+    if (error instanceof LockBusyError) throw new TaskError(error.message);
+    throw error;
+  }
 }
 
 const alreadyExists = (name: string, dir: TaskDir): TaskError => new TaskError(`task ${name} already exists in ${nookRel(dir)} ${LIST_ALL}`);
@@ -81,18 +87,18 @@ export function taskNewCommand(rawTitle: string, newOptions: TaskNewOptions = {}
   return guarded(io, () => {
     const { title, slug: name } = slugOf(rawTitle);
     if (!isProjectRoot(env)) throw new TaskError(NOT_ROOT);
-    refuseWhenBusy(env);
-    const found = locateTask(env, name)[0];
-    if (found) throw alreadyExists(name, found);
-
     const file = join(nookPaths(env).dirs.bench, name, PLAN_FILE);
-    try {
-      createTextFile(file, newPlan(title, now()));
-    } catch (error) {
-      // Another process created it between the check and the write.
-      if (error instanceof FileChangedError) throw alreadyExists(name, 'bench');
-      throw error;
-    }
+    locked(env, () => {
+      const found = locateTask(env, name)[0];
+      if (found) throw alreadyExists(name, found);
+      try {
+        createTextFile(file, newPlan(title, now()));
+      } catch (error) {
+        // Another process created it between the check and the write.
+        if (error instanceof FileChangedError) throw alreadyExists(name, 'bench');
+        throw error;
+      }
+    });
     const path = nookRel('bench', name, PLAN_FILE);
     io.out(newOptions.json ? JSON.stringify(taskNewJson(name, path), null, 2) : `created ${path}`);
     return EXIT_OK;
@@ -190,17 +196,20 @@ export const taskStepAddJson = (task: string, step: number, path: string): TaskS
 export function taskStepAddCommand(name: string, rawTitle: string, addOptions: StepAddOptions, options: TaskCommandOptions = {}): number {
   const { io, env, now } = contextOf(options);
   return guarded(io, () => {
-    const task = benchTask(env, name);
     const { title, slug: stepSlug } = slugOf(rawTitle);
-    refuseWhenBusy(env);
-    const number = nextStepNumber(task);
-    const file = stepFileName(number, stepSlug);
-    try {
-      createTextFile(join(task.path, file), newStep(title, addOptions.description, now()));
-    } catch (error) {
-      if (error instanceof FileChangedError) throw changedError(task, file);
-      throw error;
-    }
+    // The task is read inside the lock: the next number must come from the files as they are when we write.
+    const { task, number, file } = locked(env, () => {
+      const task = benchTask(env, name);
+      const number = nextStepNumber(task);
+      const file = stepFileName(number, stepSlug);
+      try {
+        createTextFile(join(task.path, file), newStep(title, addOptions.description, now()));
+      } catch (error) {
+        if (error instanceof FileChangedError) throw changedError(task, file);
+        throw error;
+      }
+      return { task, number, file };
+    });
     const path = nookRel('bench', task.slug, file);
     io.out(addOptions.json ? JSON.stringify(taskStepAddJson(task.slug, number, path), null, 2) : `created ${path}`);
     return EXIT_OK;
@@ -219,19 +228,19 @@ export function taskStepStatusCommand(name: string, rawNumber: string, status: S
       io.out(`step ${step.label} already ${status}`);
       return EXIT_OK;
     }
-    refuseWhenBusy(env);
 
-    let result;
-    try {
-      result = updateTextFile(step.path, (current) => {
-        if (current === null) throw new TaskError(`step ${step.label} not found in task ${task.slug} (run: fsd task list)`);
-        return setStepStatus(current, status, now());
-      });
-    } catch (error) {
-      if (error instanceof FileChangedError) throw changedError(task, step.file);
-      if (error instanceof InvalidTaskFileError) throw invalidError({ ...task, invalid: { file: step.file, reason: error.reason } });
-      throw error;
-    }
+    const result = locked(env, () => {
+      try {
+        return updateTextFile(step.path, (current) => {
+          if (current === null) throw new TaskError(`step ${step.label} not found in task ${task.slug} (run: fsd task list)`);
+          return setStepStatus(current, status, now());
+        });
+      } catch (error) {
+        if (error instanceof FileChangedError) throw changedError(task, step.file);
+        if (error instanceof InvalidTaskFileError) throw invalidError({ ...task, invalid: { file: step.file, reason: error.reason } });
+        throw error;
+      }
+    });
     io.out(result.changed ? `step ${step.label} ${status}` : `step ${step.label} already ${status}`);
     return EXIT_OK;
   });
