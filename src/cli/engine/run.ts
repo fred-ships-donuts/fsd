@@ -40,8 +40,7 @@ export async function runPlan(plan: Plan, options: RunOptions = {}): Promise<Run
     {
       scope: plan.scope,
       env: plan.env,
-      // The same text for every skills plan (install, remove, link): changing it is out of F-40a.
-      label: 'install',
+      label: plan.label,
       firstPhase: 'prepare',
       keepAncestors: plan.ensureBase,
       verify: () => verifyPlan(plan, paths),
