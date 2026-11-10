@@ -20,7 +20,12 @@ export interface WizardOptions {
 // the screen shows blank or torn frames. The frame writer replaces that the way claude-code does (see terminal/frameWriter.ts).
 export async function runWizard(options: WizardOptions = {}): Promise<number> {
   let code = 0;
-  const onExit = (value: number) => (code = value); // one function for the whole run, so a redraw never resets the input
+  // One function for the whole run, so a redraw never resets the input. It also sets the process exit code itself: once the wizard
+  // unmounts nothing keeps the event loop alive, so the process can end before waitUntilExit resolves and the return below is lost.
+  const onExit = (value: number) => {
+    code = value;
+    process.exitCode = value;
+  };
   const terminal = () => sizeOf(process.stdout);
   const tree = () => createElement(App, { version, onExit, terminal: terminal(), ...(options.lastUpdateCheck ? { lastUpdateCheck: options.lastUpdateCheck } : {}) });
   const app = render(tree(), { exitOnCtrlC: false, alternateScreen: true });
