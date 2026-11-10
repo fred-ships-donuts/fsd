@@ -2,13 +2,13 @@
 
 Where each heading of the old `SPEC.md` goes (#41). Old numbering stays in the first column: code and docs cite "SPEC 5.5", "4.5", "6.9", and this map is how those references resolve. Do not rewrite those citations.
 
-State: `moved` (in this repository now), `pending #55` (§6–§8), `pending #56` (§9–§13 and Appendix A), `decision` (becomes an author decision; none so far).
+State: `moved` (in this repository now), `pending #56` (§9–§13 and Appendix A), `decision` (becomes an author decision; none so far).
 
 Notes:
 - Moved text is verbatim, in Portuguese, under the template's English headings. The `## N.` heading lines of §1–§5 are replaced by the destination heading; the `### N.M` headings are kept inside `## Behavior`.
 - Each moved Flavor has `Acceptance` = `None`: the criteria stay in SPEC §12 until #56.
 - "Fora de escopo (v1)" is the Craving's `## Out of scope`; §1 is its `## Expected result`; §2 is the Rise's `## Feasible`.
-- No destination exceeded its limit, so no slug was split.
+- No destination exceeded its limit, so no slug was split (§6–§8 included). The `## 6.`, `## 7.` and `## 8.` headings map to the `#behavior` of the first file of each group.
 - A `# Login OAuth` line inside a fenced example in §4.5 is not a heading and is not listed.
 
 | Old heading | Destination | State |
@@ -29,23 +29,23 @@ Notes:
 | 5.3 `fsd update skill [nome]` | `docs/spec/update/flavor.md#53-fsd-update-skill-nome` | moved |
 | 5.4 `fsd link skill [nome]` | `docs/spec/link/flavor.md#54-fsd-link-skill-nome` | moved |
 | 5.5 `fsd task` | `docs/spec/task/flavor.md#55-fsd-task` | moved |
-| 6. Assistente interativo | TBD (#55) | pending #55 |
-| 6.1 Estrutura de toda tela | TBD (#55) | pending #55 |
-| 6.2 Fluxos e passos | TBD (#55) | pending #55 |
-| 6.3 Resultado | TBD (#55) | pending #55 |
-| 6.4 Barra de progresso do rodapé | TBD (#55) | pending #55 |
-| 6.5 Temas | TBD (#55) | pending #55 |
-| 6.6 Entrada sem terminal | TBD (#55) | pending #55 |
-| 6.7 Pendências do layout | TBD (#55) | pending #55 |
-| 6.8 Fluxo Apagar | TBD (#55) | pending #55 |
-| 6.9 Execução depois da confirmação (fases) | TBD (#55) | pending #55 |
-| 6.10 A rosquinha e o nome no cabeçalho | TBD (#55) | pending #55 |
-| 6.11 Redesenho e janelas pequenas | TBD (#55) | pending #55 |
-| 6.12 O cabeçalho definitivo (2026-11-07) | TBD (#55) | pending #55 |
-| 7. Atualização da CLI | TBD (#55) | pending #55 |
-| 8. Erros, saída e configuração | TBD (#55) | pending #55 |
-| 8.1 Erros e códigos de saída | TBD (#55) | pending #55 |
-| 8.2 Configuração persistida | TBD (#55) | pending #55 |
+| 6. Assistente interativo | `docs/spec/wizard/flavor.md#behavior` | moved |
+| 6.1 Estrutura de toda tela | `docs/spec/wizard/flavor.md#61-estrutura-de-toda-tela` | moved |
+| 6.2 Fluxos e passos | `docs/spec/wizard/flavor.md#62-fluxos-e-passos` | moved |
+| 6.3 Resultado | `docs/spec/wizard/flavor.md#63-resultado` | moved |
+| 6.4 Barra de progresso do rodapé | `docs/spec/wizard-screen/flavor.md#64-barra-de-progresso-do-rodapé` | moved |
+| 6.5 Temas | `docs/spec/wizard-screen/flavor.md#65-temas` | moved |
+| 6.6 Entrada sem terminal | `docs/spec/wizard/flavor.md#66-entrada-sem-terminal` | moved |
+| 6.7 Pendências do layout | `docs/spec/wizard-screen/flavor.md#67-pendências-do-layout` | moved |
+| 6.8 Fluxo Apagar | `docs/spec/uninstall/flavor.md#68-fluxo-apagar` | moved |
+| 6.9 Execução depois da confirmação (fases) | `docs/spec/run/flavor.md#69-execução-depois-da-confirmação-fases` | moved |
+| 6.10 A rosquinha e o nome no cabeçalho | `docs/spec/wizard-header/flavor.md#610-a-rosquinha-e-o-nome-no-cabeçalho` | moved |
+| 6.11 Redesenho e janelas pequenas | `docs/spec/wizard-screen/flavor.md#611-redesenho-e-janelas-pequenas` | moved |
+| 6.12 O cabeçalho definitivo (2026-11-07) | `docs/spec/wizard-screen/flavor.md#612-o-cabeçalho-definitivo-2026-11-07` | moved |
+| 7. Atualização da CLI | `docs/spec/self-update/flavor.md#behavior` | moved |
+| 8. Erros, saída e configuração | `docs/spec/errors/flavor.md#behavior` | moved |
+| 8.1 Erros e códigos de saída | `docs/spec/errors/flavor.md#81-erros-e-códigos-de-saída` | moved |
+| 8.2 Configuração persistida | `docs/spec/config/flavor.md#82-configuração-persistida` | moved |
 | 9. Estrutura do código | TBD (#56) | pending #56 |
 | 10. Empacotamento | TBD (#56) | pending #56 |
 | 11. Testes | TBD (#56) | pending #56 |
