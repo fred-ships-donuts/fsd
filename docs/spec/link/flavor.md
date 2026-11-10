@@ -29,4 +29,4 @@ None
 
 ## Acceptance
 
-None — the criteria stay in SPEC §12 until #56.
+### A1 12.28 `fsd link skill [nome]` cria o link das skills sem link e grava `linked: true`; com original no lugar, só substitui com `--force`/`-f` (exit 1 sem ele).

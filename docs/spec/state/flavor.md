@@ -91,4 +91,11 @@ None
 
 ## Acceptance
 
-None — the criteria stay in SPEC §12 until #56.
+### A1 12.4 Instalar todas as skills em um `HOME` vazio cria cada uma com a árvore idêntica à do catálogo no idioma escolhido (menos `evals/` e `README.md`), em `<destino>/<name>/`, e as registra no `installed.json`.
+### A2 12.6 Escolher `en` em uma skill com idiomas instala só a árvore `en`.
+### A3 12.7 No escopo de projeto, o assistente escreve só em `./.fsd` (incluindo `./.fsd/skills`), `./.claude/skills` (apenas os links) e `./nook`, e não toca em `~/.claude`, `~/.fsd` nem `~/nook`, exceto o `config.json` (8.2).
+### A4 12.8 Instalar uma skill registrada com versão menor que a do catálogo faz `upgrade` e mantém o registro coerente.
+### A5 12.11 Apagar a pasta de uma skill à mão faz o assistente mostrar `missing`; instalar a restaura e `Apagar` limpa a entrada.
+### A6 12.20 Confirmar o fluxo Instalar cria `nook/kitchen`, `nook/bakers`, `.fsd/oven`, `.fsd/cache` e `.fsd/logs` no escopo escolhido (em `~` no global); cancelar, `fsd init` ao abrir e o fluxo Apagar não criam nada.
+### A7 12.21 Cada skill instalada tem o link `.claude/skills/<nome>` → `.fsd/skills/<nome>`; o `Apagar` remove o link junto com a pasta.
+### A8 12.38 Ao confirmar o Instalar no escopo de projeto, o `.gitignore` passa a ter `.fsd/cache/` e `.fsd/logs/` sem duplicar linhas nem alterar o resto; no escopo global, nenhum `.gitignore` é tocado.

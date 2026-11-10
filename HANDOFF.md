@@ -1,8 +1,8 @@
 # HANDOFF — fsd (Fred Ships Donuts CLI)
 
-Estado em 2026-11-02. Leia nesta ordem: este arquivo, `TASKS.md`, `SPEC.md`, `docs/FSD-INDEX.md`.
+Estado em 2026-11-02. Leia nesta ordem: este arquivo, `TASKS.md`, `docs/spec/MAP.md`, `docs/FSD-INDEX.md`.
 
-> **CABEÇALHO DEFINITIVO (2026-11-07): ver `SPEC.md` 6.12.** Rosquinha de 22 × 9 (mapa de pixels feito à mão, `src/cli/ui/art/donut.ts`) e palavras de 3 linhas (`src/cli/ui/art/words.ts`), sempre no tamanho do 80 × 24, sem moldura. Sem versionamento físico nem trechos congelados: só git.
+> **CABEÇALHO DEFINITIVO (2026-11-07): ver SPEC 6.12 (`docs/spec/MAP.md`).** Rosquinha de 22 × 9 (mapa de pixels feito à mão, `src/cli/ui/art/donut.ts`) e palavras de 3 linhas (`src/cli/ui/art/words.ts`), sempre no tamanho do 80 × 24, sem moldura. Sem versionamento físico nem trechos congelados: só git.
 >
 > **ARQUITETURA REORGANIZADA (2026-11-07): ver `docs/ARQUITETURA.md`.** `src/cli/` em camadas (`core/`, `plan/`, `engine/`, `commands/`, `wizard/`, `ui/`), dependência só para baixo; código morto do cabeçalho antigo removido. Comportamento idêntico ao de antes (conferido comparando a saída do assistente e de 37 cenários de disco antes e depois). Branch `refactor/architecture`, dois commits sobre a `main`. **Os nomes de arquivo nas seções "Sessão: …" abaixo são os de antes da reorganização.**
 >
@@ -22,7 +22,7 @@ Estado em 2026-11-02. Leia nesta ordem: este arquivo, `TASKS.md`, `SPEC.md`, `do
 ## O que existe
 
 - Docs em `docs/`, com índice em `FSD-INDEX.md`. Estrutura de diretórios do framework em `FSD-DIRECTORY-STRUCTURE.md`: `nook/` (`kitchen/`, `bench/`, `cookbook/`, `bakers/`, `rack/`, `fridge/`) e `.fsd/` (`oven/`, `cache/`, `logs/`).
-- CLI em `src/cli/`, em camadas (detalhe em `docs/ARQUITETURA.md`, árvore em `SPEC.md` 9):
+- CLI em `src/cli/`, em camadas (detalhe em `docs/ARQUITETURA.md`, árvore em `docs/ARQUITETURA.md#code-layout`):
   - `fsd.ts` (commander), `args.ts` (atalhos `-u -s -f`), `env.ts`, `exitCodes.ts`.
   - `core/`: escopos, catálogo, registro, configuração, conflitos, diário (leitura), semver, npm.
   - `plan/`: planejadores `install.ts`, `uninstall.ts`, `link.ts` e `types.ts`. Só leem o disco e montam um plano.

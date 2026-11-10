@@ -51,4 +51,4 @@ npm run dev -- --help   # runs src/cli/fsd.ts with tsx
 npm run build           # tsc to dist/
 ```
 
-Documentation starts at [`docs/FSD-INDEX.md`](docs/FSD-INDEX.md); behavior is specified in [`SPEC.md`](SPEC.md).
+Documentation starts at [`docs/FSD-INDEX.md`](docs/FSD-INDEX.md); behavior is specified in [`docs/spec/MAP.md`](docs/spec/MAP.md).

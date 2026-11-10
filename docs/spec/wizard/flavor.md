@@ -91,4 +91,9 @@ None
 
 ## Acceptance
 
-None — the criteria stay in SPEC §12 until #56.
+### A1 12.3 O passo Skills do assistente mostra exatamente as skills de `src/skills/_i18n/` que têm ao menos uma variante com `SKILL.md`, com o estado de cada uma.
+### A2 12.10 Uma skill de mesmo nome que não é nossa (pasta em `.fsd/skills` fora do registro, ou qualquer coisa em `.claude/skills/<nome>`) nunca é alterada sem que o usuário escolha substituir no resumo, e nunca é removida pelo `Apagar`.
+### A3 12.12 No assistente, `ctrl+c` não grava nada em `~/.fsd`; `←` volta ao passo anterior mantendo as escolhas.
+### A4 12.19 O menu do assistente não tem "Atualizar": `Instalar` atualiza as skills desatualizadas.
+### A5 12.23 Em conflito de skill de mesmo nome, o passo Conflitos oferece `keep` (padrão), `unlinked` e `replace`; com `keep` nada muda no disco; com `replace` a original some só depois do sucesso e o link é o nosso.
+### A6 12.24 Com `unlinked`, a original continua intacta e carregada pelo Claude Code, a nossa existe em `.fsd/skills/<nome>` com `linked: false` e sem link, e o `Apagar` da nossa não toca a original.
