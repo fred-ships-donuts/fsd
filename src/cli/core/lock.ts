@@ -107,7 +107,13 @@ export function acquireLock(cacheDir: string, now: () => Date = () => new Date()
   }
   return {
     release: ({ keepDirs = false } = {}) => {
-      if (pidIn(readRaw(file)) === process.pid) unlinkSync(file);
+      if (pidIn(readRaw(file)) === process.pid) {
+        try {
+          unlinkSync(file);
+        } catch (error) {
+          if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error; // already gone
+        }
+      }
       if (!keepDirs) removeEmptyDirs(created);
     },
   };
