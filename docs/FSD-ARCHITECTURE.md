@@ -275,6 +275,19 @@ my-project/
     └── logs/              # Execution logs
 ```
 
+## Document chain skills
+
+Six product skills write the document chain (stage names in `GLOSSARY.md`, templates in `docs/templates/`). The templates are shipped inside each skill (`templates/`).
+
+| Skill | Stage | Role | Reads (only) | Writes |
+|---|---|---|---|---|
+| `fsd-craving` | Craving (PRD) | PM | the user's request | `nook/kitchen/<slug>/craving.md` |
+| `fsd-flavor` | Flavor (SPEC) | PM + Architect | `craving.md#expected-result` | `nook/kitchen/<slug>/flavor.md` |
+| `fsd-rise` | Rise (TECH REVIEW) | Architect | `flavor.md#acceptance` | `nook/kitchen/<slug>/rise.md` |
+| `fsd-tray` | Tray (PLAN) | Architect | `rise.md#risks` | `nook/bench/<slug>/plan.md` |
+| `fsd-step` | Step (TASK) | Dev | one Tray item, `tray.md#<n>-<title-slug>` | a step, via `fsd task step add` |
+| `fsd-taste` | Taste (QA REVIEW) | QA | one Flavor item, `flavor.md#a<n>-<text-slug>` | `nook/bench/<slug>/taste.md` |
+
 ---
 
 🍩 Bake small.  

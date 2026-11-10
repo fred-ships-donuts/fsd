@@ -6,7 +6,9 @@ This document details the directories that FSD uses in a project. The conceptual
 my-project/
 ├── nook/                  # User-facing workspace
 │   ├── kitchen/           # Configuration, rules and project context
+│   │   └── <slug>/        # Per-delivery preparation: craving.md, flavor.md, rise.md
 │   ├── bench/             # Active tasks (status: in_progress)
+│   │   └── <slug>/        # plan.md, NN-<slug>.yaml steps, taste.md
 │   ├── cookbook/          # Recipes (declarative workflows)
 │   ├── bakers/            # Specialized AI workers (and craft)
 │   ├── rack/           # Finished Donuts (status: done)
@@ -22,7 +24,7 @@ my-project/
 
 | Directory | Function | Written by |
 |---|---|---|
-| `nook/kitchen/` | Project rules, settings and context | User |
+| `nook/kitchen/` | Project rules, settings and context; per-delivery preparation documents | User |
 | `nook/bench/` | Task folders being worked on | User |
 | `nook/cookbook/` | Recipes (workflows) | User |
 | `nook/bakers/` | Baker definitions and craft metadata | User |
@@ -50,6 +52,25 @@ nook/bench/login-oauth/
 ```text
 nook/bench/ (in_progress)  →  nook/rack/ (done)  →  nook/fridge/ (archived, on user request)
 ```
+
+## Document chain
+
+The six documents of a delivery (names in `GLOSSARY.md`). `<slug>` is the delivery slug, with the same rules as a task slug (`SPEC.md` 4.5). The shared slug is the link between `kitchen/<slug>/` and `bench/<slug>/`.
+
+| Document | Path | Written by |
+|---|---|---|
+| Craving (PRD) | `nook/kitchen/<slug>/craving.md` | User / PM |
+| Flavor (SPEC) | `nook/kitchen/<slug>/flavor.md` | User / PM |
+| Rise (TECH REVIEW) | `nook/kitchen/<slug>/rise.md` | Architect |
+| Tray (PLAN) | `nook/bench/<slug>/plan.md` (the task plan) | Architect |
+| Step (TASK) | `nook/bench/<slug>/NN-<slug>.yaml` | Dev |
+| Taste (QA REVIEW) | `nook/bench/<slug>/taste.md` | QA |
+
+Craving, Flavor and Rise are preparation, so they live in `kitchen/`. Tray, Step and Taste belong to the task folder and move with it from `bench/` to `rack/` and `fridge/`.
+
+`kitchen/<slug>/` is created when the user writes a Craving, not by `fsd init`, and it is not part of the slug-uniqueness check of `fsd task new` (bench, rack and fridge only).
+
+Outside `nook/` (this repository's own team flow, not the product): the Craving is the GitHub issue; Tray and Rise are the Architect handoff comment; Steps are the steps of the PR; Taste is the QA verification comment on the PR. For now the Flavor stays in `SPEC.md`; its final location is decided later.
 
 ## Created by `fsd init`
 
