@@ -31,6 +31,33 @@ Todo trabalho começa num issue: uma task, um bug, uma ideia, uma decisão pende
   - `bug` marca um defeito.
 - **Milestone**: a fase, por exemplo [Fase 6 — tasks do nook/](https://github.com/fredericojacobi/fred-ships-donuts/milestone/1). O progresso da fase é o do milestone.
 
+### 1.1 A cadeia de documentos
+
+Cada entrega percorre documentos em cadeia, na medida do tamanho do issue. Os nomes das etapas estão no [`docs/GLOSSARY.md`](docs/GLOSSARY.md) e ficam sem tradução. Os modelos, os exemplos, os limites de tamanho e a regra de `Source:` estão em [`docs/templates/README.md`](docs/templates/README.md); aqui só se aponta para eles.
+
+| Etapa | Quem | Modelo | Exemplo |
+|---|---|---|---|
+| Craving (ideia) | Kevin | [`craving.md`](docs/templates/craving.md) | [`examples/craving.md`](docs/templates/examples/craving.md) |
+| Flavor (o issue: What + Acceptance) | Kevin | [`flavor.md`](docs/templates/flavor.md) | [`examples/flavor.md`](docs/templates/examples/flavor.md) |
+| Rise (TECH REVIEW) | Mel | [`rise.md`](docs/templates/rise.md) | [`examples/rise.md`](docs/templates/examples/rise.md) |
+| Tray (PLAN) | Mel | [`tray.md`](docs/templates/tray.md) | [`examples/tray.md`](docs/templates/examples/tray.md) |
+| Step (TASK) | Stuart | [`step.md`](docs/templates/step.md) | [`examples/step.md`](docs/templates/examples/step.md) |
+| Taste (QA REVIEW) | Bob | [`taste.md`](docs/templates/taste.md) | [`examples/taste.md`](docs/templates/examples/taste.md) |
+
+Todo issue leva uma label `size:`, e ela diz quanto da cadeia a entrega usa:
+
+- **size:L**: os seis documentos (Craving, Flavor, Rise, Tray, Step, Taste). A passagem do Arquiteto é um comentário com dois títulos, `## TECH REVIEW` e depois `## PLAN`.
+- **size:M**: o issue (What + Acceptance), uma passagem curta do Arquiteto (`What to do`, `Files`, `Verification`) e um Taste.
+- **size:S**: o issue (What + Acceptance) e um Taste. Não há passagem: o issue vai direto para Ready for Development.
+
+O relatório da seção 5 segue o Taste em todos os tamanhos: `Result` (`pass` ou `fail`) e uma linha por item de aceite do issue, numerados `A1…`, com o comando, o esperado e o obtido.
+
+Os textos das skills do time que produzem e consomem esses documentos ficam versionados em `docs/process/skills/`; ninguém edita a pasta de configuração dos agentes por causa deles:
+
+- [`fsd-pm-issue.md`](docs/process/skills/fsd-pm-issue.md) (Kevin)
+- [`fsd-arq-passagem.md`](docs/process/skills/fsd-arq-passagem.md) (Mel)
+- [`fsd-qa-verificacao.md`](docs/process/skills/fsd-qa-verificacao.md) (Bob)
+
 ## 2. Project (quadro)
 
 [FSD - Fred Ships Donuts](https://github.com/users/fredericojacobi/projects/3), campo **Status**:
