@@ -44,8 +44,9 @@ function buildProgram(done: (code: number) => void): Command {
   task
     .command('new')
     .argument('<title>', 'the task title (after `--` when it starts with -)')
+    .option('--json', 'print one JSON object (the format the agent reads)')
     .description('create nook/bench/<slug>/plan.md')
-    .action((title: string) => done(taskNewCommand(title)));
+    .action((title: string, options: { json?: boolean }) => done(taskNewCommand(title, { json: options.json === true })));
   task
     .command('list')
     .description('list the tasks of nook/bench and nook/rack')
@@ -70,9 +71,10 @@ function buildProgram(done: (code: number) => void): Command {
     .argument('<task>', 'the task slug')
     .argument('<title>', 'the step title (after `--` when it starts with -)')
     .option('--description <text>', 'what the step is about')
+    .option('--json', 'print one JSON object (the format the agent reads)')
     .description('create the next NN-<slug>.yaml, pending')
-    .action((name: string, title: string, options: { description?: string }) =>
-      done(taskStepAddCommand(name, title, options.description !== undefined ? { description: options.description } : {})),
+    .action((name: string, title: string, options: { description?: string; json?: boolean }) =>
+      done(taskStepAddCommand(name, title, { ...(options.description !== undefined ? { description: options.description } : {}), json: options.json === true })),
     );
   for (const [command, status, what] of [
     ['start', 'in_progress', 'mark step <n> as in_progress'],

@@ -1,5 +1,6 @@
 import { join } from 'node:path';
 import { FileChangedError, missingAncestors } from '../core/fs.js';
+import { acquireLock, LockBusyError, type Lock } from '../core/lock.js';
 import { JOURNAL_SCHEMA, type Journal } from '../core/runJournal.js';
 import { scopePaths, type Env, type Scope, type ScopePaths } from '../core/scope.js';
 import { realOps, type Ops } from './ops.js';
@@ -78,6 +79,7 @@ export async function runTransaction<P extends string, R>(spec: TransactionSpec<
   let phase: RunPhase<P> = 'verify';
   let running = false;
   let tx: Transaction | undefined;
+  let lock: Lock | undefined;
 
   const onSignal = () => {
     control.cancelled = true;
@@ -102,6 +104,10 @@ export async function runTransaction<P extends string, R>(spec: TransactionSpec<
   const ctx: WorkContext<P> = { id, paths, ops, enter, item: (name) => emit({ phase, state: 'running', item: name }), step };
 
   try {
+    // The project lock (SPEC 6.9), before anything is read or recovered. It serializes this run against `task step`
+    // and the other runs; the user scope has no task writers, so it keeps only the journal's own check.
+    if (spec.scope === 'project') lock = acquireLock(paths.cache, now);
+
     // Verify: reads, and recovers dead runs.
     enter('verify');
     recoverRuns(paths.cache, warnings);
@@ -135,6 +141,7 @@ export async function runTransaction<P extends string, R>(spec: TransactionSpec<
   } catch (error) {
     emit({ phase, state: 'failed' });
     // A file that changed under the run is a stop, not a failure: one place for every client (#8, #7).
+    if (error instanceof LockBusyError) error = new Stop('busy', error.message);
     if (error instanceof FileChangedError) error = new Stop('changed', `${error.file} changed while writing, try again`);
     const kind = error instanceof Stop ? error.kind : 'failed';
     let message = error instanceof Stop ? error.message : `${spec.label} failed and was undone (${phase}: ${errorText(error)})`;
@@ -149,6 +156,12 @@ export async function runTransaction<P extends string, R>(spec: TransactionSpec<
   } finally {
     process.off('SIGINT', onSignal);
     process.off('SIGTERM', onSignal);
+    // After the undo or the discard. The first install keeps the base directories it made (keepAncestors).
+    try {
+      lock?.release({ keepDirs: spec.keepAncestors === true && tx?.committed === true });
+    } catch (error) {
+      warnings.push(`could not release the lock: ${errorText(error)}`);
+    }
   }
 }
 
