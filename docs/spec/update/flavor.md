@@ -38,4 +38,7 @@ None
 
 ## Acceptance
 
-None — the criteria stay in SPEC §12 until #56.
+### A1 12.16 `fsd -u` equivale a `fsd update`, e `fsd -u -s [nome]` a `fsd update skill [nome]`; `fsd -s` sozinho sai com 1.
+### A2 12.17 `fsd update skill` atualiza todas as skills desatualizadas; `fsd update skill <nome>` atualiza só aquela; ambos saem com 0 quando tudo está em dia.
+### A3 12.18 Com `updateSkills: true`, `fsd update` atualiza a CLI e depois as skills usando a versão nova da CLI.
+### A4 12.25 `fsd update skill` não substitui original sem `--force`/`-f` (exit 1, original intacta); com a opção, substitui e liga; `-f` fora de `update skill`/`link skill`, atalhos fora de ordem e atalhos agrupados saem com 1.

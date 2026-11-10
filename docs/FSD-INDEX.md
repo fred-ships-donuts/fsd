@@ -12,14 +12,14 @@ This is the entry point for the FSD documentation. It says what each document co
 | 4 | `FSD-ARCHITECTURE.md` | Conceptual model and layers (CLI, Kitchen, Bench, Oven, Cookbook, Bakers, Skills, Donuts, Rack, Fridge) |
 | 5 | `FSD-DIRECTORY-STRUCTURE.md` | Directories created in a project (`nook/` and `.fsd/`) and the task lifecycle |
 | 6 | `GLOSSARY.md` | Definition of each term |
-| 7 | `../SPEC.md` | Behavior of the `fsd` CLI |
+| 7 | `spec/MAP.md` | Behavior of the `fsd` CLI |
 | 8 | `../TASKS.md` | Implementation tasks of the CLI |
 
 ## Sources of truth
 
 - Philosophy: `FSD-CONCEPT.md` > `FSD-DOUGH.md` > `FSD-IMPLEMENTATION-STRATEGY.md`.
 - Structure and layers: `FSD-ARCHITECTURE.md` and `FSD-DIRECTORY-STRUCTURE.md`. The glossary only indexes terms.
-- CLI behavior: `SPEC.md`.
+- CLI behavior: `docs/spec/MAP.md`.
 
 ## Naming rule
 

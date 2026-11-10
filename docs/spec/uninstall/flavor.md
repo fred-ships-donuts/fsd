@@ -35,4 +35,4 @@ None
 
 ## Acceptance
 
-None — the criteria stay in SPEC §12 until #56.
+### A1 12.9 `Apagar` remove apenas as skills escolhidas e as entradas delas no registro.

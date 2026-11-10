@@ -67,4 +67,6 @@ None
 
 ## Acceptance
 
-None — the criteria stay in SPEC §12 until #56.
+### A1 12.13 A barra de progresso chega a 100% somente ao concluir o resumo, e usa 5 passos no fluxo Instalar quando nem o idioma nem os conflitos se aplicam (6 se só um deles se aplica, 7 se os dois).
+### A2 12.14 Tema e auto-update escolhidos aparecem pré-selecionados e valem desde as primeiras telas na execução seguinte.
+### A3 12.29 O passo Conflitos só aparece quando há conflito, e o total de passos acompanha escolhas de escopo e de skills (7, 6 ou 5).

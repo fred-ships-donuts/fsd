@@ -2,11 +2,12 @@
 
 Where each heading of the old `SPEC.md` goes (#41). Old numbering stays in the first column: code and docs cite "SPEC 5.5", "4.5", "6.9", and this map is how those references resolve. Do not rewrite those citations.
 
-State: `moved` (in this repository now), `pending #56` (§9–§13 and Appendix A), `decision` (becomes an author decision; none so far).
+State: `moved` (in this repository now), `decision` (becomes an author decision; none so far). Every heading is `moved`; `SPEC.md` was removed in #56.
 
 Notes:
 - Moved text is verbatim, in Portuguese, under the template's English headings. The `## N.` heading lines of §1–§5 are replaced by the destination heading; the `### N.M` headings are kept inside `## Behavior`.
-- Each moved Flavor has `Acceptance` = `None`: the criteria stay in SPEC §12 until #56.
+- The 39 items of §12 are in the `## Acceptance` of the Flavor that owns each one (`### A<n> 12.N …`, the old number kept in the text); item 12.27 (tests run for any user) is in `docs/ARQUITETURA.md#tests`. A Flavor with no §12 item has `Acceptance` = `None`.
+- §13 "Decididos" is `docs/DECISIONS.md`; its "Pendente" items are links to their issues there, not copied.
 - "Fora de escopo (v1)" is the Craving's `## Out of scope`; §1 is its `## Expected result`; §2 is the Rise's `## Feasible`.
 - No destination exceeded its limit, so no slug was split (§6–§8 included). The `## 6.`, `## 7.` and `## 8.` headings map to the `#behavior` of the first file of each group.
 - A `# Login OAuth` line inside a fenced example in §4.5 is not a heading and is not listed.
@@ -46,9 +47,9 @@ Notes:
 | 8. Erros, saída e configuração | `docs/spec/errors/flavor.md#behavior` | moved |
 | 8.1 Erros e códigos de saída | `docs/spec/errors/flavor.md#81-erros-e-códigos-de-saída` | moved |
 | 8.2 Configuração persistida | `docs/spec/config/flavor.md#82-configuração-persistida` | moved |
-| 9. Estrutura do código | TBD (#56) | pending #56 |
-| 10. Empacotamento | TBD (#56) | pending #56 |
-| 11. Testes | TBD (#56) | pending #56 |
-| 12. Critérios de aceitação | TBD (#56) | pending #56 |
-| 13. Decisões e pendências | TBD (#56) | pending #56 |
-| Apêndice A — Bibliotecas de interface avaliadas | TBD (#56) | pending #56 |
+| 9. Estrutura do código | `docs/ARQUITETURA.md#code-layout` | moved |
+| 10. Empacotamento | `docs/spec/packaging/flavor.md#behavior` | moved |
+| 11. Testes | `docs/ARQUITETURA.md#tests` | moved |
+| 12. Critérios de aceitação | `## Acceptance` of the owning Flavor, item text "12.N …" (12.27 in `docs/ARQUITETURA.md#tests`) | moved |
+| 13. Decisões e pendências | `docs/DECISIONS.md` | moved |
+| Apêndice A — Bibliotecas de interface avaliadas | `docs/spec/wizard-screen/rise.md#discarded-alternatives` | moved |
