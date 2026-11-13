@@ -40,7 +40,8 @@ export async function runPlan(plan: Plan, options: RunOptions = {}): Promise<Run
     {
       scope: plan.scope,
       env: plan.env,
-      label: plan.label,
+      // Names the run in a failure: a plan made only of removals says `remove`, any other skills plan says `install`.
+      label: plan.items.length > 0 && plan.items.every((item) => item.kind === 'remove') ? 'remove' : 'install',
       firstPhase: 'prepare',
       keepAncestors: plan.ensureBase,
       verify: () => verifyPlan(plan, paths),
