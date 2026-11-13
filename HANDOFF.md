@@ -11,9 +11,9 @@ Estado em 2026-11-02. Leia nesta ordem: este arquivo, `TASKS.md`, `docs/spec/MAP
 
 ## Onde o projeto está
 
-- Pasta: `/media/fredericojacobi/Projects/projetos/fred-ships-donuts/`. Branch `main`, remoto `origin` por **SSH** (`git@github.com:fredericojacobi/fred-ships-donuts.git`, chave `~/.ssh/id_ed25519`).
+- Pasta: `<repository folder>`. Branch `main`, remoto `origin` por **SSH** (`git@github.com:fredericojacobi/fred-ships-donuts.git`, chave `~/.ssh/id_ed25519`).
 - **A `main` está 4 commits à frente do `origin`** (`21d9d91`, `aed7af4`, `2b59314`, `aad0e6c`); o push ainda não foi feito. **Além de `HANDOFF.md`, há mudanças sem commit** no cabeçalho e no tema (ver "Sessão: cabeçalho e tema" abaixo). Nada desta sessão foi commitado.
-- **Backup da VERSÃO FINAL da rosquinha** (fora do repositório): `/home/fredericojacobi/Backups/fred-ships-donuts-header-FINAL-2026-11-02/`, com `README.md` de restauração e `SHA256SUMS`. O backup anterior, com a rosquinha em quadrantes, continua em `/home/fredericojacobi/Backups/fred-ships-donuts-header-2026-11-02/` e não deve ser sobrescrito.
+- **Backup da VERSÃO FINAL da rosquinha** (fora do repositório): `<backup folder>/fred-ships-donuts-header-FINAL-2026-11-02/`, com `README.md` de restauração e `SHA256SUMS`. O backup anterior, com a rosquinha em quadrantes, continua em `<backup folder>/fred-ships-donuts-header-2026-11-02/` e não deve ser sobrescrito.
 - **Todas as tasks F-1.1 a F-35 foram executadas** e estão marcadas em `TASKS.md`. A Fase 5 (F-26 a F-35) veio de uma revisão da spec, hoje sem pontos em aberto.
 - **Fase 6 (`fsd task`)**: F-36 a F-39 (`task new`, `list`, `step`) e F-43 (skill `fsd-nook-tasks`) estão na `develop`, assim como F-40a (#6, núcleo de transação). F-42 (#8, `.gitignore` do Install) também está na `develop`. **Pendente:** F-40b (#7, `task done` e `task archive`); a documentação (F-44, #10) é esta. Na `develop`, não na `main`.
 - Não há testes no projeto (removidos por decisão do autor em 2026-11-07); `npm run build` compila.
@@ -153,7 +153,7 @@ Decisões minhas a confirmar (SPEC 13, "Revisar"): remoção do passo "Serviço 
 ## Como rodar
 
 ```bash
-cd /media/fredericojacobi/Projects/projetos/fred-ships-donuts
+cd <repository folder>
 npm run build                    # tsc para dist/
 npm run dev -- --help            # src/cli/fsd.ts via tsx
 node dist/cli/fsd.js init        # assistente (precisa de terminal)
