@@ -90,7 +90,13 @@ export class Transaction {
   /** The point of no return: from here on the run is finished, not undone. */
   commit(): void {
     this.journal.committed = true;
-    this.save();
+    try {
+      this.save();
+    } catch (error) {
+      // Nothing was written: the run must stay undoable, not finished.
+      this.journal.committed = false;
+      throw error;
+    }
   }
 
   private record(action: Action): void {

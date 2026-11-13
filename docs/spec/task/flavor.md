@@ -75,4 +75,8 @@ None
 
 ## Acceptance
 
-None — the criteria stay in SPEC §12 until #56.
+### A1 12.34 `fsd task new "Login OAuth"` cria `nook/bench/login-oauth/plan.md` com `status: in_progress`; repetir o título (ou um slug que já existe no `rack` ou no `fridge`) sai com exit 1 sem alterar nada.
+### A2 12.35 `fsd task step add` numera os passos `01`, `02`, … e nunca reaproveita um número; `start`, `done` e `skip` mudam só o `status` e o `updatedAt`, preservando os outros campos e os comentários do YAML; uma edição do arquivo por outro processo durante o comando não se perde.
+### A3 12.36 `fsd task done` só move para `nook/rack/` com todos os passos fechados (`done` ou `skipped`), e `fsd task archive` só move do `rack` para o `fridge`; em ambos, a pasta e o `status` sempre combinam, e uma falha injetada em qualquer ponto (inclusive depois do movimento) deixa a task onde estava, inteira e com o status de antes.
+### A4 12.37 `fsd task list` mostra as tasks do `bench` e do `rack` com os passos `done/total`; com `--all`, também as do `fridge`; uma task ilegível ou com pasta e status divergentes aparece como `invalid` e não derruba a listagem.
+### A5 12.39 `fsd task list --json` imprime `{"schema": 1, "tasks": [...]}`, com `slug`, `status`, `dir`, `steps` (`total`, `done`, `skipped`, `pending`, `inProgress`) e, nas inválidas, `invalid`; cada erro de `fsd task` termina com o comando que resolve, quando há um; repetir `task done`, `task archive` ou uma mudança de passo já feita sai com exit 0 sem gravar nada.

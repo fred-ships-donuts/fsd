@@ -1,6 +1,6 @@
 # Arquitetura do código
 
-Como o código de `src/cli/` está dividido, por que, e onde entra cada coisa nova. (`docs/FSD-ARCHITECTURE.md` descreve o produto; `SPEC.md` 9 tem a árvore de arquivos.)
+Como o código de `src/cli/` está dividido, por que, e onde entra cada coisa nova. (`docs/FSD-ARCHITECTURE.md` descreve o produto; a seção "Code layout" abaixo tem a árvore de arquivos.)
 
 ## Camadas
 
@@ -61,4 +61,102 @@ Regras:
 
 ## Fora de `src/`
 
-Raiz: `README.md`, `HANDOFF.md`, `SPEC.md`, `TASKS.md` e os arquivos do npm e do TypeScript. Documentos do produto em `docs/` (índice em `docs/FSD-INDEX.md`). Não há versionamento físico de arquivos nem testes (decisões do autor de 2026-11-07): o histórico é o git. `graft/` é gerado e ignorado pelo git.
+Raiz: `README.md`, `HANDOFF.md`, `TASKS.md` e os arquivos do npm e do TypeScript. Documentos do produto em `docs/` (índice em `docs/FSD-INDEX.md`). Não há versionamento físico de arquivos nem testes (decisões do autor de 2026-11-07): o histórico é o git. `graft/` é gerado e ignorado pelo git.
+
+## Code layout
+
+Camadas, de dentro para fora. Cada uma só importa das que estão acima dela na lista; nada de `core/` a `wizard/` conhece React, Ink ou commander. O detalhe (o que mora onde e por quê) está em `docs/ARQUITETURA.md`.
+
+```
+src/
+  cli/
+    fsd.ts              # bin `fsd`: liga os comandos ao commander e define o exit code; só carrega ui/ dentro de `init`, por import dinâmico
+    env.ts              # NODE_ENV=production antes de qualquer import (o React em modo de desenvolvimento é lento)
+    args.ts             # tradução dos atalhos -u, -s e -f para os comandos longos (puro)
+    exitCodes.ts        # 0, 1 e 130
+    core/               # domínio e disco: só lê (a gravação atômica de JSON é a exceção, usada pelo config e pelo motor)
+      package.ts        # raiz, nome e versão do pacote
+      scope.ts          # escopos global e projeto, caminhos (.fsd/, nook/), estrutura base, escopos com registro
+      fs.ts             # consultas ao disco (lstat, link aponta para, ancestrais que faltam) e gravação atômica
+      semver.ts         # comparação e validação de versões
+      catalog.ts        # catálogo src/skills/_i18n: listSkills(), findSkill(), frontmatter, filtro de cópia
+      registry.ts       # installed.json: leitura e estado de uma skill (4.4)
+      config.ts         # config.json: tema, autoUpdate, updateSkills, lastUpdateCheck
+      claudeLink.ts     # caminho do link .claude/skills/<nome> e destino padrão da skill
+      conflicts.ts      # skills de mesmo nome que não são nossas (6.2 regra 3)
+      lock.ts           # a trava do projeto `.fsd/cache/lock` (`O_EXCL`, pid): `acquireLock()`
+      runJournal.ts     # o diário de uma execução (`schema: 2`), as execuções mortas e `liveRun()` (só leitura)
+      selfUpdate.ts     # verificação e atualização da própria CLI (7)
+      slug.ts           # slug de títulos de task e de passo (4.5)
+      nook.ts           # tasks do nook/ (só leitura): caminhos, localizar por slug, modelo da task, validar pasta × status (4.5)
+      taskFiles.ts      # formato dos arquivos de task: parse e serialize do frontmatter do plan.md e dos passos .yaml, preservando o resto (4.5)
+      gitignore.ts      # linhas que faltam no .gitignore do projeto (4.2)
+    plan/               # planejadores: leem o disco e montam um Plan; nunca escrevem
+      types.ts          # Plan, PlanItem, ActionResult, formatResult
+      install.ts        # instalação e upgrade (6.2)
+      uninstall.ts      # remoção (6.8)
+      link.ts           # `fsd link skill` (5.4)
+      task.ts           # transições de task como funções puras: estado + comando → erro ou operações (5.5)
+    engine/             # execução de um Plan em fases (6.9)
+      transactionRun.ts # núcleo genérico: trava, diário, SIGINT/SIGTERM, commit, desfazer e eventos de fase; recebe verificar e aplicar como funções
+      run.ts            # as fases Verificar, Preparar, Aplicar, Registrar e Concluir das skills, cliente do transactionRun
+      taskRun.ts        # `task done`/`archive`, cliente do transactionRun (sem registro de skills)
+      verify.ts         # a fase Verificar (só leitura)
+      transaction.ts    # cada mudança registrada no diário antes de ser feita
+      recovery.ts       # desfazer pelo diário e recuperar execuções mortas
+      ops.ts            # operações de arquivo (copiar, mover, link, gravar), substituíveis
+    commands/           # um arquivo por comando
+      init.ts           # valida TTY, aplica auto-update e abre o assistente
+      update.ts         # `fsd update` (CLI) e `fsd update skill [nome]`
+      link.ts           # `fsd link skill [nome]`
+      task.ts           # `fsd task …` e `fsd task step …` (5.5)
+      skillPlans.ts     # o que `update skill` e `link skill` compartilham: escopos, execução e relatório
+      io.ts             # saída padrão e de erro
+      guards.ts         # recusas compartilhadas, como `another fsd run is in progress` fora do motor (5.5)
+    wizard/             # regras do assistente, sem React
+      choices.ts        # o que o usuário escolheu
+      steps.ts          # passos de cada fluxo e progresso (6.2, 6.4)
+      queries.ts        # o que as telas mostram: catálogo, instaladas, idiomas, conflitos
+      execute.ts        # planejar e executar depois da confirmação do resumo
+    ui/                 # assistente (6), em Ink + TSX
+      run.ts            # monta o assistente no terminal: tamanho, resize síncrono, escritor de quadros
+      App.tsx           # estado e navegação entre as telas
+      screens/          # Menu, Step (corpo de cada passo e o resumo), Running, Result
+      components/       # Header, Footer, Title, Pick (lista com rolagem), Conflicts
+      hero/             # o cabeçalho grande do menu: layout.ts (puro) e Hero.tsx (desenho e granulados)
+      art/              # figuras em células, sem React: donut.ts, words.ts, snow.ts, sextant.ts, cell.ts
+      terminal/         # frameWriter.ts (6.11) e useTerminalSize.ts
+      layout.ts         # linhas que cabeçalho e rodapé ocupam nos passos
+      labels.ts         # textos dos passos, fases e escolhas de conflito
+      theme.ts          # temas e símbolos (contexto React)
+  skills/               # catálogo (conteúdo, não é código)
+    _i18n/<nome>/<lang>/
+```
+
+- `engine/run.ts` executa os planos de `plan/` em fases e recebe, opcionalmente, as operações que podem falhar (copiar, mover, criar o link, gravar registro e config) como parâmetro, com as reais por padrão. Uma falha pode ser injetada por esse ponto, sem depender de permissões do sistema de arquivos.
+- A lógica de catálogo fica em `core/catalog.ts`, a de registro e configuração em `core/registry.ts`/`core/config.ts`, e as regras de instalar, apagar e ligar em `plan/`. Os comandos (`commands/`) e o assistente (`wizard/` e `ui/`) só consomem essas camadas, sem duplicar regra.
+- A lista de passos e o progresso são funções puras (`wizard/steps.ts`), separadas da renderização.
+- `fsd.ts` importa `ui/` só dentro de `fsd init` (import dinâmico), então `fsd -v`, `fsd -h` e `fsd update` não pagam o custo do React.
+
+## Tests
+
+Os testes foram removidos do projeto por decisão do autor (2026-11-07). Em 2026-11-09 (#13) voltam só os do `engine/`, com `node:test` e sem dependência nova: fases, desfazer, recuperação e diário v1 → v2 (itens **Rollback**, **Fases** e **Recuperação** abaixo). Eles entram com a F-40a (#6). O resto da lista continua como referência caso os outros testes voltem.
+
+- **Unitários** (`node:test`): `listSkills`, `skillsTarget`, leitura de frontmatter, comparação de versões, filtro de `evals/` e `README.md`.
+- **Registro e configuração**: `registry.ts` e `config.ts` (arquivo ausente, ilegível e de `schema` desconhecido; gravação atômica; estados `not installed`, `up to date`, `outdated`, `missing`).
+- **Ações**: `plan/install.ts` e `plan/uninstall.ts` com `HOME` e `cwd` apontando para diretórios temporários, conferindo a árvore resultante em instalação, reinstalação, `upgrade`, conflito (com e sem autorização), escopo de projeto e remoção.
+- **Auto-update**: a decisão de checar (autoUpdate, intervalo de 24 h, instalação global vs `npx`) como função pura, sem rede.
+- **Atalhos**: `-u`, `-s` e `-f` equivalem a `update`, `skill` e `--force`, como argumentos separados e **na ordem** `-u -s -f` (`fsd -u`, `fsd -u -s [nome]`, `fsd -u -s -f [nome]`, `fsd update -s [nome]`, `fsd -u skill [nome]`, `fsd update skill -f`, `fsd link -s -f [nome]`); `fsd -s` sozinho, `-f` sem `skill`, atalho misturado com outro comando, atalhos fora de ordem (`-s -u`, `-f -s`) e agrupados (`-us`, `-usf`) saem com 1.
+- **`update skill`**: com `HOME` e `cwd` temporários, todas as skills, uma só, nome não instalado, nome fora do catálogo, em dia (`skip`) e `missing`; conflito sem `--force` (original intacta, mensagem, exit 1, demais skills processadas), com `--force` e com `-f` (original substituída, link nosso), `--force` sem conflito (nada muda) e skill com `linked: false` (só a pasta é atualizada, o link não é tocado).
+- **`link skill`**: sem `nome` e com `nome`; skill `linked: false` com caminho livre (cria o link e grava `linked: true`), com original no lugar sem `--force` (nada muda, exit 1) e com `--force`/`-f` (substitui); já ligada (`skip`); nome não instalado; os dois escopos.
+- **Passo Conflitos**: aparece só com conflito e muda o total de passos; as três escolhas (`keep`, `unlinked`, `replace`) por conflito, o padrão `keep`, e a escolha `unlinked` indisponível quando a original está em `.fsd/skills/<nome>`; em cada uma, a árvore resultante e o registro (`linked: false` quando for o caso); o `Apagar` de uma skill `unlinked` não toca a original.
+- **Interrupção**: com o assistente (`ink-testing-library`), `ctrl+c` em **cada** passo do fluxo Instalar, inclusive no resumo antes do `enter`, e conferir que o disco ficou idêntico; em seguida, instalar normalmente no mesmo `HOME`/`cwd` e conferir a árvore exata (regra 10): sem erro, sem sobras, sem pasta ou link duplicado e sem link faltando; repetir a instalação e conferir que nada muda.
+- **Rollback**: falha injetada (6.2 regra 9 e seção 9) em cada passo (copiar, criar o link, registrar) em instalação nova, `upgrade` e `replace`: nada da tentativa permanece, a versão anterior e a original voltam byte a byte, e não sobra pasta de apoio. **Estes testes não dependem de permissões nem de plataforma e não são pulados** em root, em outro usuário ou no Windows; só se pula um teste quando nem a fixture temporária pode ser criada.
+- **Fases (6.9)**: falha injetada em cada fase 1 a 4 desfaz a execução inteira (inclusive as skills que já tinham sido aplicadas), e depois da fase 4 nada é desfeito; estado que muda entre o resumo e a fase Verificar; `ctrl+c`/`SIGTERM` entre operações; `Apagar` e `update skill` pelas mesmas fases; o `fsd init` ao abrir e o `lastUpdateCheck` em memória não criam arquivo algum.
+- **Recuperação (regra 11 e 6.9)**: criar à mão um `run-<id>/` com diário de uma execução morta (e outro de uma execução viva) e conferir a recuperação ou o `another fsd run is in progress`. Em ambos os casos a pasta de preparo `*.fsd-new-*` da execução morta também some, e a tentativa seguinte não vê falso conflito.
+- **Cabeçalho (6.10 e 6.11)**: qualidade da rosquinha contra o emoji em todas as alturas, layout do cabeçalho em todas as janelas de 20 a 200 colunas por 10 a 60 linhas (teto de 35%), fontes de pixel do nome, escritor de quadros, assistente em janelas pequenas e redimensionamento do programa real num tmux; a lista completa está em 6.10 e 6.11.
+- **Assistente**: o cálculo da barra e a lista de passos dos dois fluxos (com e sem o passo de idioma) como funções puras. Os componentes podem ser testados com `ink-testing-library`. A validação final é manual, em um terminal real.
+- **Binário**: executar `fsd`, `fsd -h`, `fsd --help`, `fsd -v`, `fsd --version`, `fsd foo`, `fsd init x` e `fsd init` sem TTY e conferir saída e exit code.
+- **Catálogo**: cada skill tem `SKILL.md` com `name` igual ao diretório e `metadata.version` semver válido (pré-release incluído); toda variante de idioma de uma mesma skill tem o mesmo `name` e o mesmo `metadata.version`.
+
+Critério de aceitação (antigo SPEC 12.27): Os testes de rollback rodam e passam em qualquer usuário (inclusive root) e plataforma, sem depender de permissões do sistema de arquivos.

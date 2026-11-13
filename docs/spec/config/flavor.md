@@ -40,4 +40,4 @@ None
 
 ## Acceptance
 
-None — the criteria stay in SPEC §12 until #56.
+None

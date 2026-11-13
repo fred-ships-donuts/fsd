@@ -1,8 +1,8 @@
 # HANDOFF — fsd (Fred Ships Donuts CLI)
 
-Estado em 2026-11-02. Leia nesta ordem: este arquivo, `TASKS.md`, `SPEC.md`, `docs/FSD-INDEX.md`.
+Estado em 2026-11-02. Leia nesta ordem: este arquivo, `TASKS.md`, `docs/spec/MAP.md`, `docs/FSD-INDEX.md`.
 
-> **CABEÇALHO DEFINITIVO (2026-11-07): ver `SPEC.md` 6.12.** Rosquinha de 22 × 9 (mapa de pixels feito à mão, `src/cli/ui/art/donut.ts`) e palavras de 3 linhas (`src/cli/ui/art/words.ts`), sempre no tamanho do 80 × 24, sem moldura. Sem versionamento físico nem trechos congelados: só git.
+> **CABEÇALHO DEFINITIVO (2026-11-07): ver SPEC 6.12 (`docs/spec/MAP.md`).** Rosquinha de 22 × 9 (mapa de pixels feito à mão, `src/cli/ui/art/donut.ts`) e palavras de 3 linhas (`src/cli/ui/art/words.ts`), sempre no tamanho do 80 × 24, sem moldura. Sem versionamento físico nem trechos congelados: só git.
 >
 > **ARQUITETURA REORGANIZADA (2026-11-07): ver `docs/ARQUITETURA.md`.** `src/cli/` em camadas (`core/`, `plan/`, `engine/`, `commands/`, `wizard/`, `ui/`), dependência só para baixo; código morto do cabeçalho antigo removido. Comportamento idêntico ao de antes (conferido comparando a saída do assistente e de 37 cenários de disco antes e depois). Branch `refactor/architecture`, dois commits sobre a `main`. **Os nomes de arquivo nas seções "Sessão: …" abaixo são os de antes da reorganização.**
 >
@@ -11,9 +11,9 @@ Estado em 2026-11-02. Leia nesta ordem: este arquivo, `TASKS.md`, `SPEC.md`, `do
 
 ## Onde o projeto está
 
-- Pasta: `/media/fredericojacobi/Projects/projetos/fred-ships-donuts/`. Branch `main`, remoto `origin` por **SSH** (`git@github.com:fredericojacobi/fred-ships-donuts.git`, chave `~/.ssh/id_ed25519`).
+- Pasta: `<repository folder>`. Branch `main`, remoto `origin` por **SSH** (`git@github.com:fredericojacobi/fred-ships-donuts.git`, chave `~/.ssh/id_ed25519`).
 - **A `main` está 4 commits à frente do `origin`** (`21d9d91`, `aed7af4`, `2b59314`, `aad0e6c`); o push ainda não foi feito. **Além de `HANDOFF.md`, há mudanças sem commit** no cabeçalho e no tema (ver "Sessão: cabeçalho e tema" abaixo). Nada desta sessão foi commitado.
-- **Backup da VERSÃO FINAL da rosquinha** (fora do repositório): `/home/fredericojacobi/Backups/fred-ships-donuts-header-FINAL-2026-11-02/`, com `README.md` de restauração e `SHA256SUMS`. O backup anterior, com a rosquinha em quadrantes, continua em `/home/fredericojacobi/Backups/fred-ships-donuts-header-2026-11-02/` e não deve ser sobrescrito.
+- **Backup da VERSÃO FINAL da rosquinha** (fora do repositório): `<backup folder>/fred-ships-donuts-header-FINAL-2026-11-02/`, com `README.md` de restauração e `SHA256SUMS`. O backup anterior, com a rosquinha em quadrantes, continua em `<backup folder>/fred-ships-donuts-header-2026-11-02/` e não deve ser sobrescrito.
 - **Todas as tasks F-1.1 a F-35 foram executadas** e estão marcadas em `TASKS.md`. A Fase 5 (F-26 a F-35) veio de uma revisão da spec, hoje sem pontos em aberto.
 - **Fase 6 (`fsd task`)**: F-36 a F-39 (`task new`, `list`, `step`) e F-43 (skill `fsd-nook-tasks`) estão na `develop`, assim como F-40a (#6, núcleo de transação). F-42 (#8, `.gitignore` do Install) também está na `develop`. **Pendente:** F-40b (#7, `task done` e `task archive`); a documentação (F-44, #10) é esta. Na `develop`, não na `main`.
 - Não há testes no projeto (removidos por decisão do autor em 2026-11-07); `npm run build` compila.
@@ -22,7 +22,7 @@ Estado em 2026-11-02. Leia nesta ordem: este arquivo, `TASKS.md`, `SPEC.md`, `do
 ## O que existe
 
 - Docs em `docs/`, com índice em `FSD-INDEX.md`. Estrutura de diretórios do framework em `FSD-DIRECTORY-STRUCTURE.md`: `nook/` (`kitchen/`, `bench/`, `cookbook/`, `bakers/`, `rack/`, `fridge/`) e `.fsd/` (`oven/`, `cache/`, `logs/`).
-- CLI em `src/cli/`, em camadas (detalhe em `docs/ARQUITETURA.md`, árvore em `SPEC.md` 9):
+- CLI em `src/cli/`, em camadas (detalhe em `docs/ARQUITETURA.md`, árvore em `docs/ARQUITETURA.md#code-layout`):
   - `fsd.ts` (commander), `args.ts` (atalhos `-u -s -f`), `env.ts`, `exitCodes.ts`.
   - `core/`: escopos, catálogo, registro, configuração, conflitos, diário (leitura), semver, npm.
   - `plan/`: planejadores `install.ts`, `uninstall.ts`, `link.ts` e `types.ts`. Só leem o disco e montam um plano.
@@ -153,7 +153,7 @@ Decisões minhas a confirmar (SPEC 13, "Revisar"): remoção do passo "Serviço 
 ## Como rodar
 
 ```bash
-cd /media/fredericojacobi/Projects/projetos/fred-ships-donuts
+cd <repository folder>
 npm run build                    # tsc para dist/
 npm run dev -- --help            # src/cli/fsd.ts via tsx
 node dist/cli/fsd.js init        # assistente (precisa de terminal)

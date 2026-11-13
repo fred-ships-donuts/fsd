@@ -28,4 +28,4 @@ None
 
 ## Acceptance
 
-None — the criteria stay in SPEC §12 until #56.
+### A1 12.2 `fsd init` com argumento sai com 1; sem TTY sai com 1 e não escreve nada.

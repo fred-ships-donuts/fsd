@@ -52,6 +52,8 @@ export interface LinkItem extends ItemBase {
 
 export type PlanItem = InstallItem | RemoveItem | LinkItem;
 
+export type PlanLabel = 'install' | 'upgrade' | 'remove' | 'enable';
+
 export interface Plan {
   scope: Scope;
   env: Env;
@@ -60,6 +62,8 @@ export interface Plan {
   results: ActionResult[];
   // Problems found while planning (unknown skill, invalid version...); no work is planned for them.
   errors: string[];
+  // Names the action in the failure message: `<label> failed and was undone (...)`.
+  label: PlanLabel;
   ensureBase: boolean;
   config?: Config;
   // Text files the run writes in Apply, with the text each held when planned (the project `.gitignore`).
@@ -72,7 +76,7 @@ export interface PlanExtras {
 }
 
 export function emptyPlan(scope: Scope, env: Env, extras: PlanExtras = {}): Plan {
-  return { scope, env, items: [], results: [], errors: [], ensureBase: extras.ensureBase ?? false, ...(extras.config ? { config: extras.config } : {}) };
+  return { scope, env, items: [], results: [], errors: [], label: 'install', ensureBase: extras.ensureBase ?? false, ...(extras.config ? { config: extras.config } : {}) };
 }
 
 /** Adds an item that needs work, and its result. */

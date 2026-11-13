@@ -44,4 +44,9 @@ None
 
 ## Acceptance
 
-None — the criteria stay in SPEC §12 until #56.
+### A1 12.5 Instalar de novo uma skill já em dia não altera nada e termina com exit 0 (`skip (up to date)`).
+### A2 12.22 Se copiar, criar o link ou registrar falhar, nada da tentativa permanece: pasta nova, link e entrada somem, e o que foi deslocado (versão anterior ou original) volta ao lugar. Exit 1.
+### A3 12.26 `ctrl+c` em qualquer passo antes de confirmar o resumo não grava nada, e uma instalação logo em seguida termina sem erro, sem pasta ou link duplicado e sem link faltando.
+### A4 12.30 Depois de uma morte no meio da execução (sobras `*.fsd-new-*`/`*.fsd-old-*`), a instalação seguinte recupera sem falso conflito.
+### A5 12.31 Depois do `enter` no resumo, a execução passa pelas fases Verificar, Preparar, Aplicar, Registrar e Concluir, visíveis na tela; falha em qualquer uma das quatro primeiras deixa o disco como estava antes da confirmação, e as skills já aplicadas na mesma execução também são desfeitas.
+### A6 12.32 `ctrl+c` durante as fases desfaz e sai com 130; um processo morto no meio é recuperado pelo diário na execução seguinte; duas execuções ao mesmo tempo não se atropelam.

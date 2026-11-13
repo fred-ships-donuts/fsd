@@ -49,4 +49,4 @@ None
 
 ## Acceptance
 
-None — the criteria stay in SPEC §12 until #56.
+### A1 12.1 `fsd -v` e `fsd --version` imprimem a versão de `package.json` e saem com 0; `fsd`, `fsd -h` e `fsd --help` mostram a mesma ajuda e saem com 0; comando desconhecido sai com 1.

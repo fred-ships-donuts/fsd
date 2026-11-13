@@ -1,13 +1,13 @@
 # Contribuindo com o fsd
 
-Fluxo de trabalho do projeto, seguindo o modelo do GitHub: **issue → branch → pull request → merge**. A `develop` é a branch de integração da equipe e a branch padrão do repositório: todo branch de issue sai dela e todo PR volta para ela. A `main` recebe só o PR `develop → main`, mesclado pelo autor. O desenho do produto fica na [`SPEC.md`](SPEC.md); o que fazer, por quê e em que estado está fica nos issues.
+Fluxo de trabalho do projeto, seguindo o modelo do GitHub: **issue → branch → pull request → merge**. A `develop` é a branch de integração da equipe e a branch padrão do repositório: todo branch de issue sai dela e todo PR volta para ela. A `main` recebe só o PR `develop → main`, mesclado pelo autor. O desenho do produto fica na [`docs/spec/MAP.md`](docs/spec/MAP.md); o que fazer, por quê e em que estado está fica nos issues.
 
 ## Papéis
 
 | Papel | Quem | Conta no GitHub | O que faz |
 |---|---|---|---|
 | Autor | Frederico Jacobi | `fredericojacobi` | Dono do produto e o único que faz o merge na `main`. Os agentes não interagem com ele: o que ele escreve por conta própria no GitHub vale, e o Kevin decide no lugar dele. |
-| Product Manager | Kevin (agente) | `fsd-kevin[bot]` | Mantém issues, milestones, labels e o Project; decide produto, escopo e aceite e registra a decisão no issue; mantém a `SPEC.md`, o `TASKS.md` e este arquivo. Revisa os PRs quanto ao escopo e ao aceite e mescla os PRs de agentes prontos e parados. |
+| Product Manager | Kevin (agente) | `fsd-kevin[bot]` | Mantém issues, milestones, labels e o Project; decide produto, escopo e aceite e registra a decisão no issue; mantém `docs/spec/`, `docs/DECISIONS.md`, o `TASKS.md` e este arquivo. Revisa os PRs quanto ao escopo e ao aceite e mescla os PRs de agentes prontos e parados. |
 | Arquiteto | Mel (agente) | `fsd-mel[bot]` | Prepara cada issue para o desenvolvimento (comentário **Arquiteto: passagem**) e revisa o código dos PRs. Mantém o `docs/ARQUITETURA.md`. |
 | Desenvolvedor | Stuart (agente) | `fsd-stuart[bot]` | Implementa o issue num branch, abre o PR e responde às revisões. |
 | QA | Bob (agente) | `fsd-bob[bot]` | Verifica o PR rodando o app real contra o aceite do issue. Aprova ou pede mudanças, e abre issue de bug para o que estiver fora do escopo. Não corrige código. |
@@ -22,14 +22,41 @@ Ninguém aprova o próprio PR.
 
 Todo trabalho começa num issue: uma task, um bug, uma ideia, uma decisão pendente.
 
-- **Corpo**: o que fazer, por quê, como verificar (aceite) e as referências à `SPEC.md`. Uma task fica completa no corpo do issue.
-- **Comentários**: a discussão e as decisões. Uma decisão vira um comentário `Decision (PM, <data>): …`, por `fsd-issue decide`. Se ela muda o desenho, a `SPEC.md` é atualizada no mesmo PR que implementa a mudança, ou num PR de documentação.
+- **Corpo**: o que fazer, por quê, como verificar (aceite) e as referências à `docs/spec/MAP.md`. Uma task fica completa no corpo do issue.
+- **Comentários**: a discussão e as decisões. Uma decisão vira um comentário `Decision (PM, <data>): …`, por `fsd-issue decide`. Se ela muda o desenho, a `docs/spec/` (ou `docs/DECISIONS.md`) é atualizada no mesmo PR que implementa a mudança, ou num PR de documentação.
 - **Labels**:
   - `area:*` diz a parte do produto;
   - `size:S|M|L` dá a estimativa;
   - `decision` marca o que precisa de uma decisão do Kevin antes de virar task (#39 e #40 são reservadas pelo autor e ficam no Backlog, intocadas);
   - `bug` marca um defeito.
 - **Milestone**: a fase, por exemplo [Fase 6 — tasks do nook/](https://github.com/fredericojacobi/fred-ships-donuts/milestone/1). O progresso da fase é o do milestone.
+
+### 1.1 A cadeia de documentos
+
+Cada entrega percorre documentos em cadeia, na medida do tamanho do issue. Os nomes das etapas estão no [`docs/GLOSSARY.md`](docs/GLOSSARY.md) e ficam sem tradução. Os modelos, os exemplos, os limites de tamanho e a regra de `Source:` estão em [`docs/templates/README.md`](docs/templates/README.md); aqui só se aponta para eles.
+
+| Etapa | Quem | Modelo | Exemplo |
+|---|---|---|---|
+| Craving (ideia) | Kevin | [`craving.md`](docs/templates/craving.md) | [`examples/craving.md`](docs/templates/examples/craving.md) |
+| Flavor (o issue: What + Acceptance) | Kevin | [`flavor.md`](docs/templates/flavor.md) | [`examples/flavor.md`](docs/templates/examples/flavor.md) |
+| Rise (TECH REVIEW) | Mel | [`rise.md`](docs/templates/rise.md) | [`examples/rise.md`](docs/templates/examples/rise.md) |
+| Tray (PLAN) | Mel | [`tray.md`](docs/templates/tray.md) | [`examples/tray.md`](docs/templates/examples/tray.md) |
+| Step (TASK) | Stuart | [`step.md`](docs/templates/step.md) | [`examples/step.md`](docs/templates/examples/step.md) |
+| Taste (QA REVIEW) | Bob | [`taste.md`](docs/templates/taste.md) | [`examples/taste.md`](docs/templates/examples/taste.md) |
+
+Todo issue leva uma label `size:`, e ela diz quanto da cadeia a entrega usa:
+
+- **size:L**: os seis documentos (Craving, Flavor, Rise, Tray, Step, Taste). A passagem do Arquiteto é um comentário com dois títulos, `## TECH REVIEW` e depois `## PLAN`.
+- **size:M**: o issue (What + Acceptance), uma passagem curta do Arquiteto (`What to do`, `Files`, `Verification`) e um Taste.
+- **size:S**: o issue (What + Acceptance) e um Taste. Não há passagem: o issue vai direto para Ready for Development.
+
+O relatório da seção 5 segue o Taste em todos os tamanhos: `Result` (`pass` ou `fail`) e uma linha por item de aceite do issue, numerados `A1…`, com o comando, o esperado e o obtido.
+
+Os textos das skills do time que produzem e consomem esses documentos ficam versionados em `docs/process/skills/`; ninguém edita a pasta de configuração dos agentes por causa deles:
+
+- [`fsd-pm-issue.md`](docs/process/skills/fsd-pm-issue.md) (Kevin)
+- [`fsd-arq-passagem.md`](docs/process/skills/fsd-arq-passagem.md) (Mel)
+- [`fsd-qa-verificacao.md`](docs/process/skills/fsd-qa-verificacao.md) (Bob)
 
 ## 2. Project (quadro)
 
@@ -65,12 +92,12 @@ Todo trabalho começa num issue: uma task, um bug, uma ideia, uma decisão pende
 
 ## 4. Pull request
 
-- Um PR por issue, com base na `develop` (`fsd-pr open`). O corpo traz `Closes #N`, como foi verificado e os desvios da `SPEC.md` (de preferência nenhum).
+- Um PR por issue, com base na `develop` (`fsd-pr open`). O corpo traz `Closes #N`, como foi verificado e os desvios da `docs/spec/MAP.md` (de preferência nenhum).
 - O Arquiteto revisa no PR. A revisão separa **bloqueia** de **melhoria** e é publicada como revisão do PR.
 - O QA verifica e publica uma revisão: aprova se tudo passou, ou pede mudanças com o passo a passo para reproduzir.
 - O Stuart responde com um commit novo por rodada de correção, sem force-push.
 - Com 2 aprovações, o autor do PR mescla na `develop` com `fsd-merge <n>` (merge comum). O merge fecha o issue, e o card vai para Done. PR de agente pronto e parado há 10 minutos, o Kevin mescla com `fsd-merge --ready`.
-- Mudanças só de documentação (`SPEC.md`, `TASKS.md`, `CONTRIBUTING.md`, `docs/`) também entram por PR.
+- Mudanças só de documentação (`TASKS.md`, `CONTRIBUTING.md`, `docs/`) também entram por PR.
 
 Regras da `develop`:
 - o merge é um **merge comum** (merge commit), sem squash nem rebase: assim um branch que saiu de outro continua reconhecendo os commits já mesclados e não dá conflito à toa;
@@ -88,7 +115,7 @@ A `main` é do autor e é protegida pelo ruleset `ProtMain`:
 
 ## 5. Verificação
 
-Os testes automatizados foram removidos por decisão do autor (`SPEC.md` 11); voltam só os do `engine/`, com a F-40a (#13). Cada issue traz em "Como verificar (aceite)" a verificação manual. O PR relata o que foi rodado e o que saiu.
+Os testes automatizados foram removidos por decisão do autor (SPEC 11, em `docs/ARQUITETURA.md#tests`); voltam só os do `engine/`, com a F-40a (#13). Cada issue traz em "Como verificar (aceite)" a verificação manual. O PR relata o que foi rodado e o que saiu.
 
 A verificação do PR é do QA (Bob):
 - **Ambiente próprio:** ele baixa o branch do PR num worktree só dele, compila e roda o fsd num tmux de 80x24, com `HOME` e pastas temporárias, sem tocar na janela nem nos arquivos do autor.

@@ -37,4 +37,5 @@ None
 
 ## Acceptance
 
-None — the criteria stay in SPEC §12 until #56.
+### A1 12.15 Com `autoUpdate: false`, `fsd init` não faz nenhuma consulta de rede; `fsd update` continua atualizando a CLI.
+### A2 12.33 `fsd init` ao abrir, com `autoUpdate` ligado e CLI instalada globalmente, não cria nenhum arquivo ou diretório.

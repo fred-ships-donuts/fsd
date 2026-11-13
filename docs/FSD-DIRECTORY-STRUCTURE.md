@@ -40,7 +40,7 @@ my-project/
 
 The `status` of a task is a field in the task file itself. Bench, Rack and Fridge hold task **folders**; they do not store logs or execution state.
 
-A task is a folder named after its slug (`SPEC.md` 4.5):
+A task is a folder named after its slug (SPEC 4.5, ver `docs/spec/MAP.md`):
 
 ```text
 nook/bench/login-oauth/
@@ -55,7 +55,7 @@ nook/bench/ (in_progress)  →  nook/rack/ (done)  →  nook/fridge/ (archived, 
 
 ## Document chain
 
-The six documents of a delivery (names in `GLOSSARY.md`). `<slug>` is the delivery slug, with the same rules as a task slug (`SPEC.md` 4.5). The shared slug is the link between `kitchen/<slug>/` and `bench/<slug>/`.
+The six documents of a delivery (names in `GLOSSARY.md`). `<slug>` is the delivery slug, with the same rules as a task slug (SPEC 4.5, ver `docs/spec/MAP.md`). The shared slug is the link between `kitchen/<slug>/` and `bench/<slug>/`.
 
 | Document | Path | Written by |
 |---|---|---|
@@ -70,7 +70,7 @@ Craving, Flavor and Rise are preparation, so they live in `kitchen/`. Tray, Step
 
 `kitchen/<slug>/` is created when the user writes a Craving, not by `fsd init`, and it is not part of the slug-uniqueness check of `fsd task new` (bench, rack and fridge only).
 
-Outside `nook/` (this repository's own team flow, not the product): the Craving is the GitHub issue; Tray and Rise are the Architect handoff comment; Steps are the steps of the PR; Taste is the QA verification comment on the PR. For now the Flavor stays in `SPEC.md`; its final location is decided later.
+Outside `nook/` (this repository's own team flow, not the product): the Craving is the GitHub issue; Tray and Rise are the Architect handoff comment; Steps are the steps of the PR; Taste is the QA verification comment on the PR. For now the Flavor is in `docs/spec/<slug>/flavor.md` (see `docs/spec/MAP.md`).
 
 ## Created by `fsd init`
 
@@ -82,6 +82,6 @@ When the Install flow is confirmed, the CLI creates only the base structure: `no
 
 ## Decided (2026-11-07)
 
-- **Task format** (`SPEC.md` 4.5): a folder with `plan.md` and `NN-<slug>.yaml` steps. The task `status` is in the `plan.md` frontmatter (`in_progress`, `done`, `archived`); the step `status` is `pending`, `in_progress`, `done` or `skipped`.
-- **`.gitignore`** (`SPEC.md` 4.2): the Install flow adds `.fsd/cache/` and `.fsd/logs/` in the project scope.
+- **Task format** (SPEC 4.5, ver `docs/spec/MAP.md`): a folder with `plan.md` and `NN-<slug>.yaml` steps. The task `status` is in the `plan.md` frontmatter (`in_progress`, `done`, `archived`); the step `status` is `pending`, `in_progress`, `done` or `skipped`.
+- **`.gitignore`** (SPEC 4.2, ver `docs/spec/MAP.md`): the Install flow adds `.fsd/cache/` and `.fsd/logs/` in the project scope.
 - **Who moves `rack` to `fridge`**: only `fsd task archive`, run by the user; the agent never does (F-40b, #7: not available yet).

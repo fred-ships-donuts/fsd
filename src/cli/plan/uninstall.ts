@@ -5,6 +5,7 @@ import { addItem, emptyPlan, snapshotOf, type Plan } from './types.js';
 // Removal rules (SPEC 6.8): only what the registry knows, the registered folder, our link and the entry.
 export function planUninstall(scope: Scope, names: string[], env: Env = realEnv()): Plan {
   const plan = emptyPlan(scope, env);
+  plan.label = 'remove';
   const registry = readRegistry(scope, env);
   for (const name of names) {
     const entry = registry.skills[name];

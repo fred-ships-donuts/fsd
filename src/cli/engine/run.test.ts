@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { existsSync, lstatSync, readdirSync, readFileSync } from 'node:fs';
+import { chmodSync, existsSync, lstatSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, it } from 'node:test';
 import { listSkills } from '../core/catalog.js';
@@ -8,7 +8,7 @@ import { planLink } from '../plan/link.js';
 import { planUninstall } from '../plan/uninstall.js';
 import { realOps, type Ops } from './ops.js';
 import { runPlan, type RunControl, type RunEvent } from './run.js';
-import { failingOps, tempEnv, type TempEnv } from './testkit.js';
+import { failingOps, opsFailing, tempEnv, type TempEnv } from './testkit.js';
 
 // The skills client, one test per plan kind: the final tree and installed.json are what they were before the core.
 
@@ -96,5 +96,50 @@ describe('runPlan (skills client)', () => {
     assert.equal(existsSync(link()), false);
     assert.equal(existsSync(root()), false);
     assert.equal(existsSync(join(t.env.cwd, 'nook')), false);
+  });
+
+  // The failure message names the action (`<label> failed and was undone (<phase>: <reason>)`), from the plan's label.
+  const failed = async (plan: Parameters<typeof runPlan>[0], ops: Ops) => {
+    const outcome = await runPlan(plan, { ops });
+    assert.equal(outcome.status, 'failed');
+    return (outcome as { message: string }).message;
+  };
+
+  it('11a. install failing in apply says "install failed and was undone"', async () => {
+    assert.equal(await failed(install(), opsFailing('symlink')), 'install failed and was undone (apply: boom)');
+  });
+
+  it('11b. upgrade failing in apply says "upgrade failed and was undone"', async () => {
+    await runPlan(install());
+    // Make the installed copy look old so the plan is an upgrade.
+    const reg = registry();
+    reg.skills[name]!.version = '0.0.0';
+    writeFileSync(join(root(), 'installed.json'), JSON.stringify(reg));
+    const upgrade = planInstall('project', [{ name, lang: 'en', onConflict: 'keep' }], t.env, {});
+    assert.equal(upgrade.label, 'upgrade');
+    assert.equal(await failed(upgrade, opsFailing('move')), 'upgrade failed and was undone (apply: boom)');
+  });
+
+  it('11c. remove failing in apply says "remove failed and was undone"', async () => {
+    await runPlan(install());
+    assert.equal(await failed(planUninstall('project', [name], t.env), opsFailing('move')), 'remove failed and was undone (apply: boom)');
+  });
+
+  it('11d. enable failing in apply says "enable failed and was undone"', async () => {
+    await runPlan(install());
+    rmSync(link());
+    assert.equal(await failed(planLink('project', [name], false, t.env), opsFailing('symlink')), 'enable failed and was undone (apply: boom)');
+  });
+
+  it('11e. a failing undo keeps the "undo failed" suffix after the action name', async () => {
+    // The undo uses the real operations: make it fail for real by locking the folder it has to clean (not for root).
+    const skills = join(root(), 'skills');
+    const lock: Ops = { ...realOps, symlink: () => { chmodSync(skills, 0o555); throw new Error('boom'); } };
+    try {
+      const message = await failed(install(), lock);
+      assert.match(message, /^install failed and was undone \(apply: boom\); undo failed \(.*EACCES.*\); run fsd again to recover$/);
+    } finally {
+      chmodSync(skills, 0o755);
+    }
   });
 });
