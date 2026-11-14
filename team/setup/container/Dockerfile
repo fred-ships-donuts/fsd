@@ -34,8 +34,8 @@
 #
 # ── O que o fsd-setup faz sozinho, e o que só você pode fazer ────────────────────────────────────────
 #   Sozinho: Tailscale; git config; clone do fsd e do fsd-agents; atalhos (fsd-agent, fsd-stats,
-#   fsd-watch, fsd-sync-pair); chave do túnel; pareamento do Syncthing (começa em "receive only");
-#   registro do MCP do ai-memory; npm ci, build e trail build; conferência.
+#   fsd-watch, fsd-sync-pair, fsd-map); chave do túnel; pareamento do Syncthing (começa em "receive only");
+#   registro do MCP do ai-memory; npm ci, build e fsd-map build; conferência.
 #   Você: (1) o login do GitHub (`gh auth login`, que o setup abre); (2) o login do Claude (`/login`);
 #   (3) a senha do secrets.tar.age; (4) aprovar a máquina na Tailscale (um link, ou o TS_AUTHKEY);
 #   (5) colar, na matriz, a linha `fsd-aceitar …` que o setup mostra. Ela autoriza a chave do túnel e
@@ -48,7 +48,7 @@
 ARG NVM_VERSION=0.40.8
 ARG NODE_VERSION=26.12.1
 ARG CLAUDE_VERSION=2.1.322
-ARG TRAIL_VERSION=0.29.0
+ARG MAP_VERSION=0.29.0
 ARG RTK_VERSION=1.1.0
 ARG AIMEM_VERSION=3.4.3
 ARG AGE_VERSION=1.3.2
@@ -56,7 +56,7 @@ ARG AGE_VERSION=1.3.2
 # ══ estágio 1: baixa e instala as ferramentas em /opt/fsd ══════════════════════════════════════════════
 FROM ubuntu:24.04 AS tools
 ARG TARGETARCH
-ARG NVM_VERSION NODE_VERSION CLAUDE_VERSION TRAIL_VERSION RTK_VERSION AIMEM_VERSION AGE_VERSION
+ARG NVM_VERSION NODE_VERSION CLAUDE_VERSION MAP_VERSION RTK_VERSION AIMEM_VERSION AGE_VERSION
 ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates curl xz-utils libatomic1 git \
  && rm -rf /var/lib/apt/lists/*
@@ -74,25 +74,25 @@ RUN set -eux; O=/opt/fsd; ARCH="${TARGETARCH:-$(dpkg --print-architecture)}"; \
     curl -fsSL "https://github.com/FiloSottile/age/releases/download/v$AGE_VERSION/age-v$AGE_VERSION-linux-$G.tar.gz" | tar -xz -C /tmp/dl; \
     install -m755 /tmp/dl/age/age /tmp/dl/age/age-keygen $O/bin/; \
     rm -rf /tmp/dl
-# Node via nvm em /opt/fsd/nvm (só uma versão) + trail; sem caches.
+# Node via nvm em /opt/fsd/nvm (só uma versão) + motor do fsd-map em /opt/fsd/map (fora do PATH); sem caches.
 RUN set -eux; export NVM_DIR=/opt/fsd/nvm; mkdir -p $NVM_DIR; \
     curl -fsSL "https://raw.githubusercontent.com/nvm-sh/nvm/v$NVM_VERSION/install.sh" | PROFILE=/dev/null bash; \
     . $NVM_DIR/nvm.sh; nvm install "$NODE_VERSION"; nvm alias default "$NODE_VERSION"; \
-    npm i -g "@trailhq/trail-code@$TRAIL_VERSION"; \
+    npm i --prefix /opt/fsd/map --no-save --no-audit --no-fund "@trailhq/trail-code@$MAP_VERSION"; \
     npm cache clean --force; rm -rf $NVM_DIR/.cache $NVM_DIR/.git /root/.npm; \
     rm -rf $NVM_DIR/versions/node/v$NODE_VERSION/include   # headers C: só para compilar módulos nativos (o fsd não tem)
 # Claude Code nativo: instala num HOME temporário e move para /opt/fsd/claude.
 RUN set -eux; export HOME=/tmp/h; mkdir -p $HOME; \
     curl -fsSL https://claude.ai/install.sh | bash -s "$CLAUDE_VERSION"; \
     mv $HOME/.local/share/claude /opt/fsd/claude; rm -rf $HOME; \
-    echo "node=$NODE_VERSION claude=$CLAUDE_VERSION trail=$TRAIL_VERSION rtk=$RTK_VERSION ai-memory=$AIMEM_VERSION age=$AGE_VERSION" > /opt/fsd/VERSIONS; \
+    echo "node=$NODE_VERSION claude=$CLAUDE_VERSION map=$MAP_VERSION rtk=$RTK_VERSION ai-memory=$AIMEM_VERSION age=$AGE_VERSION" > /opt/fsd/VERSIONS; \
     echo "$NODE_VERSION" > /opt/fsd/NODE_VERSION; echo "$CLAUDE_VERSION" > /opt/fsd/CLAUDE_VERSION
 
 # ══ estágio 2: a imagem final ══════════════════════════════════════════════════════════════════════════
 FROM ubuntu:24.04
 ARG NODE_VERSION
 ENV DEBIAN_FRONTEND=noninteractive LANG=C.UTF-8 LC_ALL=C.UTF-8 \
-    TERM=xterm-256color COLORTERM=truecolor GRAFT_NO_STATUSLINE=1 \
+    TERM=xterm-256color COLORTERM=truecolor \
     PATH=/home/fsd/.nvm/versions/node/v${NODE_VERSION}/bin:/home/fsd/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin \
     FSD_REPO=/media/fsd/Projects/projetos/fred-ships-donuts \
     FSD_REPO_URL=https://github.com/fred-ships-donuts/fsd.git
@@ -193,14 +193,13 @@ link "$O/claude/versions/$CV"        "$H/.local/bin/claude"
 for b in rtk age age-keygen; do link "$O/bin/$b" "$H/.local/bin/$b"; done
 # HOME sem .bashrc ou .profile (volume criado vazio): copia os padrões do Ubuntu.
 for f in .bashrc .profile .bash_logout; do [ -e "$H/$f" ] || cp "/etc/skel/$f" "$H/$f"; done
-# .bashrc igual à matriz (nvm + PATH + GRAFT_NO_STATUSLINE)
+# .bashrc igual à matriz (nvm + PATH)
 grep -q '# fsd (igual à matriz)' "$H/.bashrc" 2>/dev/null || cat >> "$H/.bashrc" <<'RC'
 
 # fsd (igual à matriz)
 export NVM_DIR="$HOME/.nvm"
 [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
 export PATH="$HOME/.local/bin:$PATH"
-export GRAFT_NO_STATUSLINE=1
 RC
 # Lembrete na entrada, até o fsd-setup terminar.
 grep -q '# fsd (lembrete do setup)' "$H/.bashrc" 2>/dev/null || cat >> "$H/.bashrc" <<'RC'
@@ -295,8 +294,8 @@ else
 fi
 mkdir -p "$H/.local/bin"
 printf '#!/bin/sh\nexec "%s/bin/fsd-agent" "$@"\n' "$TEAM" > "$H/.local/bin/fsd-agent" && chmod +x "$H/.local/bin/fsd-agent"
-for b in fsd-stats fsd-watch fsd-sync-pair; do ln -sfn "$TEAM/bin/$b" "$H/.local/bin/$b"; done
-ok "atalhos: fsd-agent, fsd-stats, fsd-watch, fsd-sync-pair"
+for b in fsd-stats fsd-watch fsd-sync-pair fsd-map; do ln -sfn "$TEAM/bin/$b" "$H/.local/bin/$b"; done
+ok "atalhos: fsd-agent, fsd-stats, fsd-watch, fsd-sync-pair, fsd-map"
 
 passo "5/9  A matriz aceita esta máquina (túnel do ai-memory e Syncthing)"
 mkdir -p "$H/.ssh" && chmod 700 "$H/.ssh"
@@ -344,7 +343,7 @@ passo "8/9  Projeto: instalar e construir"
 cd "$REPO" || falha "falta $REPO"
 [ -d node_modules ] || npm ci || falha "npm ci falhou"
 npm run build >/dev/null || falha "npm run build falhou (rode npm run build para ver o erro)"
-trail build >/dev/null 2>&1 || echo "   aviso: trail build falhou (não impede o uso)"
+team/bin/fsd-map build >/dev/null || falha "fsd-map build falhou (rode team/bin/fsd-map status)"
 ok "instalado e construído"
 
 passo "9/9  Conferência"

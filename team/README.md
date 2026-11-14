@@ -59,11 +59,12 @@ comando passam por cima do padrão.
 │   ├── fsd-token                  gera o token do GitHub App do agente
 │   ├── fsd-secrets                pack/unpack dos segredos em secrets.tar.age (age, senha)
 │   ├── gh                         gh dos agentes (só entra no PATH dentro do fsd-agent)
+│   ├── fsd-map                    mapa de código (ask, grep, skeleton, callers, map, build); motor privado, fora do PATH
 │   └── git-credential-fsd         entrega o token ao git
 │
 ├── agents.json             ⚙️     por agente: model, effort, disallowedTools, dados do GitHub App
 │                                  "claude_common": ferramentas cortadas para todos
-├── claude-settings.json    ⚙️     comum: hooks (RTK, Trail, ai-memory), deny comuns, permissões do ai-memory
+├── claude-settings.json    ⚙️     comum: hooks (RTK, ai-memory, fsd-context-guard), deny comuns, permissões do ai-memory e do fsd-map
 ├── mcp.json                ⚙️     o único MCP dos agentes: ai-memory
 ├── common/
 │   ├── team.md             ⚙️     regras do time (fluxo, memória, handoffs), importado em todo CLAUDE.md
@@ -91,8 +92,8 @@ comando passam por cima do padrão.
 
 ── FORA DE ~/.config/fsd-agents, MAS USADO PELOS AGENTES ──
 ~/.claude/RTK.md                   importado no CLAUDE.md de cada agente
-~/.claude/helpers/graft-hooks.cjs  script dos hooks do Trail (chamado pelo claude-settings.json)
-~/.trail/settings.json      ⚙️     Trail: skills e ofertas desligadas (vale para você e para os agentes)
+~/.local/share/fsd/map/     🤖     fsd-map: motor (engine/, versão no ARG MAP_VERSION do Dockerfile; no container fica em
+                                   /opt/fsd/map), mapas por checkout (maps/) e HOME isolado do motor (home/)
 ~/.local/share/ai-memory/
 │   ├── config.toml         ⚙️     servidor ai-memory ([profile] fixado; [auth] no fim)
 │   └── db/ wiki/ …         🤖     a memória compartilhada (páginas, sessões, handoffs)
@@ -103,10 +104,7 @@ comando passam por cima do padrão.
 /tmp/fsd-qa/                🤖     rascunhos e capturas do Bob (worktree do PR em pr-<n>/)
 
 ── NO REPO (fred-ships-donuts) ──
-graft/                      🤖     mapa de código do Trail (fora do git)
-.claude/settings.json       ⚙️     hook do Trail no início da sessão
-.trail/                     ⚙️     hook.cjs, README e .gitignore do Trail
-AGENTS.md                   ⚙️     seção do Trail
+AGENTS.md                   ⚙️     como achar código com o fsd-map (lido também pelos agentes)
 ```
 
 **Para mudar algo, o arquivo é:**

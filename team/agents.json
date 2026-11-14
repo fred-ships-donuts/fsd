@@ -20,7 +20,7 @@
       "ReportFindings"
     ],
     "settingSources": "user,local",
-    "_settingSources": "Os agentes não usam o trail: user,local pula o .claude/settings.json do projeto (hook do trail). O AGENTS.md (só trail) sai pelo claudeMdExcludes do claude-settings.json.",
+    "_settingSources": "user,local pula o .claude/settings.json do projeto: só valem as configurações do fsd (claude-settings.json e o settings.json do agente).",
     "context": {
       "_comment": "Contexto por sessão: teto em limit (tokens, sem compactação automática; até 200k o fsd-agent desliga a janela de 1M do modelo; acima, ela fica ligada e o teto é o limit). O fsd-context-guard julga sozinho: livre = limit − atual − marginPct% do limit; custo = crescimento médio por chamada (últimas 20); restam = livre ÷ custo. Sessão pesada = alguma das 3 últimas chamadas custou ≥ heavyFactor × a média; aí valem as faixas heavy. Restam ≤ urgentAt → urgente (🔴, em negrito); < mediumAt → médio (🟡); senão nada. Mensagens no topo de bin/fsd-context-guard.",
       "limit": 250000,

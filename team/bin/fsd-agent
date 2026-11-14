@@ -75,7 +75,7 @@ claude_wrap() {
   # para ela não engolir um prompt seu.
   [ -n "$deny" ] && extra+=(--disallowedTools "$deny")
   # Fontes de configuração por papel (agents.json → claude.settingSources), ex.: "user,local" pula o
-  # .claude/settings.json do projeto (hook do trail) para quem quase não lê código.
+  # .claude/settings.json do projeto: o agente roda só com as configurações do fsd.
   [ -n "$sources" ] && extra+=(--setting-sources "$sources")
   # MCP: só o ai-memory (mcp.json); o --strict-mcp-config ignora todo o resto e fecha a lista.
   extra+=(--mcp-config "$ROOT/mcp.json" --strict-mcp-config)

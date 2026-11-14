@@ -23,7 +23,6 @@ FOLDERS=(
   "agent-mel|$H/.config/fsd-agents/agents/mel/claude|agent"
   "agent-stuart|$H/.config/fsd-agents/agents/stuart/claude|agent"
   "agent-bob|$H/.config/fsd-agents/agents/bob/claude|agent"
-  "trail-prefs|$H/.trail|trail-prefs"
   "rtk-config|$H/.config/rtk|"
   "repo-local|$REPO|repo-local"
 )
