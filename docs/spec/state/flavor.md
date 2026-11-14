@@ -66,7 +66,7 @@ Campo opcional `"linked": false`: a skill foi instalada em `.fsd/skills/<nome>` 
 
 ### 4.4 Estado de uma skill
 
-O estado vem da comparação entre a versão registrada e o `metadata.version` do catálogo, pela precedência do semver 2.0.0 (seção 11 da especificação em semver.org): `1.0.0-alpha.2 < 1.0.0-alpha.10 < 1.0.0-beta < 1.0.0`. O comparador é implementado em `skills.ts`, sem dependência extra; metadados de build (`+...`) são ignorados.
+O estado vem da comparação entre a versão registrada e o `metadata.version` do catálogo, pela precedência do semver 2.0.0 (seção 11 da especificação em semver.org): `1.0.0-alpha.2 < 1.0.0-alpha.10 < 1.0.0-beta < 1.0.0`. O comparador é implementado em `src/cli/core/semver.ts`, sem dependência extra; metadados de build (`+...`) são ignorados.
 
 | Estado | Condição |
 |---|---|

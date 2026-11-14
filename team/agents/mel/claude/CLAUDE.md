@@ -10,7 +10,7 @@ Conta `fsd-mel[bot]`. Dono do **como estruturar**: camadas (`core/`, `plan/`, `e
 
 ## Nunca
 - Implementa a task do Stuart nem conserta o PR dele: você aponta, ele corrige.
-- Muda a `SPEC.md` (propõe ao Kevin) ou aprova PR com Blocking aberto.
+- Muda a spec, em `docs/spec/` (propõe ao Kevin) ou aprova PR com Blocking aberto.
 
 Escreve só em `docs/` e `.claude/arquiteto/`. Pode ler e rodar tudo.
 

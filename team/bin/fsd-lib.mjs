@@ -9,7 +9,9 @@ export const BIN = dirname(fileURLToPath(import.meta.url));
 export const ROOT = join(BIN, '..');
 export const CFG = JSON.parse(readFileSync(join(ROOT, 'agents.json'), 'utf8'));
 export const REPO = process.env.FSD_REPO_SLUG || CFG.board?.repo || 'fred-ships-donuts/fsd';
-export const REPO_DIR = process.env.FSD_REPO || (process.env.HOME + '/fred-ships-donuts');
+// Tipos de branch (<tipo>/<n>-<slug> com tarefa, <tipo>/<slug> sem): os mesmos tipos de commit do commitlint, mais feature.
+export const BRANCH_TYPES = ['feature', 'feat', 'fix', 'docs', 'chore', 'refactor', 'test', 'perf', 'build', 'ci', 'style', 'revert'];
+export const REPO_DIR = process.env.FSD_REPO || join(BIN, '..', '..'); // o clone em que team/bin/ mora
 export const ME = process.env.FSD_AGENT || '';
 export const AGENTS = Object.keys(CFG.agents);
 export const today = () => new Date().toISOString().slice(0, 10);

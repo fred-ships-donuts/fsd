@@ -6,24 +6,27 @@
 set -euo pipefail
 name="${FSD_AGENT:?fsd-restart: rode dentro de uma sessão aberta pelo fsd-agent}"
 pane="${TMUX_PANE:?fsd-restart: esta sessão não está num tmux}"
-repo="${FSD_REPO:-$HOME/fred-ships-donuts}"
+# Pasta real do script (vale também por um link): fsd-queue, PAUSE e agents.json vêm dela.
+HERE="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"
+# Raiz do repositório: FSD_REPO, ou o clone em que este script mora (team/bin/ → ../..).
+repo="${FSD_REPO:-$(dirname "$(dirname "$HERE")")}"
 bin="${FSD_AGENT_BIN:-$HOME/.local/bin/fsd-agent}"
-q=$(FSD_AGENT=$name "$(dirname "$0")/fsd-queue" "$name" 2>/dev/null | tr '\n' ';' | cut -c1-600)
+q=$(FSD_AGENT=$name "$HERE/fsd-queue" "$name" 2>/dev/null | tr '\n' ';' | cut -c1-600)
 kick="Sessão nova de $name (contexto limpo). A fila abaixo é o estado atual; não releia o GitHub. Siga o team.md e o handoff; rearme o Monitor (fsd-wait). Fila: $q"
 cmd="$bin $name claude $(printf %q "$kick")"
 # Termina na raiz: o handoff automático do ai-memory fica guardado pelo diretório em que a sessão acaba, e a sessão
 # nova abre na raiz. Num worktree ele ficaria preso lá até expirar (aconteceu com o Stuart em 2026-11-09).
 [ "$(pwd -P)" = "$(cd "$repo" && pwd -P)" ] || { echo "fsd-restart: rode da raiz do repositório: cd $repo && fsd-restart (num worktree o handoff do ai-memory não chega à sessão nova)"; exit 1; }
 tmux display -p -t "$pane" >/dev/null 2>&1 || { echo "fsd-restart: painel $pane não existe"; exit 1; }
-if [ "${1:-}" = --dry-run ] || [ -n "${FSD_DRY:-}" ]; then [ -e "$(dirname "$0")/../PAUSE" ] && echo "PAUSE ativo: encerraria $name sem reabrir" || echo "reiniciaria $name em $repo"; exit 0; fi
+if [ "${1:-}" = --dry-run ] || [ -n "${FSD_DRY:-}" ]; then [ -e "$HERE/../PAUSE" ] && echo "PAUSE ativo: encerraria $name sem reabrir" || echo "reiniciaria $name em $repo"; exit 0; fi
 # Pausa do time: com o arquivo PAUSE, o fim de tarefa encerra a sessão em vez de reabrir.
-if [ -e "$(dirname "$0")/../PAUSE" ]; then
+if [ -e "$HERE/../PAUSE" ]; then
   setsid -f bash -c "sleep 2; tmux kill-pane -t $(printf %q "$pane")" >/dev/null 2>&1 < /dev/null
   echo "fsd-restart: time em pausa (PAUSE). A sessão de $name encerra em 2s e não reabre."; exit 0
 fi
-# Só reinicia quando vale a pena: com contexto até restartAbove (60k) a sessão segue (reiniciar a cada entrega pequena
+# Só reinicia quando vale a pena: com contexto até restartAbove (agents.json) a sessão segue (reiniciar a cada entrega pequena
 # custava uma orientação nova a cada 1–2 min). O contexto vem do transcript mais recente do perfil (o desta sessão).
-above=$(node -e 'try{const j=require(process.argv[1]);console.log(j.agents?.[process.argv[2]]?.context?.restartAbove||j.claude_common?.context?.restartAbove||60000)}catch{console.log(60000)}' "$(dirname "$0")/../agents.json" "$name")
+above=$(node "$HERE/fsd-context.mjs" "$name" restartAbove) || exit 2
 ctx=$(node -e 'const fs=require("fs"),p=require("path");const b=p.join(process.env.CLAUDE_CONFIG_DIR||"","projects");let f=null,m=0;
   try{for(const d of fs.readdirSync(b))for(const x of fs.readdirSync(p.join(b,d)))if(x.endsWith(".jsonl")){const q=p.join(b,d,x),t=fs.statSync(q).mtimeMs;if(t>m){m=t;f=q}}}catch{}
   let c=0;if(f)for(const l of fs.readFileSync(f,"utf8").split("\n")){if(!l.includes("\"assistant\""))continue;let e;try{e=JSON.parse(l)}catch{continue}

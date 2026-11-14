@@ -6,6 +6,7 @@
 # Idempotente. Para desfazer (máquina perdida): apague a linha "<nome>" do authorized_keys, o dispositivo
 # no Syncthing e a máquina no painel da Tailscale.
 set -euo pipefail
+HERE="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"
 nome="${1:?nome}"; ip="${2:?ip-tailscale}"; sid="${3:?syncthing-id}"; pub="${4:?chave pública}"
 [[ "$nome" =~ ^[A-Za-z0-9._-]{1,63}$ ]] || { echo "nome inválido: $nome"; exit 2; }
 [[ "$ip" =~ ^100\.([0-9]{1,3}\.){2}[0-9]{1,3}$ ]] || { echo "ip não é da Tailscale (100.x.y.z): $ip"; exit 2; }
@@ -19,5 +20,5 @@ else
   printf 'from="%s",restrict,port-forwarding,permitopen="127.0.0.1:49374",command="/bin/false" %s %s %s\n' "${FSD_TAILNET_CIDR:-100.64.0.0/10}" "$tipo" "$chave" "$nome" >> "$AK"
   echo "ok chave de $nome autorizada (só o túnel do ai-memory)"
 fi
-"$(dirname "$(readlink -f "$0")")/fsd-sync-pair" add "$sid" "$ip" "$nome"
+"$HERE/fsd-sync-pair" add "$sid" "$ip" "$nome"
 echo "ok $nome aceita. Volte para a máquina nova: o fsd-setup continua sozinho."

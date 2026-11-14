@@ -4,7 +4,7 @@
 # everything else uses the installation on the repository.
 set -euo pipefail
 [ -n "${FSD_AGENT:-}" ] || { echo "gh (fsd): FSD_AGENT não definido — abra a sessão com fsd-agent <nome>" >&2; exit 2; }
-HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+HERE="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"
 REAL_GH="${FSD_REAL_GH:-/usr/bin/gh}"
 export GH_REPO="${GH_REPO:-${FSD_REPO_SLUG:-fred-ships-donuts/fsd}}" GH_PROMPT_DISABLED=1 GH_NO_UPDATE_NOTIFIER=1 GH_SPINNER_DISABLED=1 NO_COLOR=1 GH_PAGER=cat
 scope=()

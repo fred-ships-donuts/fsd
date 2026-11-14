@@ -1,0 +1,144 @@
+#!/usr/bin/env node
+// fsd-map — mapa de código do repositório: onde está e como funciona, sem abrir arquivo por arquivo.
+// fsd-map ask "<pergunta>" [--source|--full] [--in <pasta>/]   trechos mais relevantes com arquivo:linha
+// fsd-map grep "<literal>"        todas as ocorrências, agrupadas pelo símbolo que as contém
+// fsd-map skeleton <arquivo>      assinaturas e linhas de cada definição (bem mais barato que ler o arquivo)
+// fsd-map callers <símbolo> [--direction out] [--depth N|all]   quem chama (ou o que ele chama)
+// fsd-map map                     visão geral: pastas, pontos centrais
+// fsd-map build                   reconstrói o mapa (os outros comandos já atualizam sozinhos)
+// fsd-map status                  motor, versão, patch e onde fica o mapa deste checkout
+// Cada checkout (worktree incluído) tem o próprio mapa, fora do repositório; o primeiro uso o constrói.
+// Motor: pacote npm fixado em ARG MAP_VERSION do team/setup/container/Dockerfile, instalado num diretório
+// privado (nunca no PATH) e corrigido aqui: versão diferente → reinstala a fixada; patch idempotente.
+// Saída: 0 ok · 1 falha · 2 uso.
+import { readFileSync, writeFileSync, realpathSync, existsSync, mkdirSync, rmSync, statSync } from 'node:fs';
+import { dirname, join, basename } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
+import { homedir } from 'node:os';
+
+const BIN = dirname(realpathSync(fileURLToPath(import.meta.url)));
+const ENGINE = ['@trailhq', 'trail-code'];
+const NAME = ENGINE.join('/');
+const MAP_CMDS = ['ask', 'grep', 'skeleton', 'callers', 'map', 'build'];
+const REAL_HOME = homedir();
+const DATA = process.env.FSD_MAP_HOME || join(REAL_HOME, '.local', 'share', 'fsd', 'map');
+// Motor: FSD_MAP_PKG; senão o da imagem do container (/opt/fsd/map); senão o privado do usuário.
+const PKG = process.env.FSD_MAP_PKG || (existsSync('/opt/fsd/map/node_modules') ? '/opt/fsd/map' : join(DATA, 'engine'));
+const ENGINE_DIR = join(PKG, 'node_modules', ...ENGINE);
+const PATCHES = [
+  { file: 'dist/claude/hooks.js', what: 'hooks calados',
+    anchor: 'export async function main(event) {\n',
+    line: '    process.stdout.write = () => true; // fsd-patch: os hooks não falam com o agente\n' },
+  { file: 'dist/claude/pre-bash.js', what: 'hook pre-bash calado',
+    anchor: "export async function main(event = 'pre-bash', decide = preBash) {\n",
+    line: '    process.stdout.write = () => true; // fsd-patch: os hooks não falam com o agente\n' },
+  { file: 'dist/context/savings.js', what: 'sem pedido de placar de tokens',
+    anchor: 'export function savingsTurnNudge(savedTokens) {\n',
+    line: "    return ''; // fsd-patch: sem pedido de placar de tokens\n" },
+  { file: 'dist/ask/ask.js', what: 'ask sem learnings',
+    anchor: 'function renderAsk(r) {\n',
+    line: '    r = { ...r, notes: [], notesChecked: false, notesHint: undefined }; // fsd-patch: ask sem learnings\n' },
+];
+
+const fail = (msg, code = 1) => { console.error(`fsd-map: ${msg}`); process.exit(code); };
+const usage = () => fail('uso: fsd-map ask|grep|skeleton|callers|map|build <args> | status', 2);
+
+function pinned() {
+  const df = join(BIN, '..', 'setup', 'container', 'Dockerfile');
+  const m = readFileSync(df, 'utf8').match(/^ARG MAP_VERSION=(\S+)/m);
+  if (!m) fail(`ARG MAP_VERSION não encontrado em ${df}`, 2);
+  return m[1];
+}
+const installed = () => { try { return JSON.parse(readFileSync(join(ENGINE_DIR, 'package.json'), 'utf8')).version; } catch { return null; } };
+const patchState = () => PATCHES.map((p) => {
+  const path = join(ENGINE_DIR, p.file);
+  const text = existsSync(path) ? readFileSync(path, 'utf8') : null;
+  return { ...p, path, text, done: text !== null && text.includes(p.anchor + p.line), fits: text !== null && text.split(p.anchor).length === 2 };
+});
+
+// Uma instalação por vez (agentes em paralelo): trava em diretório; trava com mais de 10 min é velha.
+function locked(fn) {
+  mkdirSync(DATA, { recursive: true });
+  const lock = join(DATA, '.lock');
+  for (let i = 0; ; i++) {
+    try { mkdirSync(lock); break; } catch {
+      try { if (Date.now() - statSync(lock).mtimeMs > 600000) { rmSync(lock, { recursive: true, force: true }); continue; } } catch { continue; }
+      if (i >= 240) fail('outra instalação do motor não terminou em 2 min (trava em ' + lock + ')');
+      spawnSync('sleep', ['0.5']);
+    }
+  }
+  try { return fn(); } finally { rmSync(lock, { recursive: true, force: true }); }
+}
+
+function ensure() {
+  const pin = pinned();
+  if (installed() === pin && patchState().every((s) => s.done)) return;
+  locked(() => {
+    if (installed() !== pin) {
+      const npm = process.env.FSD_MAP_NPM || join(dirname(process.execPath), 'npm');
+      const r = spawnSync(existsSync(npm) ? npm : 'npm',['install', '--prefix', PKG, '--no-audit', '--no-fund', '--silent', '--no-save', `${NAME}@${pin}`],
+        { encoding: 'utf8', env: { ...process.env, DO_NOT_TRACK: '1', npm_config_update_notifier: 'false' } });
+      if (r.status !== 0 || installed() !== pin) fail(`não consegui instalar o motor ${pin} em ${PKG}: ${(r.stderr || r.error?.message || '').trim().split('\n').pop()}`);
+    }
+    const state = patchState();
+    const broken = state.filter((s) => !s.done && !s.fits);
+    if (broken.length) fail(`o motor ${pin} não aceita o patch (${broken.map((s) => s.file).join(', ')}); reinstale apagando ${PKG}`);
+    for (const s of state.filter((x) => !x.done)) writeFileSync(s.path, s.text.replace(s.anchor, s.anchor + s.line));
+  });
+}
+
+function checkout() {
+  const r = spawnSync('git', ['rev-parse', '--show-toplevel'], { encoding: 'utf8' });
+  if (r.status !== 0) fail('rode dentro de um repositório git', 2);
+  const top = realpathSync(r.stdout.trim());
+  return { top, dir: join(DATA, 'maps', `${basename(top)}-${createHash('sha1').update(top).digest('hex').slice(0, 10)}`) };
+}
+
+function engineEnv(mapDir) {
+  const home = join(DATA, 'home');
+  mkdirSync(home, { recursive: true });
+  const env = { ...process.env, HOME: home, TRAIL_HOME: join(home, 'state'), GRAFT_DIR: mapDir,
+    DO_NOT_TRACK: '1', TRAIL_NO_FETCH: '1', TRAIL_NO_HOOKS: '1', GRAFT_NO_STATUSLINE: '1', NO_COLOR: '1' };
+  delete env.TRAIL_INVOKED_AS;
+  const gitconfig = join(REAL_HOME, '.gitconfig');
+  if (!env.GIT_CONFIG_GLOBAL && existsSync(gitconfig)) env.GIT_CONFIG_GLOBAL = gitconfig;
+  return env;
+}
+
+const run = (args, mapDir, cwd) => spawnSync(process.execPath, [join(ENGINE_DIR, 'dist', 'bin', 'trail.js'), ...args, '--dir', mapDir],
+  { cwd, env: engineEnv(mapDir), encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
+
+// O que sai é do fsd-map: sem linhas do motor sobre ele mesmo, sem o nome dele, sem o caminho do mapa.
+const clean = (text, mapDir) => text.replace(/\r[^\n]*/g, '').split('\n')
+  .filter((l) => !/^\s*\[(trail|graft)\]/i.test(l))
+  .map((l) => l.split(mapDir).join('<mapa>').replace(/\.trail\/cache\/?/g, '<mapa>/').replace(/\b(trail|graft)\b/gi, 'fsd-map'))
+  .join('\n');
+
+function build(top, mapDir, quiet) {
+  const r = run(['build'], mapDir, top);
+  const out = clean(`${r.stdout}\n${r.stderr}`, mapDir);
+  if (r.status !== 0) fail(`build falhou: ${out.trim().split('\n').slice(-3).join(' | ')}`);
+  if (!quiet) { const s = out.split('\n').find((l) => l.includes('wiring:')); console.log(`fsd-map: mapa construído${s ? ` (${s.replace(/.*wiring:\s*/, '')})` : ''}`); }
+}
+
+const [cmd, ...args] = process.argv.slice(2);
+if (cmd === 'status') {
+  const pin = pinned(), v = installed(), { dir } = checkout();
+  console.log(`motor ${v || 'não instalado'} (fixado ${pin}) em ${PKG}`);
+  for (const s of patchState()) console.log(`  ${s.done ? 'ok   ' : s.fits ? 'falta' : 'não cabe'}  ${s.what}`);
+  console.log(`mapa deste checkout: ${existsSync(join(dir, 'INDEX.md')) ? dir : 'ainda não construído'}`);
+  process.exit(v === pin && patchState().every((s) => s.done) ? 0 : 1);
+}
+if (!MAP_CMDS.includes(cmd)) usage();
+ensure();
+const { top, dir } = checkout();
+if (cmd === 'build') { build(top, dir, false); process.exit(0); }
+if (!existsSync(join(dir, 'INDEX.md'))) build(top, dir, true);
+const r = run([cmd, ...args], dir, process.cwd());
+const out = clean(r.stdout || '', dir).replace(/^\n+/, '');
+if (out.trim()) process.stdout.write(out.endsWith('\n') ? out : out + '\n');
+const err = clean(r.stderr || '', dir).trim();
+if (err) console.error(err);
+process.exit(r.status ?? 1);

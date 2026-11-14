@@ -9,6 +9,8 @@
 
 ### 6.10 A rosquinha e o nome no cabeçalho
 
+> **Histórico.** Substituída pela 6.12 (`docs/spec/wizard-screen/flavor.md`). Os arquivos e testes citados nesta seção (`Chrome.tsx`, `donutArt.ts`, `emojiDonut.ts`, `wordArt.ts`, `shadowFont.ts`, `pixelFont.ts` e os seus testes) foram removidos na reorganização de 2026-11-07; o cabeçalho atual está em `src/cli/ui/art/donut.ts` e `src/cli/ui/art/words.ts`.
+
 O cabeçalho da tela inicial (6.1) é a rosquinha 🍩 e o nome `FRED` / `SHIPS` / `DONUTS`. Esta seção é a referência de como ele é feito e do que ficou decidido; a versão aprovada pelo autor está no backup `~/Backups/fred-ships-donuts-responsive-FINAL-2026-11-02`.
 
 **Regras do autor**
