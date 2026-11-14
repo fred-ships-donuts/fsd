@@ -4,13 +4,14 @@
 // Claude Code mostra ao lado de um subagente e que o fsd-context-guard compara com o limite).
 // Tarefa atual: o último comando fsd-* com número (fsd-dev start 6 → "desenvolve #6"), a branch do worktree e "aguardando"
 // se depois dele veio um fsd-wait. Limite útil: agents.json → claude_common.context.limit − outputReserve (a API recusa o prompt antes do limit). "acabou de reiniciar" = sessão com menos de 5 min.
-import { readFileSync, readdirSync, statSync, existsSync, realpathSync } from 'node:fs';
+import { readFileSync, readdirSync, statSync, existsSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { context } from './fsd-context.mjs';
 
-const ROOT = dirname(dirname(realpathSync(fileURLToPath(import.meta.url))));
+const ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
 const cfg = JSON.parse(readFileSync(join(ROOT, 'agents.json'), 'utf8'));
-const C = cfg.claude_common?.context || {}; const LIMIT = (C.limit || 200000) - (C.outputReserve ?? 32000);   // janela útil
+const C = context(''); const LIMIT = C.limit - C.outputReserve;   // janela útil (limite comum a todos)
 const AGENTS = ['kevin', 'mel', 'stuart', 'bob'].filter((a) => cfg.agents[a]);
 const FRESH_MS = 5 * 60 * 1000;
 // verbo do comando → o que o agente está fazendo (n = número do issue/PR)

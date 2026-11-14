@@ -13,7 +13,7 @@ This is the entry point for the FSD documentation. It says what each document co
 | 5 | `FSD-DIRECTORY-STRUCTURE.md` | Directories created in a project (`nook/` and `.fsd/`) and the task lifecycle |
 | 6 | `GLOSSARY.md` | Definition of each term |
 | 7 | `spec/MAP.md` | Behavior of the `fsd` CLI |
-| 8 | `../TASKS.md` | Implementation tasks of the CLI |
+| 8 | GitHub issues and the Project board | Implementation tasks of the CLI |
 
 ## Sources of truth
 

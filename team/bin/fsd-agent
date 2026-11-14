@@ -6,10 +6,10 @@
 #  - o seu login do gh, o seu ssh-agent e as suas chaves SSH ficam de fora;
 #  - "claude" ganha as regras deny de ~/.config/fsd-agents/claude-settings.json.
 set -euo pipefail
-HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+HERE="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"
 ROOT="$(dirname "$HERE")"; export FSD_TEAM="$ROOT"; STATE="${FSD_STATE:-$HOME/.config/fsd-agents}"; export FSD_STATE="$STATE"
 name="${1:-}"; shift || true
-[ "$name" = fred ] && { [ "${1:-}" = claude ] && shift; d="$STATE/agents/fred/claude"; mkdir -p "$d" "$STATE/sessions"; (shopt -s dotglob; for f in "$HOME"/.claude/*; do n="${f##*/}"; [ "$n" = sessions ] || [ -e "$d/$n" ] || ln -s "$f" "$d/$n"; done); ln -sfn "$HOME/.claude.json" "$d/.claude.json"; ln -sfn "$STATE/sessions" "$d/sessions"; CLAUDE_CONFIG_DIR="$d" exec claude -n fred "$@"; }
+[ "$name" = fred ] && { [ "${1:-}" = claude ] && shift; d="$STATE/agents/fred/claude"; mkdir -p "$d" "$STATE/sessions"; (shopt -s dotglob; for f in "$HOME"/.claude/*; do n="${f##*/}"; [ "$n" = sessions ] || [ -e "$d/$n" ] || ln -sfn "$f" "$d/$n"; done); ln -sfn "$HOME/.claude.json" "$d/.claude.json"; ln -sfn "$STATE/sessions" "$d/sessions"; CLAUDE_CONFIG_DIR="$d" exec claude -n fred "$@"; }
 read -r slug botid < <(node -e '
   const a = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8")).agents[process.argv[2]];
   if (!a) process.exit(3); console.log(a.slug, a.bot_user_id);' "$ROOT/agents.json" "$name") \
@@ -79,20 +79,17 @@ claude_wrap() {
   [ -n "$sources" ] && extra+=(--setting-sources "$sources")
   # MCP: só o ai-memory (mcp.json); o --strict-mcp-config ignora todo o resto e fecha a lista.
   extra+=(--mcp-config "$ROOT/mcp.json" --strict-mcp-config)
-  [ "$has_model" = 0 ] && [ -n "$model" ] && extra+=(--model "$model")
   [ "$has_effort" = 0 ] && [ -n "$effort" ] && extra+=(--effort "$effort")
   export ENABLE_CLAUDEAI_MCP_SERVERS=false
-  # Limite de contexto (agents.json → claude_common.context): teto em limit, sem a janela de 1M e sem
-  # compactação automática. O resto alimenta o julgamento do fsd-context-guard (hook): margem em % do limit,
-  # faixas de chamadas restantes (normal e pesada) e o fator de pico que marca a sessão como pesada.
-  local crestart cufree cmfree creserve climit cmargin cu cm chu chm chf
-  { read -r crestart; read -r cufree; read -r cmfree; read -r creserve; read -r climit; read -r cmargin; read -r cu; read -r cm; read -r chu; read -r chm; read -r chf; } < <(node -e '
-    const c = (JSON.parse(require("fs").readFileSync(process.argv[1], "utf8")).claude_common || {}).context || {};
-    const b = c.bands || {}; const n = b.normal || {}; const h = b.heavy || {};
-    for (const [v, d] of [[c.restartAbove, 60000], [c.urgentFree, 15000], [c.mediumFree, 30000], [c.outputReserve, 32000], [c.limit, 200000], [c.marginPct, 5], [n.urgentAt, 2], [n.mediumAt, 4], [h.urgentAt, 3], [h.mediumAt, 7], [c.heavyFactor, 1.5]]) console.log(v || d);' "$ROOT/agents.json")
-  export CLAUDE_CODE_DISABLE_1M_CONTEXT=1 CLAUDE_CODE_AUTO_COMPACT_WINDOW="$climit" DISABLE_AUTO_COMPACT=1
-  export FSD_CONTEXT_RESTART_ABOVE="$crestart" FSD_CONTEXT_URGENT_FREE="$cufree" FSD_CONTEXT_MEDIUM_FREE="$cmfree" FSD_CONTEXT_RESERVE="$creserve" FSD_CONTEXT_LIMIT="$climit" FSD_CONTEXT_MARGIN_PCT="$cmargin" FSD_CONTEXT_HEAVY_FACTOR="$chf"
-  export FSD_CONTEXT_URGENT_AT="$cu" FSD_CONTEXT_MEDIUM_AT="$cm" FSD_CONTEXT_HEAVY_URGENT_AT="$chu" FSD_CONTEXT_HEAVY_MEDIUM_AT="$chm"
+  # Contexto (agents.json → context, lido só pelo fsd-context.mjs): o teto é o limit, sem compactação automática
+  # (AUTO_COMPACT_WINDOW). Os modelos atuais têm janela de 1M; com limit até a janela padrão (200k) ela é desligada,
+  # acima disso fica ligada e o limit decide quanto dela se usa. O resto (margem, faixas, fator de pico) o
+  # fsd-context-guard lê do mesmo módulo.
+  local climit std=200000
+  climit="$(node "$HERE/fsd-context.mjs" "$name" limit)" || exit 2
+  if [ "$climit" -gt "$std" ]; then unset CLAUDE_CODE_DISABLE_1M_CONTEXT; else export CLAUDE_CODE_DISABLE_1M_CONTEXT=1; fi
+  [ "$has_model" = 0 ] && [ -n "$model" ] && extra+=(--model "$model")
+  export CLAUDE_CODE_AUTO_COMPACT_WINDOW="$climit" DISABLE_AUTO_COMPACT=1
   # ai-memory como o próprio agente (usuário <nome> no servidor): o MCP e os hooks usam esta
   # credencial, então os handoffs dele voltam só para ele. Sem ela, nada de ai-memory como root.
   local aim="$STATE/ai-memory-tokens/$name"

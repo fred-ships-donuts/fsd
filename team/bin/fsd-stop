@@ -6,7 +6,8 @@
 #   --sem-handoff  fecha na hora, sem handoff. Só quando o autor pedir expressamente "sem handoff".
 # Fecha também o terminal de teste do agente (fsd-qa-<agente>). O fsd-restart não reabre: a sessão inteira sai do tmux.
 set -uo pipefail
-ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+HERE="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"
+ROOT="$(dirname "$HERE")"
 who=""; nohand=0; force=0
 for x in "$@"; do case "$x" in
   --sem-handoff) nohand=1 ;; --force) force=1 ;;

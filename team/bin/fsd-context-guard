@@ -6,10 +6,11 @@
 //   pesada = alguma das 3 últimas chamadas custou ≥ heavyFactor × a média → valem as faixas heavy
 //   restam ≤ urgentAt ou livre ≤ urgentFree → 🔴 urgente · restam < mediumAt ou livre < mediumFree → 🟡 médio · senão nada.
 //   (o piso de livre cobre a leitura grande, ex. um diff de revisão, que a média por chamada não prevê)   --print: mostra a conta (teste)
-// Config: agents.json → claude_common.context (variáveis FSD_CONTEXT_* via fsd-agent).
+// Config: agents.json → context, lido pelo fsd-context.mjs (o agente vem de FSD_AGENT).
 import { openSync, readSync, fstatSync, closeSync, existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { context } from './fsd-context.mjs';
 
 // ── Mensagens (editar aqui). {used} {limit} {calls} {cost} {heavy} ──
 const HANDOFF = 'WIP no GitHub, memory_handoff_begin (feito, falta, branch/worktree, próximo passo) e fsd-restart';
@@ -19,10 +20,10 @@ const MSG = {
 };
 const SCREEN = { urgent: '🔴 contexto {used}/{limit}: handoff urgente (~{calls} chamadas)', medium: '🟡 contexto {used}/{limit}: finalizar e handoff (~{calls} chamadas)' };
 
-const env = (n, d) => (Number(process.env[`FSD_CONTEXT_${n}`]) > 0 ? Number(process.env[`FSD_CONTEXT_${n}`]) : d);
-const LIMIT = env('LIMIT', 200000), RESERVE = env('RESERVE', 32000), MARGIN = LIMIT * env('MARGIN_PCT', 5) / 100, FACTOR = env('HEAVY_FACTOR', 1.5);
-const BANDS = { normal: [env('URGENT_AT', 2), env('MEDIUM_AT', 4)], heavy: [env('HEAVY_URGENT_AT', 3), env('HEAVY_MEDIUM_AT', 7)] };
-const FREE = { urgent: env('URGENT_FREE', 15000), medium: env('MEDIUM_FREE', 30000) };
+const C = context();
+const LIMIT = C.limit, RESERVE = C.outputReserve, MARGIN = LIMIT * C.marginPct / 100, FACTOR = C.heavyFactor;
+const BANDS = { normal: [C.bands.normal.urgentAt, C.bands.normal.mediumAt], heavy: [C.bands.heavy.urgentAt, C.bands.heavy.mediumAt] };
+const FREE = { urgent: C.urgentFree, medium: C.mediumFree };
 const WINDOW = 20, RECENT = 3, MIN_COST = 1000;
 
 let input = {}; try { input = JSON.parse(readStdin() || '{}'); } catch { process.exit(0); }
@@ -38,8 +39,7 @@ if (process.argv.includes('--print')) {
   process.exit(0);
 }
 if (input.hook_event_name === 'PreToolUse') {
-  let above = 60000; try { const j = JSON.parse(readFileSync(join(import.meta.dirname, '..', 'agents.json'), 'utf8'));
-    above = j.agents?.[process.env.FSD_AGENT]?.context?.restartAbove || j.claude_common?.context?.restartAbove || above; } catch {}
+  const above = C.restartAbove;
   if (input.tool_name === 'Monitor' && used > above) console.log(JSON.stringify({ hookSpecificOutput: { hookEventName: 'PreToolUse', permissionDecision: 'deny',
     permissionDecisionReason: `Contexto ${k(used)} > ${k(above)}: não espere nesta sessão. Fim de entrega é fsd-restart (handoff antes só se houver contexto que o GitHub e a fsd-queue não têm); a sessão nova vê a fila e, sem trabalho, avisa o Kevin e arma o Monitor.` } }));
   process.exit(0);

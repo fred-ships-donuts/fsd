@@ -1,0 +1,101 @@
+#!/usr/bin/env bash
+# simulate-envs [--keep] — simula instalações do fsd em layouts diferentes e confere onde quebra.
+# Clona este repositório (o branch atual) em vários caminhos e HOMEs: um container padrão, um container com outro
+# nome e caminho (sem FSD_REPO), o layout da matriz e um caminho com espaços; cada um com os links de ~/.local/bin
+# e um estado de agentes que veio de outra máquina. Confere a raiz do repo pelos scripts (direto e pelo link),
+# o agents.json, fsd-dev start (com e sem tarefa), fsd-pr open (regra de commits e npm ci automático), fsd-agent
+# (modelo, janela, perfis religados, com um claude falso), a CLI (build e task) e os arquivos citados pelas skills.
+# Não toca no estado real nem no GitHub: tudo em /tmp, FSD_DRY nos comandos que escreveriam no GitHub. Lê as
+# chaves dos Apps em ~/.config/fsd-agents/keys (o fsd-agent pede um token) e consulta issues pelo gh.
+# Não simula outro usuário, outro UID nem um container de verdade: para isso, rode num host com Docker.
+set -uo pipefail
+HERE="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"
+SRC="$(dirname "$(dirname "$HERE")")"; BR="$(git -C "$SRC" branch --show-current)"; KEEP=0; [ "${1:-}" = --keep ] && KEEP=1
+BASE="$(mktemp -d /tmp/fsd-sim.XXXX)"; REAL_STATE="${FSD_STATE:-$HOME/.config/fsd-agents}"; RES="$BASE/results"; : > "$RES"
+[ "$KEEP" = 1 ] || trap 'rm -rf "$BASE"' EXIT
+ok()  { echo "  PASS $*"; echo P >> "$RES"; }
+bad() { echo "  FAIL $*"; echo F >> "$RES"; }
+chk() { local d="$1"; shift; local o; if o=$("$@" 2>&1); then ok "$d"; else bad "$d :: $(tail -3 <<<"$o" | tr '\n' ' ' | cut -c1-300)"; fi; }
+mkdir -p "$BASE/stub"; printf '#!/usr/bin/env bash\necho "STUB claude $* | DISABLE_1M=${CLAUDE_CODE_DISABLE_1M_CONTEXT:-<unset>} | WINDOW=${CLAUDE_CODE_AUTO_COMPACT_WINDOW:-}"\n' > "$BASE/stub/claude"; chmod +x "$BASE/stub/claude"
+
+mkenv() { # nome repo home FSD_REPO(set|unset) links(container|host) node_modules(link|none)
+  local n="$1" repo="$2" home="$3" setrepo="$4" links="$5" nm="$6"
+  echo "== $n | repo=$repo | HOME=$home | FSD_REPO=$setrepo | links=$links | node_modules=$nm"
+  mkdir -p "$(dirname "$repo")" "$home/.local/bin"
+  git clone -q --no-hardlinks "$SRC" "$repo" && git -C "$repo" checkout -q "$BR"
+  git -C "$repo" config user.email sim@sim; git -C "$repo" config user.name sim
+  git -C "$repo" fetch -q origin "+refs/heads/develop:refs/remotes/origin/develop"
+  [ "$nm" = link ] && ln -s "$SRC/node_modules" "$repo/node_modules"
+  local st="$home/.config/fsd-agents"; mkdir -p "$st/agents/mel/claude" "$st/agents/kevin/claude" "$st/ai-memory-tokens" "$st/cache"
+  ln -s "$REAL_STATE/keys" "$st/keys"; echo dummy > "$st/claude-oauth-token"; echo dummy > "$st/ai-memory-tokens/mel"
+  ln -s /media/outra-maquina/Projects/fred-ships-donuts/team/agents/mel/claude/CLAUDE.md "$st/agents/mel/claude/CLAUDE.md"
+  echo "cópia antiga" > "$st/agents/kevin/claude/CLAUDE.md"
+  if [ "$links" = container ]; then printf '#!/bin/sh\nexec "%s/team/bin/fsd-agent" "$@"\n' "$repo" > "$home/.local/bin/fsd-agent"; chmod +x "$home/.local/bin/fsd-agent"
+    for b in fsd-stats fsd-watch fsd-sync-pair; do ln -s "$repo/team/bin/$b" "$home/.local/bin/$b"; done
+  else for b in fsd-agent fsd-memory-backup fsd-sync-pair fsd-restart fsd-trash fsd-stop; do ln -s "$repo/team/bin/$b" "$home/.local/bin/$b"; done; fi
+  local T="$repo/team/bin" L="$home/.local/bin"
+  run() { ( export HOME="$home" FSD_STATE="$st" PATH="$BASE/stub:$home/.local/bin:$PATH"; unset FSD_REPO FSD_DRY; [ "$setrepo" = set ] && export FSD_REPO="$repo"; cd "$home" && "$@" ); }
+  # 1. raiz do repo e configuração
+  for s in "$T/fsd-trash" "$L/fsd-trash"; do [ -e "$s" ] || continue
+    o=$(run env FSD_DRY=1 "$s" "$repo" 2>&1); [ "$o" = "recusado: $repo" ] && ok "fsd-trash protege o repo (${s#$BASE/})" || bad "fsd-trash ${s#$BASE/}: $o"; done
+  chk "fsd-lib REPO_DIR = repo" run bash -c '[ "$(node --input-type=module -e "import(process.argv[1]).then(m=>console.log(m.REPO_DIR))" "$0")" = "$1" ]' "$T/fsd-lib.mjs" "$repo"
+  chk "fsd-context lê agents.json" run node "$T/fsd-context.mjs" mel limit restartAbove
+  chk "fsd-sync-pair: modelos achados pelo link" run bash -c 'H=$(dirname "$(readlink -f "$0")"); test -f "$(dirname "$H")/setup/syncthing/agent.stignore"' "$L/fsd-sync-pair"
+  # 2. trabalho sem tarefa: fsd-dev start - (de verdade, só local) e fsd-pr open (dry)
+  chk "fsd-dev start - sim-x cria worktree chore/sim-x" run env FSD_AGENT=stuart "$T/fsd-dev" start - sim-x --chore
+  local W="$repo/.claude/worktrees/chore-sim-x"
+  chk "worktree sem marca de tarefa" bash -c '! git -C "$0" config --get branch.chore/sim-x.fsd-issue' "$repo"
+  git -C "$W" commit -q --allow-empty -m "chore: sim commit"
+  chk "fsd-pr open sem tarefa: commitlint ok, faria o push" run bash -c 'FSD_DRY=1 FSD_AGENT=stuart FSD_STATE="$2" "$0" open "chore: sim" --docs -C "$1" 2>&1 | tee /dev/stderr | grep -q "\[dry\] git -C .* push"' "$T/fsd-pr" "$W" "$REAL_STATE"
+  git -C "$W" commit -q --allow-empty -m "wip"
+  chk "fsd-pr open recusa 'wip'" run bash -c 'FSD_DRY=1 FSD_AGENT=stuart "$0" open "chore: sim" --docs -C "$1" 2>&1 | grep -q "commit fora da regra"' "$T/fsd-pr" "$W"
+  # 3. trabalho com tarefa (marca gravada como o fsd-dev start <n> faz)
+  git -C "$repo" worktree add -q -b feature/81-sim "$repo/.claude/worktrees/t81" origin/develop && git -C "$repo" config branch.feature/81-sim.fsd-issue 81
+  git -C "$repo/.claude/worktrees/t81" commit -q --allow-empty -m "feat: sim (#81)"
+  chk "com tarefa #81: 'feat: sim (#81)' passa" run bash -c 'FSD_DRY=1 FSD_AGENT=stuart FSD_STATE="$2" "$0" open "feat: sim" --docs -C "$1" 2>&1 | grep -q "\[dry\] git -C .* push"' "$T/fsd-pr" "$repo/.claude/worktrees/t81" "$REAL_STATE"
+  git -C "$repo/.claude/worktrees/t81" commit -q --allow-empty -m "feat: sem número"
+  chk "com tarefa #81: commit sem (#81) é recusado" run bash -c 'FSD_DRY=1 FSD_AGENT=stuart FSD_STATE="$2" "$0" open "feat: sim" --docs -C "$1" 2>&1 | grep -q "fsd-task-ref"' "$T/fsd-pr" "$repo/.claude/worktrees/t81" "$REAL_STATE"
+  # 4. fsd-agent com claude simulado
+  o=$(run "$T/fsd-agent" mel claude 2>&1)
+  grep -q -- "--model claude-opus-5-5 " <<<"$o" && ok "fsd-agent: modelo claude-opus-5-5" || bad "fsd-agent modelo: $(tail -1 <<<"$o")"
+  grep -q "DISABLE_1M=<unset> | WINDOW=250000" <<<"$o" && ok "fsd-agent: 1M ligada, teto 250000" || bad "fsd-agent janela: $(grep -o 'DISABLE.*' <<<"$o")"
+  [ "$(readlink "$st/agents/mel/claude/CLAUDE.md")" = "$repo/team/agents/mel/claude/CLAUDE.md" ] && ok "perfil mel (link de outra máquina) religado" || bad "perfil mel: $(readlink "$st/agents/mel/claude/CLAUDE.md")"
+  run "$T/fsd-agent" kevin claude >/dev/null 2>&1
+  [ "$(readlink "$st/agents/kevin/claude/CLAUDE.md")" = "$repo/team/agents/kevin/claude/CLAUDE.md" ] && [ -f "$st/agents/kevin/claude/CLAUDE.md.pre-team" ] && ok "perfil kevin: cópia → .pre-team, link novo" || bad "perfil kevin"
+  # 5. CLI
+  if [ "$nm" = link ]; then
+    chk "npm run build" run npm --prefix "$repo" run -s build
+    chk "fsd -v" run node "$repo/dist/cli/fsd.js" -v
+    mkdir -p "$home/proj/nook"
+    chk "fsd task: new/step/done/archive/list" run bash -c 'cd "$1/proj" && f(){ node "$0/dist/cli/fsd.js" "$@"; } && f task new "Sim task" && f task step add sim-task passo && f task step done sim-task 1 && f task done sim-task && f task archive sim-task && f task list --all | grep -q "sim-task  archived"' "$repo" "$home"
+  fi
+  # 6. skills: arquivos citados existem
+  local miss=0; for sk in "$repo"/src/skills/_i18n/*/*/SKILL.md; do d=$(dirname "$sk"); while read -r p; do [ -n "$p" ] && [ ! -e "$d/$p" ] && { bad "skill ${d#$repo/} cita $p"; miss=1; }; done < <(grep -oE '(scripts|references|templates)/[A-Za-z0-9_./-]+[A-Za-z0-9_]' "$sk" | sort -u); done; [ $miss = 0 ] && ok "skills: arquivos citados existem"
+}
+npmci() { # cenários do npm ci automático do fsd-pr num clone sem node_modules
+  local repo="$BASE/n/repo" home="$BASE/n/home"; echo "== npm ci automático | repo=$repo"
+  mkdir -p "$home"; git clone -q --no-hardlinks "$SRC" "$repo" && git -C "$repo" checkout -q "$BR" && git -C "$repo" config user.email s@s && git -C "$repo" config user.name s
+  git -C "$repo" fetch -q origin "+refs/heads/develop:refs/remotes/origin/develop"; git -C "$repo" switch -q -c chore/npm-sim; git -C "$repo" commit -q --allow-empty -m "chore: npm sim"
+  pr() { ( export HOME="$home" FSD_DRY=1 FSD_AGENT=stuart FSD_STATE="$REAL_STATE" FSD_REPO="$repo"; timeout 900 "$repo/team/bin/fsd-pr" open "chore: npm" --docs -C "$repo" 2>&1 ); }
+  # a) npm ausente: falha clara, sem loop, trava solta
+  local nodeonly="$BASE/nodeonly"; mkdir -p "$nodeonly"; ln -s "$(command -v node)" "$nodeonly/node"; ln -s "$(command -v git)" "$nodeonly/git"
+  o=$( export PATH="$nodeonly:/usr/bin:/bin"; ( export HOME="$home" FSD_DRY=1 FSD_AGENT=stuart FSD_STATE="$REAL_STATE" FSD_REPO="$repo"; PATH="$nodeonly:/bin"; timeout 60 "$repo/team/bin/fsd-pr" open x --docs -C "$repo" 2>&1 ) ); rc=$?
+  { grep -q "npm ci falhou" <<<"$o" && [ ! -e "$repo/.git/fsd-npm-ci.lock" ]; } && ok "sem npm: erro claro e trava solta" || bad "sem npm (rc=$rc): $(tail -2 <<<"$o" | tr '\n' ' ')"
+  # b) trava velha (> 10 min) é removida e o npm ci roda; c) depois, commitlint presente: sem novo npm ci
+  mkdir "$repo/.git/fsd-npm-ci.lock"; touch -d '20 minutes ago' "$repo/.git/fsd-npm-ci.lock"
+  o=$(pr); grep -q "rodando npm ci" <<<"$o" && grep -q "\[dry\] git -C .* push" <<<"$o" && [ -x "$repo/node_modules/.bin/commitlint" ] && ok "trava velha removida, npm ci uma vez, segue" || bad "npm ci: $(tail -3 <<<"$o" | tr '\n' ' ')"
+  o=$(pr); ! grep -q "rodando npm ci" <<<"$o" && ok "segunda vez: não roda npm ci de novo" || bad "rodou npm ci de novo"
+  # d) trava recente de outro processo: espera e segue quando ela sai
+  rm -rf "$repo/node_modules"; mkdir "$repo/.git/fsd-npm-ci.lock"; ( sleep 8; rmdir "$repo/.git/fsd-npm-ci.lock" ) &
+  s=$(date +%s); o=$(pr); e=$(( $(date +%s) - s )); [ "$e" -ge 8 ] && grep -q "\[dry\] git -C .* push" <<<"$o" && ok "trava de outro processo: esperou ${e}s e seguiu" || bad "espera da trava (${e}s): $(tail -2 <<<"$o" | tr '\n' ' ')"
+  # e) package.json sem commitlint (develop antiga): erro claro
+  git -C "$repo" show origin/develop:package.json > "$repo/package.json"; git -C "$repo" show origin/develop:package-lock.json > "$repo/package-lock.json"; rm -rf "$repo/node_modules"
+  o=$(pr); grep -q "commitlint não veio" <<<"$o" && ok "develop sem commitlint: erro claro, sem loop" || bad "sem commitlint no package.json: $(tail -2 <<<"$o" | tr '\n' ' ')"
+}
+mkenv container-fsd   "$BASE/c1/media/fsd/Projects/projetos/fred-ships-donuts" "$BASE/c1/home/fsd" set   container link
+mkenv container-outro "$BASE/c2/srv/code/fsd"                                   "$BASE/c2/home/dev" unset container link
+mkenv host-matriz     "$BASE/h/media/fredericojacobi/Projects/projetos/fred-ships-donuts" "$BASE/h/home/fredericojacobi" unset host link
+mkenv com-espacos     "$BASE/s/My Projects/fred ships donuts"                   "$BASE/s/home/user x" unset host link
+npmci
+p=$(grep -c P "$RES"); f=$(grep -c F "$RES"); echo "== total: $p PASS, $f FAIL$([ "$KEEP" = 1 ] && echo "  (mantido em $BASE)")"
+[ "$f" = 0 ]

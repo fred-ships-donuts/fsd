@@ -22,15 +22,15 @@
     "settingSources": "user,local",
     "_settingSources": "Os agentes não usam o trail: user,local pula o .claude/settings.json do projeto (hook do trail). O AGENTS.md (só trail) sai pelo claudeMdExcludes do claude-settings.json.",
     "context": {
-      "_comment": "Contexto por sessão: teto em limit (tokens, sem a janela de 1M e sem compactação automática). O fsd-context-guard julga sozinho: livre = limit − atual − marginPct% do limit; custo = crescimento médio por chamada (últimas 20); restam = livre ÷ custo. Sessão pesada = alguma das 3 últimas chamadas custou ≥ heavyFactor × a média; aí valem as faixas heavy. Restam ≤ urgentAt → urgente (🔴, em negrito); < mediumAt → médio (🟡); senão nada. Mensagens no topo de bin/fsd-context-guard.",
-      "limit": 200000,
+      "_comment": "Contexto por sessão: teto em limit (tokens, sem compactação automática; até 200k o fsd-agent desliga a janela de 1M do modelo; acima, ela fica ligada e o teto é o limit). O fsd-context-guard julga sozinho: livre = limit − atual − marginPct% do limit; custo = crescimento médio por chamada (últimas 20); restam = livre ÷ custo. Sessão pesada = alguma das 3 últimas chamadas custou ≥ heavyFactor × a média; aí valem as faixas heavy. Restam ≤ urgentAt → urgente (🔴, em negrito); < mediumAt → médio (🟡); senão nada. Mensagens no topo de bin/fsd-context-guard.",
+      "limit": 250000,
       "outputReserve": 32000,
       "_outputReserve": "A API recusa o prompt antes do limit (o Stuart estourou com 177k de 200k em 2026-11-09): o guard conta como útil limit − outputReserve.",
       "urgentFree": 15000,
       "mediumFree": 30000,
       "_free": "Piso de espaço livre (tokens): a média por chamada (~1k) não prevê uma leitura grande, como um diff de revisão. Livre ≤ urgentFree → urgente; < mediumFree → médio.",
-      "restartAbove": 60000,
-      "_restartAbove": "Acima disto (tokens) o guard nega o Monitor e o fsd-restart reinicia; abaixo, a sessão segue. Por agente: agents.<nome>.context.restartAbove. Bob (Haiku 5.5) nunca acima de 100k: o prompt passa a custar 5× por token.",
+      "restartAbove": 150000,
+      "_restartAbove": "Acima disto (tokens) o guard nega o Monitor e o fsd-restart reinicia; abaixo, a sessão segue. Por agente: agents.<nome>.context.restartAbove.",
       "marginPct": 5,
       "heavyFactor": 1.5,
       "bands": {
@@ -53,7 +53,7 @@
       "installation_id": 179989596,
       "bot_user_id": 353946159,
       "claude": {
-        "model": "sonnet",
+        "model": "claude-opus-5-5",
         "effort": "medium",
         "disallowedTools": [
           "Agent"
@@ -69,7 +69,7 @@
       "bot_user_id": 353952344,
       "client_id": "Iv23liNMIbJFjd6cOprU",
       "claude": {
-        "model": "sonnet",
+        "model": "claude-opus-5-5",
         "effort": "medium",
         "disallowedTools": []
       },
@@ -83,7 +83,7 @@
       "bot_user_id": 353952367,
       "client_id": "Iv23liG3EMeQYESMR0aO",
       "claude": {
-        "model": "sonnet",
+        "model": "claude-opus-5-5",
         "effort": "medium",
         "disallowedTools": []
       },
@@ -97,7 +97,7 @@
       "bot_user_id": 353952395,
       "client_id": "Iv23liwL2z7JGywh7Agm",
       "claude": {
-        "model": "haiku",
+        "model": "claude-opus-5-5",
         "effort": "medium",
         "disallowedTools": [
           "Agent",

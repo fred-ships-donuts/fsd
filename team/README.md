@@ -36,10 +36,10 @@ O Claude Code abre:
 
 | agente | modelo | esforço | ferramentas cortadas além das comuns |
 |---|---|---|---|
-| kevin | sonnet | medium | Agent |
-| mel | sonnet | medium | nenhuma |
-| stuart | sonnet | medium | nenhuma |
-| bob | haiku | medium | Agent, WebSearch, WebFetch |
+| kevin | claude-opus-5-5 | medium | Agent |
+| mel | claude-opus-5-5 | medium | nenhuma |
+| stuart | claude-opus-5-5 | medium | nenhuma |
+| bob | claude-opus-5-5 | medium | Agent, WebSearch, WebFetch |
 
 Comuns a todos (`claude_common` no `agents.json`): NotebookEdit, Artifact*, DesignSync,
 RemoteTrigger, Cron*, ScheduleWakeup, PushNotification. `--model` e `--effort` passados no
@@ -147,6 +147,7 @@ quando o agente gravar o próximo rascunho.
 ## Segredos
 
 - **Outra máquina:** os mesmos segredos vão cifrados em `secrets.tar.age`. Na matriz: `bin/fsd-secrets pack` e commit; na remota: `bin/fsd-secrets unpack`. Passo a passo do container em `docs/CONTAINER-PASSO-A-PASSO.md`; valores da sua instalação em `setup/team.env.example`.
+- **Antes de mexer em caminhos, setup ou scripts:** `setup/simulate-envs` clona o branch atual em vários layouts (containers com nomes e caminhos diferentes, a matriz, caminho com espaços) e mostra onde quebra; termina com saída 0 só sem falhas.
 - **`keys/<slug>.pem`:** perdeu ou vazou? Gere outra na página do App e apague a antiga.
 - **`claude-oauth-token`:** troca com `claude setup-token`. Salve sem ecoar na tela: `read -rsp "token: " T && umask 077 && printf '%s\n' "$T" > claude-oauth-token && unset T`.
 - **`ai-memory-tokens/<nome>`:** troca com `ai-memory api-key rotate <ID> --json`, gravando o `aim_…` novo no arquivo. Para ver os IDs, use `ai-memory api-key list`.
