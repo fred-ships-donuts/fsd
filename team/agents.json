@@ -1,0 +1,116 @@
+{
+  "repo": "fred-ships-donuts/fsd",
+  "claude_common": {
+    "_comment": "Ferramentas que nenhum agente usa; o launcher corta com --disallowedTools. AskUserQuestion: agente autônomo não para à espera de humano.",
+    "disallowedTools": [
+      "NotebookEdit",
+      "Artifact",
+      "ArtifactComments",
+      "ArtifactData",
+      "DesignSync",
+      "RemoteTrigger",
+      "CronCreate",
+      "CronDelete",
+      "CronList",
+      "ScheduleWakeup",
+      "PushNotification",
+      "SendFeedback",
+      "Workflow",
+      "AskUserQuestion",
+      "ReportFindings"
+    ],
+    "settingSources": "user,local",
+    "_settingSources": "Os agentes não usam o trail: user,local pula o .claude/settings.json do projeto (hook do trail). O AGENTS.md (só trail) sai pelo claudeMdExcludes do claude-settings.json.",
+    "context": {
+      "_comment": "Contexto por sessão: teto em limit (tokens, sem a janela de 1M e sem compactação automática). O fsd-context-guard julga sozinho: livre = limit − atual − marginPct% do limit; custo = crescimento médio por chamada (últimas 20); restam = livre ÷ custo. Sessão pesada = alguma das 3 últimas chamadas custou ≥ heavyFactor × a média; aí valem as faixas heavy. Restam ≤ urgentAt → urgente (🔴, em negrito); < mediumAt → médio (🟡); senão nada. Mensagens no topo de bin/fsd-context-guard.",
+      "limit": 200000,
+      "outputReserve": 32000,
+      "_outputReserve": "A API recusa o prompt antes do limit (o Stuart estourou com 177k de 200k em 2026-11-09): o guard conta como útil limit − outputReserve.",
+      "urgentFree": 15000,
+      "mediumFree": 30000,
+      "_free": "Piso de espaço livre (tokens): a média por chamada (~1k) não prevê uma leitura grande, como um diff de revisão. Livre ≤ urgentFree → urgente; < mediumFree → médio.",
+      "restartAbove": 60000,
+      "_restartAbove": "Acima disto (tokens) o guard nega o Monitor e o fsd-restart reinicia; abaixo, a sessão segue. Por agente: agents.<nome>.context.restartAbove. Bob (Haiku 5.5) nunca acima de 100k: o prompt passa a custar 5× por token.",
+      "marginPct": 5,
+      "heavyFactor": 1.5,
+      "bands": {
+        "normal": {
+          "urgentAt": 2,
+          "mediumAt": 4
+        },
+        "heavy": {
+          "urgentAt": 3,
+          "mediumAt": 7
+        }
+      }
+    }
+  },
+  "agents": {
+    "kevin": {
+      "role": "PM",
+      "slug": "fsd-kevin",
+      "app_id": 5663666,
+      "installation_id": 179989596,
+      "bot_user_id": 353946159,
+      "claude": {
+        "model": "sonnet",
+        "effort": "medium",
+        "disallowedTools": [
+          "Agent"
+        ]
+      },
+      "org_installation_id": 179989596
+    },
+    "mel": {
+      "role": "Arquiteto",
+      "slug": "fsd-mel",
+      "app_id": 5663887,
+      "installation_id": 179989709,
+      "bot_user_id": 353952344,
+      "client_id": "Iv23liNMIbJFjd6cOprU",
+      "claude": {
+        "model": "sonnet",
+        "effort": "medium",
+        "disallowedTools": []
+      },
+      "org_installation_id": 179989709
+    },
+    "stuart": {
+      "role": "Dev Node/TS",
+      "slug": "fsd-stuart",
+      "app_id": 5663888,
+      "installation_id": 179989719,
+      "bot_user_id": 353952367,
+      "client_id": "Iv23liG3EMeQYESMR0aO",
+      "claude": {
+        "model": "sonnet",
+        "effort": "medium",
+        "disallowedTools": []
+      },
+      "org_installation_id": 179989719
+    },
+    "bob": {
+      "role": "QA",
+      "slug": "fsd-bob",
+      "app_id": 5663889,
+      "installation_id": 179989726,
+      "bot_user_id": 353952395,
+      "client_id": "Iv23liwL2z7JGywh7Agm",
+      "claude": {
+        "model": "haiku",
+        "effort": "medium",
+        "disallowedTools": [
+          "Agent",
+          "WebSearch",
+          "WebFetch"
+        ]
+      },
+      "org_installation_id": 179989726
+    }
+  },
+  "board": {
+    "owner": "fred-ships-donuts",
+    "number": 1,
+    "repo": "fred-ships-donuts/fsd"
+  }
+}

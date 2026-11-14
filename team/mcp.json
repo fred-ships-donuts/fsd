@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "ai-memory": {
+      "type": "stdio",
+      "command": "${FSD_TEAM}/bin/fsd-mcp-filter",
+      "args": [
+        "${HOME}/.local/lib/ai-memory/ai-memory",
+        "mcp-bridge",
+        "--server-url",
+        "http://127.0.0.1:49374/mcp"
+      ]
+    }
+  }
+}

@@ -1,0 +1,67 @@
+#!/usr/bin/env bash
+# fsd-sync-pair — pareia o Syncthing desta máquina com outra e compartilha as pastas do ambiente fsd.
+#   fsd-sync-pair id                                 mostra o device ID desta máquina
+#   fsd-sync-pair add <device-id> <ip-tailscale> <nome> [--first]
+#        adiciona o outro dispositivo e compartilha as 8 pastas com ele (cria pasta e .stignore se faltarem).
+#        --first (só na máquina NOVA): pastas em "receive only" — a matriz manda, nada local sobrescreve a matriz.
+#   fsd-sync-pair status                             estado de cada pasta (idle, falta receber, mudanças locais)
+#   fsd-sync-pair promote                            (máquina nova, depois de tudo "idle" e sem falta) descarta mudanças
+#                                                    locais e passa as pastas para "send & receive"
+# Rede: escuta só no IP da Tailscale; descoberta, relays e NAT desligados.
+set -euo pipefail
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"; H="$HOME"; TPL="$ROOT/setup/syncthing"
+REPO="${FSD_REPO:-$HOME/fred-ships-donuts}"
+CFG="$H/.local/state/syncthing/config.xml"; [ -f "$CFG" ] || CFG="$H/.config/syncthing/config.xml"
+[ -f "$CFG" ] || { echo "Syncthing sem config (ele está rodando?)"; exit 2; }
+K="$(grep -oP '(?<=<apikey>)[^<]+' "$CFG")"
+api() { curl -sf -H "X-API-Key: $K" -H 'Content-Type: application/json' "http://127.0.0.1:8384/rest/$1" "${@:2}"; }
+FOLDERS=(
+  "claude-home|$H/.claude|claude-home"
+  "agent-kevin|$H/.config/fsd-agents/agents/kevin/claude|agent"
+  "agent-mel|$H/.config/fsd-agents/agents/mel/claude|agent"
+  "agent-stuart|$H/.config/fsd-agents/agents/stuart/claude|agent"
+  "agent-bob|$H/.config/fsd-agents/agents/bob/claude|agent"
+  "trail-prefs|$H/.trail|trail-prefs"
+  "rtk-config|$H/.config/rtk|"
+  "repo-local|$REPO|repo-local"
+)
+myip() { tailscale ip -4 2>/dev/null | head -1; }
+case "${1:-}" in
+  id) api system/status | python3 -c 'import json,sys;print(json.load(sys.stdin)["myID"])' ;;
+  add)
+    dev="${2:?device-id}"; ip="${3:?ip-tailscale do outro}"; name="${4:?nome}"; first="${5:-}"
+    me="$(myip)"; [ -n "$me" ] || { echo "Tailscale sem IP aqui (rode tailscale up)"; exit 2; }
+    [ -d "$REPO/.git" ] || { echo "falta o clone do repositório em $REPO"; exit 2; }
+    api config/options -X PATCH -d "{\"listenAddresses\":[\"tcp://$me:22000\",\"quic://$me:22000\"],\"globalAnnounceEnabled\":false,\"localAnnounceEnabled\":false,\"relaysEnabled\":false,\"natEnabled\":false,\"urAccepted\":-1,\"crashReportingEnabled\":false}"
+    api config/devices -X POST -d "{\"deviceID\":\"$dev\",\"name\":\"$name\",\"addresses\":[\"tcp://$ip:22000\",\"quic://$ip:22000\"],\"autoAcceptFolders\":false}"
+    grep -qxF '.stignore' "$REPO/.git/info/exclude" || echo '.stignore' >> "$REPO/.git/info/exclude"
+    # A pasta padrão que o Syncthing cria sozinho (~/Sync, id "default") não é do ambiente fsd: sai, e a pasta vazia também.
+    if api config/folders/default >/dev/null 2>&1; then
+      api config/folders/default -X DELETE && rmdir "$H/Sync/.stfolder" "$H/Sync" 2>/dev/null; echo "ok pasta padrão ~/Sync removida"
+    fi
+    for f in "${FOLDERS[@]}"; do
+      IFS='|' read -r id path tpl <<<"$f"; mkdir -p "$path"
+      [ -n "$tpl" ] && [ ! -f "$path/.stignore" ] && cp "$TPL/$tpl.stignore" "$path/.stignore"
+      type=sendreceive; [ "$first" = --first ] && type=receiveonly
+      if api "config/folders/$id" >/dev/null 2>&1; then
+        api "config/folders/$id" | python3 -c "import json,sys;f=json.load(sys.stdin);d=[x['deviceID'] for x in f['devices']];print(json.dumps({'devices':f['devices']+([] if '$dev' in d else [{'deviceID':'$dev'}])}))" \
+          | api "config/folders/$id" -X PATCH -d @- && echo "ok $id (compartilhada com $name)"
+      else
+        api config/folders -X POST -d "{\"id\":\"$id\",\"label\":\"$id\",\"path\":\"$path\",\"type\":\"$type\",\"fsWatcherEnabled\":true,\"fsWatcherDelayS\":10,\"rescanIntervalS\":3600,\"devices\":[{\"deviceID\":\"$dev\"}]}" && echo "ok $id ($type, nova)"
+      fi
+    done ;;
+  status)
+    for f in "${FOLDERS[@]}"; do id="${f%%|*}"
+      api "db/status?folder=$id" | python3 -c "import json,sys;d=json.load(sys.stdin);print(f\"$id: {d['state']}, falta receber {d['needFiles']}, mudanças locais {d.get('receiveOnlyChangedFiles',0)}\")"
+    done ;;
+  promote)
+    for f in "${FOLDERS[@]}"; do id="${f%%|*}"
+      need="$(api "db/status?folder=$id" | python3 -c 'import json,sys;print(json.load(sys.stdin)["needFiles"])')"
+      [ "$need" = 0 ] || { echo "$id ainda falta receber $need arquivos; espere e rode de novo"; exit 1; }
+    done
+    for f in "${FOLDERS[@]}"; do id="${f%%|*}"
+      api "db/revert?folder=$id" -X POST >/dev/null || true
+      api "config/folders/$id" -X PATCH -d '{"type":"sendreceive"}' && echo "ok $id → send & receive"
+    done ;;
+  *) sed -n '2,11p' "$0" | sed 's/^# \{0,1\}//'; exit 2 ;;
+esac

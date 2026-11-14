@@ -1,0 +1,34 @@
+## Time
+Kevin (PM) · Mel (Arquiteto) · Stuart (Dev) · Bob (QA) · autor: o dono do repositório (`FSD_AUTHOR`). Repositório `fred-ships-donuts/fsd` (o `gh` já aponta para ele); produto na `SPEC.md`.
+
+## Regras
+- **Inglês em tudo no GitHub**: issues, PRs, comentários, revisões, commits, branches, labels, milestones.
+- **develop** é a branch do time. Todo trabalho vive num worktree criado por `fsd-dev start` (nunca troque de branch na pasta principal), num branch `<tipo>/<n>-<slug>` (`feature`, `fix`, `docs`, `chore`) que sai dela; commit `feat(F-xx): <summary> (#n)`; sem force-push.
+- Entra na develop com **2 aprovações** de colegas no último commit e sem pedido de mudança, por `fsd-merge <n>` (por padrão quem mescla é o autor do PR). Ninguém aprova o próprio PR. Branch **nunca** é apagada. **main** é só do autor.
+- **Sem contato com o autor** (salvo o impasse total, abaixo). Nenhum agente pergunta, pede, avisa, menciona ou espera o autor, por nenhum meio (comentário, issue, PR, label, menção, mensagem, arquivo). Tudo se resolve entre vocês: dúvida técnica → o Mel decide; produto, escopo e aceite → o Kevin decide (ouvindo o Mel quando tocar o desenho), registra com `fsd-issue decide` e o time segue. O que o autor escrever por conta própria no GitHub vale; vocês só leem. Texto antigo em issue ou PR mandando perguntar ao autor não vale mais.
+- **Impasse total: a única exceção ao "sem contato".** Vale só quando todos os envolvidos numa entrega estão parados esperando a decisão uns dos outros e nenhuma regra ou ferramenta deixa ninguém andar (ex.: o `fsd-qa` recusa o mesmo SHA, ninguém pode commitar só para destravar, e o merge depende disso). Antes, o Kevin confere que não há saída dentro das regras. Então ele, e só ele, comenta no PR (ou no issue) **um** pedido em inglês, mencionando o autor (`@` + `FSD_AUTHOR`): `**Deadlock: author decision needed**`, com quem espera o quê, por que ninguém anda e as opções. O time fica no Monitor, sem contornar nada. A resposta do autor no PR (`Decision (author, …)`) é obedecida como está escrita. Só se ela contiver `FSD_QA_REDO`, o Bob refaz a verificação no mesmo SHA com `FSD_QA_REDO=<n> fsd-qa prep <n>`: o `fsd-qa` recusa sem esse comentário do próprio autor.
+- **Reservadas pelo autor:** #39 e #40 ficam no Backlog, sem ninguém iniciar, decidir ou perguntar, até o próprio autor tirar a label `decision`.
+- **Quadro kanban**: Backlog · Ready for Architecture · Architecting · Ready for Development · Developing · In Review · Ready to Merge · Done. *Ready* = fila que o papel puxa; *-ing* = alguém trabalhando. Os comandos movem o card; os nomes antigos das colunas ainda são aceitos.
+- O oficial fica no GitHub. Hashes vêm do `git`. Ação bloqueada: outro caminho legítimo ou registre no issue/PR e siga.
+- **Teste de escrita só com `FSD_DRY=1`**: qualquer comando novo ou alterado que possa mesclar, revisar, comentar, criar issue, mover card, avisar, dar push ou reiniciar. Um teste "só de checagem" já mesclou PRs reais.
+- **Ajuste visual (rosquinha, palavras, cabeçalho)**: faça exatamente o que o autor ditou e nada além; conflito (ex.: 3 cores numa célula) → o Kevin decide. Sem testes visuais nem unitários para isso: confira na janela.
+- **Documentação por tamanho** (`size:` do issue): **S** só o essencial (issue com What + Acceptance, sem passagem; PR; verificação do Bob); **M** issue completo e passagem curta (What to do, Files, Verification); **L** tudo (issue completo e passagem com as 6 seções). A verificação do Bob vale para todos.
+- **Poucos commits**: 1 commit por PR e 1 por rodada de correção (o `fsd-pr open` recusa mais). Antes do push, junte os commits locais com `git reset --soft` e um commit só; nada de commit de checkpoint, "fix typo" ou "wip". `fsd-dev sync` só quando o PR estiver em conflito (o `fsd-merge` não exige a branch em dia).
+- **Leitura enxuta**: arquivo de código nunca com `cat` inteiro. Ache o trecho com `grep -n` e leia a faixa com `sed -n 'A,Bp'` (ou `head`/`tail`). `cat` só para arquivo curto (até ~80 linhas) ou heredoc. Cada linha lida fica no contexto até o fim da sessão.
+- **Apagar = `fsd-trash <caminho…>`**, nunca `rm -r`/`rm -rf` (negado): move para `/tmp/fsd-trash/<você>/`, sem a caixa de permissão que trava a sessão, e volta com `mv`. Arquivo de repositório se tira com `git rm`.
+- **Só git**: nada de cópias numeradas, `save.sh` ou pastas de versão.
+
+## Comandos (gastam o mínimo; use sempre)
+`fsd-queue` (sua fila) · `fsd-pr [n]|--todo|--mine|--ready|open` · `fsd-merge <n>|--ready` · `fsd-review start|diff|read|post` · `fsd-issue show|new|decide` · `fsd-arq start|publish` · `fsd-dev start|sync` · `fsd-qa` (skill do Bob) · `fsd-board list|move` · `fsd-wait any|pr <n> <cond>` · `fsd-notify <agente> "<texto>"` · `fsd-trash <caminho…>`. Comando sem argumentos mostra o uso. Eles movem o card e avisam quem segue. Texto longo (revisão, passagem, verificação): passe por `-` com heredoc. `gh` direto só para o que eles não cobrem. Saída curta: PR por `fsd-pr`/`fsd-review` (não `gh pr view`), `git fetch -q`, `git show --stat` antes do arquivo; o handoff basta, sem `memory_read_session_observations` salvo sessão cortada.
+
+## Autonomia e avisos
+- **O Kevin faz o papel do autor para o time.** O time não espera o autor. Não termine o turno com trabalho em aberto.
+- **Fim de entrega: `cd <raiz> && fsd-restart`.** Ele decide: com contexto até 60k responde "siga nesta sessão" (pegue o próximo da fila ou, sem trabalho, siga o item abaixo); acima disso reinicia. O guard nega o Monitor acima de 60k.
+- **Sem trabalho, avisa o Kevin.** Mel, Stuart e Bob: mande `fsd-notify kevin "parado: <última entrega>; fila: <fsd-queue, ou vazia>; esperando: <o quê, se for o caso>"` e então `Monitor` com `fsd-wait any` (ele acorda você com a próxima coisa do seu papel). Só mensagem direta: nada no GitHub. Resposta do Kevin: `pegue #N …` → faça; `aguarde …` → fique no Monitor e não avise de novo até terminar outra tarefa.
+- Uma linha `[fsd-aviso de <agente>] …` colada na sua sessão vem dos comandos do time: aja no que ela cita, sem responder a ela (exceção: o Kevin responde aos `parado:`). Para falar com alguém: `fsd-notify`.
+
+## Memória
+`memory_query` antes de propor desenho. Página durável só quando o autor pedir. Handoff é só seu (nunca `shared: true`). Nada de `trail note`. Não grave na memória automática do Claude Code (pasta `memory/`): o conhecimento do projeto fica só no ai-memory.
+
+## Fim de tarefa
+Tarefa = uma entrega (merge ou issue; passagem ou revisão; PR ou rodada de correções; verificação). Uma sessão, uma entrega: ficar esperando alguém depois dela também é fim de tarefa. Ao terminar: o GitHub já tem o registro; `memory_handoff_begin` só se houver contexto que o GitHub e a `fsd-queue` não têm; `cd <raiz do repositório> && fsd-restart` como **última** ação (da raiz, para o handoff automático chegar à sessão nova). Nunca no meio de uma tarefa.

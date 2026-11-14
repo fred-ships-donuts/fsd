@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+# fsd-memory-backup mirror|backup — recuperação de desastre do ai-memory da matriz.
+#   mirror  (diário)   ai-memory commit + git push da wiki para o remoto "origin" (se configurado)
+#   backup  (semanal)  ai-memory backup (wiki + db + config.toml) cifrado com age para $FSD_BACKUP_DIR; guarda os 8 últimos
+# A chave age (backup-age.key) vai no secrets.tar.age (bin/fsd-secrets). Restaurar:
+#   age -d -i ~/.config/fsd-agents/backup-age.key <arq>.tar.gz.age > aim.tar.gz && ai-memory restore --help
+set -euo pipefail
+ROOT="${FSD_STATE:-$HOME/.config/fsd-agents}"; KEY="$ROOT/backup-age.key"
+DATA="${AI_MEMORY_DATA_DIR:-$HOME/.local/share/ai-memory}"; WIKI="$DATA/wiki"
+DEST="${FSD_BACKUP_DIR:-$HOME/backups/ai-memory}"; KEEP="${FSD_BACKUP_KEEP:-8}"
+export PATH="$HOME/.local/bin:$PATH"
+case "${1:-}" in
+  mirror)
+    ai-memory commit -m "espelho diário $(date +%F)" >/dev/null 2>&1 || true
+    if git -C "$WIKI" remote get-url origin >/dev/null 2>&1; then
+      git -C "$WIKI" push -q origin HEAD && echo "wiki enviada para $(git -C "$WIKI" remote get-url origin)"
+    else
+      echo "wiki sem remoto 'origin': só commit local (configure: git -C $WIKI remote add origin <url privada>)"
+    fi ;;
+  backup)
+    [ -f "$KEY" ] || { echo "falta $KEY (age-keygen -o $KEY)"; exit 2; }
+    mkdir -p "$DEST"; tmp="$(mktemp -d)"; trap 'rm -rf "$tmp"' EXIT
+    ai-memory backup --to "$tmp/aim.tar.gz" >/dev/null
+    out="$DEST/aim-$(date +%F).tar.gz.age"
+    age -r "$(age-keygen -y "$KEY")" -o "$out" "$tmp/aim.tar.gz"
+    ls -1t "$DEST"/aim-*.tar.gz.age | tail -n +$((KEEP + 1)) | xargs -r rm --
+    echo "backup cifrado: $out ($(du -h "$out" | cut -f1)); mantidos: $(ls -1 "$DEST"/aim-*.tar.gz.age | wc -l)" ;;
+  *) sed -n '2,6p' "$0" | sed 's/^# \{0,1\}//'; exit 2 ;;
+esac

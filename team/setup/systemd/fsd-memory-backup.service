@@ -1,0 +1,7 @@
+[Unit]
+Description=fsd: ai-memory backup (recuperação de desastre)
+After=ai-memory.service
+
+[Service]
+Type=oneshot
+ExecStart=%h/.config/fsd-agents/bin/fsd-memory-backup backup

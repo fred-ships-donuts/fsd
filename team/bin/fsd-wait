@@ -1,0 +1,52 @@
+#!/usr/bin/env node
+// Para o Monitor: fica quieto até algo NOVO acontecer, imprime uma linha e sai 0 (--now: dispara também com o que já existe).
+// Falha de rede: tenta de novo (5 vezes).
+// fsd-wait any [--now]              o que importa para o seu papel (kevin: PR pronto parado; mel: PR para revisar ou card em
+//                                   Ready for Architecture; stuart: revisão nos seus PRs ou card em Ready for Development; bob: PR para verificar)
+// fsd-wait pr <n> merged|closed|approved|changes|new-head
+// fsd-wait todo | mine | ready | column "<coluna>"  [--now]
+// Intervalo: FSD_WAIT_SECONDS (padrão 60).
+process.env.FSD_THROW = '1';
+const L = await import('./fsd-lib.mjs');
+import { spawnSync } from 'node:child_process';
+const args = process.argv.slice(2).filter((x) => x !== '--now'); const NOW = process.argv.includes('--now');
+const [kind, x, y] = args; const every = Number(process.env.FSD_WAIT_SECONDS || 60) * 1000;
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const me = L.meLogin(); const base = new Map();
+// Detector de novidade: na primeira leitura guarda a linha de base (a não ser --now) e só dispara com itens novos.
+function fresh(key, items, fmt) {
+  if (!base.has(key)) { base.set(key, new Set(NOW ? [] : items)); if (!NOW) return ''; }
+  const seen = base.get(key); const nw = items.filter((i) => !seen.has(i));
+  return nw.length ? fmt(nw) : '';
+}
+const colItems = (c) => { const r = spawnSync(L.BIN + '/fsd-board', ['list', c], { encoding: 'utf8' }); if (r.status === 2 && /não configurado/.test(r.stderr)) return []; if (r.status !== 0) throw Object.assign(new Error(String(r.stderr || r.stdout).trim().split('\n')[0]), { code: r.status === 2 ? 2 : 4 }); const m = r.stdout.match(/\((\d+)\):\s*(.*)/); return m ? m[2].trim().split(/\s+/).filter(Boolean) : []; };
+const W = {
+  todo: () => fresh('todo', L.todo(me).map((p) => `#${p.number}@${p.headRefOid.slice(0, 7)}`), (n) => `revisar ${n.join(' ')}`),
+  mine: () => { const items = L.openPrs().filter((p) => L.norm(p.author?.login) === me).map((p) => `#${p.number}:${(p.reviews || []).length}`); const nums = (l) => l.map((i) => i.split(':')[0]); const prev = base.has('mine') ? nums([...base.get('mine')]) : null; const f = fresh('mine', items, () => 'revisão nova: fsd-pr --mine'); if (f) return f; const gone = prev ? prev.filter((n) => !nums(items).includes(n)) : []; if (gone.length) { base.set('mine', new Set(items)); return `PR ${gone.join(' ')} mesclado/fechado: fsd-queue`; } return ''; },
+  ready: () => fresh('ready', L.openPrs().filter((p) => L.readyIdle(p, false)).map((p) => '#' + p.number), (n) => `pronto parado: ${n.join(' ')} (fsd-merge --ready)`),
+  column: (c) => (c = L.stageName(c), fresh('col:' + c, colItems(c), (n) => `${c}: ${n.join(' ')}`)),
+};
+const ANY = { kevin: [() => W.ready(), () => W.todo()], mel: [() => W.todo(), () => W.column(L.STAGE.archReady)], stuart: [() => W.mine(), () => W.column(L.STAGE.devReady)], bob: [() => W.todo()] };
+let first;
+function check() {
+  if (kind === 'any') { const fs = ANY[L.ME]; if (!fs) L.die('fsd-wait any: rode dentro da sessão de um agente', 2); for (const f of fs) { const r = f(); if (r) return r; } return ''; }
+  if (kind === 'pr') {
+    if (!['merged', 'closed', 'approved', 'changes', 'new-head'].includes(y)) L.die('uso: fsd-wait pr <n> merged|closed|approved|changes|new-head', 2);
+    const p = L.pr(x); const s = L.reviewState(p); if (first === undefined) first = p.headRefOid;
+    if (y === 'merged' && p.state === 'MERGED') return `#${x} mesclado`;
+    if (y === 'closed' && p.state !== 'OPEN') return `#${x} ${p.state}`;
+    if (y === 'approved' && s.approvers.length >= 2 && !s.changes.length) return `#${x} com 2 aprovações: fsd-merge ${x}`;
+    if (y === 'changes' && s.changes.length) return `#${x} mudanças pedidas por ${s.changes.join(',')}: fsd-review read ${x}`;
+    if (y === 'new-head' && p.headRefOid !== first) return `#${x} commit novo ${p.headRefOid.slice(0, 7)}`;
+    return '';
+  }
+  if (kind === 'column') { if (!x) L.die('uso: fsd-wait column "<coluna>"', 2); return W.column(x); }
+  if (W[kind]) return W[kind]();
+  L.die('uso: fsd-wait any | pr <n> <condição> | todo | mine | ready | column "<coluna>"  [--now]', 2);
+}
+let bad = 0;
+for (;;) {
+  try { const r = check(); bad = 0; if (r) { console.log(r); process.exit(0); } }
+  catch (e) { if (e.code === 2 || ++bad >= 5) { console.log(String(e.message)); process.exit(Number.isInteger(e.code) ? e.code : 4); } }
+  await sleep(every);
+}

@@ -1,0 +1,2 @@
+# Windows: o Docker precisa de LF nos heredocs e scripts do Dockerfile.
+* text eol=lf

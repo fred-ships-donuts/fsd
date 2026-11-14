@@ -1,0 +1,33 @@
+#!/usr/bin/env node
+// fsd-dev start <n> [slug] [--fix|--docs|--chore]   card → Developing; worktree <tipo>/<n>-<slug> (feature/ por padrão) a partir da
+//                                       origin/develop; mostra o issue e a passagem. Todo trabalho tem issue: não existe branch sem número.
+// fsd-dev sync -C <worktree>             git pull da develop no branch (merge comum): "ok" ou "conflito: <arquivos>"
+// Nunca troque de branch na pasta principal: cada trabalho vive no seu worktree em .claude/worktrees/.
+import * as L from './fsd-lib.mjs';
+import { existsSync, readFileSync, appendFileSync } from 'node:fs';
+const a = process.argv.slice(2); const [cmd, n] = a;
+const opt = (k) => { const i = a.indexOf(k); return i >= 0 ? a[i + 1] : undefined; };
+const slugify = (t) => t.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40);
+if (cmd === 'start') {
+  if (!/^\d+$/.test(n || '')) L.die('uso: fsd-dev start <n> [slug] [--fix|--docs|--chore] (todo trabalho tem issue: crie com fsd-issue new)', 2);
+  const i = L.issue(n);
+  const raw = a[2] && !a[2].startsWith('-') ? a[2] : i.title.replace(/^F-\w+:?\s*/i, '');
+  const slug = slugify(raw); if (!slug) L.die('faltou o slug: fsd-dev start <n> <slug>', 2);
+  const type = a.includes('--fix') ? 'fix' : a.includes('--docs') ? 'docs' : a.includes('--chore') ? 'chore' : 'feature';
+  const branch = `${type}/${n}-${slug}`; const dir = `${L.REPO_DIR}/.claude/worktrees/${branch.replace('/', '-')}`;
+  const ex = `${L.REPO_DIR}/.git/info/exclude`; try { if (!readFileSync(ex, 'utf8').includes('.claude/worktrees/')) appendFileSync(ex, '\n.claude/worktrees/\n'); } catch {}
+  L.run('git', ['-C', L.REPO_DIR, 'fetch', '-q', 'origin', 'develop']);
+  if (!existsSync(dir)) {
+    const have = L.run('git', ['-C', L.REPO_DIR, 'rev-parse', '--verify', '-q', `refs/heads/${branch}`], { allowFail: true }).ok;
+    L.write('git', ['-C', L.REPO_DIR, 'worktree', 'add', '-q', ...(have ? [dir, branch] : [dir, '-b', branch, 'origin/develop'])]);
+  }
+  const b = L.board(L.STAGE.dev, [Number(n)]);
+  console.log(`worktree ${dir} | branch ${branch}${b ? ' | ' + b : ''}`);
+  console.log(L.run(L.BIN + '/fsd-issue', ['show', n]));
+} else if (cmd === 'sync') {
+  const dir = opt('-C'); if (!dir) L.die('uso: fsd-dev sync -C <worktree>', 2);
+  const r = L.write('git', ['-C', dir, 'pull', '--no-edit', '--no-rebase', 'origin', 'develop'], { allowFail: true });
+  if (r.ok) L.die('ok', 0);
+  const files = L.run('git', ['-C', dir, 'diff', '--name-only', '--diff-filter=U']).split('\n').filter(Boolean);
+  L.die(files.length ? `conflito: ${files.join(' ')} (resolva, git add, git commit, fsd-pr open -C ${dir} --reply -)` : `merge falhou: ${r.err}`, 1);
+} else L.die('uso: fsd-dev start <n> [slug] [--fix|--docs|--chore] | sync -C <worktree>', 2);

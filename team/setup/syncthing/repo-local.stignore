@@ -1,0 +1,10 @@
+!/.ai-memory.toml
+!/AGENTS.md
+!/.claude/settings.json
+!/.claude/settings.local.json
+!/.claude/arquiteto
+!/.claude/github
+!/.trail/hook.cjs
+!/.trail/statusline.cjs
+!/.trail/README.md
+*

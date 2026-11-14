@@ -1,0 +1,62 @@
+#!/usr/bin/env bash
+# org-setup <org> [--dry-run] — roda com o gh do AUTOR (não dentro do fsd-agent).
+# 1. copia o Project 3 do autor para a organização (colunas e views);
+# 2. põe cada card na coluna em que está hoje;
+# 3. acha a instalação de cada App na organização e grava org_installation_id + "board" no agents.json.
+set -euo pipefail
+ORG="${1:?uso: org-setup <org> [--dry-run]}"; DRY="${2:-}"
+USER_LOGIN="${FSD_AUTHOR:?defina FSD_AUTHOR (login do GitHub do autor)}"; OLD_NUM=3; REPO=fred-ships-donuts/fsd
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+[ -n "${FSD_AGENT:-}" ] && { echo "rode fora do fsd-agent (precisa do gh do autor)"; exit 2; }
+gh api user --jq .login | grep -qx "$USER_LOGIN" || { echo "o gh não está logado como $USER_LOGIN"; exit 2; }
+sc=$(gh auth status 2>&1); grep -q "'project'" <<<"$sc" && grep -q "admin:org" <<<"$sc" || { echo "falta escopo: rode  gh auth refresh -h github.com -s project,admin:org  e repita"; exit 2; }
+
+org_id=$(gh api "orgs/$ORG" --jq .node_id) || { echo "organização $ORG não encontrada"; exit 1; }
+old=$(gh api graphql -f query="{user(login:\"$USER_LOGIN\"){projectV2(number:$OLD_NUM){id title}}}" --jq '.data.user.projectV2')
+old_id=$(python3 -c 'import json,sys;print(json.load(sys.stdin)["id"])' <<<"$old"); title=$(python3 -c 'import json,sys;print(json.load(sys.stdin)["title"])' <<<"$old")
+items=$(gh api graphql --paginate -f query='query($endCursor:String){user(login:"'"$USER_LOGIN"'"){projectV2(number:'"$OLD_NUM"'){items(first:100,after:$endCursor){pageInfo{hasNextPage endCursor}
+  nodes{status:fieldValueByName(name:"Status"){... on ProjectV2ItemFieldSingleSelectValue{name}} content{... on Issue{id number} ... on PullRequest{id number}}}}}}}' \
+  --jq '.data.user.projectV2.items.nodes[]|select(.content.id!=null)|[.content.id,(.content.number|tostring),(.status.name//"")]|@tsv')
+inst=$(gh api "orgs/$ORG/installations" --jq '.installations[]|"\(.app_slug) \(.id)"') || { echo "não consegui listar os Apps da organização (escopo admin:org?)"; exit 1; }
+echo "organização $ORG ($org_id) | quadro de origem: $title | $(wc -l <<<"$items") cards"
+for a in kevin mel stuart bob; do echo "  fsd-$a: instalação na org = $(awk -v s="fsd-$a" '$1==s{print $2}' <<<"$inst")"; done
+missing=$(for a in kevin mel stuart bob; do awk -v s="fsd-$a" '$1==s{f=1} END{if(!f)print s}' <<<"$inst"; done)
+[ -n "$missing" ] && { echo "FALTA instalar na organização: $(echo $missing)"; [ "$DRY" = --dry-run ] || exit 1; }
+[ "$DRY" = --dry-run ] && { echo "dry-run: nada foi criado"; exit 0; }
+
+if [ -n "${NEW_NUM:-}" ]; then
+  new=$(gh api graphql -f query='query($o:String!,$n:Int!){organization(login:$o){projectV2(number:$n){id number url field(name:"Status"){... on ProjectV2SingleSelectField{id options{id name}}}}}}' -f o="$ORG" -F n="$NEW_NUM" --jq '.data.organization.projectV2')
+else
+new=$(gh api graphql -f query='mutation($p:ID!,$o:ID!,$t:String!){copyProjectV2(input:{projectId:$p,ownerId:$o,title:$t,includeDraftIssues:false}){projectV2{id number url field(name:"Status"){... on ProjectV2SingleSelectField{id options{id name}}}}}}' \
+  -f p="$old_id" -f o="$org_id" -f t="$title" --jq '.data.copyProjectV2.projectV2')
+fi
+read -r new_id new_num fld < <(python3 -c 'import json,sys;d=json.load(sys.stdin);print(d["id"],d["number"],d["field"]["id"])' <<<"$new")
+echo "quadro: $(python3 -c 'import json,sys;print(json.load(sys.stdin)["url"])' <<<"$new")"
+ok=0
+while IFS=$'\t' read -r cid num st; do
+  [ -z "$cid" ] && continue
+  it=$(gh api graphql -f query='mutation($p:ID!,$c:ID!){addProjectV2ItemById(input:{projectId:$p,contentId:$c}){item{id}}}' -f p="$new_id" -f c="$cid" --jq .data.addProjectV2ItemById.item.id)
+  if [ -n "$st" ]; then
+    opt=$(ST="$st" python3 -c 'import json,sys,os;d=json.load(sys.stdin);print(next((o["id"] for o in d["field"]["options"] if o["name"]==os.environ["ST"]),""))' <<<"$new")
+    [ -n "$opt" ] && gh api graphql -f query='mutation($p:ID!,$i:ID!,$f:ID!,$o:String!){updateProjectV2ItemFieldValue(input:{projectId:$p,itemId:$i,fieldId:$f,value:{singleSelectOptionId:$o}}){projectV2Item{id}}}' -f p="$new_id" -f i="$it" -f f="$fld" -f o="$opt" >/dev/null
+  fi
+  ok=$((ok+1))
+done <<<"$items"
+echo "cards copiados: $ok"
+python3 - "$ROOT/agents.json" "$ORG" "$new_num" "$REPO" "$inst" <<'PY'
+import json,sys
+f,org,num,repo,inst=sys.argv[1:]
+ids={l.split()[0]:int(l.split()[1]) for l in inst.splitlines() if l.strip()}
+d=json.load(open(f)); d['board']={"owner":org,"number":int(num),"repo":repo}
+for a,v in d['agents'].items():
+    if f"fsd-{a}" in ids: v['org_installation_id']=ids[f"fsd-{a}"]
+open(f,'w').write(json.dumps(d,ensure_ascii=False,indent=2)+"\n"); print("agents.json atualizado")
+PY
+
+# Teste real com a identidade de um agente: move um card que já está em Backlog para Backlog (não muda nada).
+t=$(awk -F'\t' '$3=="Backlog"{print $2; exit}' <<<"$items")
+if [ -n "$t" ]; then
+  if out=$(~/.local/bin/fsd-agent kevin fsd-board move Backlog "$t" --quiet 2>&1); then echo "teste do agente: ok ($out)"
+  else echo "TESTE DO AGENTE FALHOU: $out"; echo "→ o App não alcança os issues do repositório a partir da organização. Avise o Claude: a saída é transferir o repositório para a organização."; exit 1; fi
+fi
+echo "pronto: o quadro da organização está configurado para os agentes."

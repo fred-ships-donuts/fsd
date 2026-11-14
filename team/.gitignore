@@ -1,0 +1,21 @@
+# Lista de permissão: só a configuração e os scripts do time. Fora: chaves, tokens, cache, gh-config,
+# sessões, transcrições e estado de execução (PAUSE).
+/*
+!/.gitignore
+!/README.md
+!/agents.json
+!/claude-settings.json
+!/mcp.json
+!/bin/
+!/common/
+!/setup/
+!/docs/
+!/secrets.tar.age
+!/agents/
+/agents/*/*
+!/agents/*/claude/
+/agents/*/claude/*
+!/agents/*/claude/CLAUDE.md
+!/agents/*/claude/settings.json
+!/agents/*/claude/skills/
+/agents/fred/

@@ -1,0 +1,27 @@
+// segredo ou estado por máquina (estudo §3.4)
+/.credentials.json
+(?d)/sessions
+(?d)/session-env
+(?d)/shell-snapshots
+(?d)/cache
+(?d)/paste-cache
+(?d)/downloads
+(?d)/chrome
+(?d)/backups
+(?d)/jobs
+(?d)/daemon
+/daemon.lock
+/daemon.log
+/daemon.status.json
+/statusline-cache.json
+/gh-pr-status-cache.json
+/.last-update-result.json
+/.last-cleanup
+/settings.json.bak*
+/statusline.js.bak
+(?d)/plugins/cache
+(?d)/plugins/marketplaces
+(?d)/plugins/store
+(?d)/plugins/data
+/plugins/plugin-catalog-cache.json
+/plugins/plugin-directory-cache-v2.json

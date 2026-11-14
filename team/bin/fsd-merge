@@ -1,0 +1,30 @@
+#!/usr/bin/env node
+// fsd-merge <n> [--check]   mescla o PR #n na develop seguindo as regras do time (2 aprovações atuais de outras pessoas,
+//                           sem mudança pedida, não draft, base develop, sem conflito). Squash, sem apagar a branch,
+//                           travado no commit conferido. Depois move os issues para Done e avisa o autor do PR.
+// fsd-merge --ready [--check] [--now]  mescla os PRs de agentes prontos e parados há 10 min (o que fsd-pr --ready mostra); PR do autor só por número
+// Saída: 0 ok · 1 regra · 3 ainda calculando · 4 GitHub recusou/rede.
+import * as L from './fsd-lib.mjs';
+const [n, mode] = process.argv.slice(2);
+function one(num, check) {
+  let p;
+  for (let t = 0; t < 6; t++) { p = L.pr(num); if (p.state !== 'OPEN' || p.mergeable !== 'UNKNOWN') break; L.run('sleep', ['2']); }
+  const s = L.reviewState(p); const fail = [];
+  if (p.state !== 'OPEN') fail.push(`estado ${p.state}`);
+  if (p.isDraft) fail.push('draft');
+  if (p.baseRefName !== 'develop') fail.push(`base ${p.baseRefName} (só develop; a main é do autor)`);
+  if (p.mergeable === 'CONFLICTING') fail.push('conflito com a develop');
+  if (s.approvers.length < 2) fail.push(`${s.approvers.length}/2 aprovações atuais${s.stale.length ? ` (antigas: ${s.stale.join(',')})` : ''}`);
+  if (s.changes.length) fail.push(`mudanças pedidas por ${s.changes.join(',')}`);
+  if (fail.length) return [1, `#${num} não pode entrar: ${fail.join('; ')}`];
+  if (p.mergeable === 'UNKNOWN') return [3, `#${num} merge ainda calculando; tente de novo`];
+  if (check) return [0, `#${num} pronto para merge (${s.approvers.join(',')})`];
+  const r = L.write(L.BIN + '/gh', ['pr', 'merge', String(num), '--merge', '--match-head-commit', p.headRefOid], { allowFail: true });
+  if (!r.ok) { if (L.pr(num).state === 'MERGED') return [0, `#${num} já mesclado`]; return [4, `#${num} merge recusado: ${r.err.slice(0, 200)}`]; }
+  const cl = L.closes(p.body);
+  return [0, [`#${num} mesclado na develop`, L.board(L.STAGE.done, cl), L.notify([L.agentOf(p.author?.login)], `PR #${num} mesclado na develop.`)].filter(Boolean).join(' | ')];
+}
+if (n === '--ready') { const chk = process.argv.includes('--check'); const all = L.openPrs(); const ps = all.filter((p) => L.readyIdle(p)); const human = all.filter((p) => L.ready(p) && !L.AGENTS.includes(L.agentOf(p.author?.login))).length; if (!ps.length) L.die(`nada pronto parado${human ? ` (+${human} do autor: fsd-merge <n>)` : ''}`, 0); let worst = 0; for (const p of ps) { const [c, m] = one(p.number, chk); console.log(m); worst = Math.max(worst, c); if (c === 4) { console.log('parei: merge recusado'); break; } } if (human) console.log(`(+${human} do autor: só por número)`); process.exit(worst); }
+if (mode && !['--check', '--now'].includes(mode)) L.die('uso: fsd-merge <n> [--check] | fsd-merge --ready [--check]', 2);
+if (!/^\d+$/.test(n || '')) L.die('uso: fsd-merge <n> [--check] | fsd-merge --ready', 2);
+const [code, msg] = one(n, mode === '--check'); L.die(msg, code);

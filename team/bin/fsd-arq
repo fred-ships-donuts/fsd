@@ -1,0 +1,29 @@
+#!/usr/bin/env node
+// fsd-arq start <issue>                card → Architecting; mostra o issue (corpo até 40 linhas) e o aceite numerado
+// Por tamanho: size:L pede as 6 seções; size:M só What to do, Files e Verification; size:S não tem passagem (o Kevin
+// manda direto para Ready for Development). Issue sem size: o Kevin define antes.
+// fsd-arq publish <issue> <arquivo|->  confere as seções do tamanho, publica "Architect handoff" (recusa se já houver um),
+//                                      card → Ready for Development e avisa o stuart
+import * as L from './fsd-lib.mjs';
+const [cmd, n, file] = process.argv.slice(2).filter((x) => x !== '--again');
+const NEED = { L: ['What to do', 'Files', 'Contracts', 'Risks', 'Out of scope', 'Verification'], M: ['What to do', 'Files', 'Verification'] };
+const sized = (i) => { const s = L.sizeOf(i);
+  if (!s) L.die(`#${i.number} sem size:S|M|L: o Kevin define o tamanho antes da passagem (fsd-notify kevin "#${i.number} sem size")`, 1);
+  if (s === 'S') L.die(`#${i.number} é size:S: não tem passagem. O Kevin move direto para Ready for Development (fsd-notify kevin "#${i.number} é S, sem passagem")`, 1);
+  return s; };
+if (!/^\d+$/.test(n || '')) L.die('uso: fsd-arq start|publish <issue> [arquivo|-]', 2);
+if (cmd === 'start') {
+  const i = L.issue(n); const s = sized(i); const ac = L.acceptance(i.body); const b = L.board(L.STAGE.arch, [Number(n)]);
+  console.log(`#${n} ${i.title}${i.state !== 'OPEN' ? ' [' + i.state + ']' : ''} [size:${s}: ${NEED[s].join(', ')}]${b ? ' | ' + b : ''}\n${L.clip(i.body, 40)}`);
+  if (!ac.found) console.log('(issue sem seção Acceptance: peça ao kevin)');
+} else if (cmd === 'publish') {
+  let body = L.readArgFile(file).trim(); const s = sized(L.issue(n));
+  const miss = NEED[s].filter((h) => !new RegExp(`\\*\\*${h}:?\\*\\*`, 'i').test(body));
+  if (miss.length) L.die(`faltam seções: ${miss.join(', ')} (formato **Seção:**)`, 1);
+  if (L.handoffOf(L.issue(n)) && !process.argv.includes('--again')) L.die(`#${n} já tem Architect handoff; para publicar outro, repita com --again no fim: fsd-arq publish ${n} <arquivo|-> --again`, 1);
+  if (!/^\*\*Architect handoff\*\*/i.test(body)) body = `**Architect handoff**\n\n${body}`;
+  const url = L.ghw(['issue', 'comment', n, '--body-file', '-'], { input: body });
+  const b = L.board(L.STAGE.devReady, [Number(n)]);
+  const nt = L.notify(['stuart'], `Architect handoff do #${n} publicado: fsd-dev start ${n}`);
+  console.log([`#${n} passagem publicada ${url}`, b, nt].filter(Boolean).join(' | '));
+} else L.die('uso: fsd-arq start|publish <issue> [arquivo|-]', 2);

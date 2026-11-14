@@ -1,0 +1,38 @@
+#!/usr/bin/env node
+// fsd-mcp-filter <comando> [args…] — repassa o MCP stdio (JSON-RPC, uma mensagem por linha) para o comando
+// e só troca result.instructions da resposta ao initialize (MCP antigo) ou ao server/discover (MCP 2026) pela versão curta de common/ai-memory-instructions.md.
+// Segurança: guarda o hash do texto original no 1º uso (cache/); se o original mudar, NÃO troca (repassa o
+// texto completo) e avisa no stderr, para nenhuma regra nova ficar escondida. Para aceitar o texto novo depois
+// de revisar a versão curta: apague cache/ai-memory-instructions.sha256.
+import { spawn } from 'node:child_process';
+import { createHash } from 'node:crypto';
+import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
+import { createInterface } from 'node:readline';
+const ROOT = new URL('..', import.meta.url).pathname;
+const SHORT = readFileSync(ROOT + 'common/ai-memory-instructions.md', 'utf8').trim();
+const HASH = ROOT + 'cache/ai-memory-instructions.sha256';
+import { appendFileSync } from 'node:fs';
+const log = (s) => { try { appendFileSync(ROOT + 'cache/fsd-mcp-filter.log', `${new Date().toISOString()} ${process.env.FSD_AGENT || '-'} ${process.pid} ${s}\n`); } catch {} };
+log('start');
+const child = spawn(process.argv[2], process.argv.slice(3), { stdio: ['pipe', 'pipe', 'inherit'] });
+child.on('error', (e) => { process.stderr.write(`fsd-mcp-filter: ${e.message}\n`); process.exit(2); });
+let initId = null;
+const swap = (orig) => {
+  const h = createHash('sha256').update(orig).digest('hex');
+  if (!existsSync(HASH)) { mkdirSync(ROOT + 'cache', { recursive: true }); writeFileSync(HASH, h + '\n'); }
+  if (readFileSync(HASH, 'utf8').trim() === h) return SHORT;
+  process.stderr.write('fsd-mcp-filter: as instruções do ai-memory mudaram; repassando o texto completo. Revise common/ai-memory-instructions.md e apague cache/ai-memory-instructions.sha256.\n');
+  return orig;
+};
+createInterface({ input: process.stdin, crlfDelay: Infinity }).on('line', (l) => {
+  try { const m = JSON.parse(l); if (m.method === 'initialize' || m.method === 'server/discover') { initId = m.id; log(m.method + ' id=' + JSON.stringify(m.id)); } } catch {}
+  child.stdin.write(l + '\n');
+}).on('close', () => child.stdin.end());
+createInterface({ input: child.stdout, crlfDelay: Infinity }).on('line', (l) => {
+  if (initId !== null && l.includes('"instructions"')) {
+    try { const m = JSON.parse(l); if (m.id === initId && typeof m.result?.instructions === 'string') { const o = m.result.instructions; m.result.instructions = swap(o); log(m.result.instructions === o ? 'instruções originais (hash mudou)' : `instruções trocadas (${o.length} → ${m.result.instructions.length} chars)`); initId = null; l = JSON.stringify(m); } } catch {}
+  }
+  process.stdout.write(l + '\n');
+});
+child.on('exit', (c, s) => process.exit(s ? 1 : (c ?? 0)));
+for (const sig of ['SIGTERM', 'SIGINT', 'SIGHUP']) process.on(sig, () => child.kill(sig));

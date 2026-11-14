@@ -1,0 +1,43 @@
+#!/usr/bin/env node
+// fsd-review start <n>               card → Review, guarda o commit lido e lista os arquivos (+add -del), sem lockfiles/dist
+// fsd-review diff <n> [caminho…]     diff dos caminhos pedidos (padrão: tudo menos lockfiles/dist), até 400 linhas
+// fsd-review read <n>                o que pediram no PR: última revisão não aprovada de cada pessoa + comentários de linha
+// fsd-review post <n> approve|changes|comment <arquivo|->
+//                                    publica a revisão presa ao commit lido no start (recusa se o PR mudou), move o card e avisa
+import * as L from './fsd-lib.mjs';
+import { rmSync } from 'node:fs';
+const [cmd, n, ...rest] = process.argv.slice(2);
+const NOISE = /(^|\/)(package-lock\.json|pnpm-lock\.yaml|yarn\.lock)$|^dist\//;
+const SF = `/tmp/fsd-${L.ME || 'x'}/review-${n}.json`;
+if (!/^\d+$/.test(n || '')) L.die('uso: fsd-review start|diff|read|post <n> …', 2);
+if (cmd === 'start') {
+  const p = L.pr(n); const files = L.ghJson(['pr', 'view', n, '--json', 'files']).files;
+  L.saveState(SF, { sha: p.headRefOid });
+  const b = L.board(L.STAGE.review, L.closes(p.body)); const shown = files.filter((f) => !NOISE.test(f.path));
+  console.log(`#${n} ${p.title.slice(0, 60)} | head ${p.headRefOid.slice(0, 7)} | ${files.length} arquivos${files.length - shown.length ? ` (${files.length - shown.length} ocultos)` : ''}${b ? ' | ' + b : ''}`);
+  for (const f of shown) console.log(`${f.path} +${f.additions} -${f.deletions}`);
+} else if (cmd === 'diff') {
+  const parts = L.gh(['pr', 'diff', n]).split(/^(?=diff --git )/m).filter((x) => {
+    const path = (x.match(/^diff --git a\/(\S+)/) || [])[1] || '';
+    return rest.length ? rest.some((w) => path === w || path.startsWith(w.replace(/\/?$/, '/'))) : !NOISE.test(path);
+  });
+  console.log(parts.length ? L.clip(parts.join(''), 400).replace(/… \+(\d+) linhas$/, `… +$1 linhas: passe caminhos (fsd-review diff ${n} <caminho>)`) : 'nenhum arquivo com esse caminho no PR');
+} else if (cmd === 'read') {
+  const p = L.pr(n); const out = [];
+  const st = L.reviewState(p);
+  for (const [who, r] of st.last) if (r.state === 'CHANGES_REQUESTED' && r.body?.trim()) out.push(`## ${who} (${r.state}, ${r.commit?.oid?.slice(0, 7) || '-'})\n${L.clip(r.body, 60)}`);
+  const cs = L.ghJson(['api', `repos/{owner}/{repo}/pulls/${n}/comments`, '--paginate']);
+  const lines = cs.filter((c) => !c.in_reply_to_id && c.line != null).map((c) => `${c.path}:${c.line ?? c.original_line ?? '?'} — ${L.norm(c.user?.login)}: ${c.body.replace(/\s+/g, ' ').slice(0, 200)}`);
+  if (lines.length) out.push('## comentários de linha\n' + lines.join('\n'));
+  console.log(out.join('\n\n') || 'nenhum pedido em aberto');
+} else if (cmd === 'post') {
+  const [kind, file] = rest; const ev = { approve: 'APPROVE', changes: 'REQUEST_CHANGES', comment: 'COMMENT' }[kind];
+  if (!ev) L.die('uso: fsd-review post <n> approve|changes|comment <arquivo|->', 2);
+  const body = L.readArgFile(file).trim(); if (!body) L.die('revisão vazia', 2);
+  if (L.ME === 'bob' && kind === 'approve' && L.closes(L.pr(n).body).length) L.die(`o Bob aprova PR que fecha issue só pelo fsd-qa, inclusive o de documentação: fsd-qa prep ${n}`, 1);
+  const st = L.state(SF); if (!st) L.die(`rode fsd-review start ${n} antes de publicar`, 1);
+  const cur = L.pr(n).headRefOid; if (st.sha !== cur) L.die(`#${n} tem commit novo (${cur.slice(0, 7)}): rode fsd-review start ${n} e revise de novo`, 1);
+  L.ghw(['api', '-X', 'POST', `repos/{owner}/{repo}/pulls/${n}/reviews`, '-f', `event=${ev}`, '-f', `commit_id=${st.sha}`, '-F', 'body=@-'], { input: body });
+  if (kind === 'changes' && !L.DRY) rmSync(SF, { force: true });
+  console.log([`#${n} revisão ${kind} publicada (${st.sha.slice(0, 7)})`, kind === 'comment' ? '' : L.afterReview(n)].filter(Boolean).join(' | '));
+} else L.die('uso: fsd-review start|diff|read|post <n> …', 2);

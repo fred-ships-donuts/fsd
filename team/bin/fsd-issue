@@ -1,0 +1,44 @@
+#!/usr/bin/env node
+// fsd-issue show <n> [--full]           título, labels, corpo (40 linhas; --full inteiro), última Architect handoff e decisões do autor
+// fsd-issue new "<título>" --area <a> --size S|M|L [--milestone "<m>"] [--to "<coluna>"] [--force] <arquivo|->
+//     confere as seções (S: What e Acceptance; M e L: What, Why, Acceptance, References), recusa duplicado provável (--force se não for), cria e põe no quadro (padrão Backlog)
+// fsd-issue decide <n> "<texto>"         (só o kevin) registra "Decision (PM, AAAA-MM-DD): …" e tira a label decision
+// (não existe "ask": o time não pergunta ao autor)
+import * as L from './fsd-lib.mjs';
+const a = process.argv.slice(2); const cmd = a[0];
+const opt = (k) => { const i = a.indexOf(k); return i >= 0 ? a[i + 1] : undefined; };
+if (cmd === 'show') {
+  const n = a[1]; if (!/^\d+$/.test(n || '')) L.die('uso: fsd-issue show <n> [--full]', 2);
+  const i = L.issue(n); const h = L.handoffOf(i);
+  const dec = (i.comments || []).filter((c) => /^Decision \((author|PM)|^Decisão \((autor|PM)/i.test(c.body.trim()));
+  console.log(`#${n} ${i.title} [${i.state}] ${i.labels.map((l) => l.name).join(',')}\n${a.includes('--full') ? i.body.trim() : L.clip(i.body, 40)}`);
+  if (h) console.log(`\n--- handoff (${L.norm(h.author?.login)})\n${L.clip(h.body, 60)}`);
+  if (dec.length) console.log(`\n--- decisões\n${dec.map((c) => c.body.trim().split('\n')[0].slice(0, 300)).join('\n')}`);
+} else if (cmd === 'new') {
+  const title = a[1]; const area = opt('--area'); const size = opt('--size'); const file = a[a.length - 1];
+  if (!title || title.startsWith('-') || !area || !/^[SML]$/.test(size || '')) L.die('uso: fsd-issue new "<título>" --area <a> --size S|M|L [--milestone m] [--to coluna] [--force] <arquivo|->', 2);
+  const body = L.readArgFile(file).trim();
+  const miss = (size === 'S' ? ['What', 'Acceptance'] : ['What', 'Why', 'Acceptance', 'References']).filter((h) => !new RegExp(`^##\\s+${h}\\b`, 'mi').test(body));
+  if (miss.length) L.die(`faltam seções: ${miss.join(', ')}`, 1);
+  if (!a.includes('--force')) {
+    const words = title.replace(/[^\p{L}\p{N} ]/gu, ' ').split(/\s+/).filter((w) => w.length > 3).slice(0, 5).join(' ');
+    const dup = words ? L.ghJson(['issue', 'list', '--state', 'open', '--search', `${words} in:title`, '--limit', '5', '--json', 'number,title']) : [];
+    if (dup.length) L.die(`possíveis duplicados: ${dup.map((d) => `#${d.number} ${d.title.slice(0, 50)}`).join(' ; ')} (use --force se não for)`, 1);
+  }
+  const args = ['issue', 'create', '--title', title, '--body-file', '-', '--label', `area:${area},size:${size}`];
+  if (opt('--milestone')) args.push('--milestone', opt('--milestone'));
+  const url = L.ghw(args, { input: body }); const num = Number(url.split('/').pop());
+  console.log([`#${num} ${url}`, L.board(opt('--to') || L.STAGE.backlog, [num], { quiet: false })].filter(Boolean).join(' | '));
+} else if (cmd === 'ask') {
+  L.die('fsd-issue ask foi removido: o time não pergunta ao autor. O Kevin decide com fsd-issue decide.', 1);
+  const n = a[1]; if (!/^\d+$/.test(n || '')) L.die('uso: fsd-issue ask <n> <arquivo|->', 2);
+  const body = L.readArgFile(a[2]).trim(); if (!body) L.die('pergunta vazia', 2);
+  L.ghw(['issue', 'comment', n, '--body-file', '-'], { input: body }); L.ghw(['issue', 'edit', n, '--add-label', 'decision']);
+  console.log([`#${n} pergunta registrada (label decision)`, L.notify(['kevin'], `#${n} tem pergunta para o autor (label decision).`)].filter(Boolean).join(' | '));
+} else if (cmd === 'decide') {
+  if (L.ME !== 'kevin') L.die('só o kevin registra decisão', 1);
+  const n = a[1]; const text = a[2]; if (!/^\d+$/.test(n || '') || !text) L.die('uso: fsd-issue decide <n> "<texto>"', 2);
+  L.ghw(['issue', 'comment', n, '--body', `Decision (PM, ${L.today()}): ${text}`]);
+  L.write(L.BIN + '/gh', ['issue', 'edit', n, '--remove-label', 'decision'], { allowFail: true });
+  console.log(`#${n} decisão registrada`);
+} else L.die('uso: fsd-issue show|new|decide …', 2);

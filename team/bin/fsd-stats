@@ -1,0 +1,91 @@
+#!/usr/bin/env node
+// fsd-stats — contexto da sessão atual de cada agente, lido dos transcripts (não fala com os agentes, zero tokens).
+// Contexto = entrada + cache lido + cache gravado + saída da última resposta da sessão (o mesmo número que o
+// Claude Code mostra ao lado de um subagente e que o fsd-context-guard compara com o limite).
+// Tarefa atual: o último comando fsd-* com número (fsd-dev start 6 → "desenvolve #6"), a branch do worktree e "aguardando"
+// se depois dele veio um fsd-wait. Limite útil: agents.json → claude_common.context.limit − outputReserve (a API recusa o prompt antes do limit). "acabou de reiniciar" = sessão com menos de 5 min.
+import { readFileSync, readdirSync, statSync, existsSync, realpathSync } from 'node:fs';
+import { join, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const ROOT = dirname(dirname(realpathSync(fileURLToPath(import.meta.url))));
+const cfg = JSON.parse(readFileSync(join(ROOT, 'agents.json'), 'utf8'));
+const C = cfg.claude_common?.context || {}; const LIMIT = (C.limit || 200000) - (C.outputReserve ?? 32000);   // janela útil
+const AGENTS = ['kevin', 'mel', 'stuart', 'bob'].filter((a) => cfg.agents[a]);
+const FRESH_MS = 5 * 60 * 1000;
+// verbo do comando → o que o agente está fazendo (n = número do issue/PR)
+const ACTS = [
+  [/fsd-dev start (\d+)/, (n) => `desenvolve #${n}`], [/fsd-dev sync/, () => 'sincroniza a branch'],
+  [/fsd-arq start (\d+)/, (n) => `passagem #${n}`], [/fsd-arq publish (\d+)/, (n) => `publicou passagem #${n}`],
+  [/fsd-review start (\d+)/, (n) => `revisa PR #${n}`], [/fsd-review post (\d+)/, (n) => `revisou PR #${n}`], [/fsd-review read (\d+)/, (n) => `lê revisão do PR #${n}`],
+  [/fsd-qa prep (\d+)/, (n) => `verifica PR #${n}`], [/fsd-qa finish/, () => 'fechou verificação'], [/fsd-qa bug/, () => 'abriu bug'],
+  [/fsd-pr open/, () => 'abriu/atualizou PR'], [/fsd-merge (\d+)/, (n) => `mesclou #${n}`], [/fsd-merge --ready/, () => 'mescla prontos'],
+  [/fsd-issue decide (\d+)/, (n) => `decidiu #${n}`], [/fsd-issue new/, () => 'criou issue'], [/fsd-board move "[^"]+" ([\d ]+)/, (n) => `moveu #${n.trim().split(/\s+/).join(' #')}`],
+];
+const VERB = new RegExp(`(?:^|[\\s;&|(])(${ACTS.map(([r]) => r.source).join('|')})`, 'g');
+function lastAct(cmd) {
+  let hit = null; for (const m of cmd.matchAll(VERB)) hit = m[1];
+  if (!hit) return null; for (const [r, f] of ACTS) { const m = hit.match(r); if (m) return f(m[1]); } return null;
+}
+
+const k = (n) => `${(n / 1000).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}k`;
+const hhmm = (ts) => new Date(ts).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+
+function latestSession(agent) {
+  const base = join(ROOT, 'agents', agent, 'claude', 'projects');
+  if (!existsSync(base)) return null;
+  let best = null;
+  for (const p of readdirSync(base)) {
+    const dir = join(base, p);
+    if (!statSync(dir).isDirectory()) continue;
+    for (const f of readdirSync(dir)) {
+      if (!f.endsWith('.jsonl')) continue;
+      const full = join(dir, f); const m = statSync(full).mtimeMs;
+      if (!best || m > best.m) best = { full, m };
+    }
+  }
+  return best?.full || null;
+}
+
+function stats(agent) {
+  const f = latestSession(agent);
+  if (!f) return null;
+  let first = null, last = null, blown = false, branch = '', task = '', waiting = false; const ids = new Set();
+  for (const line of readFileSync(f, 'utf8').split('\n')) {
+    if (!line) continue;
+    let e; try { e = JSON.parse(line); } catch { continue; }
+    if (e.isSidechain) continue;
+    if (e.gitBranch) branch = e.gitBranch;
+    if (e.type === 'assistant') for (const c of Array.isArray(e.message?.content) ? e.message.content : []) {
+      if (c.type !== 'tool_use') continue;
+      const cmd = String(c.input?.command || '');
+      const t = lastAct(cmd); if (t) { task = t; waiting = false; }
+      if (c.name === 'Monitor' || /(?:^|[\s;&|(])fsd-wait /.test(cmd)) waiting = true;
+    }
+    if (e.type !== 'assistant' || !e.message?.usage) continue;
+    if (e.message.model === '<synthetic>') { if (JSON.stringify(e.message.content || '').includes('Prompt is too long')) blown = true; continue; }
+    first ??= e.timestamp; last = e; ids.add(e.message.id); blown = false;
+  }
+  if (!last) return null;
+  const u = last.message.usage;
+  const ctx = ['input_tokens', 'cache_read_input_tokens', 'cache_creation_input_tokens', 'output_tokens'].reduce((s, x) => s + (u[x] || 0), 0);
+  const br = branch && branch !== 'develop' && branch !== 'HEAD' ? ` · ${branch}` : '';
+  const what = task ? (waiting ? `aguardando (última: ${task})` : task) : (waiting ? 'aguardando' : '-');
+  return { ctx, calls: ids.size, first, blown, task: what + br };
+}
+
+const head = ['Agente', 'Contexto agora', `% do útil (${Math.round(LIMIT / 1000)}k)`, 'Chamadas na sessão', 'Sessão começou', 'Tarefa atual'];
+const rows = AGENTS.map((a) => {
+  const name = a[0].toUpperCase() + a.slice(1); const s = stats(a);
+  if (!s) return [name, '-', '-', '-', 'sem sessão', '-'];
+  const fresh = Date.now() - Date.parse(s.first) < FRESH_MS;
+  return [name, k(s.ctx), s.blown ? 'ESTOUROU' : `${Math.round((s.ctx / LIMIT) * 100)}%`, String(s.calls), `${hhmm(s.first)}${fresh ? ' (acabou de reiniciar)' : ''}`, s.task];
+});
+
+const w = head.map((h, i) => Math.max(h.length, ...rows.map((r) => r[i].length)));
+const line = (l, m, r) => l + w.map((n) => '─'.repeat(n + 2)).join(m) + r;
+const center = (s, n) => { const p = n - s.length; return ' '.repeat(Math.floor(p / 2)) + s + ' '.repeat(Math.ceil(p / 2)); };
+const out = [line('┌', '┬', '┐'), '│' + head.map((h, i) => ` ${center(h, w[i])} `).join('│') + '│'];
+rows.forEach((r) => { out.push(line('├', '┼', '┤')); out.push('│' + r.map((c, i) => ` ${c.padEnd(w[i])} `).join('│') + '│'); });
+out.push(line('└', '┴', '┘'));
+console.log(out.join('\n'));
