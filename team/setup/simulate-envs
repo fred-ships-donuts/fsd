@@ -31,8 +31,8 @@ mkenv() { # nome repo home FSD_REPO(set|unset) links(container|host) node_module
   ln -s /media/outra-maquina/Projects/fred-ships-donuts/team/agents/mel/claude/CLAUDE.md "$st/agents/mel/claude/CLAUDE.md"
   echo "cópia antiga" > "$st/agents/kevin/claude/CLAUDE.md"
   if [ "$links" = container ]; then printf '#!/bin/sh\nexec "%s/team/bin/fsd-agent" "$@"\n' "$repo" > "$home/.local/bin/fsd-agent"; chmod +x "$home/.local/bin/fsd-agent"
-    for b in fsd-stats fsd-watch fsd-sync-pair; do ln -s "$repo/team/bin/$b" "$home/.local/bin/$b"; done
-  else for b in fsd-agent fsd-memory-backup fsd-sync-pair fsd-restart fsd-trash fsd-stop; do ln -s "$repo/team/bin/$b" "$home/.local/bin/$b"; done; fi
+    for b in fsd-stats fsd-watch fsd-sync-pair fsd-map; do ln -s "$repo/team/bin/$b" "$home/.local/bin/$b"; done
+  else for b in fsd-agent fsd-memory-backup fsd-sync-pair fsd-restart fsd-trash fsd-stop fsd-map; do ln -s "$repo/team/bin/$b" "$home/.local/bin/$b"; done; fi
   local T="$repo/team/bin" L="$home/.local/bin"
   run() { ( export HOME="$home" FSD_STATE="$st" PATH="$BASE/stub:$home/.local/bin:$PATH"; unset FSD_REPO FSD_DRY; [ "$setrepo" = set ] && export FSD_REPO="$repo"; cd "$home" && "$@" ); }
   # 1. raiz do repo e configuração
@@ -71,6 +71,10 @@ mkenv() { # nome repo home FSD_REPO(set|unset) links(container|host) node_module
   fi
   # 6. skills: arquivos citados existem
   local miss=0; for sk in "$repo"/src/skills/_i18n/*/*/SKILL.md; do d=$(dirname "$sk"); while read -r p; do [ -n "$p" ] && [ ! -e "$d/$p" ] && { bad "skill ${d#$repo/} cita $p"; miss=1; }; done < <(grep -oE '(scripts|references|templates)/[A-Za-z0-9_./-]+[A-Za-z0-9_]' "$sk" | sort -u); done; [ $miss = 0 ] && ok "skills: arquivos citados existem"
+  # 7. fsd-map pelo atalho: mapa fora do repo, HOME sem rastro do motor
+  if [ -n "$MAPENG" ]; then
+    chk "fsd-map pelo atalho: grep acha código, repo intacto, HOME limpo" bash -c 'cd "$1" && o=$(HOME="$2" FSD_MAP_HOME="$2/.local/share/fsd/map" FSD_MAP_PKG="$3" "$2/.local/bin/fsd-map" grep openPrs) && grep -q "fsd-lib.mjs" <<<"$o" && [ -z "$(git status --porcelain | grep -v " node_modules$")" ] && [ ! -e "$2/.trail" ] && [ ! -e "$2/.graft" ] && ls "$2/.local/share/fsd/map/maps" | grep -q .' _ "$repo" "$home" "$MAPENG"
+  fi
 }
 npmci() { # cenários do npm ci automático do fsd-pr num clone sem node_modules
   local repo="$BASE/n/repo" home="$BASE/n/home"; echo "== npm ci automático | repo=$repo"
@@ -92,10 +96,51 @@ npmci() { # cenários do npm ci automático do fsd-pr num clone sem node_modules
   git -C "$repo" show origin/develop:package.json > "$repo/package.json"; git -C "$repo" show origin/develop:package-lock.json > "$repo/package-lock.json"; rm -rf "$repo/node_modules"
   o=$(pr); grep -q "commitlint não veio" <<<"$o" && ok "develop sem commitlint: erro claro, sem loop" || bad "sem commitlint no package.json: $(tail -2 <<<"$o" | tr '\n' ' ')"
 }
-mkenv container-fsd   "$BASE/c1/media/fsd/Projects/projetos/fred-ships-donuts" "$BASE/c1/home/fsd" set   container link
+# Motor do fsd-map para os cenários: cópia do pacote instalado aqui (sem o patch), dependências por link.
+MAPENG=""
+mapengine() {
+  local real; real=$(FSD_MAP_HOME= "$SRC/team/bin/fsd-map" status 2>/dev/null | sed -n '1s/.* em //p')
+  local pkg="$real/node_modules/@trailhq/trail-code"
+  [ -n "$real" ] && [ -d "$pkg" ] || { echo "== fsd-map: motor não instalado aqui (rode fsd-map status): cenários pulados"; return; }
+  MAPENG="$BASE/engine"; mkdir -p "$MAPENG/node_modules/@trailhq"
+  for d in "$real"/node_modules/* "$real"/node_modules/.bin; do [ "$(basename "$d")" = @trailhq ] || ln -s "$d" "$MAPENG/node_modules/"; done
+  cp -r "$pkg" "$MAPENG/node_modules/@trailhq/"; sed -i '/fsd-patch/d' "$MAPENG"/node_modules/@trailhq/trail-code/dist/{claude/hooks,claude/pre-bash,context/savings,ask/ask}.js
+  cp -r "$MAPENG/node_modules/@trailhq/trail-code" "$BASE/engine-pristine"
+}
+mapsim() { # fsd-map: patch, saída sem a marca do motor, worktree, versão diferente, código que mudou
+  [ -n "$MAPENG" ] || return 0
+  local repo="$BASE/m/repo" home="$BASE/m/home" E P="$MAPENG/node_modules/@trailhq/trail-code"; echo "== fsd-map | repo=$repo"
+  mkdir -p "$home"; git clone -q --no-hardlinks "$SRC" "$repo" && git -C "$repo" checkout -q "$BR"
+  sed -i "/fsd-patch/d" "$P"/dist/{claude/hooks,claude/pre-bash,context/savings,ask/ask}.js   # os atalhos acima já corrigiram
+  E=(env HOME="$home" FSD_MAP_HOME="$home/map" FSD_MAP_PKG="$MAPENG")
+  m() { ( cd "$repo" && "${E[@]}" "$repo/team/bin/fsd-map" "$@" ); }
+  marks() { cat "$P"/dist/{claude/hooks,claude/pre-bash,context/savings,ask/ask}.js | grep -c fsd-patch; }
+  m status >/dev/null 2>&1 && bad "status sem patch devia sair 1" || ok "status sem patch sai 1"
+  local o; o=$(m ask "how does fsd-pr open a pull request" --source 2>&1); local rc=$?
+  { [ $rc = 0 ] && [ "$(marks)" = 4 ] && grep -q "^fsd-map ask" <<<"$o"; } && ok "ask: aplica o patch (4 pontos) e responde" || bad "ask (rc=$rc, marcas=$(marks)): $(head -2 <<<"$o" | tr '\n' ' ')"
+  o=$(for c in "ask openPrs --full" "grep openPrs" "skeleton team/bin/fsd-lib.mjs" "callers openPrs --depth all" map build; do m $c 2>&1; done)
+  [ -n "$o" ] && ! grep -qiE 'trail|graft|tokens saved|learning' <<<"$o" && ok "saída de todos os comandos sem a marca do motor" || bad "marca na saída: $(grep -iE 'trail|graft|tokens saved|learning' <<<"$o" | head -2 | tr '\n' ' ')"
+  [ "$(marks)" = 4 ] && ok "segunda execução: patch não duplica" || bad "patch duplicado ($(marks))"
+  { [ -z "$(git -C "$repo" status --porcelain)" ] && [ ! -e "$home/.trail" ] && [ ! -e "$home/.graft" ]; } && ok "repo intacto e HOME sem rastro do motor" || bad "rastro: $(git -C "$repo" status --porcelain | head -2) $(ls -a "$home")"
+  git -C "$repo" worktree add -q "$repo/.claude/worktrees/sim" -b chore/map-sim
+  ( cd "$repo/.claude/worktrees/sim" && "${E[@]}" "$repo/team/bin/fsd-map" grep openPrs >/dev/null ) && [ "$(ls "$home/map/maps" | wc -l)" = 2 ] && ok "worktree: mapa próprio" || bad "worktree: $(ls "$home/map/maps")"
+  m note x >/dev/null 2>&1; [ $? = 2 ] && ok "comando fora do mapa recusado (sai 2)" || bad "comando fora do mapa não foi recusado"
+  # versão diferente da fixada: reinstala a fixada (npm simulado) e corrige
+  sed -i 's/"version": *"[^"]*"/"version": "99.0.0"/' "$P/package.json"
+  printf '#!/bin/sh\nrm -rf "%s"; cp -r "%s" "%s"\n' "$P" "$BASE/engine-pristine" "$P" > "$BASE/fake-npm"; chmod +x "$BASE/fake-npm"
+  o=$(cd "$repo" && "${E[@]}" FSD_MAP_NPM="$BASE/fake-npm" "$repo/team/bin/fsd-map" grep openPrs 2>&1); rc=$?
+  { [ $rc = 0 ] && [ "$(marks)" = 4 ] && grep -q '"version": "'"$(sed -n 's/^ARG MAP_VERSION=//p' "$SRC/team/setup/container/Dockerfile")"'"' "$P/package.json"; } && ok "versão diferente: reinstala a fixada e corrige" || bad "reinstalação (rc=$rc): $(tail -1 <<<"$o")"
+  # código do motor mudou: falha sem gravar nada
+  sed -i '/fsd-patch/d' "$P"/dist/{claude/hooks,claude/pre-bash,context/savings,ask/ask}.js; sed -i 's/function renderAsk(r) {/function renderAsk(r, o) {/' "$P/dist/ask/ask.js"
+  o=$(m grep openPrs 2>&1); rc=$?
+  { [ $rc = 1 ] && [ "$(marks)" = 0 ] && grep -q "não aceita o patch" <<<"$o"; } && ok "código mudou: falha clara, nada gravado" || bad "código mudou (rc=$rc, marcas=$(marks)): $(tail -1 <<<"$o")"
+}
+mapengine
+mkenv container-fsd  "$BASE/c1/media/fsd/Projects/projetos/fred-ships-donuts" "$BASE/c1/home/fsd" set   container link
 mkenv container-outro "$BASE/c2/srv/code/fsd"                                   "$BASE/c2/home/dev" unset container link
 mkenv host-matriz     "$BASE/h/media/fredericojacobi/Projects/projetos/fred-ships-donuts" "$BASE/h/home/fredericojacobi" unset host link
 mkenv com-espacos     "$BASE/s/My Projects/fred ships donuts"                   "$BASE/s/home/user x" unset host link
 npmci
+mapsim
 p=$(grep -c P "$RES"); f=$(grep -c F "$RES"); echo "== total: $p PASS, $f FAIL$([ "$KEEP" = 1 ] && echo "  (mantido em $BASE)")"
 [ "$f" = 0 ]

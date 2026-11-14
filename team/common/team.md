@@ -28,7 +28,7 @@ Kevin (PM) · Mel (Arquiteto) · Stuart (Dev) · Bob (QA) · autor: o dono do re
 - Uma linha `[fsd-aviso de <agente>] …` colada na sua sessão vem dos comandos do time: aja no que ela cita, sem responder a ela (exceção: o Kevin responde aos `parado:`). Para falar com alguém: `fsd-notify`.
 
 ## Memória
-`memory_query` antes de propor desenho. Página durável só quando o autor pedir. Handoff é só seu (nunca `shared: true`). Nada de `trail note`. Não grave na memória automática do Claude Code (pasta `memory/`): o conhecimento do projeto fica só no ai-memory.
+`memory_query` antes de propor desenho. Página durável só quando o autor pedir. Handoff é só seu (nunca `shared: true`). Para achar código, antes de abrir fontes: `fsd-map ask "<pergunta>" --source` (trechos com arquivo:linha), `fsd-map grep "<literal>"` (todas as ocorrências), `fsd-map skeleton <arquivo>`, `fsd-map callers <símbolo>` (uso no topo de `team/bin/fsd-map`). Não grave na memória automática do Claude Code (pasta `memory/`): o conhecimento do projeto fica só no ai-memory.
 
 ## Fim de tarefa
 Tarefa = uma entrega (merge ou issue; passagem ou revisão; PR ou rodada de correções; verificação). Uma sessão, uma entrega: ficar esperando alguém depois dela também é fim de tarefa. Ao terminar: o GitHub já tem o registro; `memory_handoff_begin` só se houver contexto que o GitHub e a `fsd-queue` não têm; `cd <raiz do repositório> && fsd-restart` como **última** ação (da raiz, para o handoff automático chegar à sessão nova). Nunca no meio de uma tarefa.

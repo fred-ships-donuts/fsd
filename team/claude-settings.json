@@ -78,10 +78,12 @@
       "Edit(~/.config/fsd-agents/.git/**)",
       "Bash(git -C *fsd-agents*)",
       "Bash(*--git-dir*fsd-agents*)",
-      "Bash(trail)",
-      "Bash(trail *)",
-      "Bash(*trail ask*)",
-      "Read(**/.trail/**)",
+      "Bash(*fsd/map/engine*)",
+      "Bash(*/opt/fsd/map/*)",
+      "Read(~/.local/share/fsd/map/engine/**)",
+      "Read(/opt/fsd/map/**)",
+      "Edit(~/.local/share/fsd/map/**)",
+      "Edit(/opt/fsd/map/**)",
       "Bash(rm -r *)",
       "Bash(rm -rf *)",
       "Bash(rm -fr *)",
@@ -127,6 +129,7 @@
       "Bash(git -C * log*)",
       "Bash(git -C * add *)",
       "Bash(git -C * commit *)",
+      "Bash(fsd-map *)",
       "Bash(npm ci*)",
       "Bash(npm run build*)",
       "Bash(npm install*)",
@@ -312,8 +315,5 @@
     "plugin-authoring": "off",
     "init": "off",
     "security-review": "off"
-  },
-  "claudeMdExcludes": [
-    "**/AGENTS.md"
-  ]
+  }
 }
