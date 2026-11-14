@@ -7,7 +7,6 @@
 // fsd-pr open "<título>" (--verified <arquivo|-> | --docs) [--dev "<desvio>"] [--reply <arquivo|->] [-C <pasta>]
 //     push do branch, abre (ou atualiza) o PR para a develop, card → In Review, avisa mel e bob.
 //     Em PR que já existe, --verified vira comentário "Re-verified" e --reply responde à revisão.
-//     Recusa o push com mais de 1 commit novo (sem contar o merge da develop): 1 commit por PR e 1 por rodada de correção.
 import * as L from './fsd-lib.mjs';
 const a = process.argv.slice(2);
 const opt = (k) => { const i = a.indexOf(k); return i >= 0 ? a[i + 1] : undefined; };
@@ -38,10 +37,6 @@ else if (a[0] === 'open') {
   if (opt('--verified') === '-' && opt('--reply') === '-') L.die('só um de --verified/--reply pode usar -', 2);
   git('fetch', '-q', 'origin', 'develop');
   const log = git('log', '--format=- %s', 'origin/develop..HEAD'); if (!log) L.die('nenhum commit novo em relação à develop', 1);
-  const up = L.run('git', ['-C', dir, 'rev-parse', '--verify', '-q', `refs/remotes/origin/${branch}`], { allowFail: true }).ok ? `origin/${branch}` : 'origin/develop';
-  const lastMerge = git('rev-list', '-1', '--merges', `${up}..HEAD`); const from = lastMerge || up;
-  const extra = git('rev-list', '--no-merges', `${from}..HEAD`).split('\n').filter(Boolean);
-  if (extra.length > 1) L.die(`${extra.length} commits novos sem push: junte num só (git -C ${dir} reset --soft ${lastMerge ? lastMerge.slice(0, 7) : up} && git -C ${dir} commit -m "<mensagem>") e rode de novo. Regra: 1 commit por PR e 1 por rodada de correção.`, 1);
   L.write('git', ['-C', dir, 'push', '-q', '-u', 'origin', branch]);
   const sha = git('rev-parse', '--short', 'HEAD');
   const existing = L.ghJson(['pr', 'list', '--head', branch, '--state', 'open', '--json', 'number,url']);

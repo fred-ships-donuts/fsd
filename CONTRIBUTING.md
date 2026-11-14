@@ -79,7 +79,7 @@ Os textos das skills do time que produzem e consomem esses documentos ficam vers
 
 - Um branch por issue, num worktree próprio criado a partir da `develop` por `fsd-dev start <n>` (ou `fsd-dev start - <slug> --docs` para documentação). Ninguém troca de branch na pasta principal.
 - Git só com os comandos simples: `checkout`, `branch`, `commit`, `pull`, `push` e `merge`. Sem rebase, squash, cherry-pick nem `reset --hard`.
-- **Poucos commits:** 1 commit por PR e 1 por rodada de correção. Antes do push, os commits locais são juntados num só com `git reset --soft <base>` seguido de um commit; nada de `wip`, `fix typo` ou `checkpoint`. O `fsd-pr open` recusa o push com mais de 1 commit novo e mostra o comando para juntar.
+- **Um commit por contexto:** cada commit é assertivo, sucinto e independente, e faz sentido sozinho. Código e a documentação que o acompanha vão no mesmo commit. Um PR pode ter quantos commits precisar (por exemplo, quando o trabalho se divide em etapas ou momentos diferentes), sem limite; o que não pode é um commit por alteração mínima do mesmo contexto. Nada de `wip`, `fix typo` ou `checkpoint`: junte esses no commit do contexto antes do push.
 - `fsd-dev sync` (traz a `develop` para o branch, por merge) só quando o PR está em conflito.
 - Nome: `<tipo>/<número>-<slug>`, com o slug em minúsculas e hífens, por exemplo `feature/6-transaction-core`. Os tipos são:
   - `feature/`: funcionalidade;
