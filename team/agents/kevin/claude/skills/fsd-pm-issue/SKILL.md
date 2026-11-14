@@ -20,7 +20,7 @@ Corpo de uma task M ou L, num arquivo ou na entrada padrão:
 ## References
 - docs/spec/<area>/ (SPEC §x) · related issues
 ```
-- Criar: `fsd-issue new "F-xx: <title>" --area <a> --size S|M|L --milestone "<phase>" [--to "Ready for Architecture"] <arquivo|->`. Ele confere as seções, recusa duplicado provável (`--force` se não for) e põe no quadro.
+- Criar: `fsd-issue new "<tipo>: <title>" --area <a> --size S|M|L --milestone "<phase>" [--to "Ready for Architecture"] <arquivo|->`. Ele confere as seções, recusa duplicado provável (`--force` se não for) e põe no quadro.
 - Nunca pergunte ao autor. Decidir: `fsd-issue decide <n> "<decision>"` (a decisão e o porquê, em inglês; tira a label `decision`).
 - O aceite tem que ser verificável por quem não leu a conversa, um item por linha numerada.
 - Labels: `area:cli|nook|process|release|ui`, `size:S|M|L`, `decision`, `bug`. Milestone = a fase. Coluna inicial: Backlog, ou `--to "Ready for Architecture"` quando já pode ir ao Mel (ela é avisada).

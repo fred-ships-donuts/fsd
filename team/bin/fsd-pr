@@ -7,7 +7,41 @@
 // fsd-pr open "<título>" (--verified <arquivo|-> | --docs) [--dev "<desvio>"] [--reply <arquivo|->] [-C <pasta>]
 //     push do branch, abre (ou atualiza) o PR para a develop, card → In Review, avisa mel e bob.
 //     Em PR que já existe, --verified vira comentário "Re-verified" e --reply responde à revisão.
+//     Tarefa: só a marca branch.<branch>.fsd-issue, gravada pelo fsd-dev start <n>; sem ela, o trabalho não tem tarefa.
+//     Antes do push, os commits do branch que ainda não estão no remoto nem na develop passam pelo commitlint
+//     (commitlint.config.mjs, a mesma regra do CI); com tarefa, o cabeçalho termina com (#n).
 import * as L from './fsd-lib.mjs';
+import { existsSync, mkdirSync, rmdirSync, statSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
+import { join } from 'node:path';
+
+// O commitlint vem das devDependencies do clone principal. Faltando, roda npm ci uma vez (trava em
+// .git/fsd-npm-ci.lock contra dois fsd-pr ao mesmo tempo, com prazo) e confere de novo: sem retentativa.
+function commitlint() {
+  const bin = join(L.REPO_DIR, 'node_modules', '.bin', 'commitlint');
+  if (existsSync(bin)) return bin;
+  const pkg = join(L.REPO_DIR, 'package.json');
+  if (!existsSync(pkg)) L.die(`falta o commitlint e não há package.json em ${L.REPO_DIR} (FSD_REPO certo?)`, 2);
+  const lock = join(L.REPO_DIR, '.git', 'fsd-npm-ci.lock'), WAIT_MS = 10 * 60000, deadline = Date.now() + WAIT_MS;
+  for (;;) {
+    try { mkdirSync(lock); break; } catch (e) {
+      if (e.code !== 'EEXIST') L.die(`não consegui criar ${lock}: ${e.code}`, 3);
+      let age = 0; try { age = Date.now() - statSync(lock).mtimeMs; } catch { continue; }
+      if (age > WAIT_MS) { try { rmdirSync(lock); } catch (x) { L.die(`trava velha ${lock} não sai (${x.code}): apague à mão`, 3); } continue; }   // npm ci que morreu
+      if (Date.now() > deadline) L.die(`outro npm ci está rodando em ${L.REPO_DIR} há mais de 10 min; tente de novo`, 3);
+      spawnSync('sleep', ['5']);
+    }
+  }
+  let r = null;
+  if (!existsSync(bin)) {                                                  // outro fsd-pr pode ter instalado enquanto esperávamos
+    console.log(`falta o commitlint: rodando npm ci em ${L.REPO_DIR} (uma vez)…`);
+    r = spawnSync('npm', ['ci', '--no-audit', '--no-fund'], { cwd: L.REPO_DIR, encoding: 'utf8', timeout: WAIT_MS, killSignal: 'SIGKILL' });
+  }
+  try { rmdirSync(lock); } catch {}                                        // solta a trava antes de qualquer saída (L.die não roda finally)
+  if (r && (r.error || r.status !== 0)) L.die(`npm ci falhou em ${L.REPO_DIR}: ${L.firstLine(r.stderr || r.stdout || String(r.error?.code || r.signal))}`, 3);
+  if (!existsSync(bin)) L.die(`npm ci terminou mas o commitlint não veio: o package.json de ${L.REPO_DIR} não o tem (atualize a develop com git pull)`, 2);
+  return bin;
+}
 const a = process.argv.slice(2);
 const opt = (k) => { const i = a.indexOf(k); return i >= 0 ? a[i + 1] : undefined; };
 function line(p, who = L.meLogin()) {
@@ -31,12 +65,21 @@ else if (a[0] === 'open') {
   const verified = docs ? 'Documentation only; no behaviour change.' : a.includes('--verified') ? L.readArgFile(opt('--verified')).trim() : '';
   const git = (...x) => L.run('git', ['-C', dir, ...x]);
   const branch = git('rev-parse', '--abbrev-ref', 'HEAD');
-  const m = branch.match(/^(feature|feat|fix|docs|chore|refactor|test|ci)\/(?:(\d+)-)?[a-z0-9]/);
-  if (!m || !m[2]) L.die(`branch "${branch}" fora do padrão <tipo>/<n>-<slug>: todo PR tem issue (fsd-issue new, depois fsd-dev start <n>)`, 1);
-  const issue = Number(m[2]);
+  if (!new RegExp(`^(${L.BRANCH_TYPES.join('|')})/[a-z0-9]`).test(branch)) L.die(`branch "${branch}" fora do padrão <tipo>/<n>-<slug> ou <tipo>/<slug>, tipo em ${L.BRANCH_TYPES.join(', ')} (crie com fsd-dev start)`, 1);
+  const mark = L.run('git', ['-C', dir, 'config', '--get', `branch.${branch}.fsd-issue`], { allowFail: true });
+  const issue = mark.ok && /^\d+$/.test(mark.out) ? Number(mark.out) : 0;
+  if (issue && L.issue(issue).state !== 'OPEN') L.die(`issue #${issue} da tarefa não está aberto`, 1);
   if (opt('--verified') === '-' && opt('--reply') === '-') L.die('só um de --verified/--reply pode usar -', 2);
   git('fetch', '-q', 'origin', 'develop');
   const log = git('log', '--format=- %s', 'origin/develop..HEAD'); if (!log) L.die('nenhum commit novo em relação à develop', 1);
+  const up = L.run('git', ['-C', dir, 'rev-parse', '--verify', '-q', `refs/remotes/origin/${branch}`], { allowFail: true }).ok ? `origin/${branch}` : 'origin/develop';
+  // Só os commits do próprio branch: os que vieram da develop num fsd-dev sync já estão nela (^origin/develop).
+  const own = git('rev-list', '--no-merges', 'HEAD', `^${up}`, '^origin/develop').split('\n').filter(Boolean);
+  const lint = own.length ? commitlint() : '';
+  process.env.FSD_ISSUE = issue ? String(issue) : '';
+  const cfg = [join(dir, 'commitlint.config.mjs'), join(L.REPO_DIR, 'commitlint.config.mjs')].find((p) => existsSync(p));
+  const bad = own.map((c) => ({ c, r: L.run(lint, cfg ? ['--config', cfg] : [], { input: git('log', '-1', '--format=%B', c), cwd: dir, allowFail: true }) })).filter((x) => !x.r.ok);
+  if (bad.length) L.die(`commit fora da regra ${issue ? `(tarefa #${issue}: o cabeçalho termina com (#${issue}))` : '(sem tarefa)'}, ver commitlint.config.mjs:\n${bad.map(({ c, r }) => `  ${c.slice(0, 7)} ${git('log', '-1', '--format=%s', c)}\n${r.out.split('\n').filter((l) => /^\s*✖/.test(l) && !/found \d+ problems/.test(l)).map((l) => '    ' + l.trim()).join('\n')}`).join('\n')}\ncorrija a mensagem antes do push (último commit: git -C ${dir} commit --amend) e rode de novo.`, 1);
   L.write('git', ['-C', dir, 'push', '-q', '-u', 'origin', branch]);
   const sha = git('rev-parse', '--short', 'HEAD');
   const existing = L.ghJson(['pr', 'list', '--head', branch, '--state', 'open', '--json', 'number,url']);

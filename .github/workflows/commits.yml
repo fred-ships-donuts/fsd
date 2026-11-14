@@ -1,0 +1,32 @@
+# Confere as mensagens dos commits do PR com o commitlint.config.mjs (a mesma regra do fsd-pr open).
+# Com "Closes #n" no corpo do PR, o trabalho é de uma tarefa e cada cabeçalho termina com (#n).
+name: commits
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, edited]
+
+permissions:
+  contents: read
+
+jobs:
+  commitlint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - name: Conventional Commits
+        env:
+          BODY: ${{ github.event.pull_request.body }}
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          FSD_ISSUE="$(printf '%s\n' "$BODY" | grep -oiE '^(closes|fixes|resolves) #[0-9]+' | head -1 | grep -oE '[0-9]+' || true)"
+          export FSD_ISSUE
+          npx commitlint --from "$BASE" --to "$HEAD" --verbose

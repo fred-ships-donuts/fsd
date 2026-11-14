@@ -77,22 +77,18 @@ Os textos das skills do time que produzem e consomem esses documentos ficam vers
 
 ## 3. Branch
 
-- Um branch por issue, num worktree próprio criado a partir da `develop` por `fsd-dev start <n>` (ou `fsd-dev start - <slug> --docs` para documentação). Ninguém troca de branch na pasta principal.
+- Um branch por trabalho, num worktree próprio criado a partir da `develop` por `fsd-dev start <n>` (com tarefa: grava o issue no branch) ou `fsd-dev start - <slug>` (sem tarefa). Ninguém troca de branch na pasta principal.
 - Git só com os comandos simples: `checkout`, `branch`, `commit`, `pull`, `push` e `merge`. Sem rebase, squash, cherry-pick nem `reset --hard`.
 - **Um commit por contexto:** cada commit é assertivo, sucinto e independente, e faz sentido sozinho. Código e a documentação que o acompanha vão no mesmo commit. Um PR pode ter quantos commits precisar (por exemplo, quando o trabalho se divide em etapas ou momentos diferentes), sem limite; o que não pode é um commit por alteração mínima do mesmo contexto. Nada de `wip`, `fix typo` ou `checkpoint`: junte esses no commit do contexto antes do push.
 - `fsd-dev sync` (traz a `develop` para o branch, por merge) só quando o PR está em conflito.
-- Nome: `<tipo>/<número>-<slug>`, com o slug em minúsculas e hífens, por exemplo `feature/6-transaction-core`. Os tipos são:
-  - `feature/`: funcionalidade;
-  - `fix/`: correção;
-  - `docs/`: só documentação;
-  - `chore/`: manutenção, sem mudar comportamento.
+- Nome: `<tipo>/<número>-<slug>` com tarefa (`feature/6-transaction-core`) e `<tipo>/<slug>` sem (`chore/docs-cleanup`), com o slug em minúsculas e hífens. O tipo é um dos tipos de commit (abaixo) ou `feature`; o `fsd-dev start` usa `feature` por padrão e `--fix`, `--docs` ou `--chore`.
 - As branches antigas (`feat/nook-tasks`, `plan/nook-tasks`) não são renomeadas.
-- Os commits citam o issue: `feat(F-40a): núcleo de transação (#6)`.
+- **Mensagens de commit:** [Conventional Commits](https://www.conventionalcommits.org/), `<tipo>[(escopo)][!]: <resumo>`; com tarefa, o cabeçalho termina com o issue: `fix: wizard exits 1 after a failed run (#76)`. A regra completa (tipos, tamanhos, `!` e `BREAKING CHANGE:`) é a do `commitlint.config.mjs`, a única fonte: o `fsd-pr open` confere os commits novos antes do push e o CI (`.github/workflows/commits.yml`) confere os do PR; os dois recusam o que foge dela.
 - Ninguém dá push direto na `develop` nem na `main`, e ninguém faz force-push.
 
 ## 4. Pull request
 
-- Um PR por issue, com base na `develop` (`fsd-pr open`). O corpo traz `Closes #N`, como foi verificado e os desvios da `docs/spec/MAP.md` (de preferência nenhum).
+- Um PR por trabalho, com base na `develop` (`fsd-pr open`). Com tarefa, o corpo traz `Closes #N`; sempre traz como foi verificado e os desvios da `docs/spec/MAP.md` (de preferência nenhum).
 - O Arquiteto revisa no PR. A revisão separa **bloqueia** de **melhoria** e é publicada como revisão do PR.
 - O QA verifica e publica uma revisão: aprova se tudo passou, ou pede mudanças com o passo a passo para reproduzir.
 - O Stuart responde com um commit novo por rodada de correção, sem force-push.
