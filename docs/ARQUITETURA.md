@@ -61,7 +61,7 @@ Regras:
 
 ## Fora de `src/`
 
-Raiz: `README.md`, `HANDOFF.md`, `TASKS.md` e os arquivos do npm e do TypeScript. Documentos do produto em `docs/` (índice em `docs/FSD-INDEX.md`). Não há versionamento físico de arquivos nem testes (decisões do autor de 2026-11-07): o histórico é o git. `graft/` é gerado e ignorado pelo git.
+Raiz: `README.md`, `CONTRIBUTING.md` e os arquivos do npm e do TypeScript. Documentos do produto em `docs/` (índice em `docs/FSD-INDEX.md`); as tarefas vivem nas issues e no quadro do GitHub. Não há versionamento físico de arquivos (decisão do autor de 2026-11-07): o histórico é o git. Testes: ver [Tests](#tests). `graft/` é gerado e ignorado pelo git.
 
 ## Code layout
 

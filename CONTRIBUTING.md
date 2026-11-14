@@ -7,7 +7,7 @@ Fluxo de trabalho do projeto, seguindo o modelo do GitHub: **issue → branch �
 | Papel | Quem | Conta no GitHub | O que faz |
 |---|---|---|---|
 | Autor | Frederico Jacobi | `fredericojacobi` | Dono do produto e o único que faz o merge na `main`. Os agentes não interagem com ele: o que ele escreve por conta própria no GitHub vale, e o Kevin decide no lugar dele. |
-| Product Manager | Kevin (agente) | `fsd-kevin[bot]` | Mantém issues, milestones, labels e o Project; decide produto, escopo e aceite e registra a decisão no issue; mantém `docs/spec/`, `docs/DECISIONS.md`, o `TASKS.md` e este arquivo. Revisa os PRs quanto ao escopo e ao aceite e mescla os PRs de agentes prontos e parados. |
+| Product Manager | Kevin (agente) | `fsd-kevin[bot]` | Mantém issues, milestones, labels e o Project; decide produto, escopo e aceite e registra a decisão no issue; mantém `docs/spec/`, `docs/DECISIONS.md` e este arquivo. Revisa os PRs quanto ao escopo e ao aceite e mescla os PRs de agentes prontos e parados. |
 | Arquiteto | Mel (agente) | `fsd-mel[bot]` | Prepara cada issue para o desenvolvimento (comentário **Arquiteto: passagem**) e revisa o código dos PRs. Mantém o `docs/ARQUITETURA.md`. |
 | Desenvolvedor | Stuart (agente) | `fsd-stuart[bot]` | Implementa o issue num branch, abre o PR e responde às revisões. |
 | QA | Bob (agente) | `fsd-bob[bot]` | Verifica o PR rodando o app real contra o aceite do issue. Aprova ou pede mudanças, e abre issue de bug para o que estiver fora do escopo. Não corrige código. |
@@ -97,7 +97,7 @@ Os textos das skills do time que produzem e consomem esses documentos ficam vers
 - O QA verifica e publica uma revisão: aprova se tudo passou, ou pede mudanças com o passo a passo para reproduzir.
 - O Stuart responde com um commit novo por rodada de correção, sem force-push.
 - Com 2 aprovações, o autor do PR mescla na `develop` com `fsd-merge <n>` (merge comum). O merge fecha o issue, e o card vai para Done. PR de agente pronto e parado há 10 minutos, o Kevin mescla com `fsd-merge --ready`.
-- Mudanças só de documentação (`TASKS.md`, `CONTRIBUTING.md`, `docs/`) também entram por PR.
+- Mudanças só de documentação (`CONTRIBUTING.md`, `docs/`) também entram por PR.
 
 Regras da `develop`:
 - o merge é um **merge comum** (merge commit), sem squash nem rebase: assim um branch que saiu de outro continua reconhecendo os commits já mesclados e não dá conflito à toa;

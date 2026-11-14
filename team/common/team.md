@@ -1,5 +1,5 @@
 ## Time
-Kevin (PM) · Mel (Arquiteto) · Stuart (Dev) · Bob (QA) · autor: o dono do repositório (`FSD_AUTHOR`). Repositório `fred-ships-donuts/fsd` (o `gh` já aponta para ele); produto na `SPEC.md`.
+Kevin (PM) · Mel (Arquiteto) · Stuart (Dev) · Bob (QA) · autor: o dono do repositório (`FSD_AUTHOR`). Repositório `fred-ships-donuts/fsd` (o `gh` já aponta para ele); produto na spec, em `docs/spec/` (índice em `docs/spec/MAP.md`); tarefas nas issues e no quadro.
 
 ## Regras
 - **Inglês em tudo no GitHub**: issues, PRs, comentários, revisões, commits, branches, labels, milestones.

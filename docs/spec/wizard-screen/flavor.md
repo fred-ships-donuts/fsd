@@ -26,7 +26,7 @@
 
 ### 6.7 Pendências do layout
 
-1. ~~**Logotipo e itens do cabeçalho**~~: decidido, e descrito por inteiro em 6.10 (a rosquinha, o nome, o layout responsivo e os testes). O emoji 🍩 é gerado uma vez a partir da fonte Noto Color Emoji e guardado em `emojiDonut.ts` (a CLI não depende da fonte em tempo de execução). O destino (`~/.fsd/skills`) saiu do cabeçalho.
+1. ~~**Logotipo e itens do cabeçalho**~~: decidido, e descrito por inteiro em 6.10 (a rosquinha, o nome, o layout responsivo e os testes). O emoji 🍩 é gerado uma vez a partir da fonte Noto Color Emoji e guardado em `emojiDonut.ts`, removido em 2026-11-07: hoje a rosquinha é o mapa de pixels da 6.12. O destino (`~/.fsd/skills`) saiu do cabeçalho.
 2. ~~**Posição do idioma**~~: decidido (2026-11-09, #16): o passo de idioma fica logo após o passo 2, porque depende das skills escolhidas.
 3. ~~**Símbolos**~~: decidido (2026-11-09, #14): o conjunto Unicode único é o definitivo; sem alternativa ASCII na v1.
 4. ~~**Largura do terminal**~~: decidido em 6.10 e 6.11: o cabeçalho segue a janela a partir de 17 linhas e 18 colunas (os mínimos exatos estão em 6.10; abaixo deles, o cabeçalho de uma linha), e o corpo corta o que não cabe em vez de comprimir.
@@ -40,7 +40,7 @@
 - **Desempenho**: `NODE_ENV=production` por `env.ts` (o React em modo de desenvolvimento é bem mais lento); o cabeçalho tem um só tamanho (6.12), então a rosquinha é desenhada uma vez e as figuras só são recompostas quando a janela muda.
 - **Verificado** no gnome-terminal real (VTE 0.76): 80 passos de redimensionamento (974 × 682 → 1374 × 784 → 700 × 380 e de volta), com a janela à esquerda e à direita do monitor, sem nenhuma amostra em branco. O arrasto foi com `wmctrl` (em passos); **não foi verificado** o arrasto com o mouse nem outros terminais, e o arrasto não foi repetido depois da troca do layout para o teto de 35% e as fontes de 2 e 4 linhas.
 - **Sextantes**: vêm de uma fonte reserva (Noto Sans Symbols2) no gnome-terminal; em outra fonte ou terminal podem sair desalinhados. Só as letras de 2 linhas dependem deles.
-- **Testes**: `frameWriter.test.ts` (diff, uma escrita, BSU/ESU, passagem de sequências que não são quadro, apagamento do Ink), `App.test.tsx` ("wizard in small windows": de 100 × 30 a 24 × 5, mais a rolagem da lista) e `resize.test.ts` (o programa de verdade num tmux: nenhum quadro maior que a janela, e o que sobra na tela depois de cada resize).
+- **Testes** (removidos em 2026-11-07, ver 6.12): `frameWriter.test.ts` (diff, uma escrita, BSU/ESU, passagem de sequências que não são quadro, apagamento do Ink), `App.test.tsx` ("wizard in small windows": de 100 × 30 a 24 × 5, mais a rolagem da lista) e `resize.test.ts` (o programa de verdade num tmux: nenhum quadro maior que a janela, e o que sobra na tela depois de cada resize).
 
 ### 6.12 O cabeçalho definitivo (2026-11-07)
 

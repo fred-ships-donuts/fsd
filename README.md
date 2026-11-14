@@ -19,8 +19,8 @@ npx -p fred-ships-donuts fsd init      # or: npm i -g fred-ships-donuts && fsd i
 | `fsd task list [--all] [--json]` | Lists the tasks of `bench` and `rack` (`--all` adds `fridge`): slug, status and closed/total steps. `--json` prints one object for agents. |
 | `fsd task step add <task> "<title>" [--description <text>]` | Adds the next step (`NN-<slug>.yaml`, `status: pending`). |
 | `fsd task step start\|done\|skip <task> <n>` | Sets a step to `in_progress`, `done` or `skipped`. |
-| `fsd task done <task>` | Needs every step closed; sets `status: done` and moves the folder to `nook/rack/` (F-40b, #7: not available yet). |
-| `fsd task archive <task>` | Only for a task in `rack`; sets `status: archived` and moves the folder to `nook/fridge/` (F-40b, #7: not available yet). |
+| `fsd task done <task>` | Needs every step closed; sets `status: done` and moves the folder to `nook/rack/`. |
+| `fsd task archive <task>` | Only for a task in `rack`; sets `status: archived` and moves the folder to `nook/fridge/`. |
 | `fsd -h`, `--help` | Help (also shown when run with no arguments). |
 | `fsd -v`, `--version` | Version. |
 
