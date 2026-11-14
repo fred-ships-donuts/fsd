@@ -44,6 +44,15 @@ claude_wrap() {
     if [ -d "$own" ]; then find "$own" -mindepth 1 -maxdepth 1 -exec mv -n -t "$shared" {} +; rmdir "$own"; fi
     ln -s "$shared" "$own"
   fi
+  # CLAUDE.md, settings.json e skills/ do perfil são versionados em team/agents/<nome>/claude: o perfil só
+  # liga neles (o Syncthing não leva esses nomes, ver setup/syncthing/agent.stignore). O que já existir
+  # como arquivo ou pasta de verdade vai para <nome>.pre-team, uma vez só.
+  local f src
+  for f in CLAUDE.md settings.json skills; do
+    src="$ROOT/agents/$name/claude/$f"; [ -e "$src" ] || continue
+    if [ -e "$CLAUDE_CONFIG_DIR/$f" ] && [ ! -L "$CLAUDE_CONFIG_DIR/$f" ]; then mv -n "$CLAUDE_CONFIG_DIR/$f" "$CLAUDE_CONFIG_DIR/$f.pre-team"; fi
+    ln -sfn "$src" "$CLAUDE_CONFIG_DIR/$f"
+  done
   local tok="$STATE/claude-oauth-token"
   if [ -s "$tok" ]; then export CLAUDE_CODE_OAUTH_TOKEN="$(cat "$tok")"
   else echo "[fsd-agent] sem $tok: rode 'claude setup-token' e salve o token nesse arquivo (chmod 600)" >&2; exit 2; fi
