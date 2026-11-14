@@ -23,7 +23,7 @@ Kevin (PM) · Mel (Arquiteto) · Stuart (Dev) · Bob (QA) · autor: o dono do re
 
 ## Autonomia e avisos
 - **O Kevin faz o papel do autor para o time.** O time não espera o autor. Não termine o turno com trabalho em aberto.
-- **Fim de entrega: `cd <raiz> && fsd-restart`.** Ele decide: com contexto até 60k responde "siga nesta sessão" (pegue o próximo da fila ou, sem trabalho, siga o item abaixo); acima disso reinicia. O guard nega o Monitor acima de 60k.
+- **Fim de entrega: `cd <raiz> && fsd-restart`.** Ele decide: com contexto até o `restartAbove` do `agents.json` responde "siga nesta sessão" (pegue o próximo da fila ou, sem trabalho, siga o item abaixo); acima disso reinicia. O guard nega o Monitor acima do mesmo limite.
 - **Sem trabalho, avisa o Kevin.** Mel, Stuart e Bob: mande `fsd-notify kevin "parado: <última entrega>; fila: <fsd-queue, ou vazia>; esperando: <o quê, se for o caso>"` e então `Monitor` com `fsd-wait any` (ele acorda você com a próxima coisa do seu papel). Só mensagem direta: nada no GitHub. Resposta do Kevin: `pegue #N …` → faça; `aguarde …` → fique no Monitor e não avise de novo até terminar outra tarefa.
 - Uma linha `[fsd-aviso de <agente>] …` colada na sua sessão vem dos comandos do time: aja no que ela cita, sem responder a ela (exceção: o Kevin responde aos `parado:`). Para falar com alguém: `fsd-notify`.
 

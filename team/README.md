@@ -36,10 +36,10 @@ O Claude Code abre:
 
 | agente | modelo | esforço | ferramentas cortadas além das comuns |
 |---|---|---|---|
-| kevin | sonnet | medium | Agent |
-| mel | sonnet | medium | nenhuma |
-| stuart | sonnet | medium | nenhuma |
-| bob | haiku | medium | Agent, WebSearch, WebFetch |
+| kevin | claude-opus-5-5 | medium | Agent |
+| mel | claude-opus-5-5 | medium | nenhuma |
+| stuart | claude-opus-5-5 | medium | nenhuma |
+| bob | claude-opus-5-5 | medium | Agent, WebSearch, WebFetch |
 
 Comuns a todos (`claude_common` no `agents.json`): NotebookEdit, Artifact*, DesignSync,
 RemoteTrigger, Cron*, ScheduleWakeup, PushNotification. `--model` e `--effort` passados no

@@ -7,10 +7,11 @@
 import { readFileSync, readdirSync, statSync, existsSync, realpathSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { context } from './fsd-context.mjs';
 
 const ROOT = dirname(dirname(realpathSync(fileURLToPath(import.meta.url))));
 const cfg = JSON.parse(readFileSync(join(ROOT, 'agents.json'), 'utf8'));
-const C = cfg.claude_common?.context || {}; const LIMIT = (C.limit || 200000) - (C.outputReserve ?? 32000);   // janela útil
+const C = context(''); const LIMIT = C.limit - C.outputReserve;   // janela útil (limite comum a todos)
 const AGENTS = ['kevin', 'mel', 'stuart', 'bob'].filter((a) => cfg.agents[a]);
 const FRESH_MS = 5 * 60 * 1000;
 // verbo do comando → o que o agente está fazendo (n = número do issue/PR)

@@ -23,7 +23,7 @@ if [ -e "$(dirname "$0")/../PAUSE" ]; then
 fi
 # Só reinicia quando vale a pena: com contexto até restartAbove (60k) a sessão segue (reiniciar a cada entrega pequena
 # custava uma orientação nova a cada 1–2 min). O contexto vem do transcript mais recente do perfil (o desta sessão).
-above=$(node -e 'try{const j=require(process.argv[1]);console.log(j.agents?.[process.argv[2]]?.context?.restartAbove||j.claude_common?.context?.restartAbove||60000)}catch{console.log(60000)}' "$(dirname "$0")/../agents.json" "$name")
+above=$(node "$(dirname "$0")/fsd-context.mjs" "$name" restartAbove) || exit 2
 ctx=$(node -e 'const fs=require("fs"),p=require("path");const b=p.join(process.env.CLAUDE_CONFIG_DIR||"","projects");let f=null,m=0;
   try{for(const d of fs.readdirSync(b))for(const x of fs.readdirSync(p.join(b,d)))if(x.endsWith(".jsonl")){const q=p.join(b,d,x),t=fs.statSync(q).mtimeMs;if(t>m){m=t;f=q}}}catch{}
   let c=0;if(f)for(const l of fs.readFileSync(f,"utf8").split("\n")){if(!l.includes("\"assistant\""))continue;let e;try{e=JSON.parse(l)}catch{continue}
