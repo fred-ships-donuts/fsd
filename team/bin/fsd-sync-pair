@@ -9,8 +9,10 @@
 #                                                    locais e passa as pastas para "send & receive"
 # Rede: escuta só no IP da Tailscale; descoberta, relays e NAT desligados.
 set -euo pipefail
-ROOT="$(cd "$(dirname "$0")/.." && pwd)"; H="$HOME"; TPL="$ROOT/setup/syncthing"
-REPO="${FSD_REPO:-$HOME/fred-ships-donuts}"
+HERE="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"   # pasta real do script (vale pelo link em ~/.local/bin)
+ROOT="$(dirname "$HERE")"; H="$HOME"; TPL="$ROOT/setup/syncthing"
+# Raiz do repositório: FSD_REPO, ou o clone em que este script mora.
+REPO="${FSD_REPO:-$(cd "$ROOT/.." && pwd)}"
 CFG="$H/.local/state/syncthing/config.xml"; [ -f "$CFG" ] || CFG="$H/.config/syncthing/config.xml"
 [ -f "$CFG" ] || { echo "Syncthing sem config (ele está rodando?)"; exit 2; }
 K="$(grep -oP '(?<=<apikey>)[^<]+' "$CFG")"

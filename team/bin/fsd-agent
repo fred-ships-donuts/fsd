@@ -6,10 +6,10 @@
 #  - o seu login do gh, o seu ssh-agent e as suas chaves SSH ficam de fora;
 #  - "claude" ganha as regras deny de ~/.config/fsd-agents/claude-settings.json.
 set -euo pipefail
-HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+HERE="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"
 ROOT="$(dirname "$HERE")"; export FSD_TEAM="$ROOT"; STATE="${FSD_STATE:-$HOME/.config/fsd-agents}"; export FSD_STATE="$STATE"
 name="${1:-}"; shift || true
-[ "$name" = fred ] && { [ "${1:-}" = claude ] && shift; d="$STATE/agents/fred/claude"; mkdir -p "$d" "$STATE/sessions"; (shopt -s dotglob; for f in "$HOME"/.claude/*; do n="${f##*/}"; [ "$n" = sessions ] || [ -e "$d/$n" ] || ln -s "$f" "$d/$n"; done); ln -sfn "$HOME/.claude.json" "$d/.claude.json"; ln -sfn "$STATE/sessions" "$d/sessions"; CLAUDE_CONFIG_DIR="$d" exec claude -n fred "$@"; }
+[ "$name" = fred ] && { [ "${1:-}" = claude ] && shift; d="$STATE/agents/fred/claude"; mkdir -p "$d" "$STATE/sessions"; (shopt -s dotglob; for f in "$HOME"/.claude/*; do n="${f##*/}"; [ "$n" = sessions ] || [ -e "$d/$n" ] || ln -sfn "$f" "$d/$n"; done); ln -sfn "$HOME/.claude.json" "$d/.claude.json"; ln -sfn "$STATE/sessions" "$d/sessions"; CLAUDE_CONFIG_DIR="$d" exec claude -n fred "$@"; }
 read -r slug botid < <(node -e '
   const a = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8")).agents[process.argv[2]];
   if (!a) process.exit(3); console.log(a.slug, a.bot_user_id);' "$ROOT/agents.json" "$name") \

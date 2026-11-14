@@ -6,7 +6,8 @@
 set -euo pipefail
 ORG="${1:?uso: org-setup <org> [--dry-run]}"; DRY="${2:-}"
 USER_LOGIN="${FSD_AUTHOR:?defina FSD_AUTHOR (login do GitHub do autor)}"; OLD_NUM=3; REPO=fred-ships-donuts/fsd
-ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+HERE="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"
+ROOT="$(dirname "$HERE")"
 [ -n "${FSD_AGENT:-}" ] && { echo "rode fora do fsd-agent (precisa do gh do autor)"; exit 2; }
 gh api user --jq .login | grep -qx "$USER_LOGIN" || { echo "o gh não está logado como $USER_LOGIN"; exit 2; }
 sc=$(gh auth status 2>&1); grep -q "'project'" <<<"$sc" && grep -q "admin:org" <<<"$sc" || { echo "falta escopo: rode  gh auth refresh -h github.com -s project,admin:org  e repita"; exit 2; }

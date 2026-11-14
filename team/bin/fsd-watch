@@ -4,15 +4,15 @@
 // ação no mesmo agente dentro de COOLDOWN_MIN. Log das ações: ~/.config/fsd-agents/watch.log (fora do git).
 //   sem sessão  → sobe o agente          estourou  → reinicia limpo        travado (trabalhando, transcript parado) → reinicia
 //   ocioso sem Monitor → empurrão curto (acima de restartAbove, reinicia)  permissão / limite de uso → só avisa o autor
-import { readFileSync, readdirSync, statSync, existsSync, realpathSync, appendFileSync, writeFileSync } from 'node:fs';
+import { readFileSync, readdirSync, statSync, existsSync, appendFileSync, writeFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import { context } from './fsd-context.mjs';
 
-const BIN = dirname(realpathSync(fileURLToPath(import.meta.url))); const ROOT = dirname(BIN);
-const REPO = process.env.FSD_REPO || (process.env.HOME + '/fred-ships-donuts');
+const BIN = dirname(fileURLToPath(import.meta.url)); const ROOT = dirname(BIN);
+const REPO = process.env.FSD_REPO || dirname(ROOT); // o clone em que team/ mora
 const LAUNCH = process.env.FSD_AGENT_BIN || join(process.env.HOME, '.local/bin/fsd-agent');
 const cfg = JSON.parse(readFileSync(join(ROOT, 'agents.json'), 'utf8'));
 const RESTART_ABOVE = (a) => context(a).restartAbove;
