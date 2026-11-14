@@ -7,6 +7,7 @@ Este tutorial monta o ambiente do fsd (Claude, git, Node, agentes) dentro de um 
 **Você vai precisar de:**
 - a sua conta do **GitHub**, da **Tailscale** e do **Claude**;
 - a **senha dos segredos** (a do `secrets.tar.age`);
+- o arquivo **`team.env`** da sua instalação (IP da matriz, ID do Syncthing, endereço do cofre privado). Ele mora no cofre privado, ao lado do `secrets.tar.age`. O modelo, com os campos, é o `team/setup/team.env.example`;
 - acesso à **matriz** por uns 2 minutos, para colar um comando nela;
 - a matriz **ligada**.
 
@@ -46,8 +47,9 @@ Depois, saia da sua conta e entre de novo.
 ## 2. Baixar o Dockerfile
 
 1. Crie uma pasta vazia chamada **`fsd`**: em **Documentos** no Windows, ou na pasta pessoal no Mac e no Linux.
-2. No GitHub, abra `fred-ships-donuts/fsd` e depois o arquivo `team/setup/container/Dockerfile`. Preencha também o `team.env` (modelo em `team/setup/team.env.example`).
+2. No GitHub, abra `fred-ships-donuts/fsd` e depois o arquivo `team/setup/container/Dockerfile`.
 3. Clique em **⬇ Download raw file** e salve na pasta `fsd`. O nome tem de ser exatamente **`Dockerfile`**, sem `.txt`.
+4. Ponha na mesma pasta o seu **`team.env`**. O nome tem de ser exatamente `team.env`.
 
 ---
 
@@ -92,7 +94,7 @@ Ele faz quase tudo sozinho. Quando aparecer o **👉 amarelo**, é a sua vez:
 | **1. Tailscale** | Abra o link que aparecer, entre com a **mesma conta da matriz** e clique em **Connect**. |
 | **2. GitHub** | Abra o link, cole o código de 8 letras e clique em **Authorize**. |
 | **4. Segredos** | Digite a senha. As letras não aparecem enquanto você digita, e isso é normal. |
-| **5. Matriz** | Copie a linha `~/.config/fsd-agents/bin/fsd-aceitar …`, cole num terminal **da matriz** e aperte Enter. |
+| **5. Matriz** | Copie a linha `fsd-aceitar …`, cole num terminal **da matriz** e aperte Enter. (Na matriz, o comando existe em `~/.local/bin`. Se não achar, rode `ln -sfn <repo>/team/bin/fsd-aceitar ~/.local/bin/`.) |
 | **7. Claude** | Aperte Enter. O Claude abre. Digite `/login`, siga o link e, no fim, digite `/exit`. |
 
 Termina com **🎉 Pronto!**.
@@ -145,6 +147,7 @@ Termina com **🎉 Pronto!**.
 | `permission denied` (Linux) | Saia da sua conta e entre de novo, depois do `usermod` (passo 1). |
 | O build fala em `buildx` ou `heredoc` (Linux) | Rode `sudo apt install docker-buildx`. |
 | `container name "/fsd" is already in use` | O container já existe: use `docker start fsd`. |
+| `defina FSD_MATRIZ no team.env` | O container foi criado sem `--env-file team.env`. Rode `docker rm -f fsd` e repita o comando do passo 3 na pasta onde está o `team.env`. |
 | O passo 1 não alcança a matriz | A matriz está desligada ou fora da Tailscale, ou você entrou com outra conta da Tailscale. |
 | O passo 5 fica nos pontinhos `....` | A linha `fsd-aceitar` não foi colada na matriz, ou deu erro lá. |
 | Ver os logs dos serviços | `docker exec fsd tail -20 /var/log/fsd/tunnel.log`. Os outros são `syncthing.log` e `tailscaled.log`. |
@@ -166,6 +169,6 @@ Na matriz, apague também as três coisas com o nome do container (ex.: `fsd-not
 - o dispositivo no Syncthing;
 - a máquina no painel da Tailscale.
 
-**Computador perdido ou roubado:** faça isso **na hora** e troque os segredos. Troque todos os segredos do cofre privado.
+**Computador perdido ou roubado:** faça isso **na hora** e troque todos os segredos do cofre privado (chaves dos GitHub Apps, tokens do ai-memory e do Claude).
 
 > **Atalho:** os dois computadores são do mesmo tipo (Intel/AMD com Intel/AMD, ou Apple M com Apple M)? Então dá para copiar a imagem pronta em vez de construir: `docker save fsd -o fsd.tar` num, `docker load -i fsd.tar` no outro. Depois, siga do "Crie o container" em diante.
