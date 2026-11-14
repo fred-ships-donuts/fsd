@@ -10,16 +10,17 @@ import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
 import { createInterface } from 'node:readline';
 const ROOT = new URL('..', import.meta.url).pathname;
 const SHORT = readFileSync(ROOT + 'common/ai-memory-instructions.md', 'utf8').trim();
-const HASH = ROOT + 'cache/ai-memory-instructions.sha256';
+const STATE = (process.env.FSD_STATE || process.env.HOME + '/.config/fsd-agents') + '/';
+const HASH = STATE + 'cache/ai-memory-instructions.sha256';
 import { appendFileSync } from 'node:fs';
-const log = (s) => { try { appendFileSync(ROOT + 'cache/fsd-mcp-filter.log', `${new Date().toISOString()} ${process.env.FSD_AGENT || '-'} ${process.pid} ${s}\n`); } catch {} };
+const log = (s) => { try { appendFileSync(STATE + 'cache/fsd-mcp-filter.log', `${new Date().toISOString()} ${process.env.FSD_AGENT || '-'} ${process.pid} ${s}\n`); } catch {} };
 log('start');
 const child = spawn(process.argv[2], process.argv.slice(3), { stdio: ['pipe', 'pipe', 'inherit'] });
 child.on('error', (e) => { process.stderr.write(`fsd-mcp-filter: ${e.message}\n`); process.exit(2); });
 let initId = null;
 const swap = (orig) => {
   const h = createHash('sha256').update(orig).digest('hex');
-  if (!existsSync(HASH)) { mkdirSync(ROOT + 'cache', { recursive: true }); writeFileSync(HASH, h + '\n'); }
+  if (!existsSync(HASH)) { mkdirSync(STATE + 'cache', { recursive: true }); writeFileSync(HASH, h + '\n'); }
   if (readFileSync(HASH, 'utf8').trim() === h) return SHORT;
   process.stderr.write('fsd-mcp-filter: as instruções do ai-memory mudaram; repassando o texto completo. Revise common/ai-memory-instructions.md e apague cache/ai-memory-instructions.sha256.\n');
   return orig;

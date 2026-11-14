@@ -22,12 +22,12 @@ const a = process.argv.slice(2); const FIX = a.includes('--fix');
 const LOOP = a.includes('--loop') ? Number(a[a.indexOf('--loop') + 1]) || 120 : 0;
 
 const sh = (cmd, args, o = {}) => spawnSync(cmd, args, { encoding: 'utf8', timeout: 60000, ...o });
-const log = (m) => { const l = `${new Date().toISOString()} ${m}`; try { appendFileSync(join(ROOT, 'watch.log'), l + '\n'); } catch {} if (LOOP) console.log(l); };
+const log = (m) => { const l = `${new Date().toISOString()} ${m}`; try { appendFileSync(join((process.env.FSD_STATE || join(process.env.HOME, '.config', 'fsd-agents')), 'watch.log'), l + '\n'); } catch {} if (LOOP) console.log(l); };
 const min = (ms) => Math.round(ms / 60000);
 const k = (n) => `${Math.round(n / 1000)}k`;
 
 function transcript(agent) {
-  const base = join(ROOT, 'agents', agent, 'claude', 'projects'); let best = null;
+  const base = join((process.env.FSD_STATE || join(process.env.HOME, '.config', 'fsd-agents')), 'agents', agent, 'claude', 'projects'); let best = null;
   if (!existsSync(base)) return null;
   for (const p of readdirSync(base)) {
     const d = join(base, p); if (!statSync(d).isDirectory()) continue;
@@ -66,7 +66,7 @@ function kick(agent, why) {
 }
 
 function act(agent, r) {
-  const paused = existsSync(join(ROOT, 'PAUSE'));
+  const paused = existsSync(join((process.env.FSD_STATE || join(process.env.HOME, '.config', 'fsd-agents')), 'PAUSE'));
   if (r.act === 'alert') { sh('notify-send', ['-u', 'critical', `fsd: ${agent}`, `${r.state}: precisa de você no tmux fsd-${agent}`]); return `avisou o autor (${r.state})`; }
   if (paused) return 'PAUSE: nada';
   const s = `fsd-${agent}`;
