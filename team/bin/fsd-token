@@ -14,7 +14,7 @@ const agent = agents[name];
 const scope = process.argv[3] === 'org' ? 'org' : 'repo';
 if (!agent) { console.error(`fsd-token: agente desconhecido "${name ?? ''}" (use: ${Object.keys(agents).join(', ')})`); process.exit(2); }
 
-const cacheDir = join(ROOT, 'cache');
+const cacheDir = join((process.env.FSD_STATE || join(process.env.HOME, '.config', 'fsd-agents')), 'cache');
 const instId = scope === 'org' ? agent.org_installation_id : agent.installation_id;
 if (!instId) { console.error(`fsd-token: ${name} sem ${scope === 'org' ? 'org_installation_id' : 'installation_id'} no agents.json`); process.exit(2); }
 const cacheFile = join(cacheDir, scope === 'org' ? `${name}-org.json` : `${name}.json`);
@@ -26,7 +26,7 @@ try {
 const b64 = (s) => Buffer.from(s).toString('base64url');
 const now = Math.floor(Date.now() / 1000);
 const body = `${b64(JSON.stringify({ alg: 'RS256', typ: 'JWT' }))}.${b64(JSON.stringify({ iat: now - 60, exp: now + 540, iss: String(agent.app_id) }))}`;
-const key = readFileSync(join(ROOT, 'keys', `${agent.slug}.pem`));
+const key = readFileSync(join((process.env.FSD_STATE || join(process.env.HOME, '.config', 'fsd-agents')), 'keys', `${agent.slug}.pem`));
 const jwt = `${body}.${createSign('RSA-SHA256').update(body).sign(key).toString('base64url')}`;
 
 const r = await fetch(`https://api.github.com/app/installations/${instId}/access_tokens`, {

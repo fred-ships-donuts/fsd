@@ -32,7 +32,7 @@ const k = (n) => `${(n / 1000).toLocaleString('pt-BR', { minimumFractionDigits: 
 const hhmm = (ts) => new Date(ts).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 
 function latestSession(agent) {
-  const base = join(ROOT, 'agents', agent, 'claude', 'projects');
+  const base = join((process.env.FSD_STATE || join(process.env.HOME, '.config', 'fsd-agents')), 'agents', agent, 'claude', 'projects');
   if (!existsSync(base)) return null;
   let best = null;
   for (const p of readdirSync(base)) {
