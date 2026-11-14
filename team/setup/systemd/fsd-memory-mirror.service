@@ -4,4 +4,4 @@ After=ai-memory.service
 
 [Service]
 Type=oneshot
-ExecStart=%h/.config/fsd-agents/bin/fsd-memory-backup mirror
+ExecStart=%h/.local/bin/fsd-memory-backup mirror

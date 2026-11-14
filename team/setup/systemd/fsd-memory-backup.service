@@ -1,7 +1,8 @@
 [Unit]
+# Instalar: ln -sfn <repo>/team/bin/fsd-memory-backup ~/.local/bin/ ; copiar estes arquivos para ~/.config/systemd/user/ ; systemctl --user daemon-reload
 Description=fsd: ai-memory backup (recuperação de desastre)
 After=ai-memory.service
 
 [Service]
 Type=oneshot
-ExecStart=%h/.config/fsd-agents/bin/fsd-memory-backup backup
+ExecStart=%h/.local/bin/fsd-memory-backup backup
