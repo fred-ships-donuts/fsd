@@ -1,0 +1,13 @@
+#!/usr/bin/env node
+// fsd-queue [agente] — a fila do agente agora, em até ~6 linhas (usado no reinício da sessão).
+import * as L from './fsd-lib.mjs';
+import { spawnSync } from 'node:child_process';
+const a = (process.argv[2] || L.ME).replace(/^fsd-/, ''); const login = `fsd-${a}`; const out = [];
+const col = (c) => { const r = spawnSync(L.BIN + '/fsd-board', ['list', c], { encoding: 'utf8' }); const m = r.status === 0 && r.stdout.match(/\((\d+)\):\s*(.*)/); return m && Number(m[1]) ? `${c}: ${m[2].trim()}` : ''; };
+const todo = L.REVIEWERS.includes(a) ? L.todo(login) : []; if (todo.length) out.push(`revisar: ${todo.map((p) => '#' + p.number).join(' ')}`);
+const mine = L.openPrs().filter((p) => L.norm(p.author?.login) === login);
+for (const p of mine) { const s = L.reviewState(p); out.push(`meu PR #${p.number}: ${s.changes.length ? 'mudanças pedidas (fsd-review read ' + p.number + ')' : L.ready(p) ? 'pronto (fsd-merge ' + p.number + ')' : p.mergeable === 'CONFLICTING' ? 'conflito com a develop (fsd-dev sync -C <worktree>)' : `aprov ${s.approvers.length}/2`}`); }
+if (a === 'kevin') { const r = L.openPrs().filter((p) => L.readyIdle(p)).filter((p) => !mine.includes(p)); if (r.length) out.push(`prontos parados: ${r.map((p) => '#' + p.number).join(' ')}`); const d = L.ghJson(['issue', 'list', '--label', 'decision', '--state', 'open', '--json', 'number']); if (d.length) out.push(`decision: ${d.slice(0, 3).map((x) => '#' + x.number).join(' ')}${d.length > 3 ? ` +${d.length - 3}` : ''}`); }
+if (a === 'mel') out.push(col(L.STAGE.archReady));
+if (a === 'stuart') out.push(col(L.STAGE.devReady));
+console.log(out.filter(Boolean).join('\n') || 'nada na fila');

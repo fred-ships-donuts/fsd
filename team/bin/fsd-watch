@@ -1,0 +1,111 @@
+#!/usr/bin/env node
+// fsd-watch [--fix] [--loop <segundos>] — vigia dos agentes, sem gastar token: lê o rodapé do painel tmux e a hora da
+// última gravação do transcript. Sem --fix só mostra o estado e o que faria. Respeita o PAUSE e não repete a mesma
+// ação no mesmo agente dentro de COOLDOWN_MIN. Log das ações: ~/.config/fsd-agents/watch.log (fora do git).
+//   sem sessão  → sobe o agente          estourou  → reinicia limpo        travado (trabalhando, transcript parado) → reinicia
+//   ocioso sem Monitor → empurrão curto (acima de restartAbove, reinicia)  permissão / limite de uso → só avisa o autor
+import { readFileSync, readdirSync, statSync, existsSync, realpathSync, appendFileSync, writeFileSync } from 'node:fs';
+import { join, dirname } from 'node:path';
+import { tmpdir } from 'node:os';
+import { fileURLToPath } from 'node:url';
+import { spawnSync } from 'node:child_process';
+
+const BIN = dirname(realpathSync(fileURLToPath(import.meta.url))); const ROOT = dirname(BIN);
+const REPO = process.env.FSD_REPO || (process.env.HOME + '/fred-ships-donuts');
+const LAUNCH = process.env.FSD_AGENT_BIN || join(process.env.HOME, '.local/bin/fsd-agent');
+const cfg = JSON.parse(readFileSync(join(ROOT, 'agents.json'), 'utf8'));
+const RESTART_ABOVE = (a) => cfg.agents[a]?.context?.restartAbove || cfg.claude_common?.context?.restartAbove || 60000;
+const HUNG_MIN = 20, IDLE_MIN = 5, COOLDOWN_MIN = 10;
+const AGENTS = ['kevin', 'mel', 'stuart', 'bob'].filter((a) => cfg.agents[a]);
+const STATE = join(tmpdir(), 'fsd-watch-state.json');
+const a = process.argv.slice(2); const FIX = a.includes('--fix');
+const LOOP = a.includes('--loop') ? Number(a[a.indexOf('--loop') + 1]) || 120 : 0;
+
+const sh = (cmd, args, o = {}) => spawnSync(cmd, args, { encoding: 'utf8', timeout: 60000, ...o });
+const log = (m) => { const l = `${new Date().toISOString()} ${m}`; try { appendFileSync(join(ROOT, 'watch.log'), l + '\n'); } catch {} if (LOOP) console.log(l); };
+const min = (ms) => Math.round(ms / 60000);
+const k = (n) => `${Math.round(n / 1000)}k`;
+
+function transcript(agent) {
+  const base = join(ROOT, 'agents', agent, 'claude', 'projects'); let best = null;
+  if (!existsSync(base)) return null;
+  for (const p of readdirSync(base)) {
+    const d = join(base, p); if (!statSync(d).isDirectory()) continue;
+    for (const f of readdirSync(d)) if (f.endsWith('.jsonl')) { const m = statSync(join(d, f)).mtimeMs; if (!best || m > best.m) best = { f: join(d, f), m }; }
+  }
+  if (!best) return null;
+  let ctx = 0;
+  for (const line of readFileSync(best.f, 'utf8').split('\n')) {
+    if (!line.includes('"assistant"')) continue;
+    let e; try { e = JSON.parse(line); } catch { continue; }
+    const u = e.message?.usage; if (e.type !== 'assistant' || e.isSidechain || !u || e.message.model === '<synthetic>') continue;
+    ctx = (u.input_tokens || 0) + (u.cache_read_input_tokens || 0) + (u.cache_creation_input_tokens || 0) + (u.output_tokens || 0);
+  }
+  return { idle: Date.now() - best.m, ctx };
+}
+
+function classify(agent) {
+  const s = `fsd-${agent}`;
+  if (sh('tmux', ['has-session', '-t', s]).status !== 0) return { state: 'sem sessão', act: 'start' };
+  const pane = (sh('tmux', ['capture-pane', '-p', '-t', s]).stdout || '').split('\n').filter((l) => l.trim()).slice(-14).join('\n');
+  const t = transcript(agent) || { idle: 0, ctx: 0 };
+  const base = { idle: t.idle, ctx: t.ctx };
+  if (/Context limit reached|Prompt is too long/.test(pane)) return { ...base, state: 'estourou', act: 'restart' };
+  if (/Do you want|❯ 1\. Yes/.test(pane)) return { ...base, state: 'permissão', act: 'alert' };
+  if (/usage limit|hit your limit|limit will reset|resets? at/i.test(pane)) return { ...base, state: 'limite de uso', act: 'alert' };
+  const working = /esc to interrupt/.test(pane), monitor = /\d+ monitors?\b/.test(pane);
+  if (working) return t.idle > HUNG_MIN * 60000 ? { ...base, state: 'travado', act: 'restart' } : { ...base, state: 'trabalhando', act: null };
+  if (monitor) return { ...base, state: 'esperando (Monitor)', act: null };
+  if (t.idle > IDLE_MIN * 60000) return { ...base, state: 'ocioso sem Monitor', act: t.ctx > RESTART_ABOVE(agent) ? 'restart' : 'nudge' };
+  return { ...base, state: 'acabou de responder', act: null };
+}
+
+function kick(agent, why) {
+  const q = (sh(join(BIN, 'fsd-queue'), [agent], { env: { ...process.env, FSD_AGENT: agent } }).stdout || '').trim().split('\n').join(';').slice(0, 600);
+  return `Sessão nova de ${agent} (contexto limpo; o vigia reiniciou: ${why}). Antes de tudo confira o seu worktree (git status, commits sem push) e retome de lá. A fila abaixo é o estado atual; não releia o GitHub. Siga o team.md; sem trabalho, avise o Kevin e arme o Monitor (fsd-wait). Fila: ${q}`;
+}
+
+function act(agent, r) {
+  const paused = existsSync(join(ROOT, 'PAUSE'));
+  if (r.act === 'alert') { sh('notify-send', ['-u', 'critical', `fsd: ${agent}`, `${r.state}: precisa de você no tmux fsd-${agent}`]); return `avisou o autor (${r.state})`; }
+  if (paused) return 'PAUSE: nada';
+  const s = `fsd-${agent}`;
+  if (r.act === 'start') { const c = sh('tmux', ['new-session', '-d', '-s', s, '-c', REPO, LAUNCH, agent, 'claude', kick(agent, 'sessão não existia')]); return c.status === 0 ? 'subiu' : `falhou: ${c.stderr.trim()}`; }
+  if (r.act === 'restart') { const c = sh('tmux', ['respawn-pane', '-k', '-t', s, '-c', REPO, LAUNCH, agent, 'claude', kick(agent, `${r.state}, ${k(r.ctx)}`)]); return c.status === 0 ? 'reiniciou' : `falhou: ${c.stderr.trim()}`; }
+  if (r.act === 'nudge') {
+    const msg = `[fsd-aviso do vigia] Você está parado sem Monitor há ${min(r.idle)} min. Terminou uma entrega? fsd-restart. Sem trabalho: avise o Kevin e arme o Monitor (fsd-wait any).`;
+    sh('tmux', ['load-buffer', '-b', `w-${agent}`, '-'], { input: msg }); sh('tmux', ['paste-buffer', '-p', '-d', '-b', `w-${agent}`, '-t', s]);
+    sh('sleep', ['0.4']); sh('tmux', ['send-keys', '-t', s, 'Enter']); return 'empurrou';
+  }
+  return '';
+}
+
+function round() {
+  let st = {}; try { st = JSON.parse(readFileSync(STATE, 'utf8')); } catch {}
+  const rows = [];
+  for (const ag of AGENTS) {
+    const r = classify(ag); let done = '-';
+    if (r.act) {
+      const key = `${ag}:${r.act}`, last = st[key] || 0;
+      if (!FIX) done = `faria: ${r.act}`;
+      else if (Date.now() - last < COOLDOWN_MIN * 60000) done = `espera (${r.act} há ${min(Date.now() - last)} min)`;
+      else { done = act(ag, r); st[key] = Date.now(); log(`${ag}: ${r.state} → ${done}`); }
+    }
+    rows.push([ag[0].toUpperCase() + ag.slice(1), r.state, r.idle != null ? `${min(r.idle)} min` : '-', r.ctx ? k(r.ctx) : '-', done]);
+  }
+  try { writeFileSync(STATE, JSON.stringify(st)); } catch {}
+  return rows;
+}
+
+function table(rows) {
+  const head = ['Agente', 'Estado', 'Sem gravar há', 'Contexto', 'Ação'];
+  const w = head.map((h, i) => Math.max(h.length, ...rows.map((r) => r[i].length)));
+  const line = (l, m, r) => l + w.map((n) => '─'.repeat(n + 2)).join(m) + r;
+  const center = (s, n) => { const p = n - s.length; return ' '.repeat(Math.floor(p / 2)) + s + ' '.repeat(Math.ceil(p / 2)); };
+  const out = [line('┌', '┬', '┐'), '│' + head.map((h, i) => ` ${center(h, w[i])} `).join('│') + '│'];
+  rows.forEach((r) => { out.push(line('├', '┼', '┤')); out.push('│' + r.map((c, i) => ` ${c.padEnd(w[i])} `).join('│') + '│'); });
+  out.push(line('└', '┴', '┘')); return out.join('\n');
+}
+
+if (!LOOP) console.log(table(round()));
+else { log(`vigia ligado (a cada ${LOOP}s${FIX ? ', com --fix' : ''})`); for (;;) { round(); sh('sleep', [String(LOOP)]); } }

@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+# fsd-notify <agente[,agente…]> "<texto>" — entrega um aviso na sessão tmux fsd-<agente> (zero tokens para quem envia).
+# Imprime quem recebeu, ou "ninguém recebeu". Pula sessão fechada ou parada numa pergunta de permissão. O oficial fica no GitHub.
+set -uo pipefail
+to="${1:?uso: fsd-notify <agente[,agente…]> \"<texto>\"}"; text="${2:?uso: fsd-notify <agente[,agente…]> \"<texto>\"}"
+from="${FSD_AGENT:-autor}"; got=()
+[ -n "${FSD_DRY:-}" ] && { echo "[dry] fsd-notify $to \"$text\""; exit 0; }
+for a in ${to//,/ }; do
+  [ "$a" = "$from" ] && continue
+  tmux has-session -t "fsd-$a" 2>/dev/null || continue
+  tmux capture-pane -p -t "fsd-$a" | tail -10 | grep -qiE 'Do you want|❯ 1\. Yes' && continue
+  printf '[fsd-aviso de %s] %s' "$from" "$text" | tmux load-buffer -b "n-$a-$$" - \
+    && tmux paste-buffer -p -d -b "n-$a-$$" -t "fsd-$a" && sleep 0.4 && tmux send-keys -t "fsd-$a" Enter && got+=("$a")
+done
+[ ${#got[@]} -gt 0 ] && (IFS=,; echo "${got[*]}") || echo "ninguém recebeu"

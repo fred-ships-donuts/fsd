@@ -1,0 +1,10 @@
+[Unit]
+Description=fsd: ai-memory backup (weekly)
+
+[Timer]
+OnCalendar=weekly
+Persistent=true
+RandomizedDelaySec=15m
+
+[Install]
+WantedBy=timers.target

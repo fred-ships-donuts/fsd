@@ -1,0 +1,319 @@
+{
+  "env": {
+    "DISABLE_AUTOUPDATER": "1"
+  },
+  "permissions": {
+    "deny": [
+      "Bash(gh auth:*)",
+      "Bash(gh secret:*)",
+      "Bash(gh ruleset:*)",
+      "Bash(gh repo edit:*)",
+      "Bash(gh repo delete:*)",
+      "Bash(gh api *rulesets*)",
+      "Bash(gh api *interaction-limits*)",
+      "Bash(git push --force*)",
+      "Bash(git push -f*)",
+      "Bash(git push * --force*)",
+      "Bash(git push * -f*)",
+      "Bash(git push origin +*)",
+      "Bash(git config *credential*)",
+      "Bash(git config *insteadOf*)",
+      "Bash(git config *user.*)",
+      "Bash(unset *)",
+      "Bash(env -u*)",
+      "Bash(export FSD_*)",
+      "Bash(export GH_*)",
+      "Bash(export GIT_*)",
+      "Bash(FSD_AGENT=*)",
+      "Bash(GH_TOKEN=*)",
+      "Bash(GH_CONFIG_DIR=*)",
+      "Bash(*fsd-token*)",
+      "Bash(*fsd-agents/keys*)",
+      "Bash(*fsd-agents/cache*)",
+      "Bash(*/usr/bin/gh*)",
+      "Bash(*hosts.yml*)",
+      "Read(~/.config/gh/**)",
+      "Read(~/.ssh/**)",
+      "Read(~/.config/fsd-agents/keys/**)",
+      "Edit(~/.config/fsd-agents/keys/**)",
+      "Read(~/.config/fsd-agents/cache/**)",
+      "Edit(~/.config/fsd-agents/cache/**)",
+      "Read(~/.config/fsd-agents/bin/**)",
+      "Edit(~/.config/fsd-agents/bin/**)",
+      "Read(~/.config/fsd-agents/common/**)",
+      "Edit(~/.config/fsd-agents/common/**)",
+      "Read(~/.config/fsd-agents/gh-config/**)",
+      "Edit(~/.config/fsd-agents/gh-config/**)",
+      "Read(~/.config/fsd-agents/agents.json)",
+      "Edit(~/.config/fsd-agents/agents.json)",
+      "Read(~/.config/fsd-agents/claude-settings.json)",
+      "Edit(~/.config/fsd-agents/claude-settings.json)",
+      "Read(~/.config/fsd-agents/claude-oauth-token)",
+      "Edit(~/.config/fsd-agents/claude-oauth-token)",
+      "Bash(*claude-oauth-token*)",
+      "Bash(*CLAUDE_CONFIG_DIR*)",
+      "Bash(*CLAUDE_CODE_OAUTH_TOKEN*)",
+      "mcp__ai-memory__memory_delete_page",
+      "mcp__ai-memory__memory_forget_sweep",
+      "mcp__ai-memory__memory_restore_page",
+      "mcp__ai-memory__memory_write_pages_batch",
+      "Bash(git push * main)",
+      "Bash(git push * HEAD:main)",
+      "Bash(git push * *:main)",
+      "Bash(git push * *:refs/heads/main)",
+      "Bash(git push * develop)",
+      "Bash(git push * HEAD:develop)",
+      "Bash(git push * *:develop)",
+      "Bash(*gh pr merge*)",
+      "Bash(*gh pr review*)",
+      "Bash(*gh api*/merge*)",
+      "Bash(*gh api*/reviews*)",
+      "Bash(*mergePullRequest*)",
+      "Bash(*addPullRequestReview*)",
+      "Bash(*git push*)",
+      "Bash(*git switch*)",
+      "Bash(*git checkout -b*)",
+      "Bash(*rtk bypass*git push*)",
+      "Read(~/.config/fsd-agents/.git/**)",
+      "Edit(~/.config/fsd-agents/.git/**)",
+      "Bash(git -C *fsd-agents*)",
+      "Bash(*--git-dir*fsd-agents*)",
+      "Bash(trail)",
+      "Bash(trail *)",
+      "Bash(*trail ask*)",
+      "Read(**/.trail/**)",
+      "Bash(rm -r *)",
+      "Bash(rm -rf *)",
+      "Bash(rm -fr *)",
+      "Bash(rm -Rf *)",
+      "Bash(rm --recursive *)",
+      "Bash(rtk rm *)"
+    ],
+    "allow": [
+      "mcp__ai-memory__memory_query",
+      "mcp__ai-memory__memory_read_page",
+      "mcp__ai-memory__memory_recent",
+      "mcp__ai-memory__memory_briefing",
+      "mcp__ai-memory__memory_explore",
+      "mcp__ai-memory__memory_status",
+      "mcp__ai-memory__memory_read_session_observations",
+      "mcp__ai-memory__memory_message_list",
+      "mcp__ai-memory__memory_handoff_begin",
+      "mcp__ai-memory__memory_handoff_list",
+      "mcp__ai-memory__memory_handoff_accept",
+      "mcp__ai-memory__memory_handoff_cancel",
+      "Bash(fsd-restart)",
+      "Bash(fsd-restart --dry-run)",
+      "Bash(fsd-pr)",
+      "Bash(fsd-pr *)",
+      "Bash(fsd-merge *)",
+      "Bash(fsd-board *)",
+      "Bash(fsd-qa *)",
+      "Bash(fsd-review *)",
+      "Bash(fsd-arq *)",
+      "Bash(fsd-issue *)",
+      "Bash(fsd-wait *)",
+      "Bash(fsd-notify *)",
+      "Bash(fsd-dev *)",
+      "Bash(fsd-queue*)",
+      "Bash(git status*)",
+      "Bash(git diff*)",
+      "Bash(git log*)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git fetch*)",
+      "Bash(git -C * status*)",
+      "Bash(git -C * diff*)",
+      "Bash(git -C * log*)",
+      "Bash(git -C * add *)",
+      "Bash(git -C * commit *)",
+      "Bash(npm ci*)",
+      "Bash(npm run build*)",
+      "Bash(npm install*)",
+      "Bash(rtk git status*)",
+      "Bash(rtk git diff*)",
+      "Bash(rtk git log*)",
+      "Bash(rtk git add *)",
+      "Bash(rtk git commit *)",
+      "Bash(rtk git fetch*)",
+      "Bash(rtk git -C * status*)",
+      "Bash(rtk git -C * diff*)",
+      "Bash(rtk git -C * log*)",
+      "Bash(rtk git -C * add *)",
+      "Bash(rtk git -C * commit *)",
+      "Bash(rtk npm ci*)",
+      "Bash(rtk npm run build*)",
+      "Bash(rtk npm install*)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "rtk hook claude"
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$HOME/.local/lib/ai-memory/ai-memory --data-dir $HOME/.local/share/ai-memory hook --auth-token \"$AI_MEMORY_AUTH_TOKEN\" --agent claude-code --server-url http://127.0.0.1:49374 --event pre-tool-use"
+          }
+        ]
+      },
+      {
+        "matcher": "Monitor",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$FSD_TEAM/bin/fsd-context-guard"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$HOME/.local/lib/ai-memory/ai-memory --data-dir $HOME/.local/share/ai-memory hook --auth-token \"$AI_MEMORY_AUTH_TOKEN\" --agent claude-code --server-url http://127.0.0.1:49374 --event post-tool-use"
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$FSD_TEAM/bin/fsd-context-guard",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$HOME/.local/lib/ai-memory/ai-memory --data-dir $HOME/.local/share/ai-memory hook --auth-token \"$AI_MEMORY_AUTH_TOKEN\" --agent claude-code --server-url http://127.0.0.1:49374 --event user-prompt-submit"
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$FSD_TEAM/bin/fsd-context-guard",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "PostToolUseFailure": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$HOME/.local/lib/ai-memory/ai-memory --data-dir $HOME/.local/share/ai-memory hook --auth-token \"$AI_MEMORY_AUTH_TOKEN\" --agent claude-code --server-url http://127.0.0.1:49374 --event post-tool-use"
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$HOME/.local/lib/ai-memory/ai-memory --data-dir $HOME/.local/share/ai-memory hook --auth-token \"$AI_MEMORY_AUTH_TOKEN\" --agent claude-code --server-url http://127.0.0.1:49374 --event session-start"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$HOME/.local/lib/ai-memory/ai-memory --data-dir $HOME/.local/share/ai-memory hook --auth-token \"$AI_MEMORY_AUTH_TOKEN\" --agent claude-code --server-url http://127.0.0.1:49374 --event stop"
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$FSD_TEAM/bin/fsd-context-guard",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$HOME/.local/lib/ai-memory/ai-memory --data-dir $HOME/.local/share/ai-memory hook --auth-token \"$AI_MEMORY_AUTH_TOKEN\" --agent claude-code --server-url http://127.0.0.1:49374 --event session-end",
+            "timeout": 15
+          }
+        ]
+      }
+    ],
+    "PreCompact": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$HOME/.local/lib/ai-memory/ai-memory --data-dir $HOME/.local/share/ai-memory hook --auth-token \"$AI_MEMORY_AUTH_TOKEN\" --agent claude-code --server-url http://127.0.0.1:49374 --event pre-compact"
+          }
+        ]
+      }
+    ],
+    "SubagentStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$HOME/.local/lib/ai-memory/ai-memory --data-dir $HOME/.local/share/ai-memory hook --auth-token \"$AI_MEMORY_AUTH_TOKEN\" --agent claude-code --server-url http://127.0.0.1:49374 --event subagent-start"
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$HOME/.local/lib/ai-memory/ai-memory --data-dir $HOME/.local/share/ai-memory hook --auth-token \"$AI_MEMORY_AUTH_TOKEN\" --agent claude-code --server-url http://127.0.0.1:49374 --event subagent-stop"
+          }
+        ]
+      }
+    ]
+  },
+  "skillOverrides": {
+    "dataviz": "off",
+    "artifact-design": "off",
+    "artifact-diagramming": "off",
+    "artifact-capabilities": "off",
+    "update-config": "off",
+    "keybindings-help": "off",
+    "code-review": "off",
+    "simplify": "off",
+    "fewer-permission-prompts": "off",
+    "loop": "off",
+    "schedule": "off",
+    "claude-api": "off",
+    "workflow-authoring": "off",
+    "run": "off",
+    "plugin-authoring": "off",
+    "init": "off",
+    "security-review": "off"
+  },
+  "claudeMdExcludes": [
+    "**/AGENTS.md"
+  ]
+}

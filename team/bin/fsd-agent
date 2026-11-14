@@ -1,0 +1,100 @@
+#!/usr/bin/env bash
+# fsd-agent <kevin|mel|stuart|bob> [comando...]
+# Abre um shell (ou o comando dado, ex.: claude) com a identidade GitHub do agente:
+#  - gh e git usam o token do App do agente (renovado sozinho);
+#  - commits saem como fsd-<nome>[bot];
+#  - o seu login do gh, o seu ssh-agent e as suas chaves SSH ficam de fora;
+#  - "claude" ganha as regras deny de ~/.config/fsd-agents/claude-settings.json.
+set -euo pipefail
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT="$(dirname "$HERE")"; export FSD_TEAM="$ROOT"; STATE="${FSD_STATE:-$HOME/.config/fsd-agents}"; export FSD_STATE="$STATE"
+name="${1:-}"; shift || true
+[ "$name" = fred ] && { [ "${1:-}" = claude ] && shift; d="$STATE/agents/fred/claude"; mkdir -p "$d" "$STATE/sessions"; (shopt -s dotglob; for f in "$HOME"/.claude/*; do n="${f##*/}"; [ "$n" = sessions ] || [ -e "$d/$n" ] || ln -s "$f" "$d/$n"; done); ln -sfn "$HOME/.claude.json" "$d/.claude.json"; ln -sfn "$STATE/sessions" "$d/sessions"; CLAUDE_CONFIG_DIR="$d" exec claude -n fred "$@"; }
+read -r slug botid < <(node -e '
+  const a = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8")).agents[process.argv[2]];
+  if (!a) process.exit(3); console.log(a.slug, a.bot_user_id);' "$ROOT/agents.json" "$name") \
+  || { echo "uso: fsd-agent <kevin|mel|stuart|bob> [comando...]" >&2; exit 2; }
+
+"$HERE/fsd-token" "$name" >/dev/null   # falha cedo se a chave/instalação estiver errada
+
+export FSD_AGENT="$name"
+export PATH="$HERE:$PATH"
+export GH_CONFIG_DIR="$STATE/gh-config/$name"; mkdir -p "$GH_CONFIG_DIR"   # sem acesso ao seu login do gh
+unset GH_TOKEN GITHUB_TOKEN GH_ENTERPRISE_TOKEN SSH_AUTH_SOCK
+export GIT_SSH_COMMAND="false"                                       # sem as suas chaves SSH
+export GIT_AUTHOR_NAME="$slug[bot]"   GIT_COMMITTER_NAME="$slug[bot]"
+export GIT_AUTHOR_EMAIL="$botid+$slug[bot]@users.noreply.github.com"
+export GIT_COMMITTER_EMAIL="$GIT_AUTHOR_EMAIL"
+export GIT_CONFIG_COUNT=4
+export GIT_CONFIG_KEY_0="credential.https://github.com.helper" GIT_CONFIG_VALUE_0=""
+export GIT_CONFIG_KEY_1="credential.https://github.com.helper" GIT_CONFIG_VALUE_1="$HERE/git-credential-fsd"
+export GIT_CONFIG_KEY_2="url.https://github.com/.insteadOf"    GIT_CONFIG_VALUE_2="git@github.com:"
+export GIT_CONFIG_KEY_3="commit.gpgsign"                       GIT_CONFIG_VALUE_3="false"
+export FSD_CLAUDE_SETTINGS="$ROOT/claude-settings.json"
+
+claude_wrap() {
+  # Claude Code só com o perfil do agente: papel (CLAUDE.md), skills, memória e regras próprias,
+  # sem as suas configurações, hooks, skills e memórias. O RTK vem do claude-settings.json.
+  export CLAUDE_CONFIG_DIR="$STATE/agents/$name/claude"
+  # Sessões em comum: o ListAgents/SendMessage só enxerga as sessões da pasta sessions/ do perfil.
+  # Com a sessions/ de cada agente apontando para $STATE/sessions, os quatro se veem e trocam mensagem.
+  local shared="$STATE/sessions" own="$CLAUDE_CONFIG_DIR/sessions"
+  mkdir -p -m 700 "$shared" "$CLAUDE_CONFIG_DIR"
+  if [ ! -L "$own" ]; then
+    if [ -d "$own" ]; then find "$own" -mindepth 1 -maxdepth 1 -exec mv -n -t "$shared" {} +; rmdir "$own"; fi
+    ln -s "$shared" "$own"
+  fi
+  local tok="$STATE/claude-oauth-token"
+  if [ -s "$tok" ]; then export CLAUDE_CODE_OAUTH_TOKEN="$(cat "$tok")"
+  else echo "[fsd-agent] sem $tok: rode 'claude setup-token' e salve o token nesse arquivo (chmod 600)" >&2; exit 2; fi
+  # Economias de token (agents.json → "claude"): modelo e esforço por papel, ferramentas cortadas
+  # por papel e nenhum conector MCP (nem os da conta do claude.ai). --model/--effort só entram
+  # quando você não passa a mesma flag: "fsd-agent mel claude --effort high" sobe só aquela sessão.
+  local -a extra=()
+  local has_model=0 has_effort=0 has_name=0 a
+  for a in "$@"; do case "$a" in --model|--model=*) has_model=1;; --effort|--effort=*) has_effort=1;;
+    -n|--name|--name=*) has_name=1;; esac; done
+  # Nome da sessão = nome do agente, para os outros saberem a quem mandar (SendMessage to: "mel").
+  [ "$has_name" = 0 ] && extra+=(--name "$name")
+  local model effort deny sources
+  { read -r model; read -r effort; read -r deny; read -r sources; } < <(node -e '
+    const j = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8"));
+    const c = j.agents[process.argv[2]].claude || {};
+    const d = [...((j.claude_common || {}).disallowedTools || []), ...(c.disallowedTools || [])];
+    console.log(c.model || ""); console.log(c.effort || ""); console.log(d.join(",")); console.log(c.settingSources || (j.claude_common || {}).settingSources || "");' "$ROOT/agents.json" "$name")
+  # --disallowedTools aceita vários valores: o --strict-mcp-config logo depois fecha a lista,
+  # para ela não engolir um prompt seu.
+  [ -n "$deny" ] && extra+=(--disallowedTools "$deny")
+  # Fontes de configuração por papel (agents.json → claude.settingSources), ex.: "user,local" pula o
+  # .claude/settings.json do projeto (hook do trail) para quem quase não lê código.
+  [ -n "$sources" ] && extra+=(--setting-sources "$sources")
+  # MCP: só o ai-memory (mcp.json); o --strict-mcp-config ignora todo o resto e fecha a lista.
+  extra+=(--mcp-config "$ROOT/mcp.json" --strict-mcp-config)
+  [ "$has_model" = 0 ] && [ -n "$model" ] && extra+=(--model "$model")
+  [ "$has_effort" = 0 ] && [ -n "$effort" ] && extra+=(--effort "$effort")
+  export ENABLE_CLAUDEAI_MCP_SERVERS=false
+  # Limite de contexto (agents.json → claude_common.context): teto em limit, sem a janela de 1M e sem
+  # compactação automática. O resto alimenta o julgamento do fsd-context-guard (hook): margem em % do limit,
+  # faixas de chamadas restantes (normal e pesada) e o fator de pico que marca a sessão como pesada.
+  local crestart cufree cmfree creserve climit cmargin cu cm chu chm chf
+  { read -r crestart; read -r cufree; read -r cmfree; read -r creserve; read -r climit; read -r cmargin; read -r cu; read -r cm; read -r chu; read -r chm; read -r chf; } < <(node -e '
+    const c = (JSON.parse(require("fs").readFileSync(process.argv[1], "utf8")).claude_common || {}).context || {};
+    const b = c.bands || {}; const n = b.normal || {}; const h = b.heavy || {};
+    for (const [v, d] of [[c.restartAbove, 60000], [c.urgentFree, 15000], [c.mediumFree, 30000], [c.outputReserve, 32000], [c.limit, 200000], [c.marginPct, 5], [n.urgentAt, 2], [n.mediumAt, 4], [h.urgentAt, 3], [h.mediumAt, 7], [c.heavyFactor, 1.5]]) console.log(v || d);' "$ROOT/agents.json")
+  export CLAUDE_CODE_DISABLE_1M_CONTEXT=1 CLAUDE_CODE_AUTO_COMPACT_WINDOW="$climit" DISABLE_AUTO_COMPACT=1
+  export FSD_CONTEXT_RESTART_ABOVE="$crestart" FSD_CONTEXT_URGENT_FREE="$cufree" FSD_CONTEXT_MEDIUM_FREE="$cmfree" FSD_CONTEXT_RESERVE="$creserve" FSD_CONTEXT_LIMIT="$climit" FSD_CONTEXT_MARGIN_PCT="$cmargin" FSD_CONTEXT_HEAVY_FACTOR="$chf"
+  export FSD_CONTEXT_URGENT_AT="$cu" FSD_CONTEXT_MEDIUM_AT="$cm" FSD_CONTEXT_HEAVY_URGENT_AT="$chu" FSD_CONTEXT_HEAVY_MEDIUM_AT="$chm"
+  # ai-memory como o próprio agente (usuário <nome> no servidor): o MCP e os hooks usam esta
+  # credencial, então os handoffs dele voltam só para ele. Sem ela, nada de ai-memory como root.
+  local aim="$STATE/ai-memory-tokens/$name"
+  if [ -s "$aim" ]; then export AI_MEMORY_AUTH_TOKEN="$(cat "$aim")"
+  else echo "[fsd-agent] sem $aim: o ai-memory recusa este agente" >&2; export AI_MEMORY_AUTH_TOKEN="missing"; fi
+  exec claude --settings "$FSD_CLAUDE_SETTINGS" "${extra[@]}" "$@"
+}
+if [ $# -eq 0 ]; then
+  echo "[fsd-agent] shell como $slug[bot] — 'exit' para sair"; exec "${SHELL:-bash}" -i
+elif [ "$1" = "claude" ]; then
+  shift; claude_wrap "$@"
+else
+  exec "$@"
+fi

@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+# fsd-aceitar <nome> <ip-tailscale> <syncthing-id> '<chave-pública-ssh>' — roda NA MATRIZ.
+# Aceita uma máquina nova do fsd (o container). O fsd-setup da máquina nova mostra esta linha pronta para colar.
+#   1. autoriza a chave dela no ~/.ssh/authorized_keys, restrita ao túnel do ai-memory (127.0.0.1:49374);
+#   2. pareia o Syncthing da matriz com ela (fsd-sync-pair add).
+# Idempotente. Para desfazer (máquina perdida): apague a linha "<nome>" do authorized_keys, o dispositivo
+# no Syncthing e a máquina no painel da Tailscale.
+set -euo pipefail
+nome="${1:?nome}"; ip="${2:?ip-tailscale}"; sid="${3:?syncthing-id}"; pub="${4:?chave pública}"
+[[ "$nome" =~ ^[A-Za-z0-9._-]{1,63}$ ]] || { echo "nome inválido: $nome"; exit 2; }
+[[ "$ip" =~ ^100\.([0-9]{1,3}\.){2}[0-9]{1,3}$ ]] || { echo "ip não é da Tailscale (100.x.y.z): $ip"; exit 2; }
+[[ "$sid" =~ ^[A-Z0-9]{7}(-[A-Z0-9]{7}){7}$ ]] || { echo "ID do Syncthing inválido: $sid"; exit 2; }
+read -r tipo chave _ <<<"$pub"
+[ "$tipo" = ssh-ed25519 ] && [[ "$chave" =~ ^[A-Za-z0-9+/]+=*$ ]] || { echo "chave pública inválida (esperava ssh-ed25519 …)"; exit 2; }
+
+AK="$HOME/.ssh/authorized_keys"; mkdir -p "$HOME/.ssh"; chmod 700 "$HOME/.ssh"; touch "$AK"; chmod 600 "$AK"
+if grep -qF "$chave" "$AK"; then echo "ok chave de $nome já autorizada"
+else
+  printf 'from="%s",restrict,port-forwarding,permitopen="127.0.0.1:49374",command="/bin/false" %s %s %s\n' "${FSD_TAILNET_CIDR:-100.64.0.0/10}" "$tipo" "$chave" "$nome" >> "$AK"
+  echo "ok chave de $nome autorizada (só o túnel do ai-memory)"
+fi
+"$(dirname "$(readlink -f "$0")")/fsd-sync-pair" add "$sid" "$ip" "$nome"
+echo "ok $nome aceita. Volte para a máquina nova: o fsd-setup continua sozinho."

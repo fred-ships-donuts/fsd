@@ -1,0 +1,65 @@
+#!/usr/bin/env node
+// fsd-pr                    PRs abertos, uma linha cada (aprovações atuais, mudanças, merge, issues, head, você)
+// fsd-pr <n>                um PR (aberto, mesclado ou fechado)
+// fsd-pr --todo [agente]    PRs que o revisor (mel, bob) precisa olhar agora: "#n sha" ou "nada"
+// fsd-pr --mine [agente]    PRs abertos do agente ou "nada"
+// fsd-pr --ready            PRs prontos para fsd-merge ou "nada"
+// fsd-pr open "<título>" (--verified <arquivo|-> | --docs) [--dev "<desvio>"] [--reply <arquivo|->] [-C <pasta>]
+//     push do branch, abre (ou atualiza) o PR para a develop, card → In Review, avisa mel e bob.
+//     Em PR que já existe, --verified vira comentário "Re-verified" e --reply responde à revisão.
+//     Recusa o push com mais de 1 commit novo (sem contar o merge da develop): 1 commit por PR e 1 por rodada de correção.
+import * as L from './fsd-lib.mjs';
+const a = process.argv.slice(2);
+const opt = (k) => { const i = a.indexOf(k); return i >= 0 ? a[i + 1] : undefined; };
+function line(p, who = L.meLogin()) {
+  if (p.state !== 'OPEN') return `#${p.number} ${p.state}${p.mergeCommit?.oid ? ' ' + p.mergeCommit.oid.slice(0, 7) : ''} | ${p.title.slice(0, 60)}`;
+  const s = L.reviewState(p); const cl = L.closes(p.body);
+  return `#${p.number} ${p.headRefName}→${p.baseRefName} ${s.author}${p.isDraft ? ' [draft]' : ''} | aprov ${s.approvers.length}${s.approvers.length ? ' (' + s.approvers.join(',') + ')' : ''}`
+    + (s.stale.length ? ` | antigas ${s.stale.join(',')}` : '') + (s.changes.length ? ` | mudanças ${s.changes.join(',')}` : '')
+    + ` | merge ${p.mergeable} | fecha ${cl.length ? cl.map((x) => '#' + x).join(',') : '-'} | head ${p.headRefOid.slice(0, 7)}`
+    + (who ? ` | você ${L.myStatus(p, who)}` : '');
+}
+const who = (x) => (x ? `fsd-${x.replace(/^fsd-/, '')}` : L.meLogin());
+const list = (ps, f) => console.log(ps.length ? ps.map(f).join('\n') : 'nada');
+
+if (!a.length) { const ps = L.openPrs(); console.log(ps.length ? ps.map((p) => line(p)).join('\n') : 'nenhum PR aberto'); }
+else if (a[0] === '--todo') list(L.todo(who(a[1])), (p) => `#${p.number} ${p.headRefOid.slice(0, 7)}`);
+else if (a[0] === '--mine') { const w = who(a[1]); list(L.openPrs().filter((p) => L.norm(p.author?.login) === w), (p) => line(p, w)); }
+else if (a[0] === '--ready') list(L.openPrs().filter((p) => L.readyIdle(p)), (p) => `#${p.number} ${L.reviewState(p).author}`);
+else if (a[0] === 'open') {
+  const title = a[1] && !a[1].startsWith('-') ? a[1] : ''; const dir = opt('-C') || process.cwd(); const docs = a.includes('--docs');
+  if (!title && !a.includes('--reply') && !a.includes('--verified')) L.die('uso: fsd-pr open "<título>" (--verified <arquivo|-> | --docs) [--dev "<desvio>"] [--reply <arquivo|->] [-C <pasta>]', 2);
+  const verified = docs ? 'Documentation only; no behaviour change.' : a.includes('--verified') ? L.readArgFile(opt('--verified')).trim() : '';
+  const git = (...x) => L.run('git', ['-C', dir, ...x]);
+  const branch = git('rev-parse', '--abbrev-ref', 'HEAD');
+  const m = branch.match(/^(feature|feat|fix|docs|chore|refactor|test|ci)\/(?:(\d+)-)?[a-z0-9]/);
+  if (!m || !m[2]) L.die(`branch "${branch}" fora do padrão <tipo>/<n>-<slug>: todo PR tem issue (fsd-issue new, depois fsd-dev start <n>)`, 1);
+  const issue = Number(m[2]);
+  if (opt('--verified') === '-' && opt('--reply') === '-') L.die('só um de --verified/--reply pode usar -', 2);
+  git('fetch', '-q', 'origin', 'develop');
+  const log = git('log', '--format=- %s', 'origin/develop..HEAD'); if (!log) L.die('nenhum commit novo em relação à develop', 1);
+  const up = L.run('git', ['-C', dir, 'rev-parse', '--verify', '-q', `refs/remotes/origin/${branch}`], { allowFail: true }).ok ? `origin/${branch}` : 'origin/develop';
+  const lastMerge = git('rev-list', '-1', '--merges', `${up}..HEAD`); const from = lastMerge || up;
+  const extra = git('rev-list', '--no-merges', `${from}..HEAD`).split('\n').filter(Boolean);
+  if (extra.length > 1) L.die(`${extra.length} commits novos sem push: junte num só (git -C ${dir} reset --soft ${lastMerge ? lastMerge.slice(0, 7) : up} && git -C ${dir} commit -m "<mensagem>") e rode de novo. Regra: 1 commit por PR e 1 por rodada de correção.`, 1);
+  L.write('git', ['-C', dir, 'push', '-q', '-u', 'origin', branch]);
+  const sha = git('rev-parse', '--short', 'HEAD');
+  const existing = L.ghJson(['pr', 'list', '--head', branch, '--state', 'open', '--json', 'number,url']);
+  let num, out;
+  if (existing.length) {
+    num = existing[0].number; out = `PR #${num} atualizado (${sha})`;
+    if (a.includes('--reply')) L.ghw(['pr', 'comment', String(num), '--body-file', '-'], { input: L.readArgFile(opt('--reply')) });
+    if (!docs && verified) L.ghw(['pr', 'comment', String(num), '--body-file', '-'], { input: `Re-verified on ${sha}:\n\n${verified}` });
+  } else {
+    if (!title) L.die('PR novo precisa de título: fsd-pr open "<título>" …', 2);
+    if (!verified) L.die('PR novo precisa de --verified <arquivo|-> (ou --docs)', 2);
+    const body = `${issue ? `Closes #${issue}\n\n` : ''}## What changed\n${log}\n\n## How I verified it\n${verified}\n\n## Deviations from the SPEC\n${opt('--dev') || 'None.'}\n`;
+    const url = L.ghw(['pr', 'create', '--base', 'develop', '--head', branch, '--title', title, '--body-file', '-'], { input: body });
+    num = Number(url.split('/').pop()); out = `PR #${num} ${url}`;
+  }
+  const b = L.board(L.STAGE.review, issue ? [issue] : []);
+  const n = L.notify(L.REVIEWERS.includes(L.ME) ? [...L.REVIEWERS, 'kevin'] : L.REVIEWERS, `PR #${num}${issue ? ` (issue #${issue})` : ''} ${existing.length ? 'tem commit novo' : 'pronto para revisão'}: fsd-pr --todo.`);
+  console.log([out, b, n].filter(Boolean).join(' | '));
+}
+else if (/^\d+$/.test(a[0])) console.log(line(L.pr(a[0])));
+else L.die('uso: fsd-pr [n] | --todo [agente] | --mine [agente] | --ready | open "<título>" …', 2);

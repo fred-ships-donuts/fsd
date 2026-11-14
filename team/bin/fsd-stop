@@ -1,0 +1,43 @@
+#!/usr/bin/env bash
+# fsd-stop <agente[,agente…]|--all> [--sem-handoff] [--force] — desliga sessões do time sem perder onde pararam.
+#   Padrão: pede a cada agente que pare, registre o que já estiver pronto e faça o handoff (memory_handoff_begin);
+#   só fecha a sessão depois que ele confirma com "HANDOFF-OK <id>". Sem confirmação em FSD_STOP_WAIT s (padrão 300),
+#   a sessão FICA aberta e o comando avisa (para fechar mesmo assim: --force).
+#   --sem-handoff  fecha na hora, sem handoff. Só quando o autor pedir expressamente "sem handoff".
+# Fecha também o terminal de teste do agente (fsd-qa-<agente>). O fsd-restart não reabre: a sessão inteira sai do tmux.
+set -uo pipefail
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+who=""; nohand=0; force=0
+for x in "$@"; do case "$x" in
+  --sem-handoff) nohand=1 ;; --force) force=1 ;;
+  --all) who="$(node -e 'console.log(Object.keys(require(process.argv[1]).agents).join(","))' "$ROOT/agents.json")" ;;
+  -*) echo "opção desconhecida: $x"; exit 2 ;; *) who="$x" ;; esac; done
+[ -n "$who" ] || { sed -n '2,7p' "$0" | sed 's/^# \{0,1\}//'; exit 2; }
+WAIT="${FSD_STOP_WAIT:-300}"
+MSG='[fsd-aviso de autor] Encerramento pedido pelo autor. Não comece nada novo. Registre no GitHub só o que já estiver pronto para registrar. Faça o handoff com memory_handoff_begin: o que você fez, o que falta, branch e worktree, próximo passo. Não rode fsd-restart. No fim, responda numa linha só, trocando o que está entre <> pelo id do handoff: HANDOFF-OK <id>'
+busy() { tmux capture-pane -p -t "$1" | grep -q 'esc to interrupt'; }
+closeit() { tmux kill-session -t "fsd-$1" 2>/dev/null; tmux kill-session -t "fsd-qa-$1" 2>/dev/null; }
+declare -a pend=()
+for a in ${who//,/ }; do
+  s="fsd-$a"
+  if ! tmux has-session -t "$s" 2>/dev/null; then tmux kill-session -t "fsd-qa-$a" 2>/dev/null; echo "$a: não estava no ar"; continue; fi
+  if [ "$nohand" = 1 ]; then closeit "$a"; echo "$a: fechado sem handoff (pedido expresso)"; continue; fi
+  if tmux capture-pane -p -t "$s" | tail -10 | grep -qiE 'Do you want|❯ 1\. Yes'; then echo "$a: parado numa pergunta de permissão; responda no tmux ($s) e rode de novo"; continue; fi
+  busy "$s" && { tmux send-keys -t "$s" Escape; sleep 1; }
+  printf '%s' "$MSG" | tmux load-buffer -b "stop-$a-$$" - && tmux paste-buffer -p -d -b "stop-$a-$$" -t "$s" && sleep 0.5 && tmux send-keys -t "$s" Enter
+  pend+=("$a"); echo "$a: handoff pedido"
+done
+end=$((SECONDS + WAIT))
+while [ ${#pend[@]} -gt 0 ] && [ $SECONDS -lt $end ]; do
+  sleep 5; left=()
+  for a in "${pend[@]}"; do
+    id="$(tmux capture-pane -p -J -t "fsd-$a" -S -200 | grep -oE 'HANDOFF-OK [A-Za-z0-9][A-Za-z0-9_-]*' | tail -1)"
+    if [ -n "$id" ] && ! busy "fsd-$a"; then closeit "$a"; echo "$a: fechado (${id#HANDOFF-OK })"; else left+=("$a"); fi
+  done
+  pend=("${left[@]+"${left[@]}"}")
+done
+for a in "${pend[@]+"${pend[@]}"}"; do
+  if [ "$force" = 1 ]; then closeit "$a"; echo "$a: fechado SEM confirmação de handoff (--force)"
+  else echo "$a: sem HANDOFF-OK em ${WAIT}s; sessão mantida (tmux attach -t fsd-$a, ou fsd-stop $a --force)"; fi
+done
+[ ${#pend[@]} -eq 0 ] || [ "$force" = 1 ]

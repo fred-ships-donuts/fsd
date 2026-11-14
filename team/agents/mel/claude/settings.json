@@ -1,0 +1,45 @@
+{
+  "permissions": {
+    "deny": [
+      "Edit(src/**)",
+      "Edit(**/src/**)",
+      "Edit(package.json)",
+      "Edit(package-lock.json)",
+      "Edit(tsconfig.json)",
+      "Edit(SPEC.md)",
+      "Edit(TASKS.md)",
+      "Read(~/.config/fsd-agents/agents/kevin/**)",
+      "Edit(~/.config/fsd-agents/agents/kevin/**)",
+      "Bash(*fsd-agents/agents/kevin*)",
+      "Read(~/.config/fsd-agents/agents/stuart/**)",
+      "Edit(~/.config/fsd-agents/agents/stuart/**)",
+      "Bash(*fsd-agents/agents/stuart*)",
+      "Read(~/.config/fsd-agents/agents/bob/**)",
+      "Edit(~/.config/fsd-agents/agents/bob/**)",
+      "Bash(*fsd-agents/agents/bob*)",
+      "Edit(~/.config/fsd-agents/agents/mel/claude/settings.json)",
+      "Edit(~/.config/fsd-agents/agents/mel/claude/CLAUDE.md)",
+      "Edit(~/.config/fsd-agents/agents/mel/claude/skills/**)",
+      "Bash(gh pr merge * --admin*)",
+      "Bash(gh pr merge * --merge*)",
+      "Bash(gh pr merge * --rebase*)",
+      "Bash(gh pr merge * --auto*)",
+      "Bash(gh api *pulls/*/merge*)",
+      "Bash(gh api graphql*mergePullRequest*)",
+      "Bash(gh pr merge * --delete-branch*)",
+      "Bash(gh pr merge * -d*)",
+      "Bash(git push * --delete *)",
+      "Bash(git push * -d *)",
+      "Bash(git push origin :*)",
+      "Bash(gh pr merge*)"
+    ],
+    "allow": [
+      "Edit(//tmp/fsd-mel/**)",
+      "Write(//tmp/fsd-mel/**)"
+    ],
+    "additionalDirectories": [
+      "/tmp/fsd-mel"
+    ]
+  },
+  "theme": "dark"
+}

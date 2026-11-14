@@ -1,0 +1,103 @@
+#!/usr/bin/env node
+// fsd-board — o quadro do time, assinado pelo bot do agente ($FSD_AGENT).
+//   fsd-board list [coluna] [-t]       uma linha por coluna (Done vira contagem; -t mostra títulos)
+//   fsd-board move "<coluna>" <n…>     põe os issues/PRs no quadro, se faltarem, e muda a coluna (também aceita: move <n> "<coluna>")
+// Config em agents.json: "board": { "owner": "<org>", "number": <n>, "repo": "<dono>/<repo>" }
+// e "org_installation_id" em cada agente. Os tokens vêm do fsd-token; o agente nunca os vê.
+import { execFileSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
+import { join, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+import { stageName, ownersOf } from './fsd-stages.mjs';
+const HERE = dirname(fileURLToPath(import.meta.url));
+const cfg = JSON.parse(readFileSync(join(HERE, '..', 'agents.json'), 'utf8'));
+const agent = process.env.FSD_AGENT;
+const die = (m, c = 1) => { console.error(`fsd-board: ${m}`); process.exit(c); };
+process.on('uncaughtException', (e) => die(String(e.message || e).split('\n')[0].slice(0, 200), 4));
+process.on('unhandledRejection', (e) => die(String(e?.message || e).split('\n')[0].slice(0, 200), 4));
+if (!agent || !cfg.agents[agent]) die('rode dentro de uma sessão aberta pelo fsd-agent', 2);
+const board = cfg.board;
+if (!board?.owner || !board?.number || !board?.repo) {
+  const av = process.argv.slice(2);
+  if (av[0] === 'move' && !av.includes('--quiet') && !process.env.FSD_DRY) {
+    const nums = av.slice(1).filter(x => /^\d+$/.test(x)); const col = av.slice(1).find(x => !/^\d+$/.test(x)) || '';
+    const own = ownersOf(col)?.join(',');
+    if (own) { try { execFileSync(join(HERE, 'fsd-notify'), [own, `${nums.map(n => '#' + n).join(',')} → ${col}`]); } catch {} }
+  }
+  die('quadro ainda não configurado (falta "board" no agents.json)', 2);
+}
+const tok = new Map();
+const token = (scope) => { if (!tok.has(scope)) { try { tok.set(scope, execFileSync(join(HERE, 'fsd-token'), scope === 'org' ? [agent, 'org'] : [agent], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim()); } catch (e) { die(String(e.stderr || e.message).trim().split('\n')[0], 4); } } return tok.get(scope); };
+
+async function gql(scope, query, variables = {}) {
+  const r = await fetch('https://api.github.com/graphql', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token(scope)}`, 'Content-Type': 'application/json', 'User-Agent': 'fsd-board' },
+    body: JSON.stringify({ query, variables }),
+    signal: AbortSignal.timeout(15000),
+  });
+  const j = await r.json();
+  if (!r.ok || j.errors) die(`GitHub ${r.status}: ${(j.errors || []).map(e => e.message).join('; ') || j.message}`);
+  return j.data;
+}
+
+async function project() {
+  const d = await gql('org', `query($o:String!,$n:Int!){organization(login:$o){projectV2(number:$n){id
+    field(name:"Status"){... on ProjectV2SingleSelectField{id options{id name}}}}}}`, { o: board.owner, n: board.number });
+  const p = d.organization?.projectV2;
+  if (!p) die(`quadro ${board.owner}#${board.number} não encontrado (o App tem Organization → Projects?)`);
+  return p;
+}
+
+async function list(column, titles) {
+  const p = await project();
+  const items = []; let after = null;
+  do {
+    const d = await gql('org', `query($id:ID!,$a:String){node(id:$id){... on ProjectV2{items(first:100,after:$a){pageInfo{hasNextPage endCursor}
+      nodes{status:fieldValueByName(name:"Status"){... on ProjectV2ItemFieldSingleSelectValue{name}}
+      content{__typename ... on Issue{number title state} ... on PullRequest{number title state} ... on DraftIssue{title}}}}}}}`, { id: p.id, a: after });
+    const page = d.node.items; items.push(...page.nodes); after = page.pageInfo.hasNextPage ? page.pageInfo.endCursor : null;
+  } while (after);
+  if (column) column = stageName(column);
+  const cols = column ? p.field.options.filter(o => o.name.toLowerCase() === column.toLowerCase()) : p.field.options;
+  if (column && !cols.length) die(`coluna "${column}" não existe. Colunas: ${p.field.options.map(o => o.name).join(', ')}`, 2);
+  const fmt = (i) => `${i.content?.__typename === 'PullRequest' ? 'PR' : ''}#${i.content?.number ?? '-'}${titles ? ' ' + (i.content?.title ?? '').slice(0, 50) : ''}`;
+  for (const o of cols) {
+    const here = items.filter(i => i.status?.name === o.name);
+    if (!here.length && !column) continue;
+    const compact = !column && o.name.toLowerCase() === 'done';
+    console.log(`${o.name} (${here.length})${compact ? '' : ': ' + here.map(fmt).join(titles ? ' ; ' : ' ')}`);
+  }
+}
+
+async function move(args) {
+  const quiet = args.includes('--quiet'); args = args.filter(x => x !== '--quiet');
+  if (process.env.FSD_DRY) { console.log(`[dry] fsd-board move ${args.join(' ')}`); return; }
+  let col, nums;
+  if (args.length === 2 && /^\d+$/.test(args[0]) && !/^\d+$/.test(args[1])) { nums = [args[0]]; col = args[1]; }
+  else { col = args[0]; nums = args.slice(1); }
+  if (!col || !nums.length || nums.some(n => !/^\d+$/.test(n))) die('uso: fsd-board move "<coluna>" <n…>', 2);
+  col = stageName(col);
+  const p = await project();
+  const opt = p.field.options.find(o => o.name.toLowerCase() === col.toLowerCase());
+  if (!opt) die(`coluna "${col}" não existe. Colunas: ${p.field.options.map(o => o.name).join(', ')}`, 2);
+  const [owner, name] = board.repo.split('/'); const done = [];
+  for (const num of nums) {
+    const d = await gql('repo', `query($o:String!,$r:String!,$n:Int!){repository(owner:$o,name:$r){issueOrPullRequest(number:$n){... on Issue{id} ... on PullRequest{id}}}}`, { o: owner, r: name, n: Number(num) });
+    const c = d.repository?.issueOrPullRequest; if (!c?.id) die(`#${num} não existe em ${board.repo}`);
+    const add = await gql('org', `mutation($p:ID!,$c:ID!){addProjectV2ItemById(input:{projectId:$p,contentId:$c}){item{id}}}`, { p: p.id, c: c.id });
+    await gql('org', `mutation($p:ID!,$i:ID!,$f:ID!,$o:String!){updateProjectV2ItemFieldValue(input:{projectId:$p,itemId:$i,fieldId:$f,value:{singleSelectOptionId:$o}}){projectV2Item{id}}}`,
+      { p: p.id, i: add.addProjectV2ItemById.item.id, f: p.field.id, o: opt.id });
+    done.push('#' + num);
+  }
+  let told = '';
+  const OWN = ownersOf(opt.name);
+  if (OWN && !quiet) { try { told = execFileSync(join(HERE, 'fsd-notify'), [OWN.join(','), `${done.join(',')} → ${opt.name}`], { encoding: 'utf8' }).trim(); } catch {} }
+  console.log(`${done.join(',')} → ${opt.name}${told && told !== 'ninguém recebeu' ? ' | avisados: ' + told : ''}`);
+}
+
+const [cmd, ...rest] = process.argv.slice(2);
+if (cmd === 'list') await list(rest.find(x => x !== '-t'), rest.includes('-t'));
+else if (cmd === 'move') await move(rest);
+else die('uso: fsd-board list [coluna] [-t] | fsd-board move "<coluna>" <n…>', 2);

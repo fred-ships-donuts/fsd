@@ -1,0 +1,41 @@
+#!/usr/bin/env node
+// fsd-token [agent] [org] — prints a valid GitHub App installation token for the agent
+// ("org": the installation on the organization that owns the board, for fsd-board).
+// (arg or $FSD_AGENT). Tokens last 1h; a cached one is reused until 10 min before expiry.
+import { createSign } from 'node:crypto';
+import { readFileSync, writeFileSync, mkdirSync, renameSync } from 'node:fs';
+import { join, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
+const name = process.argv[2] || process.env.FSD_AGENT;
+const { agents } = JSON.parse(readFileSync(join(ROOT, 'agents.json'), 'utf8'));
+const agent = agents[name];
+const scope = process.argv[3] === 'org' ? 'org' : 'repo';
+if (!agent) { console.error(`fsd-token: agente desconhecido "${name ?? ''}" (use: ${Object.keys(agents).join(', ')})`); process.exit(2); }
+
+const cacheDir = join(ROOT, 'cache');
+const instId = scope === 'org' ? agent.org_installation_id : agent.installation_id;
+if (!instId) { console.error(`fsd-token: ${name} sem ${scope === 'org' ? 'org_installation_id' : 'installation_id'} no agents.json`); process.exit(2); }
+const cacheFile = join(cacheDir, scope === 'org' ? `${name}-org.json` : `${name}.json`);
+try {
+  const c = JSON.parse(readFileSync(cacheFile, 'utf8'));
+  if (Date.parse(c.expires_at) - Date.now() > 10 * 60 * 1000) { process.stdout.write(c.token + '\n'); process.exit(0); }
+} catch {}
+
+const b64 = (s) => Buffer.from(s).toString('base64url');
+const now = Math.floor(Date.now() / 1000);
+const body = `${b64(JSON.stringify({ alg: 'RS256', typ: 'JWT' }))}.${b64(JSON.stringify({ iat: now - 60, exp: now + 540, iss: String(agent.app_id) }))}`;
+const key = readFileSync(join(ROOT, 'keys', `${agent.slug}.pem`));
+const jwt = `${body}.${createSign('RSA-SHA256').update(body).sign(key).toString('base64url')}`;
+
+const r = await fetch(`https://api.github.com/app/installations/${instId}/access_tokens`, {
+  method: 'POST',
+  headers: { Authorization: `Bearer ${jwt}`, Accept: 'application/vnd.github+json', 'User-Agent': 'fsd-token' },
+});
+const data = await r.json();
+if (!r.ok) { console.error(`fsd-token: GitHub ${r.status}: ${data.message}`); process.exit(1); }
+mkdirSync(cacheDir, { recursive: true, mode: 0o700 });
+writeFileSync(cacheFile + '.tmp', JSON.stringify({ token: data.token, expires_at: data.expires_at }), { mode: 0o600 });
+renameSync(cacheFile + '.tmp', cacheFile);
+process.stdout.write(data.token + '\n');
