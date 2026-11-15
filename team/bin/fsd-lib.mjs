@@ -18,9 +18,9 @@ export const today = () => new Date().toISOString().slice(0, 10);
 export const REVIEWERS = CFG.reviewers || ['mel', 'bob'];
 // Dono de cada coluna: quem é avisado quando um card chega nela (fora os avisos próprios de cada comando).
 // Etapas do quadro e donos de cada fila: só em fsd-stages.mjs.
-import { STAGE, OWNERS, stageName, ownersOf } from './fsd-stages.mjs';
+import { STAGE, OWNERS, WHO, stageName, ownersOf } from './fsd-stages.mjs';
 import { timing } from './fsd-timing.mjs';
-export { STAGE, OWNERS, stageName, ownersOf };
+export { STAGE, OWNERS, WHO, stageName, ownersOf };
 const NAME = String(process.argv[1] || 'fsd').split('/').pop();
 process.on('uncaughtException', (e) => { console.log(`${NAME}: ${String(e.message || e).split('\n')[0].slice(0, 200)}`); process.exit(e.code === 'ENOENT' ? 2 : (Number.isInteger(e.code) ? e.code : 4)); });
 process.on('unhandledRejection', (e) => { console.log(`${NAME}: ${String(e?.message || e).split('\n')[0].slice(0, 200)}`); process.exit(4); });
@@ -222,10 +222,25 @@ export function state(file) { try { return JSON.parse(readFileSync(file, 'utf8')
 export function saveState(file, s) { mkdirSync(dirname(file), { recursive: true }); writeFileSync(file, JSON.stringify(s, null, 1)); }
 export { existsSync };
 
-// Depois de uma revisão: mudança pedida → Developing (Stuart) + avisa o autor; 2 aprovações atuais → Ready to Merge (Kevin) + avisa o autor.
+// Cards de uma coluna do quadro: [números]. Quadro fora do ar ou não configurado: [] (quem chama decide se isso basta).
+export function columnCards(col) {
+  const r = run(join(BIN, 'fsd-board'), ['list', stageName(col)], { allowFail: true });
+  const m = r.ok && r.out.match(/\((\d+)\):\s*(.*)/);
+  return m ? (m[2].match(/(?<![A-Za-z])#(\d+)/g) || []).map((x) => Number(x.slice(1))) : [];
+}
+// Os cards do desenvolvedor em andamento: Changes Requested e Developing (nessa ordem), com a coluna de cada um. Espera por revisão não conta.
+export function devCards() {
+  return [STAGE.changes, STAGE.dev].flatMap((col) => columnCards(col).map((n) => ({ n, col })));
+}
+// Depois de uma revisão: mudança pedida → Changes Requested (Stuart) + avisa o autor (e, se ele está em outro card, manda terminar o commit,
+// devolver o card novo para Ready for Development e ir para a correção); 2 aprovações atuais → Ready to Merge (Kevin) + avisa o autor.
 export function afterReview(n) {
   const p = pr(n); const s = reviewState(p); const cl = closes(p.body); const author = agentOf(p.author?.login);
-  if (s.changes.length) return [board(STAGE.dev, cl), noticeSummary(notify([author], `PR #${n}: mudanças pedidas por ${s.changes.join(',')}. Veja a revisão.`))].filter(Boolean).join(' | ');
+  if (s.changes.length) {
+    const other = devCards().filter((c) => !cl.includes(c.n) && c.col === STAGE.dev);
+    const rework = other.length ? ` Você está em ${other.map((c) => '#' + c.n).join(', ')} (${STAGE.dev}): termine o commit atual, devolva o card com fsd-board move "${STAGE.devReady}" ${other.map((c) => c.n).join(' ')} (mantenha o worktree) e vá para a correção.` : '';
+    return [board(STAGE.changes, cl), noticeSummary(notify([author], `PR #${n}: mudanças pedidas por ${s.changes.join(',')}. Veja a revisão.${rework}`))].filter(Boolean).join(' | ');
+  }
   if (s.approvers.length >= 2) return [board(STAGE.mergeReady, cl), noticeSummary(notify([author], `PR #${n} tem 2 aprovações: rode fsd-merge ${n}.`))].filter(Boolean).join(' | ');
   return `aprovações ${s.approvers.length}/2`;
 }
