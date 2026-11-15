@@ -14,7 +14,7 @@ description: >
 license: UNLICENSED
 metadata:
   author: Frederico Jacobi
-  version: "1.0.0-alpha.1"
+  version: "1.0.0-alpha.2"
 ---
 
 # fsd-nook-tasks — trabalhar as tasks do `nook/` com `fsd task`
@@ -34,7 +34,11 @@ A CLI é dona dos arquivos da task: ela muda o `plan.md`, os arquivos de passo e
    terminar).
 4. **Repita sem medo.** Os comandos são idempotentes (`step <NN> already <status>`, `task <t> already done`, exit
    0); depois de um timeout ou de uma dúvida, rode o comando de novo.
-5. **Planejar.** Leia `nook/bench/<slug>/plan.md`, proponha os passos ao usuário e, com o combinado, crie cada um
+5. **Planejar.** Antes de propor os passos, leia os arquivos da Kitchen do projeto, nesta ordem: `nook/kitchen/rules.md`,
+   `nook/kitchen/settings.md`, `nook/kitchen/context.md`, no máximo 200 linhas de cada. Pule em silêncio um arquivo
+   ausente ou vazio (zero bytes ou só espaços): sem erro, sem menção, sem pedir para criá-lo. Ignore qualquer outro
+   arquivo de `nook/kitchen/` (como `notes.md`). Se um arquivo tiver mais de 200 linhas, avise o usuário uma vez por
+   planejamento: `<file>: só as primeiras 200 linhas foram lidas.` Depois leia `nook/bench/<slug>/plan.md`, proponha os passos ao usuário e, com o combinado, crie cada um
    com `fsd task step add <task> "<title>" [--description <text>]`. Um título que começa com `-` vai depois de `--`:
    `fsd task step add <task> -- "-x"`.
 6. **Trabalhar.** Rode `fsd task step start <task> <n>` antes de cada passo e `fsd task step done <task> <n>` depois.
