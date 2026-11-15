@@ -70,8 +70,9 @@ Os textos das skills do time que produzem e consomem esses documentos ficam vers
 | Ready for Architecture (Mel) | Planejado, na fila do Arquiteto. |
 | Architecting (Mel) | O Arquiteto prepara a passagem, num comentário **Arquiteto: passagem** com o que fazer, os arquivos, os riscos e a verificação. |
 | Ready for Development (Stuart) | Preparado, na fila do desenvolvedor. |
-| Developing (Stuart) | Branch aberto, em implementação. |
-| In Review (Mel, Bob) | PR aberto. A revisão pede **2 aprovações** quaisquer entre os colegas (Arquiteto, QA, PM), em paralelo. Um pedido de mudança devolve o issue para Developing. |
+| Developing (Stuart) | Branch aberto, em implementação de trabalho **novo**. |
+| In Review (Mel, Bob) | PR aberto. A revisão pede **2 aprovações** quaisquer entre os colegas (Arquiteto, QA, PM), em paralelo. Um pedido de mudança leva o issue para Changes Requested. |
+| Changes Requested (Stuart) | A revisão pediu mudanças: o autor corrige antes de qualquer card novo. O `fsd-pr open` com a correção devolve o issue para In Review. |
 | Ready to Merge (Kevin) | O PR tem 2 aprovações no último commit e nenhum pedido de mudança: espera o merge, feito pelo autor do PR com `fsd-merge <n>`. |
 | Done | PR mesclado na `develop`; o issue foi fechado pelo `Closes #N` (a `develop` é a branch padrão). |
 
@@ -80,6 +81,8 @@ Os textos das skills do time que produzem e consomem esses documentos ficam vers
 - Um branch por trabalho, num worktree próprio criado a partir da `develop` por `fsd-dev start <n>` (com tarefa: grava o issue no branch) ou `fsd-dev start - <slug>` (sem tarefa). Ninguém troca de branch na pasta principal.
 - Git só com os comandos simples: `checkout`, `branch`, `commit`, `pull`, `push` e `merge`. Sem rebase, squash, cherry-pick nem `reset --hard`.
 - **Um commit por contexto:** cada commit é assertivo, sucinto e independente, e faz sentido sozinho. Código e a documentação que o acompanha vão no mesmo commit. Um PR pode ter quantos commits precisar (por exemplo, quando o trabalho se divide em etapas ou momentos diferentes), sem limite; o que não pode é um commit por alteração mínima do mesmo contexto. Nada de `wip`, `fix typo` ou `checkpoint`: junte esses no commit do contexto antes do push.
+- **Um card por vez:** o `fsd-dev start` recusa com outro card em Developing ou Changes Requested. Pedido de mudança: card → Changes Requested → `fsd-pr open` com a correção → In Review; esperar revisão não impede o próximo card. Impedimento real leva a label `blocked` e um comentário `Blocked by #<m>: <o que destrava>`.
+- Branch mesclado há mais de 1 h some sozinho (worktree, branch local e remoto): o `fsd-cleanup` faz isso, nenhum agente apaga branch.
 - `fsd-dev sync` (traz a `develop` para o branch, por merge) só quando o PR está em conflito.
 - Nome: `<tipo>/<número>-<slug>` com tarefa (`feature/6-transaction-core`) e `<tipo>/<slug>` sem (`chore/docs-cleanup`), com o slug em minúsculas e hífens. O tipo é um dos tipos de commit (abaixo) ou `feature`; o `fsd-dev start` usa `feature` por padrão e `--fix`, `--docs` ou `--chore`.
 - As branches antigas (`feat/nook-tasks`, `plan/nook-tasks`) não são renomeadas.
@@ -127,7 +130,7 @@ A verificação do PR é do QA (Bob):
 - **O que confere:** cada item do aceite, mais os casos de borda óbvios da passagem. Anota o comando, o esperado e o obtido.
 - **Resultado:**
   - tudo passou: aprova o PR com a lista do que rodou;
-  - falhou no escopo do PR: pede mudanças e o issue volta para Developing (Stuart);
+  - falhou no escopo do PR: pede mudanças e o issue vai para Changes Requested (Stuart);
   - bug fora do escopo: abre um issue `bug` com passos, esperado, obtido e ambiente (commit, versão do Node, terminal).
 - **Fora do QA:** o cabeçalho (a rosquinha) é conferido pelo autor; o QA não faz testes visuais dele.
 

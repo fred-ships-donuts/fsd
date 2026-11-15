@@ -294,8 +294,8 @@ else
 fi
 mkdir -p "$H/.local/bin"
 printf '#!/bin/sh\nexec "%s/bin/fsd-agent" "$@"\n' "$TEAM" > "$H/.local/bin/fsd-agent" && chmod +x "$H/.local/bin/fsd-agent"
-for b in fsd-stats fsd-watch fsd-sync-pair fsd-map; do ln -sfn "$TEAM/bin/$b" "$H/.local/bin/$b"; done
-ok "atalhos: fsd-agent, fsd-stats, fsd-watch, fsd-sync-pair, fsd-map"
+for b in fsd-stats fsd-watch fsd-cleanup fsd-sync-pair fsd-map; do ln -sfn "$TEAM/bin/$b" "$H/.local/bin/$b"; done
+ok "atalhos: fsd-agent, fsd-stats, fsd-watch, fsd-cleanup, fsd-sync-pair, fsd-map"
 
 passo "5/9  A matriz aceita esta máquina (túnel do ai-memory e Syncthing)"
 mkdir -p "$H/.ssh" && chmod 700 "$H/.ssh"
