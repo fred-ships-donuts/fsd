@@ -222,7 +222,7 @@ export function state(file) { try { return JSON.parse(readFileSync(file, 'utf8')
 export function saveState(file, s) { mkdirSync(dirname(file), { recursive: true }); writeFileSync(file, JSON.stringify(s, null, 1)); }
 export { existsSync };
 
-// Depois de uma revisão: mudança pedida → Developing + avisa o autor; 2 aprovações atuais → Ready to Merge + avisa o autor.
+// Depois de uma revisão: mudança pedida → Developing (Stuart) + avisa o autor; 2 aprovações atuais → Ready to Merge (Kevin) + avisa o autor.
 export function afterReview(n) {
   const p = pr(n); const s = reviewState(p); const cl = closes(p.body); const author = agentOf(p.author?.login);
   if (s.changes.length) return [board(STAGE.dev, cl), noticeSummary(notify([author], `PR #${n}: mudanças pedidas por ${s.changes.join(',')}. Veja a revisão.`))].filter(Boolean).join(' | ');

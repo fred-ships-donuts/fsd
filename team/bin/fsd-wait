@@ -2,7 +2,7 @@
 // Para o Monitor: fica quieto até algo NOVO acontecer, imprime uma linha e sai 0 (--now: dispara também com o que já existe).
 // Falha de rede: tenta de novo (agents.json → timing.wait.retries vezes seguidas).
 // fsd-wait any [--now]              o que importa para o seu papel (kevin: PR pronto parado; mel: PR para revisar ou card em
-//                                   Ready for Architecture; stuart: revisão nos seus PRs ou card em Ready for Development; bob: PR para verificar)
+//                                   Ready for Architecture (Mel); stuart: revisão nos seus PRs ou card em Ready for Development (Stuart); bob: PR para verificar)
 // fsd-wait pr <n> merged|closed|approved|changes|new-head
 // fsd-wait todo | mine | ready | column "<coluna>"  [--now]
 // fsd-wait deadlock [--now]          impasse nas esperas (DEADLOCK #n: a→b→a · STALLED #n: …); só lê, vale para qualquer agente; --now repete o que já foi avisado

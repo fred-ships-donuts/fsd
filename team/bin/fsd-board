@@ -2,14 +2,18 @@
 // fsd-board — o quadro do time, assinado pelo bot do agente ($FSD_AGENT).
 //   fsd-board list [coluna] [-t]       uma linha por coluna (Done vira contagem; -t mostra títulos)
 //   fsd-board move "<coluna>" <n…>     põe os issues/PRs no quadro, se faltarem, e muda a coluna (também aceita: move <n> "<coluna>")
+//   fsd-board rename [--dry]           põe nas colunas do GitHub os nomes de fsd-stages.mjs (com o responsável entre parênteses), no lugar:
+//                                      mesmas opções, nenhum card muda de coluna (conferido antes e depois). --dry só mostra o plano.
+// Coluna: a chave (devReady), o nome com ou sem o responsável ("Ready for Development (Stuart)") ou um nome antigo; o quadro do GitHub
+// pode estar com os nomes velhos ou novos (stageName() dos dois lados), então o código serve antes e depois do rename.
 // Config em agents.json: "board": { "owner": "<org>", "number": <n>, "repo": "<dono>/<repo>" }
 // e "org_installation_id" em cada agente. Os tokens vêm do fsd-token; o agente nunca os vê.
 import { execFileSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { stageName, ownersOf } from './fsd-stages.mjs';
+import { STAGE, stageName, ownersOf } from './fsd-stages.mjs';
 const HERE = dirname(fileURLToPath(import.meta.url));
 const cfg = JSON.parse(readFileSync(join(HERE, '..', 'agents.json'), 'utf8'));
 const agent = process.env.FSD_AGENT;
@@ -44,29 +48,35 @@ async function gql(scope, query, variables = {}) {
 
 async function project() {
   const d = await gql('org', `query($o:String!,$n:Int!){organization(login:$o){projectV2(number:$n){id
-    field(name:"Status"){... on ProjectV2SingleSelectField{id options{id name}}}}}}`, { o: board.owner, n: board.number });
+    field(name:"Status"){... on ProjectV2SingleSelectField{id options{id name color description}}}}}}`, { o: board.owner, n: board.number });
   const p = d.organization?.projectV2;
   if (!p) die(`quadro ${board.owner}#${board.number} não encontrado (o App tem Organization → Projects?)`);
   return p;
 }
 
-async function list(column, titles) {
-  const p = await project();
+async function itemsOf(p) {
   const items = []; let after = null;
   do {
     const d = await gql('org', `query($id:ID!,$a:String){node(id:$id){... on ProjectV2{items(first:100,after:$a){pageInfo{hasNextPage endCursor}
-      nodes{status:fieldValueByName(name:"Status"){... on ProjectV2ItemFieldSingleSelectValue{name}}
+      nodes{id status:fieldValueByName(name:"Status"){... on ProjectV2ItemFieldSingleSelectValue{name optionId}}
       content{__typename ... on Issue{number title state} ... on PullRequest{number title state} ... on DraftIssue{title}}}}}}}`, { id: p.id, a: after });
     const page = d.node.items; items.push(...page.nodes); after = page.pageInfo.hasNextPage ? page.pageInfo.endCursor : null;
   } while (after);
+  return items;
+}
+const same = (a, b) => stageName(a) === stageName(b);
+
+async function list(column, titles) {
+  const p = await project();
+  const items = await itemsOf(p);
   if (column) column = stageName(column);
-  const cols = column ? p.field.options.filter(o => o.name.toLowerCase() === column.toLowerCase()) : p.field.options;
+  const cols = column ? p.field.options.filter(o => same(o.name, column)) : p.field.options;
   if (column && !cols.length) die(`coluna "${column}" não existe. Colunas: ${p.field.options.map(o => o.name).join(', ')}`, 2);
   const fmt = (i) => `${i.content?.__typename === 'PullRequest' ? 'PR' : ''}#${i.content?.number ?? '-'}${titles ? ' ' + (i.content?.title ?? '').slice(0, 50) : ''}`;
   for (const o of cols) {
     const here = items.filter(i => i.status?.name === o.name);
     if (!here.length && !column) continue;
-    const compact = !column && o.name.toLowerCase() === 'done';
+    const compact = !column && same(o.name, STAGE.done);
     console.log(`${o.name} (${here.length})${compact ? '' : ': ' + here.map(fmt).join(titles ? ' ; ' : ' ')}`);
   }
 }
@@ -80,7 +90,7 @@ async function move(args) {
   if (!col || !nums.length || nums.some(n => !/^\d+$/.test(n))) die('uso: fsd-board move "<coluna>" <n…>', 2);
   col = stageName(col);
   const p = await project();
-  const opt = p.field.options.find(o => o.name.toLowerCase() === col.toLowerCase());
+  const opt = p.field.options.find(o => same(o.name, col));
   if (!opt) die(`coluna "${col}" não existe. Colunas: ${p.field.options.map(o => o.name).join(', ')}`, 2);
   const [owner, name] = board.repo.split('/'); const done = [];
   for (const num of nums) {
@@ -97,7 +107,34 @@ async function move(args) {
   console.log(`${done.join(',')} → ${opt.name}${told && told !== 'ninguém recebeu' ? ' | avisados: ' + told : ''}`);
 }
 
+// Renomeia as opções do Status para os nomes de fsd-stages.mjs. Mesmas opções (mesmos ids), então nenhum card sai da coluna; mesmo assim
+// o estado de antes vai para $FSD_STATE/board-rename-<data>.json, e depois se confere opção por opção e card por card. Idempotente.
+async function rename(args) {
+  const dry = args.includes('--dry') || !!process.env.FSD_DRY;
+  const p = await project();
+  const plan = p.field.options.map(o => ({ ...o, to: stageName(o.name) }));
+  const changes = plan.filter(o => o.to !== o.name);
+  for (const o of changes) console.log(`${dry ? '[dry] ' : ''}${o.name} → ${o.to}`);
+  if (!changes.length) { console.log('colunas já com os nomes de fsd-stages.mjs'); return; }
+  if (dry) return;
+  const before = await itemsOf(p); const count = (items) => Object.fromEntries(p.field.options.map(o => [o.id, items.filter(i => i.status?.optionId === o.id).length]));
+  const was = count(before);
+  const dir = process.env.FSD_STATE || join(process.env.HOME, '.config', 'fsd-agents'); mkdirSync(dir, { recursive: true });
+  const file = join(dir, `board-rename-${new Date().toISOString().replace(/[:.]/g, '-')}.json`);
+  writeFileSync(file, JSON.stringify({ options: p.field.options, items: before.map(i => ({ id: i.id, status: i.status, number: i.content?.number ?? null })) }, null, 1));
+  await gql('org', `mutation($f:ID!,$o:[ProjectV2SingleSelectFieldOptionInput!]!){updateProjectV2Field(input:{fieldId:$f,singleSelectOptions:$o}){projectV2Field{... on ProjectV2SingleSelectField{id}}}}`,
+    { f: p.field.id, o: plan.map(o => ({ id: o.id, name: o.to, color: o.color, description: o.description ?? '' })) });
+  const after = await project(); const now = await itemsOf(after);
+  const ids = after.field.options.map(o => o.id).join(), want = plan.map(o => o.id).join();
+  const names = after.field.options.map(o => o.name).join(), wantNames = plan.map(o => o.to).join();
+  const moved = count(now); const lost = Object.keys(was).filter(id => was[id] !== moved[id] && after.field.options.some(o => o.id === id));
+  if (ids !== want || names !== wantNames || lost.length || now.filter(i => !i.status).length !== before.filter(i => !i.status).length)
+    die(`rename: conferência falhou (ids ${ids === want ? 'iguais' : 'MUDARAM'}, nomes ${names === wantNames ? 'ok' : 'diferentes'}, colunas com contagem diferente: ${lost.length}). Estado anterior em ${file}`, 4);
+  console.log(`${changes.length} coluna(s) renomeada(s); ${now.length} cards conferidos, nenhum mudou de coluna (estado anterior em ${file})`);
+}
+
 const [cmd, ...rest] = process.argv.slice(2);
 if (cmd === 'list') await list(rest.find(x => x !== '-t'), rest.includes('-t'));
 else if (cmd === 'move') await move(rest);
-else die('uso: fsd-board list [coluna] [-t] | fsd-board move "<coluna>" <n…>', 2);
+else if (cmd === 'rename') await rename(rest);
+else die('uso: fsd-board list [coluna] [-t] | fsd-board move "<coluna>" <n…> | fsd-board rename [--dry]', 2);

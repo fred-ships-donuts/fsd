@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// fsd-dev start <n> [slug] [--fix|--docs|--chore]   com tarefa: card → Developing; worktree <tipo>/<n>-<slug> (feature/ por
+// fsd-dev start <n> [slug] [--fix|--docs|--chore]   com tarefa: card → Developing (Stuart); worktree <tipo>/<n>-<slug> (feature/ por
 //                                       padrão) a partir da origin/develop, com o issue gravado no branch (branch.<b>.fsd-issue,
 //                                       lido pelo fsd-pr open); mostra o issue e a passagem.
 // fsd-dev start - <slug> [--fix|--docs|--chore]     sem tarefa: worktree <tipo>/<slug>, sem issue nem quadro.

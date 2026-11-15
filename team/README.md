@@ -166,6 +166,10 @@ O limite de travado é `silentMin` (10 min): o `fsd-watch` reinicia o agente dep
 andamento, sem mudança no contador de tokens e sem gravação de subagente. Esse limite substituiu o antigo `HUNG_MIN`,
 de 20 min.
 
+## Colunas do quadro
+
+O nome de cada coluna do Status leva o responsável entre parênteses (`Ready for Development (Stuart)`). `bin/fsd-stages.mjs` é o único lugar com os nomes: nome e responsável saem da mesma linha da tabela (a mesma que diz quem é avisado quando um card chega na fila). `stageName()` aceita a chave (`devReady`), o nome com ou sem o responsável, em qualquer caixa, e os nomes antigos; `fsd-board`, `fsd-queue`, `fsd-wait column` e os movimentos de `fsd-lib` comparam sempre por ele, então o código serve com o quadro do GitHub nos nomes velhos ou nos novos. `fsd-board rename [--dry]` põe os nomes de `fsd-stages.mjs` nas opções do GitHub, no lugar (mesmos ids, nenhum card muda de coluna; o estado de antes vai para `$FSD_STATE/board-rename-<data>.json` e o resultado é conferido). Rode uma vez depois do merge de uma mudança de nomes.
+
 ## Ação negada → comando do time
 
 `redirects.json` é a fonte única de "ação bloqueada → comando do time". Quem lê: o hook `fsd-redirect-hook`, a regra "pediu ao autor" do `fsd-watch` (`authorAsks`) e a tabela de `common/team.md` (entre `<!-- redirects:start -->` e `<!-- redirects:end -->`).
