@@ -140,7 +140,7 @@ src/
 
 ## Tests
 
-Os testes foram removidos do projeto por decisão do autor (2026-11-07). Em 2026-11-09 (#13) voltam só os do `engine/`, com `node:test` e sem dependência nova: fases, desfazer, recuperação e diário v1 → v2 (itens **Rollback**, **Fases** e **Recuperação** abaixo). Eles entram com a F-40a (#6). O resto da lista continua como referência caso os outros testes voltem.
+Testes unitários são regra do projeto (decisão do autor de 2026-11-15, que substitui a remoção de 2026-11-07 e a volta só do `engine/` de 2026-11-09, #13), mas só para o que é relevante: código determinístico com risco. Entram: lógica com ramificação, parse e serialização, funções puras de `plan/`, máquinas de estado (transições permitidas e proibidas), desfazer e recuperação, concorrência e trava, os casos de borda de disco e o contrato de saída (exit code, `--json`, mensagem exata). Não entram: comportamento de agente (o resultado varia), texto de skill (medido por evals, com o `skill-creator`), arte e layout, código sem ramificação e detalhe interno em vez de comportamento. Ferramenta: `node:test` com `node:assert/strict`, sem dependência nova, arquivo ao lado do módulo (`x.ts` → `x.test.ts`), `npm test`. Falha injetada pelo `Ops` (`engine/testkit.ts`), nunca por permissão do sistema de arquivos. O como fazer está na skill `writing-unit-tests` (`team/common/skills/`). A lista abaixo é a referência do que é relevante por área.
 
 - **Unitários** (`node:test`): `listSkills`, `skillsTarget`, leitura de frontmatter, comparação de versões, filtro de `evals/` e `README.md`.
 - **Registro e configuração**: `registry.ts` e `config.ts` (arquivo ausente, ilegível e de `schema` desconhecido; gravação atômica; estados `not installed`, `up to date`, `outdated`, `missing`).
