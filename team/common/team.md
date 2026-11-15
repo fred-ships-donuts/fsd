@@ -37,7 +37,8 @@ Ação negada não é motivo para pedir ao autor: use o comando da linha (o hook
 | `gh api …/pulls/<n>/reviews` | `fsd-review post <n> approve\|changes\|comment`<br>bob: `fsd-qa finish`<br>stuart: A review is not your role: wait for the review of the PR (fsd-wait pr <n> approved\|changes). | a PR review is posted through the team command, not through gh api |
 | `gh pr merge` | Only Kevin merges, with fsd-merge <n>. Tell Kevin with fsd-notify kevin when the PR is ready.<br>kevin: `fsd-merge <n>` | a merge goes through fsd-merge, which checks the approvals first |
 | `gh api …/pulls/<n>/merge` | Only Kevin merges, with fsd-merge <n>. Tell Kevin with fsd-notify kevin when the PR is ready.<br>kevin: `fsd-merge <n>` | a merge goes through fsd-merge, which checks the approvals first |
-| `git checkout <ref>` / `git switch <ref>` na pasta principal | `fsd-dev start <n>` | the main folder never changes branch; each piece of work lives in its own worktree |
+| `git checkout <ref>` na pasta principal | `fsd-dev start <n>` | the main folder never changes branch; each piece of work lives in its own worktree |
+| `git switch <ref>` | `fsd-dev start <n>` | agents never switch branch in place (git switch is denied everywhere); each piece of work lives in its own worktree |
 | `gh issue create` | `fsd-issue new` | issues are created through fsd-issue, which sets the labels, the type and the board |
 | pedir uma ação ao autor | `fsd-notify kevin "<what you need>" (Kevin: fsd-issue decide)` | agents never ask the author for an action; the watcher forwards such a request to Kevin |
 <!-- redirects:end -->

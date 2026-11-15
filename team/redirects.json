@@ -1,5 +1,5 @@
 {
-  "_comment": "Fonte única de 'ação negada → comando do time'. Lida pelo hook fsd-redirect-hook, pelo fsd-watch (authorAsks) e pelo bloco gerado em common/team.md (fsd-redirects --write; --check falha se o bloco estiver velho). Cada entrada: id; label (a coluna da tabela); match (program, words = subcomandos seguidos, cada um uma regex (checkout|switch), argRegex = regex sobre os argumentos, main = só na pasta principal, skipIfAny = argumentos que deixam o comando como está); do (default, ou por agente: texto = comando do time, { say } = só o aviso); n (pr|issue = de onde vem o <n>); why. Sem match = entrada só de documentação (o vigia cuida). Marcadores: <worktree> <n> <title>.",
+  "_comment": "Fonte única de 'ação negada → comando do time'. Lida pelo hook fsd-redirect-hook, pelo fsd-watch (authorAsks) e pelo bloco gerado em common/team.md (fsd-redirects --write; --check falha se o bloco estiver velho). Cada entrada: id; label (a coluna da tabela); match (program, words = subcomandos seguidos, cada um uma regex (checkout|switch), argRegex = regex sobre os argumentos, main = só na pasta principal, skipIfAny = argumentos que deixam o comando como está); do (default, ou por agente: texto = comando do time, { say } = só o aviso); n (pr|issue = de onde vem o <n>); why. Sem match = entrada só de documentação (o vigia cuida). Marcadores: <worktree> <n> <title>. authorAsksSkip: agentes que o vigia não vigia por pedido ao autor (o Kevin decide pelo autor).",
   "redirects": [
     {
       "id": "git-push",
@@ -102,12 +102,12 @@
       "why": "a merge goes through fsd-merge, which checks the approvals first"
     },
     {
-      "id": "git-switch-main-folder",
-      "label": "`git checkout <ref>` / `git switch <ref>` na pasta principal",
+      "id": "git-checkout-main-folder",
+      "label": "`git checkout <ref>` na pasta principal",
       "match": {
         "program": "git",
         "words": [
-          "checkout|switch"
+          "checkout"
         ],
         "main": true,
         "skipIfAny": [
@@ -120,6 +120,25 @@
       },
       "n": "issue",
       "why": "the main folder never changes branch; each piece of work lives in its own worktree"
+    },
+    {
+      "id": "git-switch",
+      "label": "`git switch <ref>`",
+      "match": {
+        "program": "git",
+        "words": [
+          "switch"
+        ],
+        "skipIfAny": [
+          "^--$",
+          "^-$"
+        ]
+      },
+      "do": {
+        "default": "fsd-dev start <n>"
+      },
+      "n": "issue",
+      "why": "agents never switch branch in place (git switch is denied everywhere); each piece of work lives in its own worktree"
     },
     {
       "id": "gh-issue-create",
@@ -155,5 +174,8 @@
     "\\byou\\s+(need|have)\\s+to\\s+(allow|authorize|run)\\b",
     "\\brun\\b.{0,60}\\byourself\\b",
     "\\bpreciso\\s+que\\s+(voc[eê]|o\\s+autor)\\s+(libere|autorize|rode)\\b"
+  ],
+  "authorAsksSkip": [
+    "kevin"
   ]
 }

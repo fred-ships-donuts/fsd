@@ -30,6 +30,7 @@ stuart	worktree	gh pr merge 1	blocked
 mel	worktree	gh api repos/o/r/pulls/1/merge	blocked
 stuart	main	git checkout feature/x	fsd-dev start <n>
 stuart	main	git switch feature/x	fsd-dev start <n>
+stuart	worktree	git switch feature/x	fsd-dev start <n>
 stuart	main	rtk git checkout feature/x	fsd-dev start <n>
 stuart	worktree	git checkout feature/x	pass
 stuart	main	git checkout -- file.txt	pass

@@ -29,7 +29,7 @@ const LAUNCH = process.env.FSD_AGENT_BIN || join(process.env.HOME, '.local/bin/f
 const cfg = JSON.parse(readFileSync(join(ROOT, 'agents.json'), 'utf8'));
 const RESTART_ABOVE = (a) => context(a).restartAbove;
 const T = timing().watch; const MIN = 60000;
-const ASKS = (loadRedirects().authorAsks || []).map((p) => new RegExp(p, 'i'));
+const RD = loadRedirects(); const ASKS = (RD.authorAsks || []).map((p) => new RegExp(p, 'i')); const NO_ASK = RD.authorAsksSkip || [];
 const AGENTS = ['kevin', 'mel', 'stuart', 'bob'].filter((a) => cfg.agents[a]);
 const STATE = join(tmpdir(), 'fsd-watch-state.json');
 const a = process.argv.slice(2); const FIX = a.includes('--fix');
@@ -113,7 +113,8 @@ function classify(agent, mem = {}) {
     return { ...w, state: tools.length ? `trabalhando (${names})` : 'trabalhando', act: null };
   }
   delete mem[`sig:${agent}`];
-  const ask = authorAsk(sh('tmux', ['capture-pane', '-p', '-J', '-t', s]).stdout || '');
+  const ask = NO_ASK.includes(agent) ? '' : authorAsk(sh('tmux', ['capture-pane', '-p', '-J', '-t', s]).stdout || '');
+  if (!ask) delete mem[`ask:${agent}`];   // o pedido saiu da tela: o mesmo texto, mais tarde, vale de novo
   if (ask && mem[`ask:${agent}`] !== ask) return { ...base, state: 'pediu ao autor', act: 'redirect', ask };
   if (monitor) return { ...base, state: 'esperando (Monitor)', act: null };
   if (t.idle > T.idleMin * MIN) return { ...base, state: 'ocioso sem Monitor', act: t.ctx > RESTART_ABOVE(agent) ? 'restart' : 'nudge' };
