@@ -1,0 +1,10 @@
+{
+  "facts": [{ "agent": "stuart", "asks": "a review from bob before the merge", "why": "the PR changes team scripts", "evidence": "PR comment, 2026-11-15" },
+            { "agent": "bob", "asks": "the PR rebased on develop first", "why": "QA runs against develop", "evidence": "PR comment, 2026-11-15" }],
+  "rule": { "owner": "author", "source": "team/common/team.md, Rules", "text": "A PR is verified by Bob only after it is up to date with develop." },
+  "verdict": { "continue": { "agent": "stuart", "instruction": "rebase the branch on develop and tell bob" },
+               "wait": [{ "agent": "bob", "reason": "waits for the rebase" }] },
+  "confidence": "high",
+  "overrides_author": false,
+  "reserved": false
+}
