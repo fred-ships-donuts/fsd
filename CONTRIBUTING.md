@@ -109,6 +109,15 @@ A `main` é do autor e é protegida pelo ruleset `ProtMain`:
 - todas as conversas da revisão precisam estar resolvidas;
 - ninguém dá push direto nem apaga a `main`.
 
+### Changelog
+
+O `CHANGELOG.md` (raiz, em inglês) segue o [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/) e o [SemVer](https://semver.org/spec/v2.0.0.html), e vai no pacote npm.
+- **Quem e quando:** quem faz o PR (o dev) escreve a linha no mesmo PR, em `## [Unreleased]`, para todo `feat`, `fix` ou mudança incompatível (`!`) que mexe no produto (`src/cli/`, `src/skills/`, `package.json`).
+- **Como:** uma linha para quem usa a CLI, não o cabeçalho do commit, no grupo certo (`Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`, nessa ordem), terminando com os links do PR e do issue: `([#108](https://github.com/fred-ships-donuts/fsd/pull/108), [#103](https://github.com/fred-ships-donuts/fsd/issues/103))`. Mudança incompatível começa com **BREAKING** e traz a nota de migração.
+- **O que fica de fora:** `team/`, só docs, CI e refactors sem efeito visível. Esses PRs levam o label `no-changelog`, posto por quem abre o PR ou pelo Kevin.
+- **CI:** o check `changelog` falha um PR `feat`/`fix`/`!` que mexe em `src/cli/`, `src/skills/` ou `package.json`, não toca o `CHANGELOG.md` e não tem o label `no-changelog`. Ele só confere que o arquivo foi tocado; o texto é revisado pela Mel e pelo Bob.
+- **Release (Kevin):** renomeia `## [Unreleased]` para `## [x.y.z] - AAAA-MM-DD`, abre um `Unreleased` novo e vazio, atualiza os links de comparação no fim, sobe o `version` do `package.json`, cria a tag `vX.Y.Z` e publica a Release com o texto da seção: `gh release create vX.Y.Z --notes-file <arquivo>`.
+
 ## 5. Verificação
 
 Os testes automatizados foram removidos por decisão do autor (SPEC 11, em `docs/ARQUITETURA.md#tests`); voltam só os do `engine/`, com a F-40a (#13). Cada issue traz em "Como verificar (aceite)" a verificação manual. O PR relata o que foi rodado e o que saiu.
