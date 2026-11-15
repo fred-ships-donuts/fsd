@@ -156,6 +156,10 @@ gastar token:
   no `PreToolUse` e apaga no `PostToolUse`. Um Bash em andamento vale até o timeout do próprio comando mais
   `toolGraceMin`, mesmo em silêncio (`npm ci`, testes).
 
+O limite de travado é `silentMin` (10 min): o `fsd-watch` reinicia o agente depois de `silentMin` sem ferramenta em
+andamento, sem mudança no contador de tokens e sem gravação de subagente. Esse limite substituiu o antigo `HUNG_MIN`,
+de 20 min.
+
 ## Avisos não entregues
 
 `fsd-notify` cola o aviso na sessão tmux do agente. Se a sessão está fechada ou parada numa pergunta de permissão, o aviso fica em `$FSD_STATE/inbox/<agente>` (uma linha JSON por aviso) e chega no próximo início de sessão (hook SessionStart, `fsd-inbox drain`) ou na próxima rodada do `fsd-wait`. O Kevin vê no `fsd-wait any` quem está offline com avisos pendentes.
