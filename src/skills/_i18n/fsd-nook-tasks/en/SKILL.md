@@ -14,7 +14,7 @@ description: >
 license: UNLICENSED
 metadata:
   author: Frederico Jacobi
-  version: "1.0.0-alpha.1"
+  version: "1.0.0-alpha.2"
 ---
 
 # fsd-nook-tasks — work the tasks of `nook/` with `fsd task`
@@ -33,7 +33,11 @@ The CLI owns the task files: it changes `plan.md`, the step files and the folder
    `… is in use by another program` mean: run the same command again (the second one, after the other run ends).
 4. **Repeat without fear.** The commands are idempotent (`step <NN> already <status>`, `task <t> already done`, exit
    0), so after a timeout or a doubt, just run the command again.
-5. **Plan.** Read `nook/bench/<slug>/plan.md`, propose the steps to the user and, once agreed, create each one with
+5. **Plan.** Before proposing steps, read the Kitchen files of the project, in this order: `nook/kitchen/rules.md`,
+   `nook/kitchen/settings.md`, `nook/kitchen/context.md`, at most 200 lines of each. Skip a missing or empty file
+   (zero bytes or only whitespace) silently: no error, no mention, no request to create it. Ignore any other file in
+   `nook/kitchen/` (such as `notes.md`). When a file has more than 200 lines, tell the user once per planning:
+   `<file>: only the first 200 lines were read.` Then read `nook/bench/<slug>/plan.md`, propose the steps to the user and, once agreed, create each one with
    `fsd task step add <task> "<title>" [--description <text>]`. A title that starts with `-` goes after `--`:
    `fsd task step add <task> -- "-x"`.
 6. **Work.** Run `fsd task step start <task> <n>` before each step and `fsd task step done <task> <n>` after it.
