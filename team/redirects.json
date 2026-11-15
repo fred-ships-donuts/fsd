@@ -1,0 +1,181 @@
+{
+  "_comment": "Fonte única de 'ação negada → comando do time'. Lida pelo hook fsd-redirect-hook, pelo fsd-watch (authorAsks) e pelo bloco gerado em common/team.md (fsd-redirects --write; --check falha se o bloco estiver velho). Cada entrada: id; label (a coluna da tabela); match (program, words = subcomandos seguidos, cada um uma regex (checkout|switch), argRegex = regex sobre os argumentos, main = só na pasta principal, skipIfAny = argumentos que deixam o comando como está); do (default, ou por agente: texto = comando do time, { say } = só o aviso); n (pr|issue = de onde vem o <n>); why. Sem match = entrada só de documentação (o vigia cuida). Marcadores: <worktree> <n> <title>. authorAsksSkip: agentes que o vigia não vigia por pedido ao autor (o Kevin decide pelo autor).",
+  "redirects": [
+    {
+      "id": "git-push",
+      "label": "`git push`",
+      "match": {
+        "program": "git",
+        "words": [
+          "push"
+        ],
+        "skipIfAny": [
+          "^--force(-with-lease)?(=.*)?$",
+          "^-f$",
+          "^--delete$",
+          "^-d$",
+          "^--mirror$",
+          "^\\+"
+        ]
+      },
+      "do": {
+        "default": "fsd-pr open \"<title>\" -C <worktree>"
+      },
+      "why": "git push is blocked for agents; fsd-pr open pushes the branch, opens or updates the PR, moves the card and notifies the reviewers"
+    },
+    {
+      "id": "gh-pr-review",
+      "label": "`gh pr review`",
+      "match": {
+        "program": "gh",
+        "words": [
+          "pr",
+          "review"
+        ]
+      },
+      "do": {
+        "default": "fsd-review post <n> approve|changes|comment",
+        "bob": "fsd-qa finish",
+        "stuart": {
+          "say": "A review is not your role: wait for the review of the PR (fsd-wait pr <n> approved|changes)."
+        }
+      },
+      "n": "pr",
+      "why": "a PR review is posted through the team command, not through gh"
+    },
+    {
+      "id": "gh-api-reviews",
+      "label": "`gh api …/pulls/<n>/reviews`",
+      "match": {
+        "program": "gh",
+        "words": [
+          "api"
+        ],
+        "argRegex": "pulls/(\\d+)/reviews"
+      },
+      "do": {
+        "default": "fsd-review post <n> approve|changes|comment",
+        "bob": "fsd-qa finish",
+        "stuart": {
+          "say": "A review is not your role: wait for the review of the PR (fsd-wait pr <n> approved|changes)."
+        }
+      },
+      "n": "pr",
+      "why": "a PR review is posted through the team command, not through gh api"
+    },
+    {
+      "id": "gh-pr-merge",
+      "label": "`gh pr merge`",
+      "match": {
+        "program": "gh",
+        "words": [
+          "pr",
+          "merge"
+        ]
+      },
+      "do": {
+        "default": {
+          "say": "Only Kevin merges, with fsd-merge <n>. Tell Kevin with fsd-notify kevin when the PR is ready."
+        },
+        "kevin": "fsd-merge <n>"
+      },
+      "n": "pr",
+      "why": "a merge goes through fsd-merge, which checks the approvals first"
+    },
+    {
+      "id": "gh-api-merge",
+      "label": "`gh api …/pulls/<n>/merge`",
+      "match": {
+        "program": "gh",
+        "words": [
+          "api"
+        ],
+        "argRegex": "pulls/(\\d+)/merge"
+      },
+      "do": {
+        "default": {
+          "say": "Only Kevin merges, with fsd-merge <n>. Tell Kevin with fsd-notify kevin when the PR is ready."
+        },
+        "kevin": "fsd-merge <n>"
+      },
+      "n": "pr",
+      "why": "a merge goes through fsd-merge, which checks the approvals first"
+    },
+    {
+      "id": "git-checkout-main-folder",
+      "label": "`git checkout <ref>` na pasta principal",
+      "match": {
+        "program": "git",
+        "words": [
+          "checkout"
+        ],
+        "main": true,
+        "skipIfAny": [
+          "^--$",
+          "^-$"
+        ]
+      },
+      "do": {
+        "default": "fsd-dev start <n>"
+      },
+      "n": "issue",
+      "why": "the main folder never changes branch; each piece of work lives in its own worktree"
+    },
+    {
+      "id": "git-switch",
+      "label": "`git switch <ref>`",
+      "match": {
+        "program": "git",
+        "words": [
+          "switch"
+        ],
+        "skipIfAny": [
+          "^--$",
+          "^-$"
+        ]
+      },
+      "do": {
+        "default": "fsd-dev start <n>"
+      },
+      "n": "issue",
+      "why": "agents never switch branch in place (git switch is denied everywhere); each piece of work lives in its own worktree"
+    },
+    {
+      "id": "gh-issue-create",
+      "label": "`gh issue create`",
+      "match": {
+        "program": "gh",
+        "words": [
+          "issue",
+          "create"
+        ]
+      },
+      "do": {
+        "default": "fsd-issue new"
+      },
+      "why": "issues are created through fsd-issue, which sets the labels, the type and the board"
+    },
+    {
+      "id": "message-author",
+      "label": "pedir uma ação ao autor",
+      "do": {
+        "default": "fsd-notify kevin \"<what you need>\" (Kevin: fsd-issue decide)"
+      },
+      "why": "agents never ask the author for an action; the watcher forwards such a request to Kevin"
+    }
+  ],
+  "authorAsks": [
+    "\\blibere\\b",
+    "\\bautorize\\b",
+    "\\bpermita\\b",
+    "\\brode\\s+`?!",
+    "^\\s*[`$>]*\\s*!\\s*(git|gh|fsd)\\b",
+    "\\bplease\\s+(allow|authorize|run|approve)\\b",
+    "\\byou\\s+(need|have)\\s+to\\s+(allow|authorize|run)\\b",
+    "\\brun\\b.{0,60}\\byourself\\b",
+    "\\bpreciso\\s+que\\s+(voc[eê]|o\\s+autor)\\s+(libere|autorize|rode)\\b"
+  ],
+  "authorAsksSkip": [
+    "kevin"
+  ]
+}

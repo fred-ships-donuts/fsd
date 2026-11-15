@@ -4,6 +4,8 @@
 // ~/.config/fsd-agents/watch.log (fora do git). Tempos: agents.json → timing.watch (fsd-timing.mjs).
 //   sem sessão  → sobe o agente          estourou  → reinicia limpo        travado → reinicia
 //   ocioso sem Monitor → empurrão curto (acima de restartAbove, reinicia)  permissão / limite de uso → só avisa o autor
+//   pediu ao autor (parado, e o fim do painel pede uma ação a ele: redirects.json → authorAsks) → fsd-notify kevin + empurrão
+//   "não espere o autor"; o mesmo pedido na tela não repete (nem dentro do cooldownMin, nem sob PAUSE).
 // Sinal de vida de quem está trabalhando (o mais recente vale):
 //   1. gravação no transcript da sessão ou de um subagente;
 //   2. contador de tokens do rodapé do painel ("↓ 4.1k tokens") diferente do da rodada anterior: o modelo está gerando;
@@ -19,6 +21,7 @@ import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import { context } from './fsd-context.mjs';
 import { timing, liveDir } from './fsd-timing.mjs';
+import { load as loadRedirects } from './fsd-redirects.mjs';
 
 const BIN = dirname(fileURLToPath(import.meta.url)); const ROOT = dirname(BIN);
 const REPO = process.env.FSD_REPO || dirname(ROOT); // o clone em que team/ mora
@@ -26,12 +29,14 @@ const LAUNCH = process.env.FSD_AGENT_BIN || join(process.env.HOME, '.local/bin/f
 const cfg = JSON.parse(readFileSync(join(ROOT, 'agents.json'), 'utf8'));
 const RESTART_ABOVE = (a) => context(a).restartAbove;
 const T = timing().watch; const MIN = 60000;
+const RD = loadRedirects(); const ASKS = (RD.authorAsks || []).map((p) => new RegExp(p, 'i')); const NO_ASK = RD.authorAsksSkip || [];
 const AGENTS = ['kevin', 'mel', 'stuart', 'bob'].filter((a) => cfg.agents[a]);
 const STATE = join(tmpdir(), 'fsd-watch-state.json');
 const a = process.argv.slice(2); const FIX = a.includes('--fix');
 const LOOP = a.includes('--loop') ? Number(a[a.indexOf('--loop') + 1]) || Number(T.loopSeconds) : 0;
 
-const sh = (cmd, args, o = {}) => spawnSync(cmd, args, { encoding: 'utf8', timeout: 60000, ...o });
+// FSD_TMUX_SOCKET (teste num servidor tmux isolado): todo tmux daqui ganha -L <socket>; sem ele, o comportamento de sempre.
+const sh = (cmd, args, o = {}) => spawnSync(cmd, cmd === 'tmux' && process.env.FSD_TMUX_SOCKET ? ['-L', process.env.FSD_TMUX_SOCKET, ...args] : args, { encoding: 'utf8', timeout: 60000, ...o });
 const log = (m) => { const l = `${new Date().toISOString()} ${m}`; try { appendFileSync(join((process.env.FSD_STATE || join(process.env.HOME, '.config', 'fsd-agents')), 'watch.log'), l + '\n'); } catch {} if (LOOP) console.log(l); };
 const min = (ms) => Math.round(ms / 60000);
 const k = (n) => `${Math.round(n / 1000)}k`;
@@ -74,6 +79,19 @@ function tokenIdle(agent, pane, mem) {
   return Date.now() - mem[key].at;
 }
 
+// O fim do painel pede uma ação ao autor? Devolve a linha (≤120 caracteres) ou ''. Entra o painel com as linhas quebradas pelo
+// terminal juntas (capture-pane -J), sem cor. Avisos do time ("[fsd-aviso …]", inclusive o que o próprio vigia entrega) não são
+// pedido do agente: ficam de fora, senão o aviso ao Kevin dispara o vigia no painel do Kevin.
+function authorAsk(paneJ) {
+  const lines = paneJ.replace(/\x1b\[[0-9;?]*[ -\/]*[@-~]/g, '').split('\n').map((l) => l.trim()).filter((l) => l && !l.includes('[fsd-aviso')).slice(-6);
+  const joined = lines.join(' ');
+  for (const re of ASKS) {
+    const one = lines.find((l) => re.test(l)); if (one) return one.slice(0, 120);
+    const m = joined.match(re); if (m) return joined.slice(Math.max(0, m.index - 40), m.index + 80).trim().slice(0, 120);
+  }
+  return '';
+}
+
 function classify(agent, mem = {}) {
   const s = `fsd-${agent}`;
   if (sh('tmux', ['has-session', '-t', s]).status !== 0) return { state: 'sem sessão', act: 'start' };
@@ -95,6 +113,9 @@ function classify(agent, mem = {}) {
     return { ...w, state: tools.length ? `trabalhando (${names})` : 'trabalhando', act: null };
   }
   delete mem[`sig:${agent}`];
+  const ask = NO_ASK.includes(agent) ? '' : authorAsk(sh('tmux', ['capture-pane', '-p', '-J', '-t', s]).stdout || '');
+  if (!ask) delete mem[`ask:${agent}`];   // o pedido saiu da tela: o mesmo texto, mais tarde, vale de novo
+  if (ask && mem[`ask:${agent}`] !== ask) return { ...base, state: 'pediu ao autor', act: 'redirect', ask };
   if (monitor) return { ...base, state: 'esperando (Monitor)', act: null };
   if (t.idle > T.idleMin * MIN) return { ...base, state: 'ocioso sem Monitor', act: t.ctx > RESTART_ABOVE(agent) ? 'restart' : 'nudge' };
   return { ...base, state: 'acabou de responder', act: null };
@@ -113,6 +134,12 @@ function act(agent, r) {
   if (r.act === 'start' || r.act === 'restart') { try { rmSync(liveDir(agent), { recursive: true, force: true }); } catch {} }   // registros da sessão morta
   if (r.act === 'start') { const c = sh('tmux', ['new-session', '-d', '-s', s, '-c', REPO, LAUNCH, agent, 'claude', kick(agent, 'sessão não existia')]); return c.status === 0 ? 'subiu' : `falhou: ${c.stderr.trim()}`; }
   if (r.act === 'restart') { const c = sh('tmux', ['respawn-pane', '-k', '-t', s, '-c', REPO, LAUNCH, agent, 'claude', kick(agent, `${r.state}, ${k(r.ctx)}`)]); return c.status === 0 ? 'reiniciou' : `falhou: ${c.stderr.trim()}`; }
+  if (r.act === 'redirect') {
+    sh(join(BIN, 'fsd-notify'), ['kevin', `${agent} pediu ao autor: ${r.ask}`]);
+    const msg = '[fsd-aviso do vigia] Do not wait for the author. Take the team command for it (team.md, "Ação negada → comando do time") or move on and tell Kevin with fsd-notify.';
+    sh('tmux', ['load-buffer', '-b', `w-${agent}`, '-'], { input: msg }); sh('tmux', ['paste-buffer', '-p', '-d', '-b', `w-${agent}`, '-t', s]);
+    sh('sleep', ['0.4']); sh('tmux', ['send-keys', '-t', s, 'Enter']); return 'avisou o Kevin e empurrou';
+  }
   if (r.act === 'nudge') {
     const msg = `[fsd-aviso do vigia] Você está parado sem Monitor há ${min(r.idle)} min. Terminou uma entrega? fsd-restart. Sem trabalho: avise o Kevin e arme o Monitor (fsd-wait any).`;
     sh('tmux', ['load-buffer', '-b', `w-${agent}`, '-'], { input: msg }); sh('tmux', ['paste-buffer', '-p', '-d', '-b', `w-${agent}`, '-t', s]);
@@ -130,7 +157,7 @@ function round() {
       const key = `${ag}:${r.act}`, last = st[key] || 0;
       if (!FIX) done = `faria: ${r.act}`;
       else if (Date.now() - last < T.cooldownMin * MIN) done = `espera (${r.act} há ${min(Date.now() - last)} min)`;
-      else { done = act(ag, r); st[key] = Date.now(); log(`${ag}: ${r.state} → ${done}`); }
+      else { done = act(ag, r); st[key] = Date.now(); if (r.act === 'redirect' && !done.startsWith('PAUSE')) st[`ask:${ag}`] = r.ask; log(`${ag}: ${r.state}${r.ask ? ` (${r.ask})` : ''} → ${done}`); }
     }
     rows.push([ag[0].toUpperCase() + ag.slice(1), r.state, r.idle != null ? `${min(r.idle)} min` : '-', r.ctx ? k(r.ctx) : '-', done]);
   }

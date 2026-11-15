@@ -42,6 +42,8 @@ mkenv() { # nome repo home FSD_REPO(set|unset) links(container|host) node_module
     o=$(run env FSD_DRY=1 "$s" "$repo" 2>&1); [ "$o" = "recusado: $repo" ] && ok "fsd-trash protege o repo (${s#$BASE/})" || bad "fsd-trash ${s#$BASE/}: $o"; done
   chk "fsd-lib REPO_DIR = repo" run bash -c '[ "$(node --input-type=module -e "import(process.argv[1]).then(m=>console.log(m.REPO_DIR))" "$0")" = "$1" ]' "$T/fsd-lib.mjs" "$repo"
   chk "fsd-context lê agents.json" run node "$T/fsd-context.mjs" mel limit restartAbove
+  chk "fsd-redirects --check: tabela do team.md em dia" run node "$T/fsd-redirects.mjs" --check
+  chk "fsd-redirects --test: fixtures do hook" run node "$T/fsd-redirects.mjs" --test
   chk "fsd-sync-pair: modelos achados pelo link" run bash -c 'H=$(dirname "$(readlink -f "$0")"); test -f "$(dirname "$H")/setup/syncthing/agent.stignore"' "$L/fsd-sync-pair"
   # 2. trabalho sem tarefa: fsd-dev start - (de verdade, só local) e fsd-pr open (dry)
   chk "fsd-dev start - sim-x cria worktree chore/sim-x" run env FSD_AGENT=stuart "$T/fsd-dev" start - sim-x --chore

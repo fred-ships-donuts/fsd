@@ -27,6 +27,22 @@ Kevin (PM) · Mel (Arquiteto) · Stuart (Dev) · Bob (QA) · autor: o dono do re
 - **Sem trabalho, avisa o Kevin.** Mel, Stuart e Bob: mande `fsd-notify kevin "parado: <última entrega>; fila: <fsd-queue, ou vazia>; esperando: <o quê, se for o caso>"` e então `Monitor` com `fsd-wait any` (ele acorda você com a próxima coisa do seu papel). Só mensagem direta: nada no GitHub. Resposta do Kevin: `pegue #N …` → faça; `aguarde …` → fique no Monitor e não avise de novo até terminar outra tarefa. **Esperando um colega** (commit novo, decisão, passagem): rode sempre o wait com `--waiting-for <agente> "<o quê>" [--pr <n> | --issue <n>]` (ex.: `fsd-wait pr 90 new-head --waiting-for stuart "new head" --pr 90`); o registro some sozinho quando o wait termina. Sem trabalho e sem esperar ninguém (`fsd-wait any` sozinho) não registra nada. Toda mensagem `aguarde` diz por quem o agente espera. **Kevin:** o `fsd-wait any` acorda você com `DEADLOCK #n: …` (rode `fsd-judge <n>` quando ele existir, #92) ou `STALLED #n: …` (destrave com as regras normais).
 - Uma linha `[fsd-aviso de <agente>] …` colada na sua sessão vem dos comandos do time: aja no que ela cita, sem responder a ela (exceção: o Kevin responde aos `parado:`). Para falar com alguém: `fsd-notify`.
 
+## Ação negada → comando do time
+Ação negada não é motivo para pedir ao autor: use o comando da linha (o hook `fsd-redirect-hook` já o nomeia na própria recusa) ou avise o Kevin com `fsd-notify kevin "<o que falta>"`. Se mesmo assim o seu turno terminar pedindo uma ação ao autor, o vigia manda o pedido ao Kevin e lembra você disto. A tabela é gerada de `team/redirects.json` (`fsd-redirects --write`); não edite à mão.
+<!-- redirects:start -->
+| Ação negada | Comando do time | Por quê |
+| --- | --- | --- |
+| `git push` | `fsd-pr open "<title>" -C <worktree>` | git push is blocked for agents; fsd-pr open pushes the branch, opens or updates the PR, moves the card and notifies the reviewers |
+| `gh pr review` | `fsd-review post <n> approve\|changes\|comment`<br>bob: `fsd-qa finish`<br>stuart: A review is not your role: wait for the review of the PR (fsd-wait pr <n> approved\|changes). | a PR review is posted through the team command, not through gh |
+| `gh api …/pulls/<n>/reviews` | `fsd-review post <n> approve\|changes\|comment`<br>bob: `fsd-qa finish`<br>stuart: A review is not your role: wait for the review of the PR (fsd-wait pr <n> approved\|changes). | a PR review is posted through the team command, not through gh api |
+| `gh pr merge` | Only Kevin merges, with fsd-merge <n>. Tell Kevin with fsd-notify kevin when the PR is ready.<br>kevin: `fsd-merge <n>` | a merge goes through fsd-merge, which checks the approvals first |
+| `gh api …/pulls/<n>/merge` | Only Kevin merges, with fsd-merge <n>. Tell Kevin with fsd-notify kevin when the PR is ready.<br>kevin: `fsd-merge <n>` | a merge goes through fsd-merge, which checks the approvals first |
+| `git checkout <ref>` na pasta principal | `fsd-dev start <n>` | the main folder never changes branch; each piece of work lives in its own worktree |
+| `git switch <ref>` | `fsd-dev start <n>` | agents never switch branch in place (git switch is denied everywhere); each piece of work lives in its own worktree |
+| `gh issue create` | `fsd-issue new` | issues are created through fsd-issue, which sets the labels, the type and the board |
+| pedir uma ação ao autor | `fsd-notify kevin "<what you need>" (Kevin: fsd-issue decide)` | agents never ask the author for an action; the watcher forwards such a request to Kevin |
+<!-- redirects:end -->
+
 ## Memória
 `memory_query` antes de propor desenho. Página durável só quando o autor pedir. Handoff é só seu (nunca `shared: true`). Para achar código, antes de abrir fontes: `fsd-map ask "<pergunta>" --source` (trechos com arquivo:linha), `fsd-map grep "<literal>"` (todas as ocorrências), `fsd-map skeleton <arquivo>`, `fsd-map callers <símbolo>` (uso no topo de `team/bin/fsd-map`). Não grave na memória automática do Claude Code (pasta `memory/`): o conhecimento do projeto fica só no ai-memory.
 

@@ -64,6 +64,8 @@ comando passam por cima do padrão.
 │   ├── fsd-agent           ⚙️     launcher: identidade, flags (modelo, esforço, ferramentas, MCP), tokens
 │   ├── fsd-token                  gera o token do GitHub App do agente
 │   ├── fsd-secrets                pack/unpack dos segredos em secrets.tar.age (age, senha)
+│   ├── fsd-redirect-hook          hook PreToolUse (Bash): comando bloqueado → nega e nomeia o comando do time
+│   ├── fsd-redirects(.mjs)        o casamento do hook, a tabela do team.md e as fixtures (--test, --write, --check)
 │   ├── gh                         gh dos agentes (só entra no PATH dentro do fsd-agent)
 │   ├── fsd-map                    mapa de código (ask, grep, skeleton, callers, map, build); motor privado, fora do PATH
 │   └── git-credential-fsd         entrega o token ao git
@@ -72,6 +74,7 @@ comando passam por cima do padrão.
 │                                  "claude_common": ferramentas cortadas para todos
 │                                  "timing": tempos do time (pings e prazos), ver "Tempos do time"
 ├── claude-settings.json    ⚙️     comum: hooks (RTK, ai-memory, fsd-context-guard), deny comuns, permissões do ai-memory e do fsd-map
+├── redirects.json          ⚙️     fonte única de "ação negada → comando do time" (hook, vigia e tabela do team.md)
 ├── mcp.json                ⚙️     o único MCP dos agentes: ai-memory
 ├── common/
 │   ├── team.md             ⚙️     regras do time (fluxo, memória, handoffs), importado em todo CLAUDE.md
@@ -162,6 +165,14 @@ gastar token:
 O limite de travado é `silentMin` (10 min): o `fsd-watch` reinicia o agente depois de `silentMin` sem ferramenta em
 andamento, sem mudança no contador de tokens e sem gravação de subagente. Esse limite substituiu o antigo `HUNG_MIN`,
 de 20 min.
+
+## Ação negada → comando do time
+
+`redirects.json` é a fonte única de "ação bloqueada → comando do time". Quem lê: o hook `fsd-redirect-hook`, a regra "pediu ao autor" do `fsd-watch` (`authorAsks`) e a tabela de `common/team.md` (entre `<!-- redirects:start -->` e `<!-- redirects:end -->`).
+
+- **Hook** (`PreToolUse`, Bash): casa o comando por token (separa `&&`, `||`, `;`, `|`, ignora `rtk`/`sudo`/`VAR=x`/`cd`/caminho do programa, não olha dentro de aspas nem de heredoc) e nega com `Blocked: <por quê>. Use: <comando>. Do not ask the author.`, com `<worktree>` e `<n>` preenchidos quando dá para saber. Só nega: nunca `allow`; erro de qualquer tipo sai 0 calado. As regras de `deny` e o classificador seguem de guarda.
+- **Vigia:** agente parado cujo fim de painel pede uma ação ao autor (`authorAsks`) → `fsd-notify kevin "<agente> pediu ao autor: …"` e um empurrão "não espere o autor". Respeita `PAUSE` e `watch.cooldownMin`; o mesmo pedido na tela não repete; `[fsd-aviso …]` não conta. `FSD_TMUX_SOCKET=<nome>` põe `-L <nome>` em todo `tmux` do `fsd-watch` e do `fsd-notify` (teste em servidor isolado).
+- `fsd-redirects --test` confere `docs/redirect-fixtures.tsv` (agente, pasta, comando, esperado) e sai 1 com a lista dos que diferem. `--write` reescreve o bloco do `team.md`; `--check` sai 1 se ele estiver velho. Os dois rodam no `simulate-envs`.
 
 ## Detector de impasse
 
