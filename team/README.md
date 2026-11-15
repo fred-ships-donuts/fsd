@@ -37,9 +37,9 @@ O Claude Code abre:
 | agente | modelo | esforço | ferramentas cortadas além das comuns |
 |---|---|---|---|
 | kevin | claude-opus-5-5 | medium | Agent |
-| mel | claude-opus-5-5 | medium | nenhuma |
-| stuart | claude-opus-5-5 | medium | nenhuma |
-| bob | claude-opus-5-5 | medium | Agent, WebSearch, WebFetch |
+| mel | claude-sonnet-5-5 | medium | nenhuma |
+| stuart | claude-sonnet-5-5 | medium | nenhuma |
+| bob | claude-sonnet-5-5 | medium | Agent, WebSearch, WebFetch |
 
 A tabela é o padrão versionado (`agents.json`). Para trocar modelo, esforço ou ferramentas **só nesta instalação**,
 sem versionar, crie `~/.config/fsd-agents/agents.local.json`: o que estiver em `agents.<nome>.claude` passa por cima

@@ -69,7 +69,7 @@
       "bot_user_id": 353952344,
       "client_id": "Iv23liNMIbJFjd6cOprU",
       "claude": {
-        "model": "claude-opus-5-5",
+        "model": "claude-sonnet-5-5",
         "effort": "medium",
         "disallowedTools": []
       },
@@ -83,7 +83,7 @@
       "bot_user_id": 353952367,
       "client_id": "Iv23liG3EMeQYESMR0aO",
       "claude": {
-        "model": "claude-opus-5-5",
+        "model": "claude-sonnet-5-5",
         "effort": "medium",
         "disallowedTools": []
       },
@@ -97,7 +97,7 @@
       "bot_user_id": 353952395,
       "client_id": "Iv23liwL2z7JGywh7Agm",
       "claude": {
-        "model": "claude-opus-5-5",
+        "model": "claude-sonnet-5-5",
         "effort": "medium",
         "disallowedTools": [
           "Agent",
