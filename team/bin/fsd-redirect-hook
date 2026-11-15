@@ -1,0 +1,28 @@
+#!/usr/bin/env node
+// fsd-redirect-hook — PreToolUse (Bash). Comando que o time bloqueia → nega com o comando do time que leva ao mesmo fim.
+// Só NEGA, nunca allow/ask; qualquer erro (JSON, git, tempo) sai 0 calado: as regras de deny e o classificador seguem de guarda.
+// Fonte: team/redirects.json (fsd-redirects.mjs). O agente vem de FSD_AGENT.
+import { spawnSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+try {
+  const input = JSON.parse(readFileSync(0, 'utf8') || '{}');
+  const command = input.tool_input?.command;
+  if (input.tool_name !== 'Bash' || typeof command !== 'string' || !command) process.exit(0);
+  const { redirect } = await import('./fsd-redirects.mjs');
+  const HERE = dirname(fileURLToPath(import.meta.url));
+  const git = (cwd, ...a) => { const r = spawnSync('git', a, { cwd, encoding: 'utf8', timeout: 3000 }); return r.status === 0 ? r.stdout.trim() : ''; };
+  const ctx = {
+    agent: process.env.FSD_AGENT || '',
+    cwd: input.cwd || process.cwd(),
+    isMain: (cwd) => { const d = git(cwd, 'rev-parse', '--path-format=absolute', '--git-dir'); return !!d && d === git(cwd, 'rev-parse', '--path-format=absolute', '--git-common-dir'); },
+    worktree: (cwd) => git(cwd, 'rev-parse', '--show-toplevel'),
+    issueOfBranch: (cwd) => { const b = git(cwd, 'branch', '--show-current'); return b ? git(cwd, 'config', `branch.${b}.fsd-issue`) : ''; },
+    prOfBranch: (cwd) => { const r = spawnSync(join(HERE, 'gh'), ['pr', 'view', '--json', 'number', '--jq', '.number'], { cwd, encoding: 'utf8', timeout: 3000 }); return r.status === 0 ? r.stdout.trim() : ''; },
+  };
+  const r = redirect(command, ctx);
+  if (r) process.stdout.write(JSON.stringify({ hookSpecificOutput: { hookEventName: 'PreToolUse', permissionDecision: 'deny', permissionDecisionReason: r.reason } }) + '\n');
+} catch {}
+process.exit(0);
