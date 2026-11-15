@@ -105,7 +105,8 @@ export function notify(agents, text) {
   const res = { delivered: [], queued: [] };
   const to = [...new Set(agents.map((a) => a.replace(/^fsd-/, '')).filter((a) => AGENTS.includes(a) && a !== ME))];
   if (!to.length) return res;
-  const r = run(join(BIN, 'fsd-notify'), [to.join(','), text], { allowFail: true });
+  // Dry run (FSD_DRY) não entrega nem enfileira nada: passa por write(), que só imprime. Chamado direto, o fsd-notify trata o FSD_DRY sozinho.
+  const r = (DRY ? write : run)(join(BIN, 'fsd-notify'), [to.join(','), text], { allowFail: true });
   for (const l of r.out.split('\n')) {
     const d = l.match(/^delivered: (.+)$/); const q = l.match(/^(\S+) did not receive: queued$/);
     if (d) res.delivered.push(...d[1].split(',')); else if (q) res.queued.push(q[1]);

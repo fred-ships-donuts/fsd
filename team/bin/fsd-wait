@@ -28,7 +28,17 @@ const W = {
   ready: () => fresh('ready', L.openPrs().filter((p) => L.readyIdle(p, false)).map((p) => '#' + p.number), (n) => `pronto parado: ${n.join(' ')} (fsd-merge --ready)`),
   column: (c) => (c = L.stageName(c), fresh('col:' + c, colItems(c), (n) => `${c}: ${n.join(' ')}`)),
 };
-const offline = () => fresh('offline', L.AGENTS.filter((a) => a !== 'kevin' && spawnSync('tmux', ['has-session', '-t', 'fsd-' + a]).status !== 0).map((a) => [a, L.inboxCount(a)]).filter(([, n]) => n > 0).map(([a, n]) => `${a}:${n}`), (n) => n.map((i) => i.replace(/^(.+):(\d+)$/, '$1 offline, $2 pending')).join(' | '));
+// Kevin: agente sem sessão com avisos na caixa. Vale já na primeira leitura; depois só avisa de contagem maior que a última vista.
+const lastOffline = new Map();
+const offline = () => {
+  const out = [];
+  for (const a of L.AGENTS.filter((x) => x !== 'kevin')) {
+    const n = spawnSync('tmux', ['has-session', '-t', 'fsd-' + a]).status !== 0 ? L.inboxCount(a) : 0;
+    if (n > (lastOffline.get(a) || 0)) out.push(`${a} offline, ${n} pending`);
+    if (n > 0) lastOffline.set(a, n); else lastOffline.delete(a);
+  }
+  return out.join(' | ');
+};
 const ANY = { kevin: [() => W.ready(), () => W.todo(), offline], mel: [() => W.todo(), () => W.column(L.STAGE.archReady)], stuart: [() => W.mine(), () => W.column(L.STAGE.devReady)], bob: [() => W.todo()] };
 let first;
 function inbox() {

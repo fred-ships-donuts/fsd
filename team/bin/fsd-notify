@@ -20,8 +20,9 @@ for a in "${names[@]}"; do
     continue
   fi
   if [ -n "${FSD_DRY:-}" ]; then echo "[dry] would deliver to $a"; got+=("$a"); continue; fi
-  printf '[fsd-aviso de %s] %s' "$from" "$text" | tmux load-buffer -b "n-$a-$$" - \
-    && tmux paste-buffer -p -d -b "n-$a-$$" -t "fsd-$a" && sleep 0.4 && tmux send-keys -t "fsd-$a" Enter && got+=("$a")
+  if printf '[fsd-aviso de %s] %s' "$from" "$text" | tmux load-buffer -b "n-$a-$$" - \
+    && tmux paste-buffer -p -d -b "n-$a-$$" -t "fsd-$a" && sleep 0.4 && tmux send-keys -t "fsd-$a" Enter; then got+=("$a")
+  elif "$HERE/fsd-inbox" append "$a" "$from" "$text"; then queued+=("$a"); else echo "$a did not receive: not queued (inbox write failed)"; fi
 done
 [ ${#got[@]} -gt 0 ] && (IFS=,; echo "delivered: ${got[*]}")
 for a in "${queued[@]}"; do echo "$a did not receive: queued"; done
