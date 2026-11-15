@@ -1,0 +1,123 @@
+#!/usr/bin/env node
+// fsd-judge <n> — só o Kevin. Uma sessão headless isolada e só de leitura (claude -p --model sonnet --effort medium) dá o
+// veredito de um impasse no PR/issue <n>, em três etapas (Facts, Rule, Verdict), e devolve JSON.
+// Confiança alta e nenhuma trava: comenta "Decision (judge, …)" e avisa as partes. Qualquer outro caso (confiança baixa,
+// decisão do autor, assunto reservado, 2º impasse, erro, timeout, JSON inválido): não aplica nada e imprime o comentário
+// "Deadlock: author decision needed" (o Kevin posta, depois de conferir a regra do "Impasse total" no team.md).
+// Trava global: $FSD_JUDGE_STATE/judge.lock. Impasses já julgados: $FSD_JUDGE_STATE/judged/<n>.json. FSD_JUDGE_STATE (padrão: o FSD_STATE) só separa esse estado das credenciais e das esperas, que seguem no FSD_STATE.
+// FSD_DRY=1: não comenta, não avisa e não grava judged/. FSD_JUDGE_FIXTURE=<arquivo> (só com FSD_DRY=1): lê a resposta do
+// arquivo em vez de chamar o claude e imprime o comando que chamaria.
+// Saída: linha 1 = o JSON do veredito (ou "fsd-judge: author decision needed (<motivo>)"). Exit 0 nos dois caminhos · 1 recusa · 2 uso · 4 GitHub.
+const L = await import('./fsd-lib.mjs');
+import { spawnSync } from 'node:child_process';
+import { openSync, writeSync, closeSync, readFileSync, writeFileSync, unlinkSync, mkdirSync, existsSync, mkdtempSync } from 'node:fs';
+import { join } from 'node:path';
+import { tmpdir } from 'node:os';
+const { timing } = await import('./fsd-timing.mjs');
+
+const arg = process.argv[2];
+if (!/^\d+$/.test(arg || '')) L.die('uso: fsd-judge <n>', 2);
+if (L.ME !== 'kevin') L.die('fsd-judge: only kevin runs the judge', 1);
+const n = Number(arg); const ref = `#${n}`;
+const FIXTURE = process.env.FSD_JUDGE_FIXTURE;
+if (FIXTURE && !L.DRY) L.die('fsd-judge: FSD_JUDGE_FIXTURE só vale com FSD_DRY=1', 2);
+
+// --- Trava global: uma instância por vez.
+const stateDir = process.env.FSD_JUDGE_STATE || L.stateDir(); const lockFile = join(stateDir, 'judge.lock');
+const alive = (pid) => { try { process.kill(pid, 0); return true; } catch (e) { return e.code === 'EPERM'; } };
+mkdirSync(stateDir, { recursive: true });
+function takeLock() {
+  for (let i = 0; i < 2; i++) {
+    try { const fd = openSync(lockFile, 'wx'); writeSync(fd, JSON.stringify({ ref, pid: process.pid, since: new Date().toISOString() })); closeSync(fd); return; }
+    catch (e) {
+      if (e.code !== 'EEXIST') throw e;
+      let l = null; try { l = JSON.parse(readFileSync(lockFile, 'utf8')); } catch {}
+      if (l && Number.isInteger(l.pid) && alive(l.pid)) L.die(`fsd-judge: a judge is running for ${l.ref}`, 1);
+      try { unlinkSync(lockFile); } catch {}
+    }
+  }
+  L.die('fsd-judge: could not take the lock; try again', 3);
+}
+takeLock();
+process.on('exit', () => { try { if (JSON.parse(readFileSync(lockFile, 'utf8')).pid === process.pid) unlinkSync(lockFile); } catch {} });
+for (const [sig, c] of [['SIGTERM', 15], ['SIGINT', 2], ['SIGHUP', 1]]) process.on(sig, () => process.exit(128 + c));
+
+// --- Entradas, coletadas aqui e não pelo modelo.
+const waits = L.waitsList().filter((w) => w.ref === ref);
+let kind = 'pr'; let info = L.run(join(L.BIN, 'gh'), ['pr', 'view', String(n), '--json', 'title,state,labels,url'], { allowFail: true });
+if (!info.ok) { kind = 'issue'; info = L.run(join(L.BIN, 'gh'), ['issue', 'view', String(n), '--json', 'title,state,labels,url'], { allowFail: true }); }
+if (!info.ok) L.die(`fsd-judge: ${ref} não encontrado (${info.err.slice(0, 120)})`, 4);
+const meta = JSON.parse(info.out); const labels = (meta.labels || []).map((l) => l.name);
+const author = process.env.FSD_AUTHOR || 'FSD_AUTHOR';
+const parties = new Set(waits.flatMap((w) => [w.agent, w.for]));
+
+// --- Caminho do autor (4.3): não aplica nada, só imprime o comentário.
+function authorPath(reason, detail, answer) {
+  console.log(`fsd-judge: author decision needed (${reason})`);
+  const who = waits.length ? waits.map((w) => `- ${w.agent} waits for ${w.for}: "${w.what}" (since ${w.since})`).join('\n') : '- (no waits registered for this ref)';
+  const proposal = answer?.verdict?.continue ? `\n3. Follow the judge's non-binding proposal: ${answer.verdict.continue.agent} continues (${answer.verdict.continue.instruction}).` : '';
+  console.log(['**Deadlock: author decision needed**', '', `@${author} ${kind === 'pr' ? 'PR' : 'Issue'} ${ref} is stuck.`, '', 'Who waits for what:', who, '',
+    `Why nobody can move: ${detail}`, '', 'Options:', `1. Write a \`Decision (author, <date>)\` comment on ${ref} saying who continues and how.`,
+    `2. Ask the team to drop or rescope the work on ${ref}.${proposal}`].join('\n'));
+  process.exit(0);
+}
+if (existsSync(join(stateDir, 'judged', `${n}.json`))) authorPath('second deadlock', 'the judge already gave a verdict for this ref and the deadlock came back.');
+
+// --- A sessão.
+const TOOLS = ['Read', 'Grep', 'Glob', 'Bash(gh pr view:*)', 'Bash(gh pr diff:*)', 'Bash(gh issue view:*)', 'Bash(git log:*)', 'Bash(git show:*)', 'Bash(git diff:*)'];
+const DENY = ['Edit', 'Write', 'NotebookEdit', 'Agent', 'WebFetch', 'WebSearch'];
+const claudeArgs = ['-p', '--model', 'sonnet', '--effort', 'medium', '--no-session-persistence', '--permission-mode', 'dontAsk', '--tools', 'Read,Grep,Glob,Bash',
+  '--allowedTools', ...TOOLS, '--disallowedTools', ...DENY];
+const prompt = `${readFileSync(join(L.ROOT, 'judge-prompt.md'), 'utf8')}\n\n## Inputs\n\n${JSON.stringify({ ref, kind, title: meta.title, state: meta.state, labels, url: meta.url, author_env: author, waits }, null, 1)}\n`;
+
+let text = ''; let failure = '';
+if (FIXTURE) {
+  console.log(`[dry] claude ${claudeArgs.map((x) => (/[\s()*:]/.test(x) ? JSON.stringify(x) : x)).join(' ')}`);
+  try { text = readFileSync(FIXTURE, 'utf8'); } catch { failure = 'judge error'; }
+} else {
+  // O hook de SessionStart do agente real não pode esvaziar a caixa do Kevin: o juiz roda como "judge" (fora do agents.json), com um FSD_STATE só dele.
+  const env = { ...process.env, FSD_AGENT: 'judge', FSD_STATE: mkdtempSync(join(tmpdir(), 'fsd-judge-')) };
+  const r = spawnSync('claude', claudeArgs, { input: prompt, cwd: L.REPO_DIR, env, encoding: 'utf8', maxBuffer: 64 << 20, timeout: Number(timing().judge.timeoutMin) * 60000, killSignal: 'SIGKILL' });
+  if (r.error?.code === 'ETIMEDOUT' || r.signal === 'SIGKILL') failure = 'timeout';
+  else if (r.error || r.status !== 0) failure = 'judge error';
+  else text = r.stdout || '';
+}
+if (failure) authorPath(failure, failure === 'timeout' ? `the judge session did not answer in ${timing().judge.timeoutMin} minutes.` : 'the judge session failed.');
+
+// --- Valida a resposta: tudo presente, com o tipo certo. Resposta parcial nunca vale.
+const str = (v) => typeof v === 'string' && v.trim() !== '';
+const isAgent = (v) => str(v) && L.AGENTS.includes(v);
+function parse(raw) {
+  try {
+    const j = JSON.parse(String(raw).trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, ''));
+    const c = j.verdict?.continue; const w = j.verdict?.wait;
+    const ok = Array.isArray(j.facts) && j.facts.every((f) => f && ['agent', 'asks', 'why', 'evidence'].every((k) => str(f[k])))
+      && j.rule && ['owner', 'source', 'text'].every((k) => str(j.rule[k])) && ['mel', 'kevin', 'author'].includes(j.rule.owner)
+      && c && isAgent(c.agent) && str(c.instruction) && Array.isArray(w) && w.every((x) => x && isAgent(x.agent) && str(x.reason))
+      && !w.some((x) => x.agent === c.agent) && (w.length > 0 || [...parties].every((p) => p === c.agent))
+      && ['high', 'low'].includes(j.confidence) && typeof j.overrides_author === 'boolean' && typeof j.reserved === 'boolean';
+    return ok ? j : null;
+  } catch { return null; }
+}
+const ans = parse(text);
+if (!ans) authorPath('invalid JSON', 'the judge answer was not valid, complete JSON; nothing was applied.');
+
+// --- Travas determinísticas, independentes do que o modelo diz.
+const body = JSON.stringify([ans.verdict, ans.rule]);
+if (ans.confidence !== 'high') authorPath('low confidence', `the judge was not confident: ${ans.rule.text}`, ans);
+if (ans.overrides_author) authorPath('overrides an author decision', 'the verdict would override a decision written by the author.', ans);
+if (ans.reserved || ans.rule.owner === 'author' || /#(39|40)\b/.test(body) || /\bmain\b/.test(body) || labels.includes('decision'))
+  authorPath('reserved matter', 'the matter belongs to the author (#39, #40, main, a `decision` label or an author-owned rule).', ans);
+
+// --- Caminho do juiz (4.2): comenta primeiro, avisa depois.
+console.log(JSON.stringify(ans));
+const comment = [`**Decision (judge, ${L.today()})**`, '', '**Facts**', ...ans.facts.map((f) => `- ${f.agent} asks: ${f.asks} — why: ${f.why} (evidence: ${f.evidence})`), '',
+  `**Rule** (${ans.rule.owner}; ${ans.rule.source})`, ans.rule.text, '', '**Verdict**', `- ${ans.verdict.continue.agent} continues: ${ans.verdict.continue.instruction}`,
+  ...ans.verdict.wait.map((x) => `- ${x.agent} waits: ${x.reason}`)].join('\n');
+if (L.DRY) console.log(comment); else L.ghw([kind, 'comment', String(n), '--body-file', '-'], { input: comment });
+const notices = [[ans.verdict.continue.agent, `${ref} continue: ${ans.verdict.continue.instruction}`], ...ans.verdict.wait.map((x) => [x.agent, `${ref} wait: ${x.reason}`])];
+for (const [agent, text2] of notices) {
+  if (agent === L.ME) { console.log(`you: ${text2.replace(`${ref} `, '')}`); continue; }
+  console.log(`${agent}: ${L.noticeSummary(L.notify([agent], text2)) || 'sem entrega'}`);
+}
+if (!L.DRY) { mkdirSync(join(stateDir, 'judged'), { recursive: true }); writeFileSync(join(stateDir, 'judged', `${n}.json`), JSON.stringify({ at: new Date().toISOString(), verdict: ans.verdict })); }

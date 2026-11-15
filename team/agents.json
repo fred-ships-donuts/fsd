@@ -129,6 +129,10 @@
       "cycleMin": 10,
       "stallMin": 30
     },
+    "judge": {
+      "_comment": "fsd-judge (veredito de impasse numa sessão headless isolada). timeoutMin (prazo, min): a sessão que passa disso é morta e o caso vai para o autor.",
+      "timeoutMin": 10
+    },
     "readyGraceMin": 10,
     "_readyGraceMin": "Prazo: minutos depois da 2ª aprovação antes de o Kevin mesclar um PR de agente no lugar do autor.",
     "watch": {
