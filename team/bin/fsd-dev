@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 // fsd-dev start <n> [slug] [--fix|--docs|--chore]   com tarefa: card → Developing (Stuart); worktree <tipo>/<n>-<slug> (feature/ por
 //                                       padrão) a partir da origin/develop, com o issue gravado no branch (branch.<b>.fsd-issue,
-//                                       lido pelo fsd-pr open); mostra o issue e a passagem.
+//                                       lido pelo fsd-pr open); mostra o issue e a passagem. Um card por vez: recusa (exit 1, quadro intacto)
+//                                       se o agente já tem outro em Developing ou Changes Requested; PR em In Review sem mudança pedida não conta.
 // fsd-dev start - <slug> [--fix|--docs|--chore]     sem tarefa: worktree <tipo>/<slug>, sem issue nem quadro.
 // fsd-dev sync -C <worktree>             git pull da develop no branch (merge comum): "ok" ou "conflito: <arquivos>"
 // Nunca troque de branch na pasta principal: cada trabalho vive no seu worktree em .claude/worktrees/.
@@ -16,6 +17,11 @@ if (cmd === 'start') {
   const i = task ? L.issue(n) : null;
   const raw = a[2] && !a[2].startsWith('-') ? a[2] : task ? i.title.replace(new RegExp(`^(F-\\w+:?|(${L.BRANCH_TYPES.join('|')})(\\([^)]*\\))?!?:)\\s*`, 'i'), '') : '';
   const slug = slugify(raw); if (!slug) L.die(`faltou o slug: fsd-dev start ${task ? n : '-'} <slug>`, 2);
+  // Um card por vez (só para quem é dono de Developing): outro card em Developing ou Changes Requested → recusa antes de criar ou mover qualquer coisa.
+  if (task && L.WHO[L.STAGE.dev].includes(L.ME)) {
+    const busy = L.devCards().find((c) => c.n !== Number(n));
+    if (busy) L.die(`fsd-dev: ${L.ME} already has #${busy.n} in ${busy.col}; finish it or move it back to ${L.STAGE.devReady}`, 1);
+  }
   const type = a.includes('--fix') ? 'fix' : a.includes('--docs') ? 'docs' : a.includes('--chore') ? 'chore' : 'feature';
   const branch = task ? `${type}/${n}-${slug}` : `${type}/${slug}`; const dir = `${L.REPO_DIR}/.claude/worktrees/${branch.replace('/', '-')}`;
   const ex = `${L.REPO_DIR}/.git/info/exclude`; try { if (!readFileSync(ex, 'utf8').includes('.claude/worktrees/')) appendFileSync(ex, '\n.claude/worktrees/\n'); } catch {}

@@ -11,6 +11,7 @@ const COLUMNS = {
   devReady: { base: 'Ready for Development', who: ['stuart'], queue: true },
   dev: { base: 'Developing', who: ['stuart'] },
   review: { base: 'In Review', who: ['mel', 'bob'], queue: true },
+  changes: { base: 'Changes Requested', who: ['stuart'] },
   mergeReady: { base: 'Ready to Merge', who: ['kevin'] },
   done: { base: 'Done', who: [] },
 };
@@ -20,6 +21,9 @@ export const STAGE = Object.fromEntries(Object.entries(COLUMNS).map(([k, c]) => 
 
 // Dono de cada fila: quem é avisado quando um card chega nela (fora os avisos próprios de cada comando).
 export const OWNERS = Object.fromEntries(Object.entries(COLUMNS).filter(([, c]) => c.queue).map(([k, c]) => [STAGE[k], c.who]));
+
+// Responsáveis de cada etapa (inclusive as que não são fila): quem trabalha nela. O fsd-dev start usa para a regra de um card por vez.
+export const WHO = Object.fromEntries(Object.entries(COLUMNS).map(([k, c]) => [STAGE[k], c.who]));
 
 // Nomes antigos, aceitos por compatibilidade com handoffs e hábitos: os do kanban sem o responsável (até 2026-11-15) e os de antes
 // do kanban (2026-11-08). Servem também enquanto o quadro do GitHub ainda não foi renomeado (fsd-board rename).

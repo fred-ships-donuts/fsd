@@ -33,7 +33,7 @@ mkenv() { # nome repo home FSD_REPO(set|unset) links(container|host) node_module
   ln -s /media/outra-maquina/Projects/fred-ships-donuts/team/agents/mel/claude/CLAUDE.md "$st/agents/mel/claude/CLAUDE.md"
   echo "cópia antiga" > "$st/agents/kevin/claude/CLAUDE.md"
   if [ "$links" = container ]; then printf '#!/bin/sh\nexec "%s/team/bin/fsd-agent" "$@"\n' "$repo" > "$home/.local/bin/fsd-agent"; chmod +x "$home/.local/bin/fsd-agent"
-    for b in fsd-stats fsd-watch fsd-sync-pair fsd-map; do ln -s "$repo/team/bin/$b" "$home/.local/bin/$b"; done
+    for b in fsd-stats fsd-watch fsd-cleanup fsd-sync-pair fsd-map; do ln -s "$repo/team/bin/$b" "$home/.local/bin/$b"; done
   else for b in fsd-agent fsd-memory-backup fsd-sync-pair fsd-restart fsd-trash fsd-stop fsd-map; do ln -s "$repo/team/bin/$b" "$home/.local/bin/$b"; done; fi
   local T="$repo/team/bin" L="$home/.local/bin"
   run() { ( export HOME="$home" FSD_STATE="$st" PATH="$BASE/stub:$home/.local/bin:$PATH"; unset FSD_REPO FSD_DRY; [ "$setrepo" = set ] && export FSD_REPO="$repo"; cd "$home" && "$@" ); }

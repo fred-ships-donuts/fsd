@@ -144,6 +144,11 @@
       "toolDefaultMin": 20,
       "cooldownMin": 10
     },
+    "cleanup": {
+      "_comment": "fsd-cleanup (tira worktree, branch local e branch remoto de PR já mesclado). loopSeconds (ping): intervalo entre rodadas do --loop. mergedMin (prazo, min): idade mínima do merge antes de um branch ser removido.",
+      "loopSeconds": 600,
+      "mergedMin": 60
+    },
     "stop": {
       "_comment": "fsd-stop: pollSeconds (ping) confere o HANDOFF-OK; waitSeconds é o prazo antes de desistir (a sessão fica aberta).",
       "pollSeconds": 5,

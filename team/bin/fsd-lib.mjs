@@ -18,9 +18,9 @@ export const today = () => new Date().toISOString().slice(0, 10);
 export const REVIEWERS = CFG.reviewers || ['mel', 'bob'];
 // Dono de cada coluna: quem é avisado quando um card chega nela (fora os avisos próprios de cada comando).
 // Etapas do quadro e donos de cada fila: só em fsd-stages.mjs.
-import { STAGE, OWNERS, stageName, ownersOf } from './fsd-stages.mjs';
+import { STAGE, OWNERS, WHO, stageName, ownersOf } from './fsd-stages.mjs';
 import { timing } from './fsd-timing.mjs';
-export { STAGE, OWNERS, stageName, ownersOf };
+export { STAGE, OWNERS, WHO, stageName, ownersOf };
 const NAME = String(process.argv[1] || 'fsd').split('/').pop();
 process.on('uncaughtException', (e) => { console.log(`${NAME}: ${String(e.message || e).split('\n')[0].slice(0, 200)}`); process.exit(e.code === 'ENOENT' ? 2 : (Number.isInteger(e.code) ? e.code : 4)); });
 process.on('unhandledRejection', (e) => { console.log(`${NAME}: ${String(e?.message || e).split('\n')[0].slice(0, 200)}`); process.exit(4); });
@@ -191,11 +191,11 @@ export function findDeadlocks(waits, { now, activityOf: act, cycleMin, stallMin 
   }
   return out;
 }
-// Memória persistida ($FSD_STATE/deadlocks.json = { chave: sig }): o fsd-wait sai a cada evento, então a memória não pode ficar no processo.
-// Devolve só o que é novo ou mudou; guarda o que está presente e esquece o que sumiu (o mesmo impasse formado de novo vale de novo).
+// Memória persistida ($FSD_STATE/<arquivo>.json = { chave: sig }): o fsd-wait sai a cada evento, então a memória não pode ficar no processo.
+// Devolve só o que é novo ou mudou; guarda o que está presente e esquece o que sumiu (o mesmo achado formado de novo vale de novo).
 // Só o Kevin grava: quem não é o Kevin lê sem consumir, para o aviso do Kevin não se perder.
-export function deadlocksNew(findings, all = false) {
-  const file = join(stateDir(), 'deadlocks.json'); let seen = {};
+export function seenNew(name, findings, all = false) {
+  const file = join(stateDir(), name); let seen = {};
   try { seen = JSON.parse(readFileSync(file, 'utf8')) || {}; } catch {}
   const next = Object.fromEntries(findings.map((f) => [f.key, f.sig]));
   if (ME === 'kevin' && JSON.stringify(next) !== JSON.stringify(seen)) {
@@ -203,6 +203,23 @@ export function deadlocksNew(findings, all = false) {
   }
   return all ? findings : findings.filter((f) => seen[f.key] !== f.sig);
 }
+export const deadlocksNew = (findings, all = false) => seenNew('deadlocks.json', findings, all);
+
+// Cards com a label `blocked` cujo bloqueio acabou. O bloqueio vem do ÚLTIMO comentário que começa com "Blocked by #<m>[, #<k>]: <o que destrava>";
+// com todos os #<m> fora de OPEN (fechados, ou PR mesclado/fechado) o card entra: { key, sig, line }. Bloqueio ainda aberto, ou card sem esse comentário,
+// não entra. Uma chamada ao GitHub por card bloqueado (a lista só custa uma). O script nunca tira a label: é do Kevin.
+export function unblocked() {
+  const out = [];
+  for (const i of ghJson(['issue', 'list', '--label', 'blocked', '--state', 'open', '--json', 'number', '--limit', '100']) || []) {
+    const last = [...(ghJson(['issue', 'view', String(i.number), '--json', 'comments'])?.comments || [])].reverse().find((c) => /^\s*Blocked by\b/i.test(c.body));
+    const head = last ? last.body.trim().split('\n')[0].replace(/^Blocked by\b/i, '').split(':')[0] : '';
+    const refs = [...new Set((head.match(/#(\d+)/g) || []).map((x) => Number(x.slice(1))))].filter((m) => m !== i.number);
+    if (!refs.length || refs.some((m) => ghJson(['issue', 'view', String(m), '--json', 'state'])?.state === 'OPEN')) continue;
+    out.push({ key: `#${i.number}`, sig: refs.join(','), line: `desbloqueado: #${i.number} (${refs.map((m) => '#' + m).join(', ')} fechado)` });
+  }
+  return out;
+}
+export const unblockedNew = (findings, all = false) => seenNew('blocked.json', findings, all);
 export const agentOf = (login) => norm(login).replace(/^fsd-/, '');
 
 // Seção de aceite de um issue: do título "Acceptance"/"Como verificar"/"aceite" até o próximo título de mesmo nível ou acima.
@@ -222,10 +239,25 @@ export function state(file) { try { return JSON.parse(readFileSync(file, 'utf8')
 export function saveState(file, s) { mkdirSync(dirname(file), { recursive: true }); writeFileSync(file, JSON.stringify(s, null, 1)); }
 export { existsSync };
 
-// Depois de uma revisão: mudança pedida → Developing (Stuart) + avisa o autor; 2 aprovações atuais → Ready to Merge (Kevin) + avisa o autor.
+// Cards de uma coluna do quadro: [números]. Quadro fora do ar ou não configurado: [] (quem chama decide se isso basta).
+export function columnCards(col) {
+  const r = run(join(BIN, 'fsd-board'), ['list', stageName(col)], { allowFail: true });
+  const m = r.ok && r.out.match(/\((\d+)\):\s*(.*)/);
+  return m ? (m[2].match(/(?<![A-Za-z])#(\d+)/g) || []).map((x) => Number(x.slice(1))) : [];
+}
+// Os cards do desenvolvedor em andamento: Changes Requested e Developing (nessa ordem), com a coluna de cada um. Espera por revisão não conta.
+export function devCards() {
+  return [STAGE.changes, STAGE.dev].flatMap((col) => columnCards(col).map((n) => ({ n, col })));
+}
+// Depois de uma revisão: mudança pedida → Changes Requested (Stuart) + avisa o autor (e, se ele está em outro card, manda terminar o commit,
+// devolver o card novo para Ready for Development e ir para a correção); 2 aprovações atuais → Ready to Merge (Kevin) + avisa o autor.
 export function afterReview(n) {
   const p = pr(n); const s = reviewState(p); const cl = closes(p.body); const author = agentOf(p.author?.login);
-  if (s.changes.length) return [board(STAGE.dev, cl), noticeSummary(notify([author], `PR #${n}: mudanças pedidas por ${s.changes.join(',')}. Veja a revisão.`))].filter(Boolean).join(' | ');
+  if (s.changes.length) {
+    const other = devCards().filter((c) => !cl.includes(c.n) && c.col === STAGE.dev);
+    const rework = other.length ? ` Você está em ${other.map((c) => '#' + c.n).join(', ')} (${STAGE.dev}): termine o commit atual, devolva o card com fsd-board move "${STAGE.devReady}" ${other.map((c) => c.n).join(' ')} (mantenha o worktree) e vá para a correção.` : '';
+    return [board(STAGE.changes, cl), noticeSummary(notify([author], `PR #${n}: mudanças pedidas por ${s.changes.join(',')}. Veja a revisão.${rework}`))].filter(Boolean).join(' | ');
+  }
   if (s.approvers.length >= 2) return [board(STAGE.mergeReady, cl), noticeSummary(notify([author], `PR #${n} tem 2 aprovações: rode fsd-merge ${n}.`))].filter(Boolean).join(' | ');
   return `aprovações ${s.approvers.length}/2`;
 }

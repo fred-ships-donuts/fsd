@@ -65,6 +65,7 @@ comando passam por cima do padrão.
 │   ├── fsd-token                  gera o token do GitHub App do agente
 │   ├── fsd-secrets                pack/unpack dos segredos em secrets.tar.age (age, senha)
 │   ├── fsd-redirect-hook          hook PreToolUse (Bash): comando bloqueado → nega e nomeia o comando do time
+│   ├── fsd-cleanup                apaga worktree, branch local e remoto de PR mesclado há mais de cleanup.mergedMin (sem agente); --once, --loop, --dry
 │   ├── fsd-redirects(.mjs)        o casamento do hook, a tabela do team.md e as fixtures (--test, --write, --check)
 │   ├── gh                         gh dos agentes (só entra no PATH dentro do fsd-agent)
 │   ├── fsd-map                    mapa de código (ask, grep, skeleton, callers, map, build); motor privado, fora do PATH
@@ -149,6 +150,8 @@ no código. **Ping** é de quanto em quanto tempo algo confere; **prazo** é dep
 | `watch.toolGraceMin` | prazo (min) | folga depois do timeout de um Bash em andamento |
 | `watch.toolDefaultMin` | prazo (min) | outra ferramenta em andamento (Agent, WebFetch…) sem sinal de vida |
 | `watch.cooldownMin` | prazo (min) | intervalo mínimo entre duas ações do vigia no mesmo agente |
+| `cleanup.loopSeconds` | ping (s) | intervalo das rodadas do `fsd-cleanup --loop` (o `fsd-watch` o reinicia se morrer) |
+| `cleanup.mergedMin` | prazo (min) | idade mínima do merge para o `fsd-cleanup` apagar o branch e o worktree |
 | `stop.pollSeconds` | ping (s) | `fsd-stop` confere se o agente confirmou o handoff |
 | `stop.waitSeconds` | prazo (s) | `fsd-stop` desiste de esperar (a sessão fica aberta) |
 
