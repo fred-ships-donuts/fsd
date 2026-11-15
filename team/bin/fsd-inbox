@@ -1,0 +1,17 @@
+#!/usr/bin/env node
+// fsd-inbox — caixa de avisos não entregues ($FSD_STATE/inbox/<agente>, JSONL). Nunca derruba quem chama (o hook de SessionStart).
+//   fsd-inbox drain [agente]          imprime e esvazia a caixa (padrão: $FSD_AGENT); caixa vazia: não imprime nada
+//   fsd-inbox append <agente> <de> <texto>   guarda um aviso
+//   fsd-inbox valid <agente>          exit 0 se for um agente de agents.json
+//   fsd-inbox count [agente]          quantos avisos esperam
+const L = await import('./fsd-lib.mjs');
+const [cmd, a, b, c] = process.argv.slice(2);
+try {
+  if (cmd === 'drain') {
+    const ag = a || process.env.FSD_AGENT || '';
+    if (L.inboxValid(ag)) { const n = L.inboxDrain(ag); if (n.length) console.log(`[fsd-avisos pendentes: ${n.length}]\n${n.map(L.noticeLine).join('\n')}`); }
+  } else if (cmd === 'count') console.log(L.inboxCount(a || process.env.FSD_AGENT || ''));
+  else if (cmd === 'valid') process.exit(L.inboxValid(a) ? 0 : 1);
+  else if (cmd === 'append') { if (!a || !b || c === undefined) { console.error('uso: fsd-inbox append <agente> <de> <texto>'); process.exit(2); } L.inboxAppend(a, b, c); }
+  else { console.error('uso: fsd-inbox drain [agente] | count [agente] | valid <agente> | append <agente> <de> <texto>'); process.exit(2); }
+} catch (e) { if (cmd === 'drain') process.exit(0); console.error(`fsd-inbox: ${e.message}`); process.exit(1); }

@@ -34,7 +34,7 @@ if (cmd === 'show') {
   const n = a[1]; if (!/^\d+$/.test(n || '')) L.die('uso: fsd-issue ask <n> <arquivo|->', 2);
   const body = L.readArgFile(a[2]).trim(); if (!body) L.die('pergunta vazia', 2);
   L.ghw(['issue', 'comment', n, '--body-file', '-'], { input: body }); L.ghw(['issue', 'edit', n, '--add-label', 'decision']);
-  console.log([`#${n} pergunta registrada (label decision)`, L.notify(['kevin'], `#${n} tem pergunta para o autor (label decision).`)].filter(Boolean).join(' | '));
+  console.log([`#${n} pergunta registrada (label decision)`, L.noticeSummary(L.notify(['kevin'], `#${n} tem pergunta para o autor (label decision).`))].filter(Boolean).join(' | '));
 } else if (cmd === 'decide') {
   if (L.ME !== 'kevin') L.die('só o kevin registra decisão', 1);
   const n = a[1]; const text = a[2]; if (!/^\d+$/.test(n || '') || !text) L.die('uso: fsd-issue decide <n> "<texto>"', 2);

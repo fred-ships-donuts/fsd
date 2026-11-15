@@ -113,6 +113,10 @@ AGENTS.md                   ⚙️     como achar código com o fsd-map (lido ta
 - o que vale para todos: `claude-settings.json` e `common/team.md`;
 - um MCP novo: `mcp.json`.
 
+## Avisos não entregues
+
+`fsd-notify` cola o aviso na sessão tmux do agente. Se a sessão está fechada ou parada numa pergunta de permissão, o aviso fica em `$FSD_STATE/inbox/<agente>` (uma linha JSON por aviso) e chega no próximo início de sessão (hook SessionStart, `fsd-inbox drain`) ou na próxima rodada do `fsd-wait`. O Kevin vê no `fsd-wait any` quem está offline com avisos pendentes.
+
 ## Pastas de rascunho
 
 Cada agente grava os rascunhos numa pasta própria em `/tmp`, sem pedir permissão, inclusive no

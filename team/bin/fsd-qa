@@ -117,6 +117,6 @@ if (cmd === 'prep') {
   if (!title || !expected || !r) L.die('uso: fsd-qa bug "<título>" "<esperado>" [k] (depois de um fsd-qa run)', 2);
   const body = `## What\nSee Steps.\n\n## Why\nFound while verifying PR #${s.n}.\n\n## Steps\n1. \`${r.cmd}\`\n\n## Expected\n${expected}\n\n## Actual\n\`\`\`\n${r.screen.slice(-1500)}\n\`\`\`\nexit ${r.exit ?? '-'}\n\n## Acceptance\n1. \`${r.cmd}\` → ${expected}\n\n## Environment\ncommit ${s.sha.slice(0, 7)} (PR #${s.n}), Node ${process.version}, terminal 80x24\n\n## References\n- PR #${s.n}\n`;
   const url = L.ghw(['issue', 'create', '--title', title, '--label', 'bug,area:cli,size:S', '--body-file', '-'], { input: body });
-  console.log([`bug ${url}`, L.board(L.STAGE.backlog, [Number(url.split('/').pop())]), L.notify(['kevin'], `Bug aberto na verificação do PR #${s.n}: ${url}`)].filter(Boolean).join(' | '));
+  console.log([`bug ${url}`, L.board(L.STAGE.backlog, [Number(url.split('/').pop())]), L.noticeSummary(L.notify(['kevin'], `Bug aberto na verificação do PR #${s.n}: ${url}`))].filter(Boolean).join(' | '));
 } else if (cmd === 'clean') { clean(L.state(SF)); rmSync(Q, { recursive: true, force: true }); console.log('limpo');
 } else L.die('uso: fsd-qa prep <n> | run <k> "<cmd>" | key [--text] <tecla…> | verdict <k> PASS|FAIL "<esperado>" | verdict --all-pass | finish | bug "<título>" "<esperado>" [k] | clean', 2);
