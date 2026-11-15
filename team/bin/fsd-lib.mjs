@@ -163,11 +163,12 @@ export function findDeadlocks(waits, { now, activityOf: act, cycleMin, stallMin 
 }
 // Memória persistida ($FSD_STATE/deadlocks.json = { chave: sig }): o fsd-wait sai a cada evento, então a memória não pode ficar no processo.
 // Devolve só o que é novo ou mudou; guarda o que está presente e esquece o que sumiu (o mesmo impasse formado de novo vale de novo).
+// Só o Kevin grava: quem não é o Kevin lê sem consumir, para o aviso do Kevin não se perder.
 export function deadlocksNew(findings, all = false) {
   const file = join(stateDir(), 'deadlocks.json'); let seen = {};
   try { seen = JSON.parse(readFileSync(file, 'utf8')) || {}; } catch {}
   const next = Object.fromEntries(findings.map((f) => [f.key, f.sig]));
-  if (JSON.stringify(next) !== JSON.stringify(seen)) {
+  if (ME === 'kevin' && JSON.stringify(next) !== JSON.stringify(seen)) {
     try { mkdirSync(dirname(file), { recursive: true }); const tmp = `${file}.${process.pid}.tmp`; writeFileSync(tmp, JSON.stringify(next)); renameSync(tmp, file); } catch {}
   }
   return all ? findings : findings.filter((f) => seen[f.key] !== f.sig);
