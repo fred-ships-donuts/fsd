@@ -119,7 +119,7 @@ O `CHANGELOG.md` (raiz, em inglês) segue o [Keep a Changelog 1.1.0](https://kee
 
 ## 5. Verificação
 
-Os testes automatizados foram removidos por decisão do autor (SPEC 11, em `docs/ARQUITETURA.md#tests`); voltam só os do `engine/`, com a F-40a (#13). Cada issue traz em "Como verificar (aceite)" a verificação manual. O PR relata o que foi rodado e o que saiu.
+Testes unitários são regra do projeto para o que é relevante (`docs/ARQUITETURA.md#tests`): o PR traz os testes do comportamento que mudou, e `npm test` passa. Cada issue traz em "Como verificar (aceite)" a verificação manual. O PR relata o que foi rodado e o que saiu.
 
 A verificação do PR é do QA (Bob):
 - **Ambiente próprio:** ele baixa o branch do PR num worktree só dele, compila e roda o fsd num tmux de 80x24, com `HOME` e pastas temporárias, sem tocar na janela nem nos arquivos do autor.
