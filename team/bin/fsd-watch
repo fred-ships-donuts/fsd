@@ -6,6 +6,7 @@
 //   ocioso sem Monitor → empurrão curto (acima de restartAbove, reinicia)  permissão / limite de uso → só avisa o autor
 //   pediu ao autor (parado, e o fim do painel pede uma ação a ele: redirects.json → authorAsks) → fsd-notify kevin + empurrão
 //   "não espere o autor"; o mesmo pedido na tela não repete (nem dentro do cooldownMin, nem sob PAUSE).
+//   limpeza (fsd-cleanup --loop): sem cleanup.pid ou com o pid morto, e sem PAUSE → sobe o laço destacado (com --fix; sem ele, "faria").
 // Sinal de vida de quem está trabalhando (o mais recente vale):
 //   1. gravação no transcript da sessão ou de um subagente;
 //   2. contador de tokens do rodapé do painel ("↓ 4.1k tokens") diferente do da rodada anterior: o modelo está gerando;
@@ -18,7 +19,7 @@ import { readFileSync, readdirSync, statSync, existsSync, appendFileSync, writeF
 import { join, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
-import { spawnSync } from 'node:child_process';
+import { spawnSync, spawn } from 'node:child_process';
 import { context } from './fsd-context.mjs';
 import { timing, liveDir } from './fsd-timing.mjs';
 import { load as loadRedirects } from './fsd-redirects.mjs';
@@ -165,6 +166,21 @@ function round() {
   return rows;
 }
 
+// fsd-cleanup --loop tem de estar sempre de pé: $FSD_STATE/cleanup.pid ausente ou com pid morto (e sem PAUSE) → sobe de novo (--fix).
+// Sem token: só confere o pid. O próprio fsd-cleanup recusa um segundo laço, então subir duas vezes não duplica.
+function cleanupCheck() {
+  const dir = process.env.FSD_STATE || join(process.env.HOME, '.config', 'fsd-agents'); let pid = 0;
+  try { pid = Number(readFileSync(join(dir, 'cleanup.pid'), 'utf8').trim()); } catch {}
+  let up = false; if (Number.isInteger(pid) && pid > 0) { try { process.kill(pid, 0); up = true; } catch (e) { up = e.code === 'EPERM'; } }
+  if (up) return `fsd-cleanup: no ar (pid ${pid})`;
+  if (existsSync(join(dir, 'PAUSE'))) return 'fsd-cleanup: parado, PAUSE: nada';
+  if (!FIX) return 'fsd-cleanup: parado, faria: subir o laço';
+  const c = spawn(process.execPath, [join(BIN, 'fsd-cleanup'), '--loop'], { detached: true, stdio: 'ignore', env: process.env });
+  c.on('error', () => {}); c.unref();
+  log('fsd-cleanup: parado → subiu o laço (fsd-cleanup --loop)');
+  return 'fsd-cleanup: parado → subiu o laço';
+}
+
 function table(rows) {
   const head = ['Agente', 'Estado', 'Sem sinal há', 'Contexto', 'Ação'];
   const w = head.map((h, i) => Math.max(h.length, ...rows.map((r) => r[i].length)));
@@ -175,5 +191,5 @@ function table(rows) {
   out.push(line('└', '┴', '┘')); return out.join('\n');
 }
 
-if (!LOOP) console.log(table(round()));
-else { log(`vigia ligado (a cada ${LOOP}s${FIX ? ', com --fix' : ''})`); for (;;) { round(); sh('sleep', [String(LOOP)]); } }
+if (!LOOP) { console.log(table(round())); console.log(cleanupCheck()); }
+else { log(`vigia ligado (a cada ${LOOP}s${FIX ? ', com --fix' : ''})`); for (;;) { round(); cleanupCheck(); sh('sleep', [String(LOOP)]); } }

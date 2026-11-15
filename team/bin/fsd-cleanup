@@ -1,0 +1,113 @@
+#!/usr/bin/env node
+// fsd-cleanup [--once] [--loop [segundos]] [--dry] — tira os branches já mesclados na develop: worktree, branch local e branch remoto.
+// Sem token e sem sessão de agente: quem apaga é só este script (os agentes nunca apagam branch; as regras de deny seguem como estão).
+// Uma rodada: git fetch --prune; branches mesclados na origin/develop (remotos e locais) menos main, develop e HEAD. A hora do merge vem do
+// PR mesclado (gh pr list --state merged --head <branch>: vale também para squash e rebase) e tem de ser mais antiga que
+// agents.json → timing.cleanup.mergedMin. Cada pulo vai para o log com o motivo: PR aberto, sem PR mesclado, mesclado há pouco,
+// worktree com arquivo modificado ou novo, branch na pasta principal, worktree fora de .claude/worktrees/.
+// Ordem para os demais: git worktree remove (sem --force), git worktree prune, git branch -d (nunca -D), apaga o branch na origin.
+// Falha num passo vai para o log e segue para o próximo branch. --dry só mostra o plano. Sem --loop, uma rodada (--once).
+// --loop [s]: uma rodada a cada timing.cleanup.loopSeconds (ou s); um só laço por vez ($FSD_STATE/cleanup.pid, criado com wx; pid morto é
+// assumido); o segundo --loop avisa e sai 0. Respeita o PAUSE ($FSD_STATE/PAUSE). Log: $FSD_STATE/cleanup.log (~/.config/fsd-agents/cleanup.log).
+// Roda com as credenciais do Kevin (o gh de team/bin/gh, FSD_AGENT=kevin). FSD_GH troca o gh (teste); FSD_REPO aponta o clone.
+import { readFileSync, existsSync, appendFileSync, mkdirSync, openSync, writeSync, closeSync, unlinkSync, realpathSync } from 'node:fs';
+import { join, dirname, resolve, sep } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { spawnSync } from 'node:child_process';
+import { timing } from './fsd-timing.mjs';
+
+const BIN = dirname(fileURLToPath(import.meta.url)); const ROOT = dirname(BIN);
+const REPO = resolve(process.env.FSD_REPO || dirname(ROOT));
+const STATE = process.env.FSD_STATE || join(process.env.HOME || '', '.config', 'fsd-agents');
+const PIDFILE = join(STATE, 'cleanup.pid'); const LOGFILE = join(STATE, 'cleanup.log'); const PAUSE = join(STATE, 'PAUSE');
+const GH = process.env.FSD_GH || join(BIN, 'gh'); const SLUG = process.env.FSD_REPO_SLUG || JSON.parse(readFileSync(join(ROOT, 'agents.json'), 'utf8')).board?.repo;
+const WORK = join(REPO, '.claude', 'worktrees') + sep; const SAFE = /^[A-Za-z0-9._/-]+$/; const PROTECTED = new Set(['main', 'develop', 'HEAD']);
+const a = process.argv.slice(2); const DRY = a.includes('--dry') || !!process.env.FSD_DRY;
+const li = a.indexOf('--loop'); const LOOP = li >= 0 ? (Number(a[li + 1]) > 0 ? Number(a[li + 1]) : Number(timing().cleanup.loopSeconds)) : 0;
+for (const x of a) if (!['--once', '--loop', '--dry'].includes(x) && !(li >= 0 && x === a[li + 1] && Number(x) > 0)) { console.log('uso: fsd-cleanup [--once] [--loop [segundos]] [--dry]'); process.exit(2); }
+
+const env = { ...process.env, FSD_AGENT: 'kevin', GH_REPO: process.env.GH_REPO || SLUG };
+const sh = (cmd, args, o = {}) => spawnSync(cmd, args, { encoding: 'utf8', timeout: 120000, env, ...o });
+const git = (args, cwd = REPO) => { const r = sh('git', ['-C', cwd, ...args]); return { ok: r.status === 0, out: (r.stdout || '').trim(), err: (r.stderr || r.stdout || '').trim().split('\n')[0].slice(0, 200) }; };
+const gh = (args) => { const r = sh(GH, args); if (r.status !== 0) throw new Error(`gh ${args.slice(0, 2).join(' ')}: ${(r.stderr || r.stdout || '').trim().split('\n')[0].slice(0, 160)}`); return JSON.parse(r.stdout || '[]'); };
+const said = new Map();   // no laço: o mesmo pulo, pelo mesmo motivo, vai para o log uma vez só
+function log(m, key) {
+  if (key !== undefined) { if (said.get(key) === m) return; said.set(key, m); }
+  const l = `${new Date().toISOString()} ${DRY ? '[dry] ' : ''}${m}`;
+  if (!DRY) { try { mkdirSync(STATE, { recursive: true }); appendFileSync(LOGFILE, l + "\n"); } catch {} }   // --dry não escreve nada
+  console.log(l);
+}
+
+// Worktrees do clone: { branch → caminho } (e os que já não existem em disco, para o prune).
+function worktrees() {
+  const out = new Map(); const r = git(['worktree', 'list', '--porcelain']); if (!r.ok) return out;
+  for (const blk of r.out.split('\n\n')) {
+    const path = blk.match(/^worktree (.+)$/m)?.[1]; const br = blk.match(/^branch refs\/heads\/(.+)$/m)?.[1];
+    if (path && br) out.set(br, { path, gone: !existsSync(path) });
+  }
+  return out;
+}
+const list = (args, strip) => { const r = git(args); return r.ok ? r.out.split('\n').map((l) => l.replace(/^[*+]?\s+/, '').trim()).filter(Boolean).filter((l) => !l.includes(' -> ')).map((l) => (strip ? l.replace(/^origin\//, '') : l)) : []; };
+
+function round() {
+  if (existsSync(PAUSE)) { log('PAUSE: nada', 'pause'); return; }
+  said.delete('pause');
+  if (!git(['fetch', '-q', 'origin', '--prune']).ok) { log('fetch falhou: rodada pulada', 'fetch'); return; }
+  said.delete('fetch');
+  const remote = new Set(list(['branch', '-r', '--merged', 'origin/develop'], true)); const local = new Set(list(['branch', '--merged', 'origin/develop']));
+  const wts = worktrees(); const names = [...new Set([...remote, ...local])].filter((b) => !PROTECTED.has(b)).sort();
+  let removed = 0;
+  for (const b of names) {
+    const skip = (why) => log(`pulou ${b}: ${why}`, `skip:${b}`);
+    if (!SAFE.test(b)) { skip('nome fora do padrão'); continue; }
+    let open, merged;
+    try { open = gh(['pr', 'list', '--state', 'open', '--head', b, '--json', 'number']); merged = gh(['pr', 'list', '--state', 'merged', '--head', b, '--json', 'number,mergedAt', '--limit', '5']); }
+    catch (e) { skip(e.message); continue; }
+    if (open.length) { skip(`PR aberto #${open[0].number}`); continue; }
+    const at = Math.max(0, ...merged.map((p) => Date.parse(p.mergedAt)).filter(Number.isFinite));
+    if (!at) { skip('sem PR mesclado'); continue; }
+    const age = Math.floor((Date.now() - at) / 60000);
+    if (age < Number(timing().cleanup.mergedMin)) { skip(`mesclado há ${age} min (mínimo ${timing().cleanup.mergedMin})`); continue; }
+    const wt = wts.get(b);
+    if (wt && !wt.gone) {
+      const real = (p) => { try { return realpathSync(p); } catch { return resolve(p); } };
+      if (real(wt.path) === real(REPO)) { skip('branch na pasta principal'); continue; }
+      if (!(real(wt.path) + sep).startsWith(real(WORK))) { skip(`worktree fora de .claude/worktrees/ (${wt.path})`); continue; }
+      const st = git(['status', '--porcelain'], wt.path);
+      if (!st.ok) { skip(`não consegui ler o worktree: ${st.err}`); continue; }
+      if (st.out) { skip('worktree com arquivos modificados ou novos'); continue; }
+    }
+    said.delete(`skip:${b}`);
+    const steps = [];
+    if (wt && !wt.gone) steps.push(['worktree remove', () => git(['worktree', 'remove', wt.path])]);
+    steps.push(['worktree prune', () => git(['worktree', 'prune'])]);
+    if (local.has(b)) steps.push(['branch -d', () => git(['branch', '-d', b])]);
+    if (remote.has(b)) steps.push(['remove na origin', () => git(['push', 'origin', '--delete', b])]);
+    if (DRY) { log(`removeria ${b} (mesclado há ${age} min): ${steps.map((s) => s[0]).join(', ')}${wt?.gone ? ' (worktree já sumiu: só prune)' : ''}`); continue; }
+    const res = steps.map(([n, f]) => { const r = f(); return r.ok ? null : `${n} falhou: ${r.err}`; }).filter(Boolean);
+    log(res.length ? `${b}: ${res.join('; ')}` : `removeu ${b} (mesclado há ${age} min): ${steps.map((s) => s[0]).join(', ')}`); if (!res.length) removed++;
+  }
+  if (!names.length) log('nada mesclado para limpar', 'idle');
+  else said.delete('idle');
+  return removed;
+}
+
+if (!LOOP) { try { round(); } catch (e) { log(`rodada falhou: ${String(e.message || e).split('\n')[0]}`); process.exit(4); } }
+else {
+  const alive = (pid) => { try { process.kill(pid, 0); return true; } catch (e) { return e.code === 'EPERM'; } };
+  mkdirSync(STATE, { recursive: true });
+  for (let i = 0; ; i++) {
+    try { const fd = openSync(PIDFILE, 'wx'); writeSync(fd, String(process.pid)); closeSync(fd); break; }
+    catch (e) {
+      if (e.code !== 'EEXIST') throw e;
+      const pid = Number(readFileSync(PIDFILE, 'utf8').trim());
+      if (Number.isInteger(pid) && pid > 0 && alive(pid)) { console.log(`fsd-cleanup: already running (pid ${pid})`); process.exit(0); }
+      if (i >= 2) { console.log('fsd-cleanup: could not take the pidfile; try again'); process.exit(3); }
+      try { unlinkSync(PIDFILE); } catch {}   // pid morto: assume
+    }
+  }
+  process.on('exit', () => { try { if (Number(readFileSync(PIDFILE, 'utf8').trim()) === process.pid) unlinkSync(PIDFILE); } catch {} });
+  for (const [sig, n] of [['SIGTERM', 15], ['SIGINT', 2], ['SIGHUP', 1]]) process.on(sig, () => process.exit(128 + n));
+  log(`limpeza ligada (a cada ${LOOP}s)`);
+  for (;;) { try { round(); } catch (e) { log(`rodada falhou: ${String(e.message || e).split('\n')[0]}`); } await new Promise((r) => setTimeout(r, LOOP * 1000)); }
+}
