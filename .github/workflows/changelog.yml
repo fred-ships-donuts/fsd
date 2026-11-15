@@ -1,0 +1,39 @@
+# Um PR de produto do tipo feat/fix (ou breaking) precisa de uma linha em CHANGELOG.md (CONTRIBUTING.md, "Changelog").
+# Falha quando: o título é feat/fix (ou tem "!"), o PR mexe em src/cli/, src/skills/ ou package.json, não mexe em
+# CHANGELOG.md e não tem o label no-changelog. Só confere que o arquivo foi tocado; o texto é revisado por gente.
+name: changelog
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, edited, labeled, unlabeled]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  changelog:
+    runs-on: ubuntu-latest
+    steps:
+      - name: CHANGELOG entry for product changes
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          NUMBER: ${{ github.event.pull_request.number }}
+          TITLE: ${{ github.event.pull_request.title }}
+          LABELS: ${{ join(github.event.pull_request.labels.*.name, ' ') }}
+        run: |
+          # Título, labels e número vêm do evento atual, não da primeira rodada.
+          if ! printf '%s\n' "$TITLE" | grep -qE '^(feat|fix)(\(.+\))?!?:|^[a-z]+(\(.+\))?!:'; then
+            echo "Title is not feat/fix/breaking: no CHANGELOG entry required."; exit 0
+          fi
+          case " $LABELS " in *" no-changelog "*) echo "Label no-changelog: skipped."; exit 0;; esac
+          FILES="$(gh api "repos/$REPO/pulls/$NUMBER/files" --paginate --jq '.[].filename')"
+          if ! printf '%s\n' "$FILES" | grep -qE '^(src/cli/|src/skills/|package\.json$)'; then
+            echo "No product path changed: no CHANGELOG entry required."; exit 0
+          fi
+          if printf '%s\n' "$FILES" | grep -qx 'CHANGELOG.md'; then
+            echo "CHANGELOG.md is part of this PR."; exit 0
+          fi
+          echo "::error::Add a user-facing line under [Unreleased] in CHANGELOG.md, or add the label no-changelog for an internal change."
+          exit 1
