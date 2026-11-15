@@ -1,26 +1,35 @@
 #!/usr/bin/env node
-// fsd-watch [--fix] [--loop <segundos>] — vigia dos agentes, sem gastar token: lê o rodapé do painel tmux e a hora da
-// última gravação do transcript. Sem --fix só mostra o estado e o que faria. Respeita o PAUSE e não repete a mesma
-// ação no mesmo agente dentro de COOLDOWN_MIN. Log das ações: ~/.config/fsd-agents/watch.log (fora do git).
-//   sem sessão  → sobe o agente          estourou  → reinicia limpo        travado (trabalhando, transcript parado) → reinicia
+// fsd-watch [--fix] [--loop [segundos]] — vigia dos agentes, sem gastar token. Sem --fix só mostra o estado e o que faria.
+// Respeita o PAUSE e não repete a mesma ação no mesmo agente dentro de cooldownMin. Log das ações:
+// ~/.config/fsd-agents/watch.log (fora do git). Tempos: agents.json → timing.watch (fsd-timing.mjs).
+//   sem sessão  → sobe o agente          estourou  → reinicia limpo        travado → reinicia
 //   ocioso sem Monitor → empurrão curto (acima de restartAbove, reinicia)  permissão / limite de uso → só avisa o autor
-import { readFileSync, readdirSync, statSync, existsSync, appendFileSync, writeFileSync } from 'node:fs';
+// Sinal de vida de quem está trabalhando (o mais recente vale):
+//   1. gravação no transcript da sessão ou de um subagente;
+//   2. contador de tokens do rodapé do painel ("↓ 4.1k tokens") diferente do da rodada anterior: o modelo está gerando;
+//   3. ferramenta em andamento, registrada pelo hook fsd-context-guard em liveDir(agente).
+// Travado = trabalhando e:
+//   sem ferramenta em andamento, sem sinal há mais de silentMin;
+//   Bash em andamento: só depois do timeout do próprio comando + toolGraceMin, e sem sinal há mais de silentMin;
+//   outra ferramenta em andamento (Agent, WebFetch…): sem sinal há mais de toolDefaultMin.
+import { readFileSync, readdirSync, statSync, existsSync, appendFileSync, writeFileSync, rmSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import { context } from './fsd-context.mjs';
+import { timing, liveDir } from './fsd-timing.mjs';
 
 const BIN = dirname(fileURLToPath(import.meta.url)); const ROOT = dirname(BIN);
 const REPO = process.env.FSD_REPO || dirname(ROOT); // o clone em que team/ mora
 const LAUNCH = process.env.FSD_AGENT_BIN || join(process.env.HOME, '.local/bin/fsd-agent');
 const cfg = JSON.parse(readFileSync(join(ROOT, 'agents.json'), 'utf8'));
 const RESTART_ABOVE = (a) => context(a).restartAbove;
-const HUNG_MIN = 20, IDLE_MIN = 5, COOLDOWN_MIN = 10;
+const T = timing().watch; const MIN = 60000;
 const AGENTS = ['kevin', 'mel', 'stuart', 'bob'].filter((a) => cfg.agents[a]);
 const STATE = join(tmpdir(), 'fsd-watch-state.json');
 const a = process.argv.slice(2); const FIX = a.includes('--fix');
-const LOOP = a.includes('--loop') ? Number(a[a.indexOf('--loop') + 1]) || 120 : 0;
+const LOOP = a.includes('--loop') ? Number(a[a.indexOf('--loop') + 1]) || Number(T.loopSeconds) : 0;
 
 const sh = (cmd, args, o = {}) => spawnSync(cmd, args, { encoding: 'utf8', timeout: 60000, ...o });
 const log = (m) => { const l = `${new Date().toISOString()} ${m}`; try { appendFileSync(join((process.env.FSD_STATE || join(process.env.HOME, '.config', 'fsd-agents')), 'watch.log'), l + '\n'); } catch {} if (LOOP) console.log(l); };
@@ -35,6 +44,9 @@ function transcript(agent) {
     for (const f of readdirSync(d)) if (f.endsWith('.jsonl')) { const m = statSync(join(d, f)).mtimeMs; if (!best || m > best.m) best = { f: join(d, f), m }; }
   }
   if (!best) return null;
+  // Subagentes gravam em <sessão>/subagents/*.jsonl: também é sinal de vida da sessão.
+  let last = best.m; const sub = join(best.f.replace(/\.jsonl$/, ''), 'subagents');
+  if (existsSync(sub)) for (const f of readdirSync(sub)) if (f.endsWith('.jsonl')) last = Math.max(last, statSync(join(sub, f)).mtimeMs);
   let ctx = 0;
   for (const line of readFileSync(best.f, 'utf8').split('\n')) {
     if (!line.includes('"assistant"')) continue;
@@ -42,10 +54,27 @@ function transcript(agent) {
     const u = e.message?.usage; if (e.type !== 'assistant' || e.isSidechain || !u || e.message.model === '<synthetic>') continue;
     ctx = (u.input_tokens || 0) + (u.cache_read_input_tokens || 0) + (u.cache_creation_input_tokens || 0) + (u.output_tokens || 0);
   }
-  return { idle: Date.now() - best.m, ctx };
+  return { idle: Date.now() - last, ctx };
 }
 
-function classify(agent) {
+// Ferramentas em andamento (hook fsd-context-guard): [{ tool, started, timeoutMs }].
+function liveTools(agent) {
+  const d = liveDir(agent), out = [];
+  if (!existsSync(d)) return out;
+  for (const f of readdirSync(d)) { try { out.push(JSON.parse(readFileSync(join(d, f), 'utf8'))); } catch {} }
+  return out;
+}
+// Contador de tokens do rodapé: mudou desde a última rodada → o modelo está gerando. Devolve há quanto tempo está igual
+// (Infinity sem contador na tela). mem = estado guardado entre rodadas.
+function tokenIdle(agent, pane, mem) {
+  const m = pane.match(/[↓↑]\s*([\d.,]+\s*[kKmM]?)\s*tokens/g); const tok = m ? m.join('|') : '';
+  const key = `sig:${agent}`, prev = mem[key];
+  if (!tok) { delete mem[key]; return Infinity; }
+  if (!prev || prev.tok !== tok) mem[key] = { tok, at: Date.now() };
+  return Date.now() - mem[key].at;
+}
+
+function classify(agent, mem = {}) {
   const s = `fsd-${agent}`;
   if (sh('tmux', ['has-session', '-t', s]).status !== 0) return { state: 'sem sessão', act: 'start' };
   const pane = (sh('tmux', ['capture-pane', '-p', '-t', s]).stdout || '').split('\n').filter((l) => l.trim()).slice(-14).join('\n');
@@ -55,9 +84,19 @@ function classify(agent) {
   if (/Do you want|❯ 1\. Yes/.test(pane)) return { ...base, state: 'permissão', act: 'alert' };
   if (/usage limit|hit your limit|limit will reset|resets? at/i.test(pane)) return { ...base, state: 'limite de uso', act: 'alert' };
   const working = /esc to interrupt/.test(pane), monitor = /\d+ monitors?\b/.test(pane);
-  if (working) return t.idle > HUNG_MIN * 60000 ? { ...base, state: 'travado', act: 'restart' } : { ...base, state: 'trabalhando', act: null };
+  if (working) {
+    const now = Date.now(), tools = liveTools(agent), quiet = Math.min(t.idle, tokenIdle(agent, pane, mem));
+    const bash = tools.filter((x) => x.tool === 'Bash'), other = tools.filter((x) => x.tool !== 'Bash');
+    const names = [...new Set(tools.map((x) => x.tool))].join(', '), w = { ...base, idle: quiet };
+    // Bash dentro do próprio prazo: vivo, mesmo em silêncio (npm ci, testes).
+    if (bash.some((x) => now < x.started + x.timeoutMs + T.toolGraceMin * MIN)) return { ...w, state: `trabalhando (${names})`, act: null };
+    const allowed = (other.length ? T.toolDefaultMin : T.silentMin) * MIN;
+    if (quiet > allowed) return { ...w, state: tools.length ? `travado (${names})` : 'travado', act: 'restart' };
+    return { ...w, state: tools.length ? `trabalhando (${names})` : 'trabalhando', act: null };
+  }
+  delete mem[`sig:${agent}`];
   if (monitor) return { ...base, state: 'esperando (Monitor)', act: null };
-  if (t.idle > IDLE_MIN * 60000) return { ...base, state: 'ocioso sem Monitor', act: t.ctx > RESTART_ABOVE(agent) ? 'restart' : 'nudge' };
+  if (t.idle > T.idleMin * MIN) return { ...base, state: 'ocioso sem Monitor', act: t.ctx > RESTART_ABOVE(agent) ? 'restart' : 'nudge' };
   return { ...base, state: 'acabou de responder', act: null };
 }
 
@@ -71,6 +110,7 @@ function act(agent, r) {
   if (r.act === 'alert') { sh('notify-send', ['-u', 'critical', `fsd: ${agent}`, `${r.state}: precisa de você no tmux fsd-${agent}`]); return `avisou o autor (${r.state})`; }
   if (paused) return 'PAUSE: nada';
   const s = `fsd-${agent}`;
+  if (r.act === 'start' || r.act === 'restart') { try { rmSync(liveDir(agent), { recursive: true, force: true }); } catch {} }   // registros da sessão morta
   if (r.act === 'start') { const c = sh('tmux', ['new-session', '-d', '-s', s, '-c', REPO, LAUNCH, agent, 'claude', kick(agent, 'sessão não existia')]); return c.status === 0 ? 'subiu' : `falhou: ${c.stderr.trim()}`; }
   if (r.act === 'restart') { const c = sh('tmux', ['respawn-pane', '-k', '-t', s, '-c', REPO, LAUNCH, agent, 'claude', kick(agent, `${r.state}, ${k(r.ctx)}`)]); return c.status === 0 ? 'reiniciou' : `falhou: ${c.stderr.trim()}`; }
   if (r.act === 'nudge') {
@@ -85,11 +125,11 @@ function round() {
   let st = {}; try { st = JSON.parse(readFileSync(STATE, 'utf8')); } catch {}
   const rows = [];
   for (const ag of AGENTS) {
-    const r = classify(ag); let done = '-';
+    const r = classify(ag, st); let done = '-';
     if (r.act) {
       const key = `${ag}:${r.act}`, last = st[key] || 0;
       if (!FIX) done = `faria: ${r.act}`;
-      else if (Date.now() - last < COOLDOWN_MIN * 60000) done = `espera (${r.act} há ${min(Date.now() - last)} min)`;
+      else if (Date.now() - last < T.cooldownMin * MIN) done = `espera (${r.act} há ${min(Date.now() - last)} min)`;
       else { done = act(ag, r); st[key] = Date.now(); log(`${ag}: ${r.state} → ${done}`); }
     }
     rows.push([ag[0].toUpperCase() + ag.slice(1), r.state, r.idle != null ? `${min(r.idle)} min` : '-', r.ctx ? k(r.ctx) : '-', done]);
@@ -99,7 +139,7 @@ function round() {
 }
 
 function table(rows) {
-  const head = ['Agente', 'Estado', 'Sem gravar há', 'Contexto', 'Ação'];
+  const head = ['Agente', 'Estado', 'Sem sinal há', 'Contexto', 'Ação'];
   const w = head.map((h, i) => Math.max(h.length, ...rows.map((r) => r[i].length)));
   const line = (l, m, r) => l + w.map((n) => '─'.repeat(n + 2)).join(m) + r;
   const center = (s, n) => { const p = n - s.length; return ' '.repeat(Math.floor(p / 2)) + s + ' '.repeat(Math.ceil(p / 2)); };

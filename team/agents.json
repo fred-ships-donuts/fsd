@@ -69,7 +69,7 @@
       "bot_user_id": 353952344,
       "client_id": "Iv23liNMIbJFjd6cOprU",
       "claude": {
-        "model": "claude-opus-5-5",
+        "model": "claude-sonnet-5-5",
         "effort": "medium",
         "disallowedTools": []
       },
@@ -83,7 +83,7 @@
       "bot_user_id": 353952367,
       "client_id": "Iv23liG3EMeQYESMR0aO",
       "claude": {
-        "model": "claude-opus-5-5",
+        "model": "claude-sonnet-5-5",
         "effort": "medium",
         "disallowedTools": []
       },
@@ -97,7 +97,7 @@
       "bot_user_id": 353952395,
       "client_id": "Iv23liwL2z7JGywh7Agm",
       "claude": {
-        "model": "claude-opus-5-5",
+        "model": "claude-sonnet-5-5",
         "effort": "medium",
         "disallowedTools": [
           "Agent",
@@ -106,6 +106,39 @@
         ]
       },
       "org_installation_id": 179989726
+    }
+  },
+  "timing": {
+    "_comment": "Tempos do time, lidos pelo fsd-timing.mjs (a unidade está no nome). Ping = de quanto em quanto tempo algo confere; prazo = depois de quanto tempo algo age. FSD_WAIT_SECONDS, FSD_READY_GRACE e FSD_STOP_WAIT passam por cima numa sessão só.",
+    "wait": {
+      "_comment": "fsd-wait (ping, s): de quanto em quanto tempo cada espera confere o GitHub. ready: PR pronto parado (Kevin) · todo: PR para revisar/verificar (Kevin, Mel, Bob) · mine: revisão ou merge nos PRs do Stuart · column: card na coluna (Mel, Stuart) · pr: um PR específico (fsd-wait pr). Sem valor, vale default. retries: falhas de rede seguidas antes de desistir.",
+      "default": 10,
+      "ready": 60,
+      "todo": 10,
+      "mine": 10,
+      "column": 10,
+      "pr": 8,
+      "retries": 10
+    },
+    "waits": {
+      "_comment": "Registro de esperas ($FSD_STATE/waits/, fsd-wait --waiting-for). expireMin (prazo, min): uma espera mais velha que isso é apagada pelo waitsList().",
+      "expireMin": 120
+    },
+    "readyGraceMin": 10,
+    "_readyGraceMin": "Prazo: minutos depois da 2ª aprovação antes de o Kevin mesclar um PR de agente no lugar do autor.",
+    "watch": {
+      "_comment": "fsd-watch. loopSeconds (ping): intervalo entre rodadas com --loop sem número. Prazos (min): idleMin, parado sem Monitor → empurrão · silentMin, trabalhando sem ferramenta rodando e sem sinal (transcript, subagente ou tokens na tela) → reinicia · ferramenta rodando: Bash vale o próprio timeout + toolGraceMin; as outras (Agent, WebFetch…) toolDefaultMin sem sinal · cooldownMin: intervalo mínimo entre duas ações no mesmo agente.",
+      "loopSeconds": 15,
+      "idleMin": 5,
+      "silentMin": 10,
+      "toolGraceMin": 2,
+      "toolDefaultMin": 20,
+      "cooldownMin": 10
+    },
+    "stop": {
+      "_comment": "fsd-stop: pollSeconds (ping) confere o HANDOFF-OK; waitSeconds é o prazo antes de desistir (a sessão fica aberta).",
+      "pollSeconds": 5,
+      "waitSeconds": 300
     }
   },
   "board": {

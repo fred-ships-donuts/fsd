@@ -27,7 +27,7 @@ my-project/
 | `nook/kitchen/` | Project rules, settings and context; per-delivery preparation documents | User |
 | `nook/bench/` | Task folders being worked on | User |
 | `nook/cookbook/` | Recipes (workflows) | User |
-| `nook/bakers/` | Baker definitions and craft metadata | User |
+| `nook/bakers/` | Baker definitions and craft metadata (format: `docs/spec/bakers/flavor.md`) | User |
 | `nook/rack/` | Finished task folders and Donuts | FSD |
 | `nook/fridge/` | Archived task folders | On user request |
 | `.fsd/oven/` | Runtime state of the Oven | FSD |
@@ -67,6 +67,8 @@ The six documents of a delivery (names in `GLOSSARY.md`). `<slug>` is the delive
 | Taste (QA REVIEW) | `nook/bench/<slug>/taste.md` | QA |
 
 Craving, Flavor and Rise are preparation, so they live in `kitchen/`. Tray, Step and Taste belong to the task folder and move with it from `bench/` to `rack/` and `fridge/`.
+
+The three loose files directly under `kitchen/` (`rules.md`, `settings.md`, `context.md`) are defined in `docs/spec/kitchen/flavor.md`.
 
 `kitchen/<slug>/` is created when the user writes a Craving, not by `fsd init`, and it is not part of the slug-uniqueness check of `fsd task new` (bench, rack and fridge only).
 

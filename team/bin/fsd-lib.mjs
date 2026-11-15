@@ -19,6 +19,7 @@ export const REVIEWERS = CFG.reviewers || ['mel', 'bob'];
 // Dono de cada coluna: quem é avisado quando um card chega nela (fora os avisos próprios de cada comando).
 // Etapas do quadro e donos de cada fila: só em fsd-stages.mjs.
 import { STAGE, OWNERS, stageName, ownersOf } from './fsd-stages.mjs';
+import { timing } from './fsd-timing.mjs';
 export { STAGE, OWNERS, stageName, ownersOf };
 const NAME = String(process.argv[1] || 'fsd').split('/').pop();
 process.on('uncaughtException', (e) => { console.log(`${NAME}: ${String(e.message || e).split('\n')[0].slice(0, 200)}`); process.exit(e.code === 'ENOENT' ? 2 : (Number.isInteger(e.code) ? e.code : 4)); });
@@ -107,17 +108,16 @@ export function notify(agents, text) {
   return r.out && r.out !== 'ninguém recebeu' ? `avisados: ${r.out}` : '';
 }
 // Registro de esperas ($FSD_STATE/waits/<agente>.json): quem espera por quem. Só os agentes de agents.json viram nome de arquivo.
-export const WAIT_EXPIRE_MS = 2 * 60 * 60 * 1000;
 export const waitsDir = () => join(process.env.FSD_STATE || join(process.env.HOME || '', '.config', 'fsd-agents'), 'waits');
 const pidAlive = (pid) => { try { process.kill(pid, 0); return true; } catch (e) { return e.code === 'EPERM'; } };
-// Lista as esperas vivas; apaga as de mais de 2 h, as de processo morto e as ilegíveis.
+// Lista as esperas vivas; apaga as de mais de timing.waits.expireMin, as de processo morto e as ilegíveis.
 export function waitsList() {
   let names = []; try { names = readdirSync(waitsDir()).filter((f) => f.endsWith('.json')); } catch { return []; }
   const out = [];
   for (const f of names) {
     const path = join(waitsDir(), f); const agent = f.slice(0, -5); let w = null;
     try { w = JSON.parse(readFileSync(path, 'utf8')); } catch {}
-    const ok = w && AGENTS.includes(agent) && Number.isInteger(w.pid) && Date.parse(w.since) > Date.now() - WAIT_EXPIRE_MS && pidAlive(w.pid);
+    const ok = w && AGENTS.includes(agent) && Number.isInteger(w.pid) && Date.parse(w.since) > Date.now() - Number(timing().waits.expireMin) * 60000 && pidAlive(w.pid);
     if (!ok) { try { unlinkSync(path); } catch {} continue; }
     out.push({ agent, for: w.for, what: w.what, ref: w.ref ?? null, since: w.since });
   }
@@ -152,13 +152,14 @@ export function afterReview(n) {
 
 // PRs prontos para entrar: abertos, não draft, base develop, 2+ aprovações atuais, sem pedido de mudança, sem conflito.
 export const ready = (p) => { const s = reviewState(p); return p.state === 'OPEN' && !p.isDraft && p.baseRefName === 'develop' && s.approvers.length >= 2 && !s.changes.length && p.mergeable !== 'CONFLICTING'; };
-// Prontos "parados": de agentes (PR do autor só por número), com a 2ª aprovação há mais de FSD_READY_GRACE min (padrão 10).
+// Prontos "parados": de agentes (PR do autor só por número), com a 2ª aprovação há mais de agents.json → timing.readyGraceMin
+// (FSD_READY_GRACE passa por cima).
 // Assim o autor do PR mescla primeiro; --now ignora a espera.
 export function readyIdle(p, now = process.argv.includes('--now')) {
   if (!ready(p) || !AGENTS.includes(agentOf(p.author?.login))) return false;
   if (now) return true;
   const s = reviewState(p); const t = s.approvers.map((w) => Date.parse(s.last.get(w)?.submittedAt || 0)).sort((x, y) => x - y)[1] || 0;
-  return Date.now() - t > Number(process.env.FSD_READY_GRACE || 10) * 60000;
+  return Date.now() - t > Number(timing().readyGraceMin) * 60000;
 }
 // PRs que um revisor (mel, bob) precisa olhar agora; os outros agentes não revisam por padrão.
 export function todo(login) {
