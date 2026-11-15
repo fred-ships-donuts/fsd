@@ -55,3 +55,4 @@ Notes:
 | Apêndice A — Bibliotecas de interface avaliadas | `docs/spec/wizard-screen/rise.md#discarded-alternatives` | moved |
 | (no old number) Kitchen files in `nook/kitchen/` | `docs/spec/kitchen/flavor.md#behavior` | decision |
 | (no old number) Baker definitions in `nook/bakers/` | `docs/spec/bakers/flavor.md#behavior` | decision |
+| (no old number) Recipes in `nook/cookbook/` | `docs/spec/cookbook/flavor.md#behavior` | decision |
