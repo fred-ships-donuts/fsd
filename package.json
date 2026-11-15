@@ -1,6 +1,6 @@
 {
   "name": "fred-ships-donuts",
-  "version": "0.0.1",
+  "version": "1.0.0",
   "description": "fsd (Fred Ships Donuts) CLI",
   "main": "dist/cli/fsd.js",
   "scripts": {
