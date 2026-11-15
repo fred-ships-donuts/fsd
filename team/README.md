@@ -64,6 +64,7 @@ comando passam por cima do padrão.
 │
 ├── agents.json             ⚙️     por agente: model, effort, disallowedTools, dados do GitHub App
 │                                  "claude_common": ferramentas cortadas para todos
+│                                  "timing": tempos do time (pings e prazos), ver "Tempos do time"
 ├── claude-settings.json    ⚙️     comum: hooks (RTK, ai-memory, fsd-context-guard), deny comuns, permissões do ai-memory e do fsd-map
 ├── mcp.json                ⚙️     o único MCP dos agentes: ai-memory
 ├── common/
@@ -111,7 +112,42 @@ AGENTS.md                   ⚙️     como achar código com o fsd-map (lido ta
 - modelo, esforço ou ferramentas de um agente: `agents.json`;
 - o que um agente pode escrever: `agents/<nome>/claude/settings.json`;
 - o que vale para todos: `claude-settings.json` e `common/team.md`;
+- um tempo de espera (ping ou prazo): `agents.json` → `timing`;
 - um MCP novo: `mcp.json`.
+
+## Tempos do time
+
+Todos em `agents.json` → `timing`, lidos pelo `bin/fsd-timing.mjs`. Campo faltando é erro, não há valor escondido
+no código. **Ping** é de quanto em quanto tempo algo confere; **prazo** é depois de quanto tempo algo age.
+
+| campo | tipo | o que é |
+|---|---|---|
+| `wait.ready` | ping (s) | Kevin confere se há PR aprovado e parado |
+| `wait.todo` | ping (s) | Kevin, Mel e Bob conferem se há PR para revisar ou verificar |
+| `wait.mine` | ping (s) | Stuart confere revisão, merge ou fechamento dos PRs dele |
+| `wait.column` | ping (s) | Mel e Stuart conferem se chegou card na coluna deles |
+| `wait.pr` | ping (s) | qualquer agente esperando um PR específico (`fsd-wait pr <n> …`) |
+| `wait.default` | ping (s) | vale para o caso acima que ficar sem valor |
+| `wait.retries` | contagem | falhas de rede seguidas antes de o `fsd-wait` desistir |
+| `readyGraceMin` | prazo (min) | depois da 2ª aprovação, antes de o Kevin mesclar no lugar do autor do PR |
+| `watch.loopSeconds` | ping (s) | intervalo das rodadas do `fsd-watch --loop` |
+| `watch.idleMin` | prazo (min) | agente parado sem Monitor leva um empurrão |
+| `watch.silentMin` | prazo (min) | agente trabalhando, sem ferramenta em andamento e sem sinal de vida, é reiniciado |
+| `watch.toolGraceMin` | prazo (min) | folga depois do timeout de um Bash em andamento |
+| `watch.toolDefaultMin` | prazo (min) | outra ferramenta em andamento (Agent, WebFetch…) sem sinal de vida |
+| `watch.cooldownMin` | prazo (min) | intervalo mínimo entre duas ações do vigia no mesmo agente |
+| `stop.pollSeconds` | ping (s) | `fsd-stop` confere se o agente confirmou o handoff |
+| `stop.waitSeconds` | prazo (s) | `fsd-stop` desiste de esperar (a sessão fica aberta) |
+
+`FSD_WAIT_SECONDS`, `FSD_READY_GRACE` e `FSD_STOP_WAIT` passam por cima numa sessão só.
+
+**Sinal de vida.** O `fsd-watch` só reinicia quem está trabalhando quando não há nenhum destes sinais, todos sem
+gastar token:
+- gravação no transcript da sessão ou de um subagente;
+- contador de tokens do rodapé do painel mudando entre duas rodadas (o modelo está gerando);
+- ferramenta em andamento: o hook `fsd-context-guard` grava um arquivo por ferramenta em `/tmp/fsd-live/<agente>/`
+  no `PreToolUse` e apaga no `PostToolUse`. Um Bash em andamento vale até o timeout do próprio comando mais
+  `toolGraceMin`, mesmo em silêncio (`npm ci`, testes).
 
 ## Pastas de rascunho
 
