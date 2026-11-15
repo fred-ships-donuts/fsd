@@ -201,7 +201,8 @@ quando o agente gravar o próximo rascunho.
 
 ## Segredos
 
-- **Outra máquina:** os mesmos segredos vão cifrados em `secrets.tar.age`. Na matriz: `bin/fsd-secrets pack` e commit; na remota: `bin/fsd-secrets unpack`. Passo a passo do container em `docs/CONTAINER-PASSO-A-PASSO.md`; valores da sua instalação em `setup/team.env.example`.
+- **Outra máquina:** os mesmos segredos vão cifrados em `secrets.tar.age`. Na matriz: `bin/fsd-secrets pack` e commit; na remota: `bin/fsd-secrets unpack`. Passo a passo do container em `team/docs/CONTAINER-PASSO-A-PASSO.md`; valores da sua instalação em `setup/team.env.example`.
+- **Depois de mover ou renomear arquivos:** `setup/check-paths` (ou `npm run check:paths`) lista todo link, âncora, caminho de script e link simbólico quebrado, com `arquivo:linha`, e sai 1 se houver algum. Só lê; `--root <pasta>` confere outra árvore.
 - **Antes de mexer em caminhos, setup ou scripts:** `setup/simulate-envs` clona o branch atual em vários layouts (containers com nomes e caminhos diferentes, a matriz, caminho com espaços) e mostra onde quebra; termina com saída 0 só sem falhas.
 - **`keys/<slug>.pem`:** perdeu ou vazou? Gere outra na página do App e apague a antiga.
 - **`claude-oauth-token`:** troca com `claude setup-token`. Salve sem ecoar na tela: `read -rsp "token: " T && umask 077 && printf '%s\n' "$T" > claude-oauth-token && unset T`.
