@@ -169,11 +169,11 @@
         ]
       },
       {
-        "matcher": "Monitor",
         "hooks": [
           {
             "type": "command",
-            "command": "$FSD_TEAM/bin/fsd-context-guard"
+            "command": "$FSD_TEAM/bin/fsd-context-guard",
+            "timeout": 5
           }
         ]
       }
@@ -222,6 +222,15 @@
           {
             "type": "command",
             "command": "$HOME/.local/lib/ai-memory/ai-memory --data-dir $HOME/.local/share/ai-memory hook --auth-token \"$AI_MEMORY_AUTH_TOKEN\" --agent claude-code --server-url http://127.0.0.1:49374 --event post-tool-use"
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$FSD_TEAM/bin/fsd-context-guard",
+            "timeout": 5
           }
         ]
       }

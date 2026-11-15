@@ -66,11 +66,15 @@ claude_wrap() {
   # Nome da sessão = nome do agente, para os outros saberem a quem mandar (SendMessage to: "mel").
   [ "$has_name" = 0 ] && extra+=(--name "$name")
   local model effort deny sources
+  # Ajuste desta instalação, fora do git: $FSD_STATE/agents.local.json → agents.<nome>.claude passa por cima do
+  # agents.json campo a campo (model, effort, disallowedTools, settingSources). Arquivo ausente: vale o agents.json.
   { read -r model; read -r effort; read -r deny; read -r sources; } < <(node -e '
-    const j = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8"));
-    const c = j.agents[process.argv[2]].claude || {};
+    const fs = require("fs"); const j = JSON.parse(fs.readFileSync(process.argv[1], "utf8"));
+    let l = {}; if (fs.existsSync(process.argv[3])) { try { l = JSON.parse(fs.readFileSync(process.argv[3], "utf8")); } catch (e) { console.error("[fsd-agent] agents.local.json inválido: " + e.message); process.exit(2); } }
+    const c = { ...(j.agents[process.argv[2]].claude || {}), ...(((l.agents || {})[process.argv[2]] || {}).claude || {}) };
     const d = [...((j.claude_common || {}).disallowedTools || []), ...(c.disallowedTools || [])];
-    console.log(c.model || ""); console.log(c.effort || ""); console.log(d.join(",")); console.log(c.settingSources || (j.claude_common || {}).settingSources || "");' "$ROOT/agents.json" "$name")
+    console.log(c.model || ""); console.log(c.effort || ""); console.log(d.join(",")); console.log(c.settingSources || (j.claude_common || {}).settingSources || "");' "$ROOT/agents.json" "$name" "$STATE/agents.local.json") \
+    || { echo "[fsd-agent] não consegui ler o modelo/esforço de $name" >&2; exit 2; }
   # --disallowedTools aceita vários valores: o --strict-mcp-config logo depois fecha a lista,
   # para ela não engolir um prompt seu.
   [ -n "$deny" ] && extra+=(--disallowedTools "$deny")
