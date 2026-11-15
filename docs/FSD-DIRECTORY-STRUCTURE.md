@@ -68,6 +68,8 @@ The six documents of a delivery (names in `GLOSSARY.md`). `<slug>` is the delive
 
 Craving, Flavor and Rise are preparation, so they live in `kitchen/`. Tray, Step and Taste belong to the task folder and move with it from `bench/` to `rack/` and `fridge/`.
 
+The three loose files directly under `kitchen/` (`rules.md`, `settings.md`, `context.md`) are defined in `docs/spec/kitchen/flavor.md`.
+
 `kitchen/<slug>/` is created when the user writes a Craving, not by `fsd init`, and it is not part of the slug-uniqueness check of `fsd task new` (bench, rack and fridge only).
 
 Outside `nook/` (this repository's own team flow, not the product): the Craving is the GitHub issue; Tray and Rise are the Architect handoff comment; Steps are the steps of the PR; Taste is the QA verification comment on the PR. For now the Flavor is in `docs/spec/<slug>/flavor.md` (see `docs/spec/MAP.md`).
