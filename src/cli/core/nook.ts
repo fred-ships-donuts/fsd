@@ -17,6 +17,7 @@ export const DIR_STATUS: Record<TaskDir, TaskStatus> = { bench: 'in_progress', r
 export interface NookPaths {
   root: string;
   bakers: string;
+  cookbook: string;
   dirs: Record<TaskDir, string>;
 }
 
@@ -25,6 +26,7 @@ export function nookPaths(env: Env): NookPaths {
   return {
     root,
     bakers: join(root, 'bakers'),
+    cookbook: join(root, 'cookbook'),
     dirs: { bench: join(root, 'bench'), rack: join(root, 'rack'), fridge: join(root, 'fridge') },
   };
 }

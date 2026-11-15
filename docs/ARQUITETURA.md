@@ -12,7 +12,7 @@ ui/ ────► wizard/ ─────┘
 
 | Camada | Responsabilidade | Pode importar |
 |---|---|---|
-| `core/` | Domínio e disco: escopos e caminhos, catálogo, registro, configuração, conflitos, leitura do diário, formato dos arquivos de task, leitura e validação dos Bakers de `nook/bakers/` (`bakers.ts`), versões, npm. Só lê, exceto as gravações atômicas de um arquivo (JSON e texto) de `core/fs.ts` e o arquivo de trava de `core/lock.ts` (`.fsd/cache/lock`, `O_EXCL`). | `node:` e bibliotecas puras de formato de dados, cada uma isolada num único módulo (hoje: `yaml`, só em `core/taskFiles.ts`) |
+| `core/` | Domínio e disco: escopos e caminhos, catálogo, registro, configuração, conflitos, leitura do diário, formato dos arquivos de task, leitura e validação dos Bakers de `nook/bakers/` (`bakers.ts`), leitura e validação das Recipes de `nook/cookbook/` (`recipes.ts`), versões, npm. Só lê, exceto as gravações atômicas de um arquivo (JSON e texto) de `core/fs.ts` e o arquivo de trava de `core/lock.ts` (`.fsd/cache/lock`, `O_EXCL`). | `node:` e bibliotecas puras de formato de dados, cada uma isolada num único módulo (hoje: `yaml`, só em `core/taskFiles.ts`) |
 | `plan/` | Planejadores: leem o disco e devolvem um `Plan` com o que fazer e o resultado de cada skill. **Nunca escrevem.** | `core/` |
 | `engine/` | Executa um `Plan` em fases (6.9), com diário, desfazer e recuperação. Toda mudança com mais de uma operação passa por aqui; uma gravação de um arquivo só usa `core/fs.ts`. | `core/`, `plan/` |
 | `commands/` | Um arquivo por comando da CLI: valida a entrada, chama planejador e motor, imprime e devolve o exit code. | `core/`, `plan/`, `engine/` |
