@@ -136,6 +136,8 @@ no código. **Ping** é de quanto em quanto tempo algo confere; **prazo** é dep
 | `wait.default` | ping (s) | vale para o caso acima que ficar sem valor |
 | `wait.retries` | contagem | falhas de rede seguidas antes de o `fsd-wait` desistir |
 | `waits.expireMin` | prazo (min) | uma espera do registro `waits/` (`fsd-wait --waiting-for`) mais velha que isso é apagada |
+| `deadlock.cycleMin` | prazo (min) | ciclo de esperas no mesmo PR/issue sem atividade vira `DEADLOCK` |
+| `deadlock.stallMin` | prazo (min) | todos esperando, sem ciclo e sem atividade vira `STALLED` |
 | `readyGraceMin` | prazo (min) | depois da 2ª aprovação, antes de o Kevin mesclar no lugar do autor do PR |
 | `watch.loopSeconds` | ping (s) | intervalo das rodadas do `fsd-watch --loop` |
 | `watch.idleMin` | prazo (min) | agente parado sem Monitor leva um empurrão |
@@ -155,6 +157,10 @@ gastar token:
 - ferramenta em andamento: o hook `fsd-context-guard` grava um arquivo por ferramenta em `/tmp/fsd-live/<agente>/`
   no `PreToolUse` e apaga no `PostToolUse`. Um Bash em andamento vale até o timeout do próprio comando mais
   `toolGraceMin`, mesmo em silêncio (`npm ci`, testes).
+
+## Detector de impasse
+
+O `fsd-wait any` do Kevin (e `fsd-wait deadlock`, só leitura, para qualquer agente) lê o registro `waits/` (sem chamar o GitHub) e agrupa as esperas por PR/issue. Um ciclo (`kevin→mel→kevin`) quieto há `deadlock.cycleMin` vira `DEADLOCK #n: kevin→mel→kevin`; um PR em que todos esperam, sem ciclo, quieto há `deadlock.stallMin`, vira `STALLED #n: <quem>→<por quem> "<o quê>"; …`. A atividade é o `updated_at` do issue/PR (comentário, revisão, label, push), consultado só para candidatos; mover o card no quadro não conta. Cada impasse é avisado uma vez: `$FSD_STATE/deadlocks.json` guarda a assinatura das esperas e só uma mudança nelas (ou o impasse desfeito e formado de novo) avisa outra vez. Esperas sem `--pr`/`--issue` não entram. `FSD_NOW` (ms ou data ISO) simula o relógio.
 
 ## Pastas de rascunho
 
