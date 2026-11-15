@@ -44,9 +44,9 @@ export interface BakerReport {
 const nonEmptyText = (value: unknown): value is string => typeof value === 'string' && value.trim() !== '';
 const textList = (value: unknown): value is string[] => Array.isArray(value) && value.every(nonEmptyText);
 
-// The regular files named `*.md` (a link to a regular file is read through it; a link to a folder or a broken link is
+// The regular files named `*.md` of a folder (Bakers, Recipes) (a link to a regular file is read through it; a link to a folder or a broken link is
 // ignored), sorted by name. Empty when the folder is missing or cannot be listed.
-function bakerFiles(dir: string): string[] {
+export function markdownFiles(dir: string): string[] {
   try {
     return readdirSync(dir, { withFileTypes: true })
       .filter((entry) => entry.name.endsWith('.md'))
@@ -89,24 +89,27 @@ function readBaker(dir: string, file: string): Baker | BakerReason {
   return { file, name, responsibilities: data.responsibilities as string[], craft: data.craft as string, skills };
 }
 
+/** True when `skill` is not installed: absent from the project registry and then the global one (first hit wins), or its folder is gone. */
+export function skillNotInstalled(skill: string, project: Record<string, Entry>, global: Record<string, Entry>): boolean {
+  const entry = project[skill] ?? global[skill];
+  const state = skillState(entry, entry?.version ?? '0.0.0');
+  return state === 'not installed' || state === 'missing';
+}
+
 /** Reads `nook/bakers/`: the valid Bakers, the invalid ones with the reason, and the skills that are not installed. */
 export function readBakers(env: Env): BakerReport {
   const dir = nookPaths(env).bakers;
   const report: BakerReport = { bakers: [], invalid: [], notes: [] };
   const project = readRegistry('project', env).skills;
   const global = readRegistry('global', env).skills;
-  for (const file of bakerFiles(dir)) {
+  for (const file of markdownFiles(dir)) {
     const result = readBaker(dir, file);
     if ('kind' in result) {
       report.invalid.push({ file, reason: result });
       continue;
     }
     report.bakers.push(result);
-    for (const skill of result.skills) {
-      const entry: Entry | undefined = project[skill] ?? global[skill];
-      const state = skillState(entry, entry?.version ?? '0.0.0');
-      if (state === 'not installed' || state === 'missing') report.notes.push({ baker: result.name, skill });
-    }
+    for (const skill of result.skills) if (skillNotInstalled(skill, project, global)) report.notes.push({ baker: result.name, skill });
   }
   return report;
 }
@@ -146,7 +149,11 @@ const REASON: Record<BakerLang, (reason: BakerReason) => string> = {
 
 /** The text of an invalid Baker or of a skill note, in `lang`. */
 export function bakerMessage(item: InvalidBaker | SkillNote, lang: BakerLang): string {
-  if ('reason' in item) return lang === 'en' ? `Baker ${item.file} is invalid: ${REASON.en(item.reason)}` : `Baker ${item.file} é inválido: ${REASON['pt-BR'](item.reason)}`;
+  if ('reason' in item) {
+    return lang === 'en'
+      ? `Baker ${item.file} is invalid: ${REASON.en(item.reason)}`
+      : `Baker ${item.file} é inválido: ${REASON['pt-BR'](item.reason)}`;
+  }
   return lang === 'en'
     ? `Baker ${item.baker}: skill ${item.skill} is not installed (run fsd init, Install flow)`
     : `Baker ${item.baker}: a skill ${item.skill} não está instalada (rode fsd init, fluxo Instalar)`;
