@@ -17,6 +17,8 @@ ok()  { echo "  PASS $*"; echo P >> "$RES"; }
 bad() { echo "  FAIL $*"; echo F >> "$RES"; }
 chk() { local d="$1"; shift; local o; if o=$("$@" 2>&1); then ok "$d"; else bad "$d :: $(tail -3 <<<"$o" | tr '\n' ' ' | cut -c1-300)"; fi; }
 mkdir -p "$BASE/stub"; printf '#!/usr/bin/env bash\necho "STUB claude $* | DISABLE_1M=${CLAUDE_CODE_DISABLE_1M_CONTEXT:-<unset>} | WINDOW=${CLAUDE_CODE_AUTO_COMPACT_WINDOW:-}"\n' > "$BASE/stub/claude"; chmod +x "$BASE/stub/claude"
+# gh de verdade simulado (FSD_REAL_GH): o issue da tarefa existe e está aberto, sem depender do estado do GitHub (o #81 já fechou).
+printf '#!/usr/bin/env bash\nif [ "$1 $2" = "issue view" ]; then echo "{\\"number\\":$3,\\"title\\":\\"sim\\",\\"body\\":\\"\\",\\"state\\":\\"OPEN\\",\\"labels\\":[],\\"comments\\":[]}"; else echo "gh simulado: $*" >&2; exit 1; fi\n' > "$BASE/stub/gh-real"; chmod +x "$BASE/stub/gh-real"
 
 mkenv() { # nome repo home FSD_REPO(set|unset) links(container|host) node_modules(link|none)
   local n="$1" repo="$2" home="$3" setrepo="$4" links="$5" nm="$6"
@@ -52,12 +54,13 @@ mkenv() { # nome repo home FSD_REPO(set|unset) links(container|host) node_module
   # 3. trabalho com tarefa (marca gravada como o fsd-dev start <n> faz)
   git -C "$repo" worktree add -q -b feature/81-sim "$repo/.claude/worktrees/t81" origin/develop && git -C "$repo" config branch.feature/81-sim.fsd-issue 81
   git -C "$repo/.claude/worktrees/t81" commit -q --allow-empty -m "feat: sim (#81)"
-  chk "com tarefa #81: 'feat: sim (#81)' passa" run bash -c 'FSD_DRY=1 FSD_AGENT=stuart FSD_STATE="$2" "$0" open "feat: sim" --docs -C "$1" 2>&1 | grep -q "\[dry\] git -C .* push"' "$T/fsd-pr" "$repo/.claude/worktrees/t81" "$REAL_STATE"
+  chk "com tarefa #81: 'feat: sim (#81)' passa" run bash -c 'FSD_DRY=1 FSD_REAL_GH="$3" FSD_AGENT=stuart FSD_STATE="$2" "$0" open "feat: sim" --docs -C "$1" 2>&1 | grep -q "\[dry\] git -C .* push"' "$T/fsd-pr" "$repo/.claude/worktrees/t81" "$REAL_STATE" "$BASE/stub/gh-real"
   git -C "$repo/.claude/worktrees/t81" commit -q --allow-empty -m "feat: sem número"
-  chk "com tarefa #81: commit sem (#81) é recusado" run bash -c 'FSD_DRY=1 FSD_AGENT=stuart FSD_STATE="$2" "$0" open "feat: sim" --docs -C "$1" 2>&1 | grep -q "fsd-task-ref"' "$T/fsd-pr" "$repo/.claude/worktrees/t81" "$REAL_STATE"
+  chk "com tarefa #81: commit sem (#81) é recusado" run bash -c 'FSD_DRY=1 FSD_REAL_GH="$3" FSD_AGENT=stuart FSD_STATE="$2" "$0" open "feat: sim" --docs -C "$1" 2>&1 | grep -q "fsd-task-ref"' "$T/fsd-pr" "$repo/.claude/worktrees/t81" "$REAL_STATE" "$BASE/stub/gh-real"
   # 4. fsd-agent com claude simulado
   o=$(run "$T/fsd-agent" mel claude 2>&1)
-  grep -q -- "--model claude-opus-5-5 " <<<"$o" && ok "fsd-agent: modelo claude-opus-5-5" || bad "fsd-agent modelo: $(tail -1 <<<"$o")"
+  local model; model=$(node -p 'require(process.argv[1]).agents.mel.claude.model' "$repo/team/agents.json")   # o modelo do mel vem do agents.json, não de um valor fixo aqui
+  grep -q -- "--model $model " <<<"$o" && ok "fsd-agent: modelo $model (agents.json)" || bad "fsd-agent modelo (esperado $model): $(tail -1 <<<"$o")"
   grep -q "DISABLE_1M=<unset> | WINDOW=250000" <<<"$o" && ok "fsd-agent: 1M ligada, teto 250000" || bad "fsd-agent janela: $(grep -o 'DISABLE.*' <<<"$o")"
   [ "$(readlink "$st/agents/mel/claude/CLAUDE.md")" = "$repo/team/agents/mel/claude/CLAUDE.md" ] && ok "perfil mel (link de outra máquina) religado" || bad "perfil mel: $(readlink "$st/agents/mel/claude/CLAUDE.md")"
   run "$T/fsd-agent" kevin claude >/dev/null 2>&1
@@ -93,7 +96,9 @@ npmci() { # cenários do npm ci automático do fsd-pr num clone sem node_modules
   rm -rf "$repo/node_modules"; mkdir "$repo/.git/fsd-npm-ci.lock"; ( sleep 8; rmdir "$repo/.git/fsd-npm-ci.lock" ) &
   s=$(date +%s); o=$(pr); e=$(( $(date +%s) - s )); [ "$e" -ge 8 ] && grep -q "\[dry\] git -C .* push" <<<"$o" && ok "trava de outro processo: esperou ${e}s e seguiu" || bad "espera da trava (${e}s): $(tail -2 <<<"$o" | tr '\n' ' ')"
   # e) package.json sem commitlint (develop antiga): erro claro
-  git -C "$repo" show origin/develop:package.json > "$repo/package.json"; git -C "$repo" show origin/develop:package-lock.json > "$repo/package-lock.json"; rm -rf "$repo/node_modules"
+  # um package.json sem commitlint (como o de uma develop antiga), com o lock que casa: o npm ci passa e o commitlint não vem
+  echo '{"name":"sim","version":"0.0.0","private":true}' > "$repo/package.json"
+  echo '{"name":"sim","version":"0.0.0","lockfileVersion":3,"requires":true,"packages":{"":{"name":"sim","version":"0.0.0"}}}' > "$repo/package-lock.json"; rm -rf "$repo/node_modules"
   o=$(pr); grep -q "commitlint não veio" <<<"$o" && ok "develop sem commitlint: erro claro, sem loop" || bad "sem commitlint no package.json: $(tail -2 <<<"$o" | tr '\n' ' ')"
 }
 # Motor do fsd-map para os cenários: cópia do pacote instalado aqui (sem o patch), dependências por link.
