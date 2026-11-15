@@ -43,7 +43,7 @@ If `ui_dir`, `items` or `app` is missing: stop and report
    - marks OK (code) a state that can be triggered
    - marks N/A outside the "N/A only when" column
 4. **Reopen the screen and redo it.** Use the checklist's "How to verify", trigger the states
-   ([inspection.md](inspection.md#triggering-states)) and try to **break** the criterion instead of repeating
+   ([inspection.md](../references/inspection.md#triggering-states)) and try to **break** the criterion instead of repeating
    it: Tab past the end of the modal, empty state with the profile without permission, double click, long
    text, 375 px. For contrast, run the full measurement and compare with the inspector's list
 5. **Give the opinion** for each reviewed item:

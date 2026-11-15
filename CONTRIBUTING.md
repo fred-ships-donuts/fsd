@@ -122,6 +122,8 @@ A verificação do PR é do QA (Bob):
   - bug fora do escopo: abre um issue `bug` com passos, esperado, obtido e ambiente (commit, versão do Node, terminal).
 - **Fora do QA:** o cabeçalho (a rosquinha) é conferido pelo autor; o QA não faz testes visuais dele.
 
+**Antes de um PR que move ou renomeia arquivos**, rode `npm run check:paths` (`team/setup/check-paths`). Ele confere os links Markdown e âncoras, os caminhos dos scripts do time e da instalação, os links simbólicos e os caminhos do produto (`package.json`, `tsconfig.json`, imports de `src/`). Cada problema sai como `arquivo:linha`, e a saída é 1 se houver algum. Corrija a referência no mesmo PR.
+
 ## 6. Coordenação entre as sessões
 
 - Toda mensagem entre as sessões cita o commit ou o PR de onde ler.

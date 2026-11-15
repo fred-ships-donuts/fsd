@@ -46,9 +46,9 @@ If `ui_dir`, `screen` or `app` is missing: stop and report. If `references` or `
    reason. **Do not save login state to disk**
 3. **Go through the requested groups, in checklist order**, one item at a time. For each item:
    a. Apply the "How to verify", **triggering the states** instead of imagining them
-   ([inspection.md](inspection.md#triggering-states))
+   ([inspection.md](../references/inspection.md#triggering-states))
    b. Compare with the "OK when": meeting part of the criterion is not OK
-   c. Decide the status from the table in [status-and-verdict.md](status-and-verdict.md) and write the
+   c. Decide the status from the table in [status-and-verdict.md](../references/status-and-verdict.md) and write the
    evidence at the moment you observe it, with the navigation path and the measured values
    d. An item that bundles several parts: each part that exists passes, and one that should exist and does
    not is Fail
