@@ -1,9 +1,9 @@
 # fsd-judge fixtures (#92)
 
-Canned judge answers for a dry run, with no `claude` session. Run as Kevin, with a temp state dir:
+Canned judge answers for a dry run, with no `claude` session. Run as Kevin. `FSD_JUDGE_STATE` moves only `judge.lock` and `judged/` to a temp dir; `FSD_STATE` stays the real one (the `gh` wrapper reads its credentials from there):
 
 ```
-FSD_AGENT=kevin FSD_DRY=1 FSD_STATE=$(mktemp -d) FSD_JUDGE_FIXTURE=team/docs/judge-fixtures/<file> team/bin/fsd-judge <n>
+FSD_AGENT=kevin FSD_DRY=1 FSD_JUDGE_STATE=$(mktemp -d) FSD_JUDGE_FIXTURE=team/docs/judge-fixtures/<file> team/bin/fsd-judge <n>
 ```
 
 | File | Acceptance | Expected |
@@ -20,3 +20,4 @@ FSD_AGENT=kevin FSD_DRY=1 FSD_STATE=$(mktemp -d) FSD_JUDGE_FIXTURE=team/docs/jud
 
 Item 6 also covers a missing fixture file (`judge error`); use a path that does not exist.
 Nothing is applied in any case, and no `judged/<n>.json` is written under `FSD_DRY=1`.
+Acceptance 2 and 5 use the same temp dir: put `{"ref":"#91","pid":<live pid>,"since":"…"}` in `$FSD_JUDGE_STATE/judge.lock` (lock held), or an empty `judged/<n>.json` (second deadlock).

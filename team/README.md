@@ -169,7 +169,7 @@ O `fsd-wait any` do Kevin (e `fsd-wait deadlock`, só leitura, para qualquer age
 
 ## Juiz de impasse
 
-`fsd-judge <n>` (só o Kevin) roda uma sessão headless isolada e só de leitura (`claude -p --model sonnet --effort medium`, prompt em `judge-prompt.md`) sob a trava `$FSD_STATE/judge.lock` e devolve um veredito em JSON (Facts, Rule, Verdict). Confiança alta e sem trava: comenta `Decision (judge, …)` no PR/issue e avisa as partes. Confiança baixa, decisão do autor, assunto reservado (#39, #40, `main`, label `decision`), 2º impasse no mesmo PR (`judged/<n>.json`), erro, timeout ou JSON inválido: não aplica nada e imprime o comentário `Deadlock: author decision needed`, que o Kevin posta. `FSD_DRY=1` não comenta, não avisa e não grava; com `FSD_JUDGE_FIXTURE=<arquivo>` lê a resposta do arquivo em vez de chamar o `claude`.
+`fsd-judge <n>` (só o Kevin) roda uma sessão headless isolada e só de leitura (`claude -p --model sonnet --effort medium`, prompt em `judge-prompt.md`) sob a trava `$FSD_JUDGE_STATE/judge.lock` (padrão: `$FSD_STATE`; só a trava e o `judged/` mudam de lugar, as credenciais e as esperas seguem no `FSD_STATE`) e devolve um veredito em JSON (Facts, Rule, Verdict). Confiança alta e sem trava: comenta `Decision (judge, …)` no PR/issue e avisa as partes. Confiança baixa, decisão do autor, assunto reservado (#39, #40, `main`, label `decision`), 2º impasse no mesmo PR (`judged/<n>.json`), erro, timeout ou JSON inválido: não aplica nada e imprime o comentário `Deadlock: author decision needed`, que o Kevin posta. `FSD_DRY=1` não comenta, não avisa e não grava; com `FSD_JUDGE_FIXTURE=<arquivo>` lê a resposta do arquivo em vez de chamar o `claude`.
 
 ## Avisos não entregues
 

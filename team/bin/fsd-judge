@@ -4,7 +4,7 @@
 // Confiança alta e nenhuma trava: comenta "Decision (judge, …)" e avisa as partes. Qualquer outro caso (confiança baixa,
 // decisão do autor, assunto reservado, 2º impasse, erro, timeout, JSON inválido): não aplica nada e imprime o comentário
 // "Deadlock: author decision needed" (o Kevin posta, depois de conferir a regra do "Impasse total" no team.md).
-// Trava global: $FSD_STATE/judge.lock. Impasses já julgados: $FSD_STATE/judged/<n>.json.
+// Trava global: $FSD_JUDGE_STATE/judge.lock. Impasses já julgados: $FSD_JUDGE_STATE/judged/<n>.json. FSD_JUDGE_STATE (padrão: o FSD_STATE) só separa esse estado das credenciais e das esperas, que seguem no FSD_STATE.
 // FSD_DRY=1: não comenta, não avisa e não grava judged/. FSD_JUDGE_FIXTURE=<arquivo> (só com FSD_DRY=1): lê a resposta do
 // arquivo em vez de chamar o claude e imprime o comando que chamaria.
 // Saída: linha 1 = o JSON do veredito (ou "fsd-judge: author decision needed (<motivo>)"). Exit 0 nos dois caminhos · 1 recusa · 2 uso · 4 GitHub.
@@ -23,7 +23,7 @@ const FIXTURE = process.env.FSD_JUDGE_FIXTURE;
 if (FIXTURE && !L.DRY) L.die('fsd-judge: FSD_JUDGE_FIXTURE só vale com FSD_DRY=1', 2);
 
 // --- Trava global: uma instância por vez.
-const stateDir = L.stateDir(); const lockFile = join(stateDir, 'judge.lock');
+const stateDir = process.env.FSD_JUDGE_STATE || L.stateDir(); const lockFile = join(stateDir, 'judge.lock');
 const alive = (pid) => { try { process.kill(pid, 0); return true; } catch (e) { return e.code === 'EPERM'; } };
 mkdirSync(stateDir, { recursive: true });
 function takeLock() {
