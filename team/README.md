@@ -135,6 +135,7 @@ no código. **Ping** é de quanto em quanto tempo algo confere; **prazo** é dep
 | `wait.pr` | ping (s) | qualquer agente esperando um PR específico (`fsd-wait pr <n> …`) |
 | `wait.default` | ping (s) | vale para o caso acima que ficar sem valor |
 | `wait.retries` | contagem | falhas de rede seguidas antes de o `fsd-wait` desistir |
+| `waits.expireMin` | prazo (min) | uma espera do registro `waits/` (`fsd-wait --waiting-for`) mais velha que isso é apagada |
 | `readyGraceMin` | prazo (min) | depois da 2ª aprovação, antes de o Kevin mesclar no lugar do autor do PR |
 | `watch.loopSeconds` | ping (s) | intervalo das rodadas do `fsd-watch --loop` |
 | `watch.idleMin` | prazo (min) | agente parado sem Monitor leva um empurrão |

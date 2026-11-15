@@ -120,6 +120,10 @@
       "pr": 8,
       "retries": 10
     },
+    "waits": {
+      "_comment": "Registro de esperas ($FSD_STATE/waits/, fsd-wait --waiting-for). expireMin (prazo, min): uma espera mais velha que isso é apagada pelo waitsList().",
+      "expireMin": 120
+    },
     "readyGraceMin": 10,
     "_readyGraceMin": "Prazo: minutos depois da 2ª aprovação antes de o Kevin mesclar um PR de agente no lugar do autor.",
     "watch": {
