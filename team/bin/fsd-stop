@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # fsd-stop <agente[,agente…]|--all> [--sem-handoff] [--force] — desliga sessões do time sem perder onde pararam.
 #   Padrão: pede a cada agente que pare, registre o que já estiver pronto e faça o handoff (memory_handoff_begin);
-#   só fecha a sessão depois que ele confirma com "HANDOFF-OK <id>". Sem confirmação em FSD_STOP_WAIT s (padrão 300),
+#   só fecha a sessão depois que ele confirma com "HANDOFF-OK <id>". Sem confirmação em agents.json → timing.stop.waitSeconds
+#   (FSD_STOP_WAIT passa por cima; confere a cada timing.stop.pollSeconds),
 #   a sessão FICA aberta e o comando avisa (para fechar mesmo assim: --force).
 #   --sem-handoff  fecha na hora, sem handoff. Só quando o autor pedir expressamente "sem handoff".
 # Fecha também o terminal de teste do agente (fsd-qa-<agente>). O fsd-restart não reabre: a sessão inteira sai do tmux.
@@ -13,8 +14,8 @@ for x in "$@"; do case "$x" in
   --sem-handoff) nohand=1 ;; --force) force=1 ;;
   --all) who="$(node -e 'console.log(Object.keys(require(process.argv[1]).agents).join(","))' "$ROOT/agents.json")" ;;
   -*) echo "opção desconhecida: $x"; exit 2 ;; *) who="$x" ;; esac; done
-[ -n "$who" ] || { sed -n '2,7p' "$0" | sed 's/^# \{0,1\}//'; exit 2; }
-WAIT="${FSD_STOP_WAIT:-300}"
+[ -n "$who" ] || { sed -n '2,8p' "$0" | sed 's/^# \{0,1\}//'; exit 2; }
+{ read -r WAIT; read -r POLL; } < <(node "$HERE/fsd-timing.mjs" stop.waitSeconds stop.pollSeconds) || { echo "fsd-stop: agents.json sem timing.stop"; exit 2; }
 MSG='[fsd-aviso de autor] Encerramento pedido pelo autor. Não comece nada novo. Registre no GitHub só o que já estiver pronto para registrar. Faça o handoff com memory_handoff_begin: o que você fez, o que falta, branch e worktree, próximo passo. Não rode fsd-restart. No fim, responda numa linha só, trocando o que está entre <> pelo id do handoff: HANDOFF-OK <id>'
 busy() { tmux capture-pane -p -t "$1" | grep -q 'esc to interrupt'; }
 closeit() { tmux kill-session -t "fsd-$1" 2>/dev/null; tmux kill-session -t "fsd-qa-$1" 2>/dev/null; }
@@ -30,7 +31,7 @@ for a in ${who//,/ }; do
 done
 end=$((SECONDS + WAIT))
 while [ ${#pend[@]} -gt 0 ] && [ $SECONDS -lt $end ]; do
-  sleep 5; left=()
+  sleep "$POLL"; left=()
   for a in "${pend[@]}"; do
     id="$(tmux capture-pane -p -J -t "fsd-$a" -S -200 | grep -oE 'HANDOFF-OK [A-Za-z0-9][A-Za-z0-9_-]*' | tail -1)"
     if [ -n "$id" ] && ! busy "fsd-$a"; then closeit "$a"; echo "$a: fechado (${id#HANDOFF-OK })"; else left+=("$a"); fi

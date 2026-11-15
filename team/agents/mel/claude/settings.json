@@ -1,5 +1,9 @@
 {
   "permissions": {
+    "allow": [
+      "Edit(//tmp/fsd-mel/**)",
+      "Write(//tmp/fsd-mel/**)"
+    ],
     "deny": [
       "Edit(src/**)",
       "Edit(**/src/**)",
@@ -31,10 +35,6 @@
       "Bash(git push * -d *)",
       "Bash(git push origin :*)",
       "Bash(gh pr merge*)"
-    ],
-    "allow": [
-      "Edit(//tmp/fsd-mel/**)",
-      "Write(//tmp/fsd-mel/**)"
     ],
     "additionalDirectories": [
       "/tmp/fsd-mel"

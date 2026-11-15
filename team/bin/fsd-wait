@@ -1,18 +1,20 @@
 #!/usr/bin/env node
 // Para o Monitor: fica quieto até algo NOVO acontecer, imprime uma linha e sai 0 (--now: dispara também com o que já existe).
-// Falha de rede: tenta de novo (5 vezes).
+// Falha de rede: tenta de novo (agents.json → timing.wait.retries vezes seguidas).
 // fsd-wait any [--now]              o que importa para o seu papel (kevin: PR pronto parado; mel: PR para revisar ou card em
 //                                   Ready for Architecture; stuart: revisão nos seus PRs ou card em Ready for Development; bob: PR para verificar)
 // fsd-wait pr <n> merged|closed|approved|changes|new-head
 // fsd-wait todo | mine | ready | column "<coluna>"  [--now]
-// Intervalo: FSD_WAIT_SECONDS (padrão 60).
+// Intervalo de cada caso (ready, todo, mine, column, pr): agents.json → timing.wait (FSD_WAIT_SECONDS passa por cima de todos).
+// No "any", cada caso do papel confere no seu próprio ritmo.
 // Toda rodada começa esvaziando a caixa de avisos não entregues (fsd-notify): N avisos → uma linha "avisos (N): …", exit 0.
 // Kevin, no "any": agente sem sessão com avisos na caixa → "<agente> offline, N pending".
 process.env.FSD_THROW = '1';
 const L = await import('./fsd-lib.mjs');
 import { spawnSync } from 'node:child_process';
 const args = process.argv.slice(2).filter((x) => x !== '--now'); const NOW = process.argv.includes('--now');
-const [kind, x, y] = args; const every = Number(process.env.FSD_WAIT_SECONDS || 60) * 1000;
+const { timing, waitSeconds } = await import('./fsd-timing.mjs');
+const [kind, x, y] = args; const RETRIES = Number(timing().wait.retries);
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const me = L.meLogin(); const base = new Map();
 // Detector de novidade: na primeira leitura guarda a linha de base (a não ser --now) e só dispara com itens novos.
@@ -39,33 +41,43 @@ const offline = () => {
   }
   return out.join(' | ');
 };
-const ANY = { kevin: [() => W.ready(), () => W.todo(), offline], mel: [() => W.todo(), () => W.column(L.STAGE.archReady)], stuart: [() => W.mine(), () => W.column(L.STAGE.devReady)], bob: [() => W.todo()] };
-let first;
 function inbox() {
   if (!L.inboxValid(L.ME)) return '';
   const n = L.inboxDrain(L.ME); if (!n.length) return '';
   return `avisos (${n.length}): ${n.map((i) => L.noticeLine(i).replace(/\s*\n\s*/g, ' ')).join(' | ')}`;
 }
-function check() {
-  const ib = inbox(); if (ib) return ib;
-  if (kind === 'any') { const fs = ANY[L.ME]; if (!fs) L.die('fsd-wait any: rode dentro da sessão de um agente', 2); for (const f of fs) { const r = f(); if (r) return r; } return ''; }
-  if (kind === 'pr') {
-    if (!['merged', 'closed', 'approved', 'changes', 'new-head'].includes(y)) L.die('uso: fsd-wait pr <n> merged|closed|approved|changes|new-head', 2);
-    const p = L.pr(x); const s = L.reviewState(p); if (first === undefined) first = p.headRefOid;
-    if (y === 'merged' && p.state === 'MERGED') return `#${x} mesclado`;
-    if (y === 'closed' && p.state !== 'OPEN') return `#${x} ${p.state}`;
-    if (y === 'approved' && s.approvers.length >= 2 && !s.changes.length) return `#${x} com 2 aprovações: fsd-merge ${x}`;
-    if (y === 'changes' && s.changes.length) return `#${x} mudanças pedidas por ${s.changes.join(',')}: fsd-review read ${x}`;
-    if (y === 'new-head' && p.headRefOid !== first) return `#${x} commit novo ${p.headRefOid.slice(0, 7)}`;
-    return '';
-  }
-  if (kind === 'column') { if (!x) L.die('uso: fsd-wait column "<coluna>"', 2); return W.column(x); }
-  if (W[kind]) return W[kind]();
+// Casos de cada papel: [nome do caso em timing.wait, verificação].
+const ANY = { kevin: [['ready', () => W.ready()], ['todo', () => W.todo()], ['offline', offline]], mel: [['todo', () => W.todo()], ['column', () => W.column(L.STAGE.archReady)]], stuart: [['mine', () => W.mine()], ['column', () => W.column(L.STAGE.devReady)]], bob: [['todo', () => W.todo()]] };
+let first;
+// Lista de [caso, verificação] do pedido: no "any", os casos do papel; senão, um só.
+function checks() {
+  if (kind === 'any') { const fs = ANY[L.ME]; if (!fs) L.die('fsd-wait any: rode dentro da sessão de um agente', 2); return fs; }
+  if (kind === 'pr') return [['pr', prCheck]];
+  if (kind === 'column') { if (!x) L.die('uso: fsd-wait column "<coluna>"', 2); return [['column', () => W.column(x)]]; }
+  if (W[kind]) return [[kind, () => W[kind]()]];
   L.die('uso: fsd-wait any | pr <n> <condição> | todo | mine | ready | column "<coluna>"  [--now]', 2);
 }
-let bad = 0;
+function prCheck() {
+  if (!['merged', 'closed', 'approved', 'changes', 'new-head'].includes(y)) L.die('uso: fsd-wait pr <n> merged|closed|approved|changes|new-head', 2);
+  const p = L.pr(x); const s = L.reviewState(p); if (first === undefined) first = p.headRefOid;
+  if (y === 'merged' && p.state === 'MERGED') return `#${x} mesclado`;
+  if (y === 'closed' && p.state !== 'OPEN') return `#${x} ${p.state}`;
+  if (y === 'approved' && s.approvers.length >= 2 && !s.changes.length) return `#${x} com 2 aprovações: fsd-merge ${x}`;
+  if (y === 'changes' && s.changes.length) return `#${x} mudanças pedidas por ${s.changes.join(',')}: fsd-review read ${x}`;
+  if (y === 'new-head' && p.headRefOid !== first) return `#${x} commit novo ${p.headRefOid.slice(0, 7)}`;
+  return '';
+}
+let bad = 0; const list = checks(); const due = list.map(() => 0);
 for (;;) {
-  try { const r = check(); bad = 0; if (r) { console.log(r); process.exit(0); } }
-  catch (e) { if (e.code === 2 || ++bad >= 5) { console.log(String(e.message)); process.exit(Number.isInteger(e.code) ? e.code : 4); } }
-  await sleep(every);
+  const now = Date.now();
+  try {
+    const ib = inbox(); if (ib) { console.log(ib); process.exit(0); }
+    for (let i = 0; i < list.length; i++) {
+      if (due[i] > now) continue;
+      const [kase, f] = list[i]; due[i] = now + waitSeconds(kase) * 1000;
+      const r = f(); if (r) { console.log(r); process.exit(0); }
+    }
+    bad = 0;
+  } catch (e) { if (e.code === 2 || ++bad >= RETRIES) { console.log(String(e.message)); process.exit(Number.isInteger(e.code) ? e.code : 4); } }
+  await sleep(Math.max(1000, Math.min(...due) - Date.now()));
 }

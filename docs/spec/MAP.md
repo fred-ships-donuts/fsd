@@ -2,7 +2,7 @@
 
 Where each heading of the old `SPEC.md` goes (#41). Old numbering stays in the first column: code and docs cite "SPEC 5.5", "4.5", "6.9", and this map is how those references resolve. Do not rewrite those citations.
 
-State: `moved` (in this repository now), `decision` (becomes an author decision; none so far). Every heading is `moved`; `SPEC.md` was removed in #56.
+State: `moved` (in this repository now), `decision` (becomes an author decision). Every old heading is `moved`; `SPEC.md` was removed in #56. A row with no number in the old SPEC is `decision`.
 
 Notes:
 - Moved text is verbatim, in Portuguese, under the template's English headings. The `## N.` heading lines of §1–§5 are replaced by the destination heading; the `### N.M` headings are kept inside `## Behavior`.
@@ -53,3 +53,5 @@ Notes:
 | 12. Critérios de aceitação | `## Acceptance` of the owning Flavor, item text "12.N …" (12.27 in `docs/ARQUITETURA.md#tests`) | moved |
 | 13. Decisões e pendências | `docs/DECISIONS.md` | moved |
 | Apêndice A — Bibliotecas de interface avaliadas | `docs/spec/wizard-screen/rise.md#discarded-alternatives` | moved |
+| (no old number) Kitchen files in `nook/kitchen/` | `docs/spec/kitchen/flavor.md#behavior` | decision |
+| (no old number) Baker definitions in `nook/bakers/` | `docs/spec/bakers/flavor.md#behavior` | decision |

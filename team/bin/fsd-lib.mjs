@@ -19,6 +19,7 @@ export const REVIEWERS = CFG.reviewers || ['mel', 'bob'];
 // Dono de cada coluna: quem é avisado quando um card chega nela (fora os avisos próprios de cada comando).
 // Etapas do quadro e donos de cada fila: só em fsd-stages.mjs.
 import { STAGE, OWNERS, stageName, ownersOf } from './fsd-stages.mjs';
+import { timing } from './fsd-timing.mjs';
 export { STAGE, OWNERS, stageName, ownersOf };
 const NAME = String(process.argv[1] || 'fsd').split('/').pop();
 process.on('uncaughtException', (e) => { console.log(`${NAME}: ${String(e.message || e).split('\n')[0].slice(0, 200)}`); process.exit(e.code === 'ENOENT' ? 2 : (Number.isInteger(e.code) ? e.code : 4)); });
@@ -165,13 +166,14 @@ export function afterReview(n) {
 
 // PRs prontos para entrar: abertos, não draft, base develop, 2+ aprovações atuais, sem pedido de mudança, sem conflito.
 export const ready = (p) => { const s = reviewState(p); return p.state === 'OPEN' && !p.isDraft && p.baseRefName === 'develop' && s.approvers.length >= 2 && !s.changes.length && p.mergeable !== 'CONFLICTING'; };
-// Prontos "parados": de agentes (PR do autor só por número), com a 2ª aprovação há mais de FSD_READY_GRACE min (padrão 10).
+// Prontos "parados": de agentes (PR do autor só por número), com a 2ª aprovação há mais de agents.json → timing.readyGraceMin
+// (FSD_READY_GRACE passa por cima).
 // Assim o autor do PR mescla primeiro; --now ignora a espera.
 export function readyIdle(p, now = process.argv.includes('--now')) {
   if (!ready(p) || !AGENTS.includes(agentOf(p.author?.login))) return false;
   if (now) return true;
   const s = reviewState(p); const t = s.approvers.map((w) => Date.parse(s.last.get(w)?.submittedAt || 0)).sort((x, y) => x - y)[1] || 0;
-  return Date.now() - t > Number(process.env.FSD_READY_GRACE || 10) * 60000;
+  return Date.now() - t > Number(timing().readyGraceMin) * 60000;
 }
 // PRs que um revisor (mel, bob) precisa olhar agora; os outros agentes não revisam por padrão.
 export function todo(login) {
