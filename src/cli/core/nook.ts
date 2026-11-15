@@ -16,12 +16,17 @@ export const DIR_STATUS: Record<TaskDir, TaskStatus> = { bench: 'in_progress', r
 
 export interface NookPaths {
   root: string;
+  bakers: string;
   dirs: Record<TaskDir, string>;
 }
 
 export function nookPaths(env: Env): NookPaths {
   const root = scopePaths('project', env).nook;
-  return { root, dirs: { bench: join(root, 'bench'), rack: join(root, 'rack'), fridge: join(root, 'fridge') } };
+  return {
+    root,
+    bakers: join(root, 'bakers'),
+    dirs: { bench: join(root, 'bench'), rack: join(root, 'rack'), fridge: join(root, 'fridge') },
+  };
 }
 
 /** The project root guard: `task new` needs `nook/` or `.fsd/` in the cwd, so an agent does not create `src/nook/`. */
