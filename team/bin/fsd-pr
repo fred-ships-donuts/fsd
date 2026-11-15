@@ -96,7 +96,7 @@ else if (a[0] === 'open') {
     num = Number(url.split('/').pop()); out = `PR #${num} ${url}`;
   }
   const b = L.board(L.STAGE.review, issue ? [issue] : []);
-  const n = L.notify(L.REVIEWERS.includes(L.ME) ? [...L.REVIEWERS, 'kevin'] : L.REVIEWERS, `PR #${num}${issue ? ` (issue #${issue})` : ''} ${existing.length ? 'tem commit novo' : 'pronto para revisão'}: fsd-pr --todo.`);
+  const n = L.noticeSummary(L.notify(L.REVIEWERS.includes(L.ME) ? [...L.REVIEWERS, 'kevin'] : L.REVIEWERS, `PR #${num}${issue ? ` (issue #${issue})` : ''} ${existing.length ? 'tem commit novo' : 'pronto para revisão'}: fsd-pr --todo.`));
   console.log([out, b, n].filter(Boolean).join(' | '));
 }
 else if (/^\d+$/.test(a[0])) console.log(line(L.pr(a[0])));

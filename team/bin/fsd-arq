@@ -24,6 +24,6 @@ if (cmd === 'start') {
   if (!/^\*\*Architect handoff\*\*/i.test(body)) body = `**Architect handoff**\n\n${body}`;
   const url = L.ghw(['issue', 'comment', n, '--body-file', '-'], { input: body });
   const b = L.board(L.STAGE.devReady, [Number(n)]);
-  const nt = L.notify(['stuart'], `Architect handoff do #${n} publicado: fsd-dev start ${n}`);
+  const nt = L.noticeSummary(L.notify(['stuart'], `Architect handoff do #${n} publicado: fsd-dev start ${n}`));
   console.log([`#${n} passagem publicada ${url}`, b, nt].filter(Boolean).join(' | '));
 } else L.die('uso: fsd-arq start|publish <issue> [arquivo|-]', 2);

@@ -1,7 +1,7 @@
 // fsd-lib.mjs — código comum dos comandos fsd-* (agentes do fred-ships-donuts).
 // Saídas curtas, uma linha quando possível. Códigos de saída: 0 ok · 1 regra não cumprida · 2 uso · 3 transitório · 4 GitHub/rede.
 import { execFileSync, spawnSync } from 'node:child_process';
-import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync, unlinkSync, renameSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, mkdirSync, appendFileSync, renameSync, readdirSync, unlinkSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -101,12 +101,42 @@ export function board(col, nums, { quiet = true } = {}) {
   if (!r.ok && !quiet && ownersOf(col)) notify(ownersOf(col), `${nums.map((n) => '#' + n).join(',')} → ${col}`);
   return r.ok ? `${nums.map((n) => '#' + n).join(',')}→${col}` : `quadro não atualizado (${r.err.replace(/^fsd-board: /, '').slice(0, 80)})`;
 }
+// Aviso: devolve { delivered, queued } (quem recebeu na sessão, quem ficou na caixa do inbox). Use noticeSummary(r) para imprimir.
 export function notify(agents, text) {
+  const res = { delivered: [], queued: [] };
   const to = [...new Set(agents.map((a) => a.replace(/^fsd-/, '')).filter((a) => AGENTS.includes(a) && a !== ME))];
-  if (!to.length) return '';
-  const r = write(join(BIN, 'fsd-notify'), [to.join(','), text], { allowFail: true });
-  return r.out && r.out !== 'ninguém recebeu' ? `avisados: ${r.out}` : '';
+  if (!to.length) return res;
+  // Dry run (FSD_DRY) não entrega nem enfileira nada: passa por write(), que só imprime. Chamado direto, o fsd-notify trata o FSD_DRY sozinho.
+  const r = (DRY ? write : run)(join(BIN, 'fsd-notify'), [to.join(','), text], { allowFail: true });
+  for (const l of r.out.split('\n')) {
+    const d = l.match(/^delivered: (.+)$/); const q = l.match(/^(\S+) did not receive: queued$/);
+    if (d) res.delivered.push(...d[1].split(',')); else if (q) res.queued.push(q[1]);
+  }
+  return res;
 }
+export const noticeSummary = (r) => [r.delivered.length ? `avisados: ${r.delivered.join(',')}` : '', r.queued.length ? `na fila: ${r.queued.join(',')}` : ''].filter(Boolean).join(' | ');
+// Caixa de avisos não entregues: $FSD_STATE/inbox/<agente>, uma linha JSON por aviso. Só nomes de agents.json viram caminho.
+export const inboxDir = () => join(process.env.FSD_STATE || join(process.env.HOME || '', '.config', 'fsd-agents'), 'inbox');
+export const inboxValid = (a) => typeof a === 'string' && /^[a-z0-9_-]+$/.test(a) && AGENTS.includes(a);
+const inboxFile = (a) => { if (!inboxValid(a)) throw new Error(`unknown agent: ${a}`); return join(inboxDir(), a); };
+export function inboxAppend(agent, from, text) {
+  const f = inboxFile(agent); mkdirSync(inboxDir(), { recursive: true });
+  appendFileSync(f, JSON.stringify({ t: new Date().toISOString(), from, text }) + '\n');
+}
+// Esvazia por rename: um aviso que chega durante a leitura cai num arquivo novo, sem perda nem leitura dupla.
+export function inboxDrain(agent) {
+  const f = inboxFile(agent); const tmp = `${f}.${process.pid}`;
+  try { renameSync(f, tmp); } catch { return []; }
+  let raw = ''; try { raw = readFileSync(tmp, 'utf8'); } catch {}
+  try { unlinkSync(tmp); } catch {}
+  const out = [];
+  for (const l of raw.split('\n')) { if (!l.trim()) continue; try { const n = JSON.parse(l); if (n && typeof n.text === 'string') out.push({ t: String(n.t || ''), from: String(n.from || '?'), text: n.text }); } catch {} }
+  return out;
+}
+export function inboxCount(agent) {
+  try { return readFileSync(inboxFile(agent), 'utf8').split('\n').filter((l) => l.trim()).length; } catch { return 0; }
+}
+export const noticeLine = (n) => `[${n.t.slice(0, 16).replace('T', ' ')}] ${n.from}: ${n.text}`;
 // Registro de esperas ($FSD_STATE/waits/<agente>.json): quem espera por quem. Só os agentes de agents.json viram nome de arquivo.
 export const stateDir = () => process.env.FSD_STATE || join(process.env.HOME || '', '.config', 'fsd-agents');
 export const waitsDir = () => join(stateDir(), 'waits');
@@ -195,8 +225,8 @@ export { existsSync };
 // Depois de uma revisão: mudança pedida → Developing + avisa o autor; 2 aprovações atuais → Ready to Merge + avisa o autor.
 export function afterReview(n) {
   const p = pr(n); const s = reviewState(p); const cl = closes(p.body); const author = agentOf(p.author?.login);
-  if (s.changes.length) return [board(STAGE.dev, cl), notify([author], `PR #${n}: mudanças pedidas por ${s.changes.join(',')}. Veja a revisão.`)].filter(Boolean).join(' | ');
-  if (s.approvers.length >= 2) return [board(STAGE.mergeReady, cl), notify([author], `PR #${n} tem 2 aprovações: rode fsd-merge ${n}.`)].filter(Boolean).join(' | ');
+  if (s.changes.length) return [board(STAGE.dev, cl), noticeSummary(notify([author], `PR #${n}: mudanças pedidas por ${s.changes.join(',')}. Veja a revisão.`))].filter(Boolean).join(' | ');
+  if (s.approvers.length >= 2) return [board(STAGE.mergeReady, cl), noticeSummary(notify([author], `PR #${n} tem 2 aprovações: rode fsd-merge ${n}.`))].filter(Boolean).join(' | ');
   return `aprovações ${s.approvers.length}/2`;
 }
 

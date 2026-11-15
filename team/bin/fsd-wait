@@ -9,6 +9,8 @@
 // Esperando um colega: acrescente --waiting-for <agente> "<o quê>" [--pr <n> | --issue <n>] (registro em $FSD_STATE/waits/, apagado ao sair).
 // Intervalo de cada caso (ready, todo, mine, column, pr): agents.json → timing.wait (FSD_WAIT_SECONDS passa por cima de todos).
 // No "any", cada caso do papel confere no seu próprio ritmo.
+// Toda rodada começa esvaziando a caixa de avisos não entregues (fsd-notify): N avisos → uma linha "avisos (N): …", exit 0.
+// Kevin, no "any": agente sem sessão com avisos na caixa → "<agente> offline, N pending".
 process.env.FSD_THROW = '1';
 const L = await import('./fsd-lib.mjs');
 import { spawnSync } from 'node:child_process';
@@ -55,8 +57,24 @@ const W = {
   deadlock: () => { const t = timing().deadlock; const f = L.findDeadlocks(L.waitsList(), { now: L.clock(), activityOf: L.activityOf, cycleMin: Number(t.cycleMin), stallMin: Number(t.stallMin) }); return L.deadlocksNew(f, NOW).map((x) => x.line).join(' | '); },
   column: (c) => (c = L.stageName(c), fresh('col:' + c, colItems(c), (n) => `${c}: ${n.join(' ')}`)),
 };
+// Kevin: agente sem sessão com avisos na caixa. Vale já na primeira leitura; depois só avisa de contagem maior que a última vista.
+const lastOffline = new Map();
+const offline = () => {
+  const out = [];
+  for (const a of L.AGENTS.filter((x) => x !== 'kevin')) {
+    const n = spawnSync('tmux', ['has-session', '-t', 'fsd-' + a]).status !== 0 ? L.inboxCount(a) : 0;
+    if (n > (lastOffline.get(a) || 0)) out.push(`${a} offline, ${n} pending`);
+    if (n > 0) lastOffline.set(a, n); else lastOffline.delete(a);
+  }
+  return out.join(' | ');
+};
+function inbox() {
+  if (!L.inboxValid(L.ME)) return '';
+  const n = L.inboxDrain(L.ME); if (!n.length) return '';
+  return `avisos (${n.length}): ${n.map((i) => L.noticeLine(i).replace(/\s*\n\s*/g, ' ')).join(' | ')}`;
+}
 // Casos de cada papel: [nome do caso em timing.wait, verificação].
-const ANY = { kevin: [['ready', () => W.ready()], ['todo', () => W.todo()], ['deadlock', () => W.deadlock()]], mel: [['todo', () => W.todo()], ['column', () => W.column(L.STAGE.archReady)]], stuart: [['mine', () => W.mine()], ['column', () => W.column(L.STAGE.devReady)]], bob: [['todo', () => W.todo()]] };
+const ANY = { kevin: [['ready', () => W.ready()], ['todo', () => W.todo()], ['offline', offline], ['deadlock', () => W.deadlock()]], mel: [['todo', () => W.todo()], ['column', () => W.column(L.STAGE.archReady)]], stuart: [['mine', () => W.mine()], ['column', () => W.column(L.STAGE.devReady)]], bob: [['todo', () => W.todo()]] };
 let first;
 // Lista de [caso, verificação] do pedido: no "any", os casos do papel; senão, um só.
 function checks() {
@@ -80,6 +98,7 @@ function prCheck() {
 const list = checks(); const due = list.map(() => 0); const bad = list.map(() => 0);
 for (;;) {
   const now = Date.now();
+  const ib = inbox(); if (ib) { console.log(ib); process.exit(0); }
   for (let i = 0; i < list.length; i++) {
     if (due[i] > now) continue;
     const [kase, f] = list[i]; due[i] = now + waitSeconds(kase) * 1000;

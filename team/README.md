@@ -166,6 +166,10 @@ de 20 min.
 
 O `fsd-wait any` do Kevin (e `fsd-wait deadlock`, só leitura, para qualquer agente) lê o registro `waits/` (sem chamar o GitHub) e agrupa as esperas por PR/issue. Um ciclo (`kevin→mel→kevin`) quieto há `deadlock.cycleMin` vira `DEADLOCK #n: kevin→mel→kevin`; um PR em que todos esperam, sem ciclo, quieto há `deadlock.stallMin`, vira `STALLED #n: <quem>→<por quem> "<o quê>"; …`. A atividade é o `updated_at` do issue/PR (comentário, revisão, label, push), consultado só para candidatos; mover o card no quadro não conta. Cada impasse é avisado uma vez: `$FSD_STATE/deadlocks.json` guarda a assinatura das esperas e só uma mudança nelas (ou o impasse desfeito e formado de novo) avisa outra vez. Esperas sem `--pr`/`--issue` não entram. `FSD_NOW` (ms ou data ISO) simula o relógio.
 
+## Avisos não entregues
+
+`fsd-notify` cola o aviso na sessão tmux do agente. Se a sessão está fechada ou parada numa pergunta de permissão, o aviso fica em `$FSD_STATE/inbox/<agente>` (uma linha JSON por aviso) e chega no próximo início de sessão (hook SessionStart, `fsd-inbox drain`) ou na próxima rodada do `fsd-wait`. O Kevin vê no `fsd-wait any` quem está offline com avisos pendentes.
+
 ## Pastas de rascunho
 
 Cada agente grava os rascunhos numa pasta própria em `/tmp`, sem pedir permissão, inclusive no
