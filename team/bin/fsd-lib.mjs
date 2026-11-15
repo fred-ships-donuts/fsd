@@ -1,7 +1,7 @@
 // fsd-lib.mjs — código comum dos comandos fsd-* (agentes do fred-ships-donuts).
 // Saídas curtas, uma linha quando possível. Códigos de saída: 0 ok · 1 regra não cumprida · 2 uso · 3 transitório · 4 GitHub/rede.
 import { execFileSync, spawnSync } from 'node:child_process';
-import { readFileSync, writeFileSync, existsSync, mkdirSync, appendFileSync, renameSync, unlinkSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, mkdirSync, appendFileSync, renameSync, readdirSync, unlinkSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -137,6 +137,22 @@ export function inboxCount(agent) {
   try { return readFileSync(inboxFile(agent), 'utf8').split('\n').filter((l) => l.trim()).length; } catch { return 0; }
 }
 export const noticeLine = (n) => `[${n.t.slice(0, 16).replace('T', ' ')}] ${n.from}: ${n.text}`;
+// Registro de esperas ($FSD_STATE/waits/<agente>.json): quem espera por quem. Só os agentes de agents.json viram nome de arquivo.
+export const waitsDir = () => join(process.env.FSD_STATE || join(process.env.HOME || '', '.config', 'fsd-agents'), 'waits');
+const pidAlive = (pid) => { try { process.kill(pid, 0); return true; } catch (e) { return e.code === 'EPERM'; } };
+// Lista as esperas vivas; apaga as de mais de timing.waits.expireMin, as de processo morto e as ilegíveis.
+export function waitsList() {
+  let names = []; try { names = readdirSync(waitsDir()).filter((f) => f.endsWith('.json')); } catch { return []; }
+  const out = [];
+  for (const f of names) {
+    const path = join(waitsDir(), f); const agent = f.slice(0, -5); let w = null;
+    try { w = JSON.parse(readFileSync(path, 'utf8')); } catch {}
+    const ok = w && AGENTS.includes(agent) && Number.isInteger(w.pid) && Date.parse(w.since) > Date.now() - Number(timing().waits.expireMin) * 60000 && pidAlive(w.pid);
+    if (!ok) { try { unlinkSync(path); } catch {} continue; }
+    out.push({ agent, for: w.for, what: w.what, ref: w.ref ?? null, since: w.since });
+  }
+  return out;
+}
 export const agentOf = (login) => norm(login).replace(/^fsd-/, '');
 
 // Seção de aceite de um issue: do título "Acceptance"/"Como verificar"/"aceite" até o próximo título de mesmo nível ou acima.
