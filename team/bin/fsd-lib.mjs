@@ -138,7 +138,8 @@ export function inboxCount(agent) {
 }
 export const noticeLine = (n) => `[${n.t.slice(0, 16).replace('T', ' ')}] ${n.from}: ${n.text}`;
 // Registro de esperas ($FSD_STATE/waits/<agente>.json): quem espera por quem. Só os agentes de agents.json viram nome de arquivo.
-export const waitsDir = () => join(process.env.FSD_STATE || join(process.env.HOME || '', '.config', 'fsd-agents'), 'waits');
+export const stateDir = () => process.env.FSD_STATE || join(process.env.HOME || '', '.config', 'fsd-agents');
+export const waitsDir = () => join(stateDir(), 'waits');
 const pidAlive = (pid) => { try { process.kill(pid, 0); return true; } catch (e) { return e.code === 'EPERM'; } };
 // Lista as esperas vivas; apaga as de mais de timing.waits.expireMin, as de processo morto e as ilegíveis.
 export function waitsList() {
@@ -152,6 +153,55 @@ export function waitsList() {
     out.push({ agent, for: w.for, what: w.what, ref: w.ref ?? null, since: w.since });
   }
   return out;
+}
+// Detector de impasse (#91). Relógio: FSD_NOW (ms ou data ISO) faz o tempo "simulado" dos testes; sem ele, Date.now().
+export const clock = () => { const v = process.env.FSD_NOW; if (v) { const n = /^\d+$/.test(v) ? Number(v) : Date.parse(v); if (Number.isFinite(n)) return n; } return Date.now(); };
+// Última atividade de um PR/issue (ms): updated_at move com comentário, revisão, label e push. Mover o card no quadro NÃO conta: aceito, sem consultar o quadro.
+export const activityOf = (ref) => Date.parse(ghJson(['api', `repos/${REPO}/issues/${String(ref).replace(/^#/, '')}`]).updated_at);
+// Pura: sem arquivo, rede nem Date.now(); tudo entra por parâmetro. activityOf só é chamada para candidatos, no máximo uma vez por ref.
+// DEADLOCK: ciclo de esperas no mesmo ref, quieto há cycleMin. STALLED: ref sem ciclo em que todos esperam e nada se mexe há stallMin.
+export function findDeadlocks(waits, { now, activityOf: act, cycleMin, stallMin }) {
+  const groups = new Map();
+  for (const w of waits) if (w.ref) { if (!groups.has(w.ref)) groups.set(w.ref, []); groups.get(w.ref).push(w); }
+  const t = (w) => Date.parse(w.since); const out = []; const quiet = {};
+  const activity = (ref) => (ref in quiet ? quiet[ref] : (quiet[ref] = act(ref)));
+  const sigOf = (ws) => ws.map((w) => `${w.agent}>${w.for}@${w.since}`).sort().join(',');
+  for (const [ref, ws] of [...groups].sort((a, b) => a[0].localeCompare(b[0], 'en', { numeric: true }))) {
+    const by = new Map(ws.map((w) => [w.agent, w])); const seen = new Set(); const cycles = [];
+    for (const a of [...by.keys()].sort()) {
+      if (seen.has(a)) continue;
+      const path = []; let cur = a;
+      while (cur && by.has(cur) && !path.includes(cur) && !seen.has(cur)) { path.push(cur); cur = by.get(cur).for; }
+      path.forEach((x) => seen.add(x));
+      if (cur && path.includes(cur)) cycles.push(path.slice(path.indexOf(cur)));
+    }
+    if (cycles.length) {
+      for (const c of cycles) {
+        const i = c.indexOf([...c].sort()[0]); const cyc = [...c.slice(i), ...c.slice(0, i)]; const cw = cyc.map((a) => by.get(a));
+        const newest = Math.max(...cw.map(t));
+        if (!(now - newest >= cycleMin * 60000)) continue;
+        if (!(now - Math.max(activity(ref), newest) >= cycleMin * 60000)) continue;
+        const chain = [...cyc, cyc[0]].join('→');
+        out.push({ kind: 'DEADLOCK', ref, line: `DEADLOCK ${ref}: ${chain}`, sig: sigOf(cw), key: cycles.length > 1 ? `DEADLOCK ${ref} ${chain}` : `DEADLOCK ${ref}` });
+      }
+    } else if (ws.every((w) => now - t(w) >= stallMin * 60000) && now - activity(ref) >= stallMin * 60000) {
+      const sorted = [...ws].sort((a, b) => a.agent.localeCompare(b.agent));
+      out.push({ kind: 'STALLED', ref, line: `STALLED ${ref}: ${sorted.map((w) => `${w.agent}→${w.for} "${w.what}"`).join('; ')}`, sig: sigOf(ws), key: `STALLED ${ref}` });
+    }
+  }
+  return out;
+}
+// Memória persistida ($FSD_STATE/deadlocks.json = { chave: sig }): o fsd-wait sai a cada evento, então a memória não pode ficar no processo.
+// Devolve só o que é novo ou mudou; guarda o que está presente e esquece o que sumiu (o mesmo impasse formado de novo vale de novo).
+// Só o Kevin grava: quem não é o Kevin lê sem consumir, para o aviso do Kevin não se perder.
+export function deadlocksNew(findings, all = false) {
+  const file = join(stateDir(), 'deadlocks.json'); let seen = {};
+  try { seen = JSON.parse(readFileSync(file, 'utf8')) || {}; } catch {}
+  const next = Object.fromEntries(findings.map((f) => [f.key, f.sig]));
+  if (ME === 'kevin' && JSON.stringify(next) !== JSON.stringify(seen)) {
+    try { mkdirSync(dirname(file), { recursive: true }); const tmp = `${file}.${process.pid}.tmp`; writeFileSync(tmp, JSON.stringify(next)); renameSync(tmp, file); } catch {}
+  }
+  return all ? findings : findings.filter((f) => seen[f.key] !== f.sig);
 }
 export const agentOf = (login) => norm(login).replace(/^fsd-/, '');
 

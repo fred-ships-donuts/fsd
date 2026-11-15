@@ -124,6 +124,11 @@
       "_comment": "Registro de esperas ($FSD_STATE/waits/, fsd-wait --waiting-for). expireMin (prazo, min): uma espera mais velha que isso é apagada pelo waitsList().",
       "expireMin": 120
     },
+    "deadlock": {
+      "_comment": "Detector de impasse (fsd-wait deadlock, e no any do Kevin). Prazos (min): cycleMin, ciclo de esperas no mesmo PR/issue sem atividade → DEADLOCK · stallMin, todos esperando, sem ciclo e sem atividade → STALLED.",
+      "cycleMin": 10,
+      "stallMin": 30
+    },
     "readyGraceMin": 10,
     "_readyGraceMin": "Prazo: minutos depois da 2ª aprovação antes de o Kevin mesclar um PR de agente no lugar do autor.",
     "watch": {
