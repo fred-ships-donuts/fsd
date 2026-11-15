@@ -52,11 +52,7 @@ Todo issue leva uma label `size:`, e ela diz quanto da cadeia a entrega usa:
 
 O relatório da seção 5 segue o Taste em todos os tamanhos: `Result` (`pass` ou `fail`) e uma linha por item de aceite do issue, numerados `A1…`, com o comando, o esperado e o obtido.
 
-Os textos das skills do time que produzem e consomem esses documentos ficam versionados em `docs/process/skills/`; ninguém edita a pasta de configuração dos agentes por causa deles:
-
-- [`fsd-pm-issue.md`](docs/process/skills/fsd-pm-issue.md) (Kevin)
-- [`fsd-arq-passagem.md`](docs/process/skills/fsd-arq-passagem.md) (Mel)
-- [`fsd-qa-verificacao.md`](docs/process/skills/fsd-qa-verificacao.md) (Bob)
+As skills do time que produzem e consomem esses documentos ficam em `team/agents/<agente>/claude/skills/` (as de processo e de projeto) e em `team/common/skills/` (as técnicas, ligadas por link em cada agente que as usa). Não há cópia em outro lugar: a fonte é a própria skill. O mapa completo está em `team/README.md`. Elas são escritas em inglês, com nome no padrão oficial (gerúndio); o prefixo `fsd-` fica reservado às skills que o produto entrega.
 
 ## 2. Project (quadro)
 
