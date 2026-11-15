@@ -158,6 +158,10 @@ gastar token:
   no `PreToolUse` e apaga no `PostToolUse`. Um Bash em andamento vale até o timeout do próprio comando mais
   `toolGraceMin`, mesmo em silêncio (`npm ci`, testes).
 
+O limite de travado é `silentMin` (10 min): o `fsd-watch` reinicia o agente depois de `silentMin` sem ferramenta em
+andamento, sem mudança no contador de tokens e sem gravação de subagente. Esse limite substituiu o antigo `HUNG_MIN`,
+de 20 min.
+
 ## Detector de impasse
 
 O `fsd-wait any` do Kevin (e `fsd-wait deadlock`, só leitura, para qualquer agente) lê o registro `waits/` (sem chamar o GitHub) e agrupa as esperas por PR/issue. Um ciclo (`kevin→mel→kevin`) quieto há `deadlock.cycleMin` vira `DEADLOCK #n: kevin→mel→kevin`; um PR em que todos esperam, sem ciclo, quieto há `deadlock.stallMin`, vira `STALLED #n: <quem>→<por quem> "<o quê>"; …`. A atividade é o `updated_at` do issue/PR (comentário, revisão, label, push), consultado só para candidatos; mover o card no quadro não conta. Cada impasse é avisado uma vez: `$FSD_STATE/deadlocks.json` guarda a assinatura das esperas e só uma mudança nelas (ou o impasse desfeito e formado de novo) avisa outra vez. Esperas sem `--pr`/`--issue` não entram. `FSD_NOW` (ms ou data ISO) simula o relógio.
