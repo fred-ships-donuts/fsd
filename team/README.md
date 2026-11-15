@@ -78,14 +78,22 @@ comando passam por cima do padrão.
 ├── mcp.json                ⚙️     o único MCP dos agentes: ai-memory
 ├── common/
 │   ├── team.md             ⚙️     regras do time (fluxo, memória, handoffs), importado em todo CLAUDE.md
-│   └── skills/fsd-fluxo-github/SKILL.md  ⚙️  skill comum (link em cada agente)
+│   └── skills/<nome>/SKILL.md  ⚙️  skills técnicas (ofício), ligadas por link na pasta skills/ de cada agente que as usa
 │
 ├── agents/<kevin|mel|stuart|bob>/claude/      ← CLAUDE_CONFIG_DIR de cada agente
 │   ├── CLAUDE.md           ⚙️     o papel do agente
 │   ├── settings.json       ⚙️     deny e permissões próprias do papel (onde pode escrever)
-│   ├── skills/             ⚙️     skills do papel + link para fsd-fluxo-github
-│   │     kevin: fsd-pm-issue      mel: fsd-arq-passagem, fsd-arq-revisao
-│   │     stuart: fsd-dev-entrega  bob: fsd-qa-verificacao
+│   ├── skills/             ⚙️     skills do agente, em inglês, nome no padrão oficial (gerúndio); `fsd-*` é só do produto
+│   │     kevin:  running-pm-workflow, writing-issues, managing-product
+│   │             + writing-acceptance-criteria, slicing-work, prioritizing-work, managing-releases
+│   │     mel:    writing-handoffs, reviewing-prs, architecting-cli
+│   │             + assessing-designs, designing-contracts, recording-decisions, assessing-security-risks
+│   │     stuart: running-dev-workflow, self-reviewing-changes, coding-cli, coding-team-tools, writing-product-skills
+│   │             + handling-files-safely, designing-clis, writing-unit-tests, debugging-root-causes
+│   │     bob:    running-qa-workflow, testing-cli
+│   │             + designing-test-cases, running-exploratory-tests, driving-terminal-apps, reporting-bugs,
+│   │               investigating-flaky-results
+│   │     (+ = link para common/skills/)
 │   ├── projects/-media-…-fred-ships-donuts/
 │   │   ├── memory/         🤖⚙️   memória do agente (MEMORY.md + .md)
 │   │   └── <sessão>.jsonl  🤖     transcripts
