@@ -46,9 +46,9 @@ Falta `ui_dir`, `tela` ou `app`: pare e relate. Faltando `referências` ou `temp
    disco**
 3. **Percorrer os grupos pedidos, na ordem do checklist**, um item por vez. Para cada item:
    a. Aplique o "Como verificar", **provocando os estados** em vez de imaginá-los
-   ([inspecao.md](inspecao.md#provocar-os-estados))
+   ([inspecao.md](../references/inspecao.md#provocar-os-estados))
    b. Compare com o "OK quando": cumprir parte do critério não é OK
-   c. Decida o status pela tabela de [status-e-veredito.md](status-e-veredito.md) e grave a evidência no
+   c. Decida o status pela tabela de [status-e-veredito.md](../references/status-e-veredito.md) e grave a evidência no
    momento em que a observa, com o caminho de navegação e os valores medidos
    d. Item que reúne várias partes: cada parte que existe passa, e a que deveria existir e não existe é
    Falha

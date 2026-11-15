@@ -1,0 +1,198 @@
+#!/usr/bin/env node
+// check-paths [--root <pasta>]   confere os caminhos e links do repositório (só lê; nunca escreve nem cria nada).
+// Roda sobre os arquivos versionados (git ls-files): node_modules/, dist/ e rascunhos não entram.
+// Uma linha por problema: <arquivo>:<linha>: <o quê> → <alvo>. No fim: "check-paths: <n> links and paths verified, <m> broken".
+// Sai 1 se m > 0, senão 0. Rode antes de um PR que move ou renomeia arquivos (npm run check:paths).
+// --root <pasta>: confere outra árvore (por exemplo uma cópia de teste); sem ela, o repo deste script (vale por link e com espaços).
+import { execFileSync } from 'node:child_process';
+import { existsSync, lstatSync, readFileSync, readlinkSync, readdirSync, realpathSync } from 'node:fs';
+import { dirname, join, resolve, relative, sep } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const argv = process.argv.slice(2);
+const ri = argv.indexOf('--root');
+if (argv.some((a) => a !== '--root' && argv[ri + 1] !== a)) { console.log('uso: check-paths [--root <pasta>]'); process.exit(2); }
+const ROOT = ri >= 0 ? resolve(argv[ri + 1] || '.') : resolve(dirname(realpathSync(fileURLToPath(import.meta.url))), '..', '..');
+
+// Casos deliberados que não são erro. Cada entrada: 'arquivo' (tudo) ou 'arquivo:trecho' (só a linha que contém o trecho), com o motivo.
+const IGNORE = [
+  // Contraexemplo: o texto diz para a CLI NÃO criar src/nook/ no projeto do usuário; o caminho não existe de propósito.
+  'docs/spec/task-files/flavor.md:src/nook/',
+];
+
+// Em skills e exemplos de template, os caminhos entre crases descrevem o projeto do usuário (docs/coding-standards/, src/report/…), não este repo:
+// só os links Markdown são conferidos ali.
+const USER_PROJECT_DOCS = /^(src\/skills\/|docs\/templates\/)/;
+
+let verified = 0; const broken = [];
+const bad = (file, line, what, target) => {
+  if (IGNORE.some((i) => { const [f, ...p] = i.split(':'); return f === file && (!p.length || (lineText.get(file)?.[line - 1] ?? '').includes(p.join(':'))); })) return;
+  broken.push(`${file}:${line}: ${what} → ${target}`);
+};
+const ok = () => { verified++; };
+const lineText = new Map();
+
+function listFiles() {
+  try { return execFileSync('git', ['-C', ROOT, 'ls-files', '-z'], { encoding: 'utf8', maxBuffer: 1 << 28 }).split('\0').filter(Boolean); }
+  catch { // sem git: caminha a pasta, sem node_modules/dist/.git
+    const out = []; const walk = (d) => { for (const e of readdirSync(join(ROOT, d), { withFileTypes: true })) {
+      if (['node_modules', 'dist', '.git'].includes(e.name)) continue; const p = d ? `${d}/${e.name}` : e.name;
+      if (e.isDirectory()) walk(p); else out.push(p); } }; walk(''); return out;
+  }
+}
+const files = listFiles();
+const abs = (f) => join(ROOT, f);
+const text = (f) => { try { const t = readFileSync(abs(f), 'utf8').replace(/\r/g, '').split('\n'); lineText.set(f, t); return t; } catch { return []; } };
+const exists = (p) => existsSync(p);
+
+// --- 1. Symlinks versionados.
+for (const f of files) {
+  let st; try { st = lstatSync(abs(f)); } catch { continue; }
+  if (!st.isSymbolicLink()) continue;
+  if (exists(abs(f))) ok(); else bad(f, 1, 'dangling symlink', readlinkSync(abs(f)));
+}
+
+// --- 2. Markdown: links relativos, âncoras e caminhos entre crases.
+const MD_SCOPE = [/^(README|CONTRIBUTING|AGENTS)\.md$/, /^docs\/.*\.md$/, /^team\/README\.md$/, /^team\/(docs|common)\/.*\.md$/, /^src\/skills\/.*\.md$/];
+const mdFiles = files.filter((f) => f.endsWith('.md') && MD_SCOPE.some((r) => r.test(f)));
+const stripInline = (s) => s.replace(/!?\[([^\]]*)\]\([^)]*\)/g, '$1').replace(/[`*_~]/g, (c) => (c === '_' ? c : ''));
+const slugCache = new Map();
+function slugs(file) {
+  if (slugCache.has(file)) return slugCache.get(file);
+  const seen = new Map(); const set = new Set(); let fence = null;
+  for (const l of text(file)) {
+    const m = /^(`{3,}|~{3,})/.exec(l.trim()); if (m) { fence = fence ? (l.trim().startsWith(fence[0]) ? null : fence) : m[1]; continue; }
+    if (fence) continue;
+    const h = /^ {0,3}#{1,6}\s+(.*?)\s*#*\s*$/.exec(l); if (!h) continue;
+    let s = stripInline(h[1]).toLowerCase().replace(/[^\p{L}\p{N}\s_-]/gu, '').trim().replace(/\s/g, '-');
+    const n = seen.get(s) ?? 0; seen.set(s, n + 1); set.add(n ? `${s}-${n}` : s);
+  }
+  slugCache.set(file, set); return set;
+}
+const FENCE = /^\s*(`{3,}|~{3,})/;
+const KNOWN_EXT = /\.(md|mjs|js|ts|tsx|json|ya?ml|sh|service|timer|conf|stignore|example|txt|env)$/;
+const PLACEHOLDER = /[*<>{}$…|\\]/;
+for (const f of mdFiles) {
+  let fence = null; const lines = text(f); const dir = dirname(f);
+  lines.forEach((l, i) => {
+    const ln = i + 1; const fm = FENCE.exec(l);
+    if (fm) { fence = fence ? (fm[1][0] === fence[0] ? null : fence) : fm[1]; return; }
+    if (fence) return;
+    // [texto](alvo "título")
+    for (const m of l.matchAll(/(?<!\\)\[[^\]]*\]\(\s*<?([^)\s>]+)>?(?:\s+"[^"]*")?\s*\)/g)) {
+      let t = m[1]; if (/^[a-z][a-z0-9+.-]*:/i.test(t) || t.startsWith('//')) continue;
+      let [p, frag] = t.split('#'); try { p = decodeURIComponent(p); } catch {}
+      const target = p === '' ? f : (p.startsWith('/') ? p.slice(1) : join(dir, p));
+      if (p !== '' && !exists(abs(target))) { bad(f, ln, 'broken link', t); continue; }
+      if (frag) {
+        let fr = frag; try { fr = decodeURIComponent(frag); } catch {}
+        if (/^L\d+/.test(fr)) { ok(); continue; }          // âncora de linha do GitHub
+        if (target.endsWith('.md') && exists(abs(target))) { if (slugs(target).has(fr.toLowerCase())) ok(); else bad(f, ln, 'missing anchor', t); }
+        else ok();
+      } else ok();
+    }
+    // `caminho/entre/crases` que parece caminho do repo
+    if (USER_PROJECT_DOCS.test(f)) return;
+    for (const m of l.matchAll(/`([^`\n]+)`/g)) {
+      let c = m[1].trim().replace(/[:#]\d+(-\d+)?$/, '').replace(/[.,;)]+$/, '');
+      if (PLACEHOLDER.test(c) || /\s/.test(c) || !c.includes('/')) continue;
+      const repoPath = /^(docs|team|src)\//.test(c); const rel = /^\.{1,2}\//.test(c);
+      if (!repoPath && !rel) continue;
+      if (!(KNOWN_EXT.test(c) || c.endsWith('/') || /^team\/(bin|setup)\//.test(c))) continue;
+      const target = repoPath ? c : join(dir, c);
+      if (exists(abs(target))) ok(); else bad(f, ln, 'missing path', c);
+    }
+  });
+}
+
+// --- 3. Scripts do time: join(HERE|BIN|ROOT|REPO_DIR, '…') e imports relativos.
+const BASES = { HERE: 'team/bin', BIN: 'team/bin', ROOT: 'team', REPO_DIR: '' };
+const binFiles = files.filter((f) => /^team\/bin\/[^/]+$/.test(f));
+for (const f of binFiles) {
+  text(f).forEach((l, i) => {
+    const ln = i + 1;
+    for (const m of l.matchAll(/join\(\s*(HERE|BIN|ROOT|REPO_DIR)((?:\s*,\s*'[^']*')+)\s*\)/g)) {
+      const parts = [...m[2].matchAll(/'([^']*)'/g)].map((x) => x[1]); if (parts.some((p) => PLACEHOLDER.test(p))) continue;
+      const target = join(BASES[m[1]], ...parts);
+      if (target.startsWith('..')) continue;
+      if (exists(abs(target))) ok(); else bad(f, ln, 'missing path', target);
+    }
+    for (const m of l.matchAll(/(?:from\s+|import\s+|import\(\s*)'(\.{1,2}\/[^']+)'/g)) {
+      const target = join('team/bin', m[1]); if (exists(abs(target))) ok(); else bad(f, ln, 'missing import', m[1]);
+    }
+  });
+}
+// Mapa de arquivos do team/README.md: só cita arquivos existentes em team/bin.
+text('team/README.md').forEach((l, i) => {
+  for (const m of l.matchAll(/`(fsd-[a-z0-9-]+(?:\.mjs)?)`/g)) {
+    if (!/^\|/.test(l)) continue; // só as linhas de tabela (o mapa)
+    const p = `team/bin/${m[1]}`; if (exists(abs(p))) ok(); else if (/^\|\s*`/.test(l) && l.split('|')[1].includes(m[1])) bad('team/README.md', i + 1, 'file map lists a missing file', p);
+  }
+});
+
+// --- 4. Perfis e instalação.
+for (const f of files.filter((x) => /^team\/agents\/[^/]+\/claude\/(settings\.json|skills\/.+)$/.test(x) || x === 'team/claude-settings.json' || x === 'team/mcp.json')) {
+  if (!f.endsWith('.json')) continue;
+  text(f).forEach((l, i) => { for (const m of l.matchAll(/\$\{?FSD_TEAM\}?\/([A-Za-z0-9._\/-]+)/g)) {
+    const t = join('team', m[1]); if (exists(abs(t))) ok(); else bad(f, i + 1, 'missing hook/command path', t); } });
+}
+for (const f of files.filter((x) => /^team\/setup\/systemd\/.+\.(service|timer)$/.test(x))) {
+  text(f).forEach((l, i) => { const m = /^(ExecStart|WorkingDirectory)=%h\/\.local\/bin\/(fsd-[a-z0-9-]+)/.exec(l);
+    if (m) { const t = `team/bin/${m[2]}`; if (exists(abs(t))) ok(); else bad(f, i + 1, `${m[1]} target missing`, t); } });
+}
+for (const f of files.filter((x) => x === 'team/setup/container/Dockerfile' || /^team\/setup\/[^/]+$/.test(x))) {
+  text(f).forEach((l, i) => { for (const m of l.matchAll(/\b(?:team|\.\/team)\/((?:bin|setup|agents|common|docs)\/[A-Za-z0-9._\/-]+[A-Za-z0-9_])/g)) {
+    if (PLACEHOLDER.test(m[1])) continue; const t = `team/${m[1]}`; if (exists(abs(t))) ok(); else bad(f, i + 1, 'missing path', t); } });
+}
+
+// --- 5. Produto: package.json, tsconfig, imports de src/cli.
+// tsconfig.json aceita comentários e vírgula final: tira os dois antes do JSON.parse (sem mexer em "//" dentro de strings).
+const readJson = (f) => {
+  try {
+    const t = readFileSync(abs(f), 'utf8'); let o = ''; let q = false;
+    for (let i = 0; i < t.length; i++) {
+      const c = t[i];
+      if (q) { o += c; if (c === '\\') o += t[++i]; else if (c === '"') q = false; continue; }
+      if (c === '"') { q = true; o += c; continue; }
+      if (c === '/' && t[i + 1] === '/') { while (i < t.length && t[i] !== '\n') i++; o += '\n'; continue; }
+      if (c === '/' && t[i + 1] === '*') { i += 2; while (i < t.length && !(t[i] === '*' && t[i + 1] === '/')) i++; i++; continue; }
+      o += c;
+    }
+    return JSON.parse(o.replace(/,(\s*[}\]])/g, '$1'));
+  } catch { bad(f, 1, 'cannot parse', f); return null; }
+};
+const pkg = readJson('package.json'); const ts = readJson('tsconfig.json');
+if (pkg && ts) {
+  const out = (ts.compilerOptions?.outDir ?? '.').replace(/^\.\//, ''); const rootDir = (ts.compilerOptions?.rootDir ?? '.').replace(/^\.\//, '');
+  const fromDist = (p, key) => { // dist/x/y.js → <rootDir>/x/y.ts(x)
+    const q = p.replace(/^\.\//, ''); if (!q.startsWith(`${out}/`)) return exists(abs(q)) ? ok() : bad('package.json', 1, `${key} path missing`, q);
+    const s = join(rootDir, q.slice(out.length + 1)).replace(/\.js$/, '');
+    if (exists(abs(`${s}.ts`)) || exists(abs(`${s}.tsx`))) ok(); else bad('package.json', 1, `${key} has no source (outDir ${out})`, `${s}.ts`);
+  };
+  if (pkg.main) fromDist(pkg.main, 'main');
+  for (const [k, v] of Object.entries(typeof pkg.bin === 'string' ? { bin: pkg.bin } : pkg.bin ?? {})) fromDist(v, `bin.${k}`);
+  for (const p of pkg.files ?? []) { if (p.startsWith('!') || p === out || p.includes('*')) continue; if (exists(abs(p))) ok(); else bad('package.json', 1, 'files entry missing', p); }
+  for (const [k, v] of Object.entries(pkg.scripts ?? {})) for (const m of String(v).matchAll(/(?:^|\s)((?:\.\/)?(?:src|team|docs|dist)\/[A-Za-z0-9._\/-]+\.(?:ts|tsx|mjs|js))/g)) {
+    const p = m[1].replace(/^\.\//, ''); if (p.startsWith(`${out}/`)) continue; if (exists(abs(p))) ok(); else bad('package.json', 1, `script ${k} path missing`, p); }
+  for (const inc of ts.include ?? []) { const base = inc.replace(/\/?\*.*$/, ''); if (base && !base.includes('*')) { if (exists(abs(base))) ok(); else bad('tsconfig.json', 1, 'include path missing', inc); } }
+  if (ts.compilerOptions?.rootDir) { if (exists(abs(rootDir))) ok(); else bad('tsconfig.json', 1, 'rootDir missing', rootDir); }
+}
+for (const f of files.filter((x) => /^src\/.*\.(ts|tsx)$/.test(x))) {
+  text(f).forEach((l, i) => { for (const m of l.matchAll(/(?:from\s+|import\(\s*|import\s+)['"](\.{1,2}\/[^'"]+)['"]/g)) {
+    const base = join(dirname(f), m[1]); const s = base.replace(/\.js$/, '');
+    if ([base, `${s}.ts`, `${s}.tsx`, join(base, 'index.ts')].some((c) => exists(abs(c)) && lstatSync(abs(c)).isFile())) ok(); else bad(f, i + 1, 'missing import', m[1]); } });
+}
+
+// --- 6. Caminhos que o CLI escreve e lê (nook/…, .fsd/…) contra docs/FSD-DIRECTORY-STRUCTURE.md.
+const docStruct = 'docs/FSD-DIRECTORY-STRUCTURE.md';
+if (exists(abs(docStruct))) {
+  const doc = text(docStruct).join('\n'); const docSet = new Set([...doc.matchAll(/\b(nook\/(?:kitchen|bakers|cookbook|oven))\b/g)].map((m) => m[1]));
+  const codeAt = new Map();
+  for (const f of files.filter((x) => /^src\/cli\/.*\.(ts|tsx)$/.test(x) && !/\.test\./.test(x)))
+    text(f).forEach((l, i) => { for (const m of l.matchAll(/['"`](nook\/(?:kitchen|bakers|cookbook|oven))\b/g)) if (!codeAt.has(m[1])) codeAt.set(m[1], `${f}:${i + 1}`); });
+  for (const [p, at] of codeAt) { if (docSet.has(p)) ok(); else { const [cf, cl] = at.split(':'); bad(cf, Number(cl), `path used by the CLI is not in ${docStruct}`, p); } }
+}
+
+for (const b of broken) console.log(b);
+console.log(`check-paths: ${verified} links and paths verified, ${broken.length} broken`);
+process.exit(broken.length ? 1 : 0);
