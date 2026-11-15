@@ -43,7 +43,7 @@ Falta `ui_dir`, `itens` ou `app`: pare e relate
    - marca OK (código) um estado que dá para provocar
    - marca N/A fora da coluna "N/A só quando"
 4. **Reabrir a tela e refazer.** Use o "Como verificar" do checklist, provoque os estados
-   ([inspecao.md](inspecao.md#provocar-os-estados)) e tente **quebrar** o critério em vez de repeti-lo: Tab
+   ([inspecao.md](../references/inspecao.md#provocar-os-estados)) e tente **quebrar** o critério em vez de repeti-lo: Tab
    além do fim do modal, estado vazio com o perfil sem permissão, clique duplo, texto longo, 375 px. Para
    contraste, rode a medição inteira e compare com a lista do inspetor
 5. **Dar o parecer** de cada item revisado:

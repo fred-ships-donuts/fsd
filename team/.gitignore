@@ -6,6 +6,7 @@
 !/agents.json
 !/claude-settings.json
 !/mcp.json
+!/redirects.json
 !/judge-prompt.md
 !/bin/
 !/common/

@@ -1,0 +1,4 @@
+#!/usr/bin/env node
+// fsd-redirects --test [arquivo] | --write | --check | --table  (a lógica está em fsd-redirects.mjs)
+import { main } from './fsd-redirects.mjs';
+process.exit(main(process.argv.slice(2)));

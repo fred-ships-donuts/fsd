@@ -64,6 +64,8 @@ comando passam por cima do padrão.
 │   ├── fsd-agent           ⚙️     launcher: identidade, flags (modelo, esforço, ferramentas, MCP), tokens
 │   ├── fsd-token                  gera o token do GitHub App do agente
 │   ├── fsd-secrets                pack/unpack dos segredos em secrets.tar.age (age, senha)
+│   ├── fsd-redirect-hook          hook PreToolUse (Bash): comando bloqueado → nega e nomeia o comando do time
+│   ├── fsd-redirects(.mjs)        o casamento do hook, a tabela do team.md e as fixtures (--test, --write, --check)
 │   ├── gh                         gh dos agentes (só entra no PATH dentro do fsd-agent)
 │   ├── fsd-map                    mapa de código (ask, grep, skeleton, callers, map, build); motor privado, fora do PATH
 │   └── git-credential-fsd         entrega o token ao git
@@ -72,6 +74,7 @@ comando passam por cima do padrão.
 │                                  "claude_common": ferramentas cortadas para todos
 │                                  "timing": tempos do time (pings e prazos), ver "Tempos do time"
 ├── claude-settings.json    ⚙️     comum: hooks (RTK, ai-memory, fsd-context-guard), deny comuns, permissões do ai-memory e do fsd-map
+├── redirects.json          ⚙️     fonte única de "ação negada → comando do time" (hook, vigia e tabela do team.md)
 ├── mcp.json                ⚙️     o único MCP dos agentes: ai-memory
 ├── common/
 │   ├── team.md             ⚙️     regras do time (fluxo, memória, handoffs), importado em todo CLAUDE.md
@@ -167,6 +170,14 @@ de 20 min.
 
 O nome de cada coluna do Status leva o responsável entre parênteses (`Ready for Development (Stuart)`). `bin/fsd-stages.mjs` é o único lugar com os nomes: nome e responsável saem da mesma linha da tabela (a mesma que diz quem é avisado quando um card chega na fila). `stageName()` aceita a chave (`devReady`), o nome com ou sem o responsável, em qualquer caixa, e os nomes antigos; `fsd-board`, `fsd-queue`, `fsd-wait column` e os movimentos de `fsd-lib` comparam sempre por ele, então o código serve com o quadro do GitHub nos nomes velhos ou nos novos. `fsd-board rename [--dry]` põe os nomes de `fsd-stages.mjs` nas opções do GitHub, no lugar (mesmos ids, nenhum card muda de coluna; o estado de antes vai para `$FSD_STATE/board-rename-<data>.json` e o resultado é conferido). Rode uma vez depois do merge de uma mudança de nomes.
 
+## Ação negada → comando do time
+
+`redirects.json` é a fonte única de "ação bloqueada → comando do time". Quem lê: o hook `fsd-redirect-hook`, a regra "pediu ao autor" do `fsd-watch` (`authorAsks`) e a tabela de `common/team.md` (entre `<!-- redirects:start -->` e `<!-- redirects:end -->`).
+
+- **Hook** (`PreToolUse`, Bash): casa o comando por token (separa `&&`, `||`, `;`, `|`, ignora `rtk`/`sudo`/`VAR=x`/`cd`/caminho do programa, não olha dentro de aspas nem de heredoc) e nega com `Blocked: <por quê>. Use: <comando>. Do not ask the author.`, com `<worktree>` e `<n>` preenchidos quando dá para saber. Só nega: nunca `allow`; erro de qualquer tipo sai 0 calado. As regras de `deny` e o classificador seguem de guarda.
+- **Vigia:** agente parado cujo fim de painel pede uma ação ao autor (`authorAsks`) → `fsd-notify kevin "<agente> pediu ao autor: …"` e um empurrão "não espere o autor". Respeita `PAUSE` e `watch.cooldownMin`; o mesmo pedido na tela não repete; `[fsd-aviso …]` não conta. `FSD_TMUX_SOCKET=<nome>` põe `-L <nome>` em todo `tmux` do `fsd-watch` e do `fsd-notify` (teste em servidor isolado).
+- `fsd-redirects --test` confere `docs/redirect-fixtures.tsv` (agente, pasta, comando, esperado) e sai 1 com a lista dos que diferem. `--write` reescreve o bloco do `team.md`; `--check` sai 1 se ele estiver velho. Os dois rodam no `simulate-envs`.
+
 ## Detector de impasse
 
 O `fsd-wait any` do Kevin (e `fsd-wait deadlock`, só leitura, para qualquer agente) lê o registro `waits/` (sem chamar o GitHub) e agrupa as esperas por PR/issue. Um ciclo (`kevin→mel→kevin`) quieto há `deadlock.cycleMin` vira `DEADLOCK #n: kevin→mel→kevin`; um PR em que todos esperam, sem ciclo, quieto há `deadlock.stallMin`, vira `STALLED #n: <quem>→<por quem> "<o quê>"; …`. A atividade é o `updated_at` do issue/PR (comentário, revisão, label, push), consultado só para candidatos; mover o card no quadro não conta. Cada impasse é avisado uma vez: `$FSD_STATE/deadlocks.json` guarda a assinatura das esperas e só uma mudança nelas (ou o impasse desfeito e formado de novo) avisa outra vez. Esperas sem `--pr`/`--issue` não entram. `FSD_NOW` (ms ou data ISO) simula o relógio.
@@ -210,7 +221,8 @@ quando o agente gravar o próximo rascunho.
 
 ## Segredos
 
-- **Outra máquina:** os mesmos segredos vão cifrados em `secrets.tar.age`. Na matriz: `bin/fsd-secrets pack` e commit; na remota: `bin/fsd-secrets unpack`. Passo a passo do container em `docs/CONTAINER-PASSO-A-PASSO.md`; valores da sua instalação em `setup/team.env.example`.
+- **Outra máquina:** os mesmos segredos vão cifrados em `secrets.tar.age`. Na matriz: `bin/fsd-secrets pack` e commit; na remota: `bin/fsd-secrets unpack`. Passo a passo do container em `team/docs/CONTAINER-PASSO-A-PASSO.md`; valores da sua instalação em `setup/team.env.example`.
+- **Depois de mover ou renomear arquivos:** `setup/check-paths` (ou `npm run check:paths`) lista todo link, âncora, caminho de script e link simbólico quebrado, com `arquivo:linha`, e sai 1 se houver algum. Só lê; `--root <pasta>` confere outra árvore.
 - **Antes de mexer em caminhos, setup ou scripts:** `setup/simulate-envs` clona o branch atual em vários layouts (containers com nomes e caminhos diferentes, a matriz, caminho com espaços) e mostra onde quebra; termina com saída 0 só sem falhas.
 - **`keys/<slug>.pem`:** perdeu ou vazou? Gere outra na página do App e apague a antiga.
 - **`claude-oauth-token`:** troca com `claude setup-token`. Salve sem ecoar na tela: `read -rsp "token: " T && umask 077 && printf '%s\n' "$T" > claude-oauth-token && unset T`.

@@ -157,6 +157,11 @@
           {
             "type": "command",
             "command": "rtk hook claude"
+          },
+          {
+            "type": "command",
+            "command": "$FSD_TEAM/bin/fsd-redirect-hook",
+            "timeout": 5
           }
         ]
       },

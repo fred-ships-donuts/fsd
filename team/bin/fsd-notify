@@ -4,6 +4,8 @@
 # ou no próximo fsd-wait do agente. Saída: "delivered: a,b" (se algum recebeu) e "<agente> did not receive: queued" por agente na fila.
 # FSD_DRY=1 só pula o paste no tmux (o resto, inclusive a fila, roda: aponte FSD_STATE para um diretório temporário). O oficial fica no GitHub.
 set -uo pipefail
+# FSD_TMUX_SOCKET: servidor tmux isolado (teste do fsd-watch); sem ele, o tmux de sempre.
+tmux() { command tmux ${FSD_TMUX_SOCKET:+-L "$FSD_TMUX_SOCKET"} "$@"; }
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 to="${1:?uso: fsd-notify <agente[,agente…]> \"<texto>\"}"; text="${2:?uso: fsd-notify <agente[,agente…]> \"<texto>\"}"
 from="${FSD_AGENT:-autor}"; got=(); queued=(); names=()
