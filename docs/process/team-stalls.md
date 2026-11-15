@@ -171,9 +171,14 @@ Every prevention is token-free and removes a class of stalls; detection stays fo
 **D6. No change of the restart rules, no new restart triggers on a screen phrase.**
 The existing `restart` rules (context, silent, dead session) held in every incident. All new behavior is additive and goes through `safeSend` (S1).
 
-## 4. Slices, in dependency order
+## 4. What this study did not prove
+- The hook contract details (D1, F9) and the profile keys (F10): each slice starts with a small reproduction.
+- The cause of F7. Reproduce `export TMUX_TMPDIR=…; unset TMUX; tmux kill-server` against a throwaway server first, then confirm which socket the call reached.
+- M10: whether the two machines share `$FSD_STATE`.
 
-Each is one PR, about 400 lines at most, and names the replay scenario of #124 acceptance 3 (replays run in an isolated tmux socket with fixtures, `tmux -L test-…`, never the team's server: S4 is what makes that rule enforceable, so until S4 lands the replays use `FSD_DRY=1` and a private `TMUX_TMPDIR` checked with `tmux -L … display -p '#{socket_path}'`).
+## 5. Slices, in dependency order
+
+Each is one PR, about 400 lines at most, and names the replay scenario (1 to 7) of #124 acceptance 3; "variant" means the same fixture and harness with the stated change (replays run in an isolated tmux socket with fixtures, `tmux -L test-…`, never the team's server: S4 is what makes that rule enforceable, so until S4 lands the replays use `FSD_DRY=1` and a private `TMUX_TMPDIR` checked with `tmux -L … display -p '#{socket_path}'`).
 
 | # | Slice | Covers | Replay | Depends on | Size |
 |---|---|---|---|---|---|
@@ -184,16 +189,11 @@ Each is one PR, about 400 lines at most, and names the replay scenario of #124 a
 | S5 | `fsd-alert` chain (toast, `notify-send`, `ALERT` file, Kevin's GitHub comment) wired to `act === 'alert'` | F6, M2 | 7 (permission prompt appears) | S1 | M |
 | S6 | Unattended first run: write onboarding and trust state in each profile at setup; detector for a leftover dialog | F10 | 6 (first-run screen appears) | S1, S5 | S |
 | S7 | `fsd-progress` (team progress, cards without owner action, stale inbox, old PAUSE) reporting to Kevin; new `timing` keys | F5, M5, M7, M8, M9 (PAUSE) | acceptance 4 (team-wide stall reported within the time, to the author only through the judge path) | none (reads only); better after S3 | M |
-| S8 | Supervisors: heartbeat file, systemd user timer on the host, supervisord entry in the container | M9 | — (smoke: kill the watcher, it returns) | S2 | S |
-| S9 | `PostToolUseFailure` hook answers a classifier denial with the team command | F9 | — (add as scenario 8 in the replays) | S3 (same hook style), the **(verify)** | S |
-| S10 | Launcher environment against interactive prompts | M4 | — (a `git commit` without a message fails fast) | none | S |
-| S11 | `fsd-progress`: waits on a closed or merged PR are released | M6 | — | S7 | S |
-| S12 | Two hosts: lease; `/tmp` drafts moved to `$FSD_STATE`; sleep gap ignored by the watcher | M10, M11 | — | S8 | M |
+| S8 | Supervisors: heartbeat file, systemd user timer on the host, supervisord entry in the container | M9 | 3 (variant: the watcher process dies instead of its source changing; the supervisor brings it back) | S2 | S |
+| S9 | `PostToolUseFailure` hook answers a classifier denial with the team command | F9 | 7 (variant: the permission is denied by the classifier, and the hook answers with the team command) | S3 (same hook style), the **(verify)** | S |
+| S10 | Launcher environment against interactive prompts | M4 | 7 (variant: a tool prompt for input, such as the git editor, fails fast instead of waiting) | none | S |
+| S11 | `fsd-progress`: waits on a closed or merged PR are released | M6 | 2 (variant: the agent waits with a Monitor on a PR that is already closed) | S7 | S |
+| S12 | Two hosts: lease; `/tmp` drafts moved to `$FSD_STATE`; sleep gap ignored by the watcher | M10, M11 | 5 (variant: after a reboot every session is gone and the watcher starts them with the kick) | S8 | M |
 
 Priority: S1, S2, S3, S4 first (they remove the incidents of 2026-11-15, in this order because each needs the previous one to be safe or to reach running sessions); then S5, S6, S7; S8 to S12 afterward. S1 and S4 have no dependency and can run in parallel.
 Acceptance 5 (an alert reaches the author on WSL and in the container) is closed by S5. Acceptance 6 (`simulate-envs` passes) is a gate on every slice that touches paths or setup: S2, S6, S8, S12.
-
-## 5. What this study did not prove
-- The hook contract details (D1, F9) and the profile keys (F10): each slice starts with a small reproduction.
-- The cause of F7. Reproduce `export TMUX_TMPDIR=…; unset TMUX; tmux kill-server` against a throwaway server first, then confirm which socket the call reached.
-- M10: whether the two machines share `$FSD_STATE`.
