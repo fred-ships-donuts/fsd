@@ -53,3 +53,4 @@ Notes:
 | 12. Critérios de aceitação | `## Acceptance` of the owning Flavor, item text "12.N …" (12.27 in `docs/ARQUITETURA.md#tests`) | moved |
 | 13. Decisões e pendências | `docs/DECISIONS.md` | moved |
 | Apêndice A — Bibliotecas de interface avaliadas | `docs/spec/wizard-screen/rise.md#discarded-alternatives` | moved |
+| (no old number) Baker definitions in `nook/bakers/` | `docs/spec/bakers/flavor.md#behavior` | decision |

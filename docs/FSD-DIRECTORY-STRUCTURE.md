@@ -27,7 +27,7 @@ my-project/
 | `nook/kitchen/` | Project rules, settings and context; per-delivery preparation documents | User |
 | `nook/bench/` | Task folders being worked on | User |
 | `nook/cookbook/` | Recipes (workflows) | User |
-| `nook/bakers/` | Baker definitions and craft metadata | User |
+| `nook/bakers/` | Baker definitions and craft metadata (format: `docs/spec/bakers/flavor.md`) | User |
 | `nook/rack/` | Finished task folders and Donuts | FSD |
 | `nook/fridge/` | Archived task folders | On user request |
 | `.fsd/oven/` | Runtime state of the Oven | FSD |
