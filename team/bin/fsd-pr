@@ -5,7 +5,7 @@
 // fsd-pr --mine [agente]    PRs abertos do agente ou "nada"
 // fsd-pr --ready            PRs prontos para fsd-merge ou "nada"
 // fsd-pr open "<título>" (--verified <arquivo|-> | --docs) [--dev "<desvio>"] [--reply <arquivo|->] [-C <pasta>]
-//     push do branch, abre (ou atualiza) o PR para a develop, card → In Review, avisa mel e bob.
+//     push do branch, abre (ou atualiza) o PR para a develop, card → In Review (Mel, Bob), avisa mel e bob.
 //     Em PR que já existe, --verified vira comentário "Re-verified" e --reply responde à revisão.
 //     Tarefa: só a marca branch.<branch>.fsd-issue, gravada pelo fsd-dev start <n>; sem ela, o trabalho não tem tarefa.
 //     Antes do push, os commits do branch que ainda não estão no remoto nem na develop passam pelo commitlint

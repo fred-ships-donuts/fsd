@@ -48,7 +48,7 @@ Todo issue leva uma label `size:`, e ela diz quanto da cadeia a entrega usa:
 
 - **size:L**: os seis documentos (Craving, Flavor, Rise, Tray, Step, Taste). A passagem do Arquiteto é um comentário com dois títulos, `## TECH REVIEW` e depois `## PLAN`.
 - **size:M**: o issue (What + Acceptance), uma passagem curta do Arquiteto (`What to do`, `Files`, `Verification`) e um Taste.
-- **size:S**: o issue (What + Acceptance) e um Taste. Não há passagem: o issue vai direto para Ready for Development.
+- **size:S**: o issue (What + Acceptance) e um Taste. Não há passagem: o issue vai direto para Ready for Development (Stuart).
 
 O relatório da seção 5 segue o Taste em todos os tamanhos: `Result` (`pass` ou `fail`) e uma linha por item de aceite do issue, numerados `A1…`, com o comando, o esperado e o obtido.
 
@@ -62,17 +62,17 @@ Os textos das skills do time que produzem e consomem esses documentos ficam vers
 
 [FSD - Fred Ships Donuts](https://github.com/users/fredericojacobi/projects/3), campo **Status**:
 
-*Ready* é a fila que o papel puxa; *-ing* é alguém trabalhando. Os comandos `fsd-*` movem o card.
+*Ready* é a fila que o papel puxa; *-ing* é alguém trabalhando. Entre parênteses, o responsável pela coluna. Os comandos `fsd-*` movem o card e aceitam o nome com ou sem o responsável.
 
 | Coluna | Significa |
 |---|---|
-| Backlog | Fora da fase atual. |
-| Ready for Architecture | Planejado, na fila do Arquiteto. |
-| Architecting | O Arquiteto prepara a passagem, num comentário **Arquiteto: passagem** com o que fazer, os arquivos, os riscos e a verificação. |
-| Ready for Development | Preparado, na fila do desenvolvedor. |
-| Developing | Branch aberto, em implementação. |
-| In Review | PR aberto. A revisão pede **2 aprovações** quaisquer entre os colegas (Arquiteto, QA, PM), em paralelo. Um pedido de mudança devolve o issue para Developing. |
-| Ready to Merge | O PR tem 2 aprovações no último commit e nenhum pedido de mudança: espera o merge, feito pelo autor do PR com `fsd-merge <n>`. |
+| Backlog (Kevin) | Fora da fase atual. |
+| Ready for Architecture (Mel) | Planejado, na fila do Arquiteto. |
+| Architecting (Mel) | O Arquiteto prepara a passagem, num comentário **Arquiteto: passagem** com o que fazer, os arquivos, os riscos e a verificação. |
+| Ready for Development (Stuart) | Preparado, na fila do desenvolvedor. |
+| Developing (Stuart) | Branch aberto, em implementação. |
+| In Review (Mel, Bob) | PR aberto. A revisão pede **2 aprovações** quaisquer entre os colegas (Arquiteto, QA, PM), em paralelo. Um pedido de mudança devolve o issue para Developing. |
+| Ready to Merge (Kevin) | O PR tem 2 aprovações no último commit e nenhum pedido de mudança: espera o merge, feito pelo autor do PR com `fsd-merge <n>`. |
 | Done | PR mesclado na `develop`; o issue foi fechado pelo `Closes #N` (a `develop` é a branch padrão). |
 
 ## 3. Branch
@@ -118,7 +118,7 @@ A verificação do PR é do QA (Bob):
 - **O que confere:** cada item do aceite, mais os casos de borda óbvios da passagem. Anota o comando, o esperado e o obtido.
 - **Resultado:**
   - tudo passou: aprova o PR com a lista do que rodou;
-  - falhou no escopo do PR: pede mudanças e o issue volta para Developing;
+  - falhou no escopo do PR: pede mudanças e o issue volta para Developing (Stuart);
   - bug fora do escopo: abre um issue `bug` com passos, esperado, obtido e ambiente (commit, versão do Node, terminal).
 - **Fora do QA:** o cabeçalho (a rosquinha) é conferido pelo autor; o QA não faz testes visuais dele.
 

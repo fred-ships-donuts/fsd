@@ -1,9 +1,9 @@
 #!/usr/bin/env node
-// fsd-arq start <issue>                card → Architecting; mostra o issue (corpo até 40 linhas) e o aceite numerado
+// fsd-arq start <issue>                card → Architecting (Mel); mostra o issue (corpo até 40 linhas) e o aceite numerado
 // Por tamanho: size:L pede as 6 seções; size:M só What to do, Files e Verification; size:S não tem passagem (o Kevin
-// manda direto para Ready for Development). Issue sem size: o Kevin define antes.
+// manda direto para Ready for Development (Stuart)). Issue sem size: o Kevin define antes.
 // fsd-arq publish <issue> <arquivo|->  confere as seções do tamanho, publica "Architect handoff" (recusa se já houver um),
-//                                      card → Ready for Development e avisa o stuart
+//                                      card → Ready for Development (Stuart) e avisa o stuart
 import * as L from './fsd-lib.mjs';
 const [cmd, n, file] = process.argv.slice(2).filter((x) => x !== '--again');
 const NEED = { L: ['What to do', 'Files', 'Contracts', 'Risks', 'Out of scope', 'Verification'], M: ['What to do', 'Files', 'Verification'] };

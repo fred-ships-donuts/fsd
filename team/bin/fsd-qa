@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Verificação de QA em comandos curtos (estado em /tmp/fsd-qa-<agente>/state.json):
-// fsd-qa prep <n>                     issue, aceite numerado, worktree, build e tmux 80x24 (HOME temporário, alias fsd); card → In Review
+// fsd-qa prep <n>                     issue, aceite numerado, worktree, build e tmux 80x24 (HOME temporário, alias fsd); card → In Review (Mel, Bob)
 // fsd-qa run <k> "<comando>" | run <k> - <<'X' …   roda no item k (repita o mesmo k para mais comandos), espera o fim, mostra a saída + EXIT=n
 //                                     (o EXIT sai sozinho: comando com $? é recusado, porque pegaria o código do comando errado)
 // fsd-qa key [--text] <tecla…>        teclas (Down, Enter, Escape, C-c…) ou texto literal (--text) no item atual; mostra a tela

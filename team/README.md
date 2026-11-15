@@ -163,6 +163,10 @@ O limite de travado é `silentMin` (10 min): o `fsd-watch` reinicia o agente dep
 andamento, sem mudança no contador de tokens e sem gravação de subagente. Esse limite substituiu o antigo `HUNG_MIN`,
 de 20 min.
 
+## Colunas do quadro
+
+O nome de cada coluna do Status leva o responsável entre parênteses (`Ready for Development (Stuart)`). `bin/fsd-stages.mjs` é o único lugar com os nomes: nome e responsável saem da mesma linha da tabela (a mesma que diz quem é avisado quando um card chega na fila). `stageName()` aceita a chave (`devReady`), o nome com ou sem o responsável, em qualquer caixa, e os nomes antigos; `fsd-board`, `fsd-queue`, `fsd-wait column` e os movimentos de `fsd-lib` comparam sempre por ele, então o código serve com o quadro do GitHub nos nomes velhos ou nos novos. `fsd-board rename [--dry]` põe os nomes de `fsd-stages.mjs` nas opções do GitHub, no lugar (mesmos ids, nenhum card muda de coluna; o estado de antes vai para `$FSD_STATE/board-rename-<data>.json` e o resultado é conferido). Rode uma vez depois do merge de uma mudança de nomes.
+
 ## Detector de impasse
 
 O `fsd-wait any` do Kevin (e `fsd-wait deadlock`, só leitura, para qualquer agente) lê o registro `waits/` (sem chamar o GitHub) e agrupa as esperas por PR/issue. Um ciclo (`kevin→mel→kevin`) quieto há `deadlock.cycleMin` vira `DEADLOCK #n: kevin→mel→kevin`; um PR em que todos esperam, sem ciclo, quieto há `deadlock.stallMin`, vira `STALLED #n: <quem>→<por quem> "<o quê>"; …`. A atividade é o `updated_at` do issue/PR (comentário, revisão, label, push), consultado só para candidatos; mover o card no quadro não conta. Cada impasse é avisado uma vez: `$FSD_STATE/deadlocks.json` guarda a assinatura das esperas e só uma mudança nelas (ou o impasse desfeito e formado de novo) avisa outra vez. Esperas sem `--pr`/`--issue` não entram. `FSD_NOW` (ms ou data ISO) simula o relógio.
