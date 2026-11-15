@@ -86,6 +86,11 @@ function setText(doc: Document, key: string, value: string): void {
   else doc.set(key, value);
 }
 
+/** The frontmatter of a Markdown file as a plain object (for files that are not task files, such as a Baker). */
+export function parseFrontmatterMap(text: string): Record<string, unknown> {
+  return parseMap(splitFrontmatter(text).yaml, 'frontmatter').toJS() as Record<string, unknown>;
+}
+
 // ---------------------------------------------------------------------------------------------------------------
 // plan.md
 
