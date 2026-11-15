@@ -74,16 +74,15 @@ function prCheck() {
   if (y === 'new-head' && p.headRefOid !== first) return `#${x} commit novo ${p.headRefOid.slice(0, 7)}`;
   return '';
 }
-let bad = 0; const list = checks(); const due = list.map(() => 0);
+// Falhas contadas por caso: uma passada de outro caso não zera a contagem de quem falha sempre (nem o de intervalo mais lento).
+const list = checks(); const due = list.map(() => 0); const bad = list.map(() => 0);
 for (;;) {
   const now = Date.now();
-  try {
-    for (let i = 0; i < list.length; i++) {
-      if (due[i] > now) continue;
-      const [kase, f] = list[i]; due[i] = now + waitSeconds(kase) * 1000;
-      const r = f(); if (r) { console.log(r); process.exit(0); }
-    }
-    bad = 0;
-  } catch (e) { if (e.code === 2 || ++bad >= RETRIES) { console.log(String(e.message)); process.exit(Number.isInteger(e.code) ? e.code : 4); } }
+  for (let i = 0; i < list.length; i++) {
+    if (due[i] > now) continue;
+    const [kase, f] = list[i]; due[i] = now + waitSeconds(kase) * 1000;
+    try { const r = f(); bad[i] = 0; if (r) { console.log(r); process.exit(0); } }
+    catch (e) { if (e.code === 2 || ++bad[i] >= RETRIES) { console.log(String(e.message)); process.exit(Number.isInteger(e.code) ? e.code : 4); } }
+  }
   await sleep(Math.max(1000, Math.min(...due) - Date.now()));
 }

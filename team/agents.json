@@ -116,7 +116,7 @@
       "ready": 60,
       "todo": 10,
       "mine": 10,
-      "column": 10,
+      "column": 30,
       "pr": 8,
       "retries": 10
     },
