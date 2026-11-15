@@ -191,11 +191,11 @@ export function findDeadlocks(waits, { now, activityOf: act, cycleMin, stallMin 
   }
   return out;
 }
-// Memória persistida ($FSD_STATE/deadlocks.json = { chave: sig }): o fsd-wait sai a cada evento, então a memória não pode ficar no processo.
-// Devolve só o que é novo ou mudou; guarda o que está presente e esquece o que sumiu (o mesmo impasse formado de novo vale de novo).
+// Memória persistida ($FSD_STATE/<arquivo>.json = { chave: sig }): o fsd-wait sai a cada evento, então a memória não pode ficar no processo.
+// Devolve só o que é novo ou mudou; guarda o que está presente e esquece o que sumiu (o mesmo achado formado de novo vale de novo).
 // Só o Kevin grava: quem não é o Kevin lê sem consumir, para o aviso do Kevin não se perder.
-export function deadlocksNew(findings, all = false) {
-  const file = join(stateDir(), 'deadlocks.json'); let seen = {};
+export function seenNew(name, findings, all = false) {
+  const file = join(stateDir(), name); let seen = {};
   try { seen = JSON.parse(readFileSync(file, 'utf8')) || {}; } catch {}
   const next = Object.fromEntries(findings.map((f) => [f.key, f.sig]));
   if (ME === 'kevin' && JSON.stringify(next) !== JSON.stringify(seen)) {
@@ -203,6 +203,23 @@ export function deadlocksNew(findings, all = false) {
   }
   return all ? findings : findings.filter((f) => seen[f.key] !== f.sig);
 }
+export const deadlocksNew = (findings, all = false) => seenNew('deadlocks.json', findings, all);
+
+// Cards com a label `blocked` cujo bloqueio acabou. O bloqueio vem do ÚLTIMO comentário que começa com "Blocked by #<m>[, #<k>]: <o que destrava>";
+// com todos os #<m> fora de OPEN (fechados, ou PR mesclado/fechado) o card entra: { key, sig, line }. Bloqueio ainda aberto, ou card sem esse comentário,
+// não entra. Uma chamada ao GitHub por card bloqueado (a lista só custa uma). O script nunca tira a label: é do Kevin.
+export function unblocked() {
+  const out = [];
+  for (const i of ghJson(['issue', 'list', '--label', 'blocked', '--state', 'open', '--json', 'number', '--limit', '100']) || []) {
+    const last = [...(ghJson(['issue', 'view', String(i.number), '--json', 'comments'])?.comments || [])].reverse().find((c) => /^\s*Blocked by\b/i.test(c.body));
+    const head = last ? last.body.trim().split('\n')[0].replace(/^Blocked by\b/i, '').split(':')[0] : '';
+    const refs = [...new Set((head.match(/#(\d+)/g) || []).map((x) => Number(x.slice(1))))].filter((m) => m !== i.number);
+    if (!refs.length || refs.some((m) => ghJson(['issue', 'view', String(m), '--json', 'state'])?.state === 'OPEN')) continue;
+    out.push({ key: `#${i.number}`, sig: refs.join(','), line: `desbloqueado: #${i.number} (${refs.map((m) => '#' + m).join(', ')} fechado)` });
+  }
+  return out;
+}
+export const unblockedNew = (findings, all = false) => seenNew('blocked.json', findings, all);
 export const agentOf = (login) => norm(login).replace(/^fsd-/, '');
 
 // Seção de aceite de um issue: do título "Acceptance"/"Como verificar"/"aceite" até o próximo título de mesmo nível ou acima.

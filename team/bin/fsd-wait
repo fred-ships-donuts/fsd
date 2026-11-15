@@ -5,6 +5,7 @@
 //                                   Ready for Architecture (Mel); stuart: revisão nos seus PRs ou card em Ready for Development (Stuart); bob: PR para verificar)
 // fsd-wait pr <n> merged|closed|approved|changes|new-head
 // fsd-wait todo | mine | ready | column "<coluna>"  [--now]
+// fsd-wait blocked [--now]          card com a label blocked cujo "Blocked by #<m>" já fechou (desbloqueado: #n (#m fechado)), uma vez por card (kevin: faz parte do any)
 // fsd-wait deadlock [--now]          impasse nas esperas (DEADLOCK #n: a→b→a · STALLED #n: …); só lê, vale para qualquer agente; --now repete o que já foi avisado
 // Esperando um colega: acrescente --waiting-for <agente> "<o quê>" [--pr <n> | --issue <n>] (registro em $FSD_STATE/waits/, apagado ao sair).
 // Intervalo de cada caso (ready, todo, mine, column, pr): agents.json → timing.wait (FSD_WAIT_SECONDS passa por cima de todos).
@@ -55,6 +56,7 @@ const W = {
   mine: () => { const items = L.openPrs().filter((p) => L.norm(p.author?.login) === me).map((p) => `#${p.number}:${(p.reviews || []).length}`); const nums = (l) => l.map((i) => i.split(':')[0]); const prev = base.has('mine') ? nums([...base.get('mine')]) : null; const f = fresh('mine', items, () => 'revisão nova: fsd-pr --mine'); if (f) return f; const gone = prev ? prev.filter((n) => !nums(items).includes(n)) : []; if (gone.length) { base.set('mine', new Set(items)); return `PR ${gone.join(' ')} mesclado/fechado: fsd-queue`; } return ''; },
   ready: () => fresh('ready', L.openPrs().filter((p) => L.readyIdle(p, false)).map((p) => '#' + p.number), (n) => `pronto parado: ${n.join(' ')} (fsd-merge --ready)`),
   deadlock: () => { const t = timing().deadlock; const f = L.findDeadlocks(L.waitsList(), { now: L.clock(), activityOf: L.activityOf, cycleMin: Number(t.cycleMin), stallMin: Number(t.stallMin) }); return L.deadlocksNew(f, NOW).map((x) => x.line).join(' | '); },
+  blocked: () => L.unblockedNew(L.unblocked(), NOW).map((x) => x.line).join(' | '),
   column: (c) => (c = L.stageName(c), fresh('col:' + c, colItems(c), (n) => `${c}: ${n.join(' ')}`)),
 };
 // Kevin: agente sem sessão com avisos na caixa. Vale já na primeira leitura; depois só avisa de contagem maior que a última vista.
@@ -74,7 +76,7 @@ function inbox() {
   return `avisos (${n.length}): ${n.map((i) => L.noticeLine(i).replace(/\s*\n\s*/g, ' ')).join(' | ')}`;
 }
 // Casos de cada papel: [nome do caso em timing.wait, verificação].
-const ANY = { kevin: [['ready', () => W.ready()], ['todo', () => W.todo()], ['offline', offline], ['deadlock', () => W.deadlock()]], mel: [['todo', () => W.todo()], ['column', () => W.column(L.STAGE.archReady)]], stuart: [['mine', () => W.mine()], ['column', () => W.column(L.STAGE.devReady)]], bob: [['todo', () => W.todo()]] };
+const ANY = { kevin: [['ready', () => W.ready()], ['todo', () => W.todo()], ['offline', offline], ['deadlock', () => W.deadlock()], ['blocked', () => W.blocked()]], mel: [['todo', () => W.todo()], ['column', () => W.column(L.STAGE.archReady)]], stuart: [['mine', () => W.mine()], ['column', () => W.column(L.STAGE.devReady)]], bob: [['todo', () => W.todo()]] };
 let first;
 // Lista de [caso, verificação] do pedido: no "any", os casos do papel; senão, um só.
 function checks() {
@@ -82,7 +84,7 @@ function checks() {
   if (kind === 'pr') return [['pr', prCheck]];
   if (kind === 'column') { if (!x) L.die('uso: fsd-wait column "<coluna>"', 2); return [['column', () => W.column(x)]]; }
   if (W[kind]) return [[kind, () => W[kind]()]];
-  L.die('uso: fsd-wait any | pr <n> <condição> | todo | mine | ready | deadlock | column "<coluna>"  [--now]', 2);
+  L.die('uso: fsd-wait any | pr <n> <condição> | todo | mine | ready | deadlock | blocked | column "<coluna>"  [--now]', 2);
 }
 function prCheck() {
   if (!['merged', 'closed', 'approved', 'changes', 'new-head'].includes(y)) L.die('uso: fsd-wait pr <n> merged|closed|approved|changes|new-head', 2);
