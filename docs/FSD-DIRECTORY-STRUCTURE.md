@@ -26,7 +26,7 @@ my-project/
 |---|---|---|
 | `nook/kitchen/` | Project rules, settings and context; per-delivery preparation documents | User |
 | `nook/bench/` | Task folders being worked on | User |
-| `nook/cookbook/` | Recipes (workflows) | User |
+| `nook/cookbook/` | Recipes (workflows; format: `docs/spec/cookbook/flavor.md`) | User |
 | `nook/bakers/` | Baker definitions and craft metadata (format: `docs/spec/bakers/flavor.md`) | User |
 | `nook/rack/` | Finished task folders and Donuts | FSD |
 | `nook/fridge/` | Archived task folders | On user request |
@@ -80,7 +80,7 @@ When the Install flow is confirmed, the CLI creates only the base structure: `no
 
 ## Open decisions (author)
 
-- Format of recipes and destination of the Dough in the user's project.
+None. (Recipe format: `docs/spec/cookbook/flavor.md`; the Dough has no file in the project, the project's own principles are `nook/kitchen/rules.md`.)
 
 ## Decided (2026-11-07)
 

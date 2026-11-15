@@ -30,6 +30,6 @@ The "Pendente" items of the old §13 are tracked outside this file:
 
 - Review of the spec (conflict, `--force`, interruption, tests): all decided; the record is in the git history of the removed `TASKS.md`, section "Pontos para a revisão da spec".
 - Layout of the header and wizard screens: see `docs/spec/wizard-header/flavor.md` and `docs/spec/wizard-screen/flavor.md`.
-- Next `nook/` slices (Kitchen #20 (decided: `docs/spec/kitchen/flavor.md`), Cookbook #21, Bakers #22 (decided: `docs/spec/bakers/flavor.md`); `task archive` as the only path from `rack` to `fridge` #23): issues #20–#23.
+- Next `nook/` slices (Kitchen #20 (decided: `docs/spec/kitchen/flavor.md`), Cookbook #21 (decided: `docs/spec/cookbook/flavor.md`), Bakers #22 (decided: `docs/spec/bakers/flavor.md`); `task archive` as the only path from `rack` to `fridge` #23): issues #20–#23.
 - `update skill` scopes, `updateSkills` default, `fsd update` and the 24 h limit: issue #17.
 - Publishing v1: issue #12.
