@@ -15,6 +15,8 @@
 process.env.FSD_THROW = '1';
 const L = await import('./fsd-lib.mjs');
 import { spawnSync } from 'node:child_process';
+import { RESERVED } from './fsd-backlog.mjs';
+import { makeFresh } from './fsd-fresh.mjs';
 import { writeFileSync, renameSync, unlinkSync, readFileSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 // Flags: --now, --waiting-for <agente> "<o quê>" [--pr <n> | --issue <n>] (registra a espera em $FSD_STATE/waits/<eu>.json).
@@ -44,13 +46,9 @@ if (WF.for) {
   process.on('exit', () => { try { if (JSON.parse(readFileSync(file, 'utf8')).pid === process.pid) unlinkSync(file); } catch {} });
   for (const [sig, n] of [['SIGTERM', 15], ['SIGINT', 2], ['SIGHUP', 1]]) process.on(sig, () => process.exit(128 + n));
 }
-const me = L.meLogin(); const base = new Map();
-// Detector de novidade: na primeira leitura guarda a linha de base (a não ser --now) e só dispara com itens novos.
-function fresh(key, items, fmt) {
-  if (!base.has(key)) { base.set(key, new Set(NOW ? [] : items)); if (!NOW) return ''; }
-  const seen = base.get(key); const nw = items.filter((i) => !seen.has(i));
-  return nw.length ? fmt(nw) : '';
-}
+const me = L.meLogin();
+// Detector de novidade (fsd-fresh.mjs): na primeira leitura guarda a linha de base (a não ser --now) e só dispara com itens novos.
+const fresh = makeFresh({ now: NOW }); const base = fresh.base;
 const colItems = (c) => { const r = spawnSync(L.BIN + '/fsd-board', ['list', c], { encoding: 'utf8' }); if (r.status === 2 && /não configurado/.test(r.stderr)) return []; if (r.status !== 0) throw Object.assign(new Error(String(r.stderr || r.stdout).trim().split('\n')[0]), { code: r.status === 2 ? 2 : 4 }); const m = r.stdout.match(/\((\d+)\):\s*(.*)/); return m ? m[2].trim().split(/\s+/).filter(Boolean) : []; };
 const W = {
   todo: () => fresh('todo', L.todo(me).map((p) => `#${p.number}@${p.headRefOid.slice(0, 7)}`), (n) => `revisar ${n.join(' ')}`),
@@ -58,9 +56,9 @@ const W = {
   ready: () => fresh('ready', L.openPrs().filter((p) => L.readyIdle(p, false)).map((p) => '#' + p.number), (n) => `pronto parado: ${n.join(' ')} (fsd-merge --ready)`),
   deadlock: () => { const t = timing().deadlock; const f = L.findDeadlocks(L.waitsList(), { now: L.clock(), activityOf: L.activityOf, cycleMin: Number(t.cycleMin), stallMin: Number(t.stallMin) }); return L.deadlocksNew(f, NOW).map((x) => x.line).join(' | '); },
   // Kevin: card novo no Backlog ou label decision nova acorda o Monitor, para ele não dormir sobre um Backlog cheio (#159).
-  backlog: () => fresh('col:backlog', colItems(L.STAGE.backlog), (n) => `Backlog (Kevin): ${n.join(' ')} (fsd-queue)`),
+  backlog: () => fresh('col:backlog', colItems(L.STAGE.backlog).filter((i) => !RESERVED.includes(Number(i.replace(/\D/g, '')))), (n) => `Backlog (Kevin): ${n.join(' ')} (fsd-queue)`),
   // "Novo" = fora da linha de base da primeira leitura: uma label posta depois dela acorda; uma que já estava lá, não.
-  decision: () => fresh('decision', (L.ghJson(['issue', 'list', '--label', 'decision', '--state', 'open', '--json', 'number', '--limit', '100']) || []).map((x) => '#' + x.number), (n) => `decision: ${n.join(' ')} (fsd-issue decide)`),
+  decision: () => fresh('decision', (L.ghJson(['issue', 'list', '--label', 'decision', '--state', 'open', '--json', 'number', '--limit', '100']) || []).filter((x) => !RESERVED.includes(x.number)).map((x) => '#' + x.number), (n) => `decision: ${n.join(' ')} (fsd-issue decide)`),
   blocked: () => L.unblockedNew(L.unblocked(), NOW).map((x) => x.line).join(' | '),
   column: (c) => (c = L.stageName(c), fresh('col:' + c, colItems(c), (n) => `${c}: ${n.join(' ')}`)),
 };
