@@ -25,7 +25,7 @@ function one(num, check) {
   const cl = L.closes(p.body);
   // O checkout principal acompanha a develop logo após o merge (#173); sem fetch/ff possível, o fsd-cleanup repete na próxima rodada.
   let fol = ''; if (!process.env.FSD_DRY) { L.run('git', ['-C', L.REPO_DIR, 'fetch', '-q', 'origin', 'develop'], { allowFail: true }); const f = followDevelop(L.REPO_DIR); fol = f.moved ? f.msg : ''; }
-  return [0, [`#${num} mesclado na develop`, L.board(L.STAGE.done, cl), fol, L.noticeSummary(L.notify([L.agentOf(p.author?.login)], `PR #${num} mesclado na develop.`))].filter(Boolean).join(' | ')];
+  return [0, [`#${num} mesclado na develop`, L.boardPr(p, { state: 'MERGED' }), fol, L.noticeSummary(L.notify([L.agentOf(p.author?.login)], `PR #${num} mesclado na develop.`))].filter(Boolean).join(' | ')];
 }
 if (n === '--ready') { const chk = process.argv.includes('--check'); const all = L.openPrs(); const ps = all.filter((p) => L.readyIdle(p)); const human = all.filter((p) => L.ready(p) && !L.AGENTS.includes(L.agentOf(p.author?.login))).length; if (!ps.length) L.die(`nada pronto parado${human ? ` (+${human} do autor: fsd-merge <n>)` : ''}`, 0); let worst = 0; for (const p of ps) { const [c, m] = one(p.number, chk); console.log(m); worst = Math.max(worst, c); if (c === 4) { console.log('parei: merge recusado'); break; } } if (human) console.log(`(+${human} do autor: só por número)`); process.exit(worst); }
 if (mode && !['--check', '--now'].includes(mode)) L.die('uso: fsd-merge <n> [--check] | fsd-merge --ready [--check]', 2);

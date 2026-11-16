@@ -25,7 +25,9 @@ test('transitions only use column keys', () => {
 
 // Comandos que escrevem uma coluna: team/bin/<by> tem STAGE.<to> em board(...), ou chega por afterReview (fsd-lib.mjs).
 const src = (f) => readFileSync(join(BIN, f), 'utf8');
-const writes = (text) => [...text.matchAll(/board\([^\n]*?STAGE\.(\w+)/g)].map((m) => m[1]);
+// Quem chama boardPr/afterReview usa cardColumn (#187): escreve todas as colunas que ele devolve.
+const COLUMN_FN = ['review', 'changes', 'dev', 'mergeReady', 'done'];
+const writes = (text) => [...[...text.matchAll(/board\([^\n]*?STAGE\.(\w+)/g)].map((m) => m[1]), ...(/boardPr\(/.test(text) ? COLUMN_FN : [])];
 
 test('each command edge writes its target', () => {
   for (const t of TRANSITIONS.filter((x) => x.by !== 'manual')) {
