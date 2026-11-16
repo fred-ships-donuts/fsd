@@ -14,6 +14,7 @@
 // fsd-qa clean                        fecha o tmux (o terminal vive no socket -L fsd-qa-<agente>) e remove o worktree
 import * as L from './fsd-lib.mjs';
 import { rmSync, readdirSync } from 'node:fs';
+import { refuseConflicting } from './fsd-conflict.mjs';
 const Q = `/tmp/fsd-qa-${L.ME || 'x'}`, SF = `${Q}/state.json`, T = `fsd-qa-${L.ME || 'x'}`;
 const [cmd, ...a] = process.argv.slice(2);
 // Terminal de teste no socket próprio (-L fsd-qa-<agente>): um kill-server lá dentro não derruba o tmux do time.
@@ -39,6 +40,7 @@ const row = (s, k) => (s.rows[k] ||= { cmd: '', screen: '', exit: null, verdict:
 if (cmd === 'prep') {
   const n = a[0]; if (!/^\d+$/.test(n || '')) L.die('uso: fsd-qa prep <n>', 2);
   const p = L.pr(n); if (p.state !== 'OPEN') L.die(`PR #${n} está ${p.state}`, 1);
+  const refuse = refuseConflicting(p, 'fsd-qa'); if (refuse) L.die(refuse, 1);
   const st = L.myStatus(p);
   if (st === 'ok' || st === 'changes') {
     if (process.env.FSD_QA_REDO !== n) L.die(`JÁ VERIFICADO no ${p.headRefOid.slice(0, 7)}: nada a fazer até um commit novo`, 0);
