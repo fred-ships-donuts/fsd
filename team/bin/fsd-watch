@@ -4,6 +4,7 @@
 // ~/.config/fsd-agents/watch.log (fora do git). Tempos: agents.json → timing.watch (fsd-timing.mjs).
 //   sem sessão  → sobe o agente          estourou  → reinicia limpo        travado → reinicia
 //   ocioso sem Monitor → empurrão curto (acima de restartAbove, reinicia)  permissão / limite de uso → só avisa o autor
+//   diálogo da interface que não é permissão (fsd-dialogs.mjs, ex.: onboarding do auto mode) → manda a tecla "nunca mais" só àquele painel, uma vez por cooldownMin
 //   alerta (permissão, limite de uso): fsd-alert, uma vez por estado até ele sair da tela; o limite de uso nunca reinicia (act 'alert').
 //   pediu ao autor (parado, e o fim do painel pede uma ação a ele: redirects.json → authorAsks) → fsd-notify kevin + empurrão
 //   "não espere o autor"; o mesmo pedido na tela não repete (nem dentro do cooldownMin, nem sob PAUSE).
@@ -26,7 +27,8 @@ import { fileURLToPath } from 'node:url';
 import { spawnSync, spawn } from 'node:child_process';
 import { context } from './fsd-context.mjs';
 import { timing, liveDir, settingsHashFile } from './fsd-timing.mjs';
-import { paneState } from './fsd-pane.mjs';
+import { paneState, SHELLS } from './fsd-pane.mjs';
+import { uiDialog } from './fsd-dialogs.mjs';
 import { resetTime, shouldAlert, clearAlert } from './fsd-alert.mjs';
 import { fingerprint, reexecIfChanged, settingsHash, safeToRestart } from './fsd-reload.mjs';
 import { load as loadRedirects } from './fsd-redirects.mjs';
@@ -107,6 +109,8 @@ function classify(agent, mem = {}) {
   const t = transcript(agent) || { idle: 0, ctx: 0 };
   const base = { idle: t.idle, ctx: t.ctx };
   if (/Context limit reached|Prompt is too long/.test(pane)) return { ...base, state: 'estourou', act: 'restart' };
+  const ui = uiDialog(pane);   // diálogo da interface (não é permissão): dispensa sozinho, sem alertar o autor
+  if (ui) return { ...base, state: 'diálogo da interface', act: 'dismiss', dialog: ui };
   if (/Do you want|❯ 1\. Yes/.test(pane)) return { ...base, state: 'permissão', act: 'alert' };
   if (/usage limit|hit your limit|limit will reset|resets? at/i.test(pane)) return { ...base, state: 'limite de uso', act: 'alert', reset: resetTime(pane) };
   const working = /esc to interrupt/.test(pane), monitor = /\d+ monitors?\b/.test(pane);
@@ -172,6 +176,12 @@ function act(agent, r, mem = {}) {
   if (r.act === 'start' || r.act === 'restart' || r.act === 'reload') { try { rmSync(liveDir(agent), { recursive: true, force: true }); } catch {} }   // registros da sessão morta
   if (r.act === 'start') { const c = sh('tmux', ['new-session', '-d', '-s', s, '-c', REPO, LAUNCH, agent, 'claude', kick(agent, 'sessão não existia')]); return c.status === 0 ? 'subiu' : `falhou: ${c.stderr.trim()}`; }
   if (r.act === 'restart' || r.act === 'reload') { const c = sh('tmux', ['respawn-pane', '-k', '-t', s, '-c', REPO, LAUNCH, agent, 'claude', kick(agent, `${r.state}, ${k(r.ctx)}`)]); return c.status === 0 ? 'reiniciou' : `falhou: ${c.stderr.trim()}`; }
+  if (r.act === 'dismiss') {   // a tecla do diálogo vai só a este painel, e nunca a um shell (#129)
+    const cmd = (sh('tmux', ['display-message', '-p', '-t', s, '#{pane_current_command}']).stdout || '').trim();
+    if (SHELLS.includes(cmd)) return `painel no shell (${cmd}): não digitou`;
+    sh('tmux', ['send-keys', '-t', s, r.dialog.key]);
+    return `dispensou o diálogo "${r.dialog.name}" (tecla ${r.dialog.key})`;
+  }
   if (r.act === 'redirect') {
     sh(join(BIN, 'fsd-notify'), ['kevin', `${agent} pediu ao autor: ${r.ask}`]);
     const msg = '[fsd-aviso do vigia] Do not wait for the author. Take the team command for it (team.md, "Ação negada → comando do time") or move on and tell Kevin with fsd-notify.';
