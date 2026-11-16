@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Para o Monitor: fica quieto até algo NOVO acontecer, imprime uma linha e sai 0 (--now: dispara também com o que já existe).
 // Falha de rede: tenta de novo (agents.json → timing.wait.retries vezes seguidas).
-// fsd-wait any [--now]              o que importa para o seu papel (kevin: PR pronto parado; mel: PR para revisar ou card em
+// fsd-wait any [--now]              o que importa para o seu papel (kevin: PR pronto parado, card novo no Backlog (Kevin) ou label decision nova; mel: PR para revisar ou card em
 //                                   Ready for Architecture (Mel); stuart: revisão nos seus PRs ou card em Ready for Development (Stuart); bob: PR para verificar)
 // fsd-wait pr <n> merged|closed|approved|changes|new-head
 // fsd-wait todo | mine | ready | column "<coluna>"  [--now]
@@ -57,6 +57,9 @@ const W = {
   mine: () => { const items = L.openPrs().filter((p) => L.norm(p.author?.login) === me).map((p) => `#${p.number}:${(p.reviews || []).length}`); const nums = (l) => l.map((i) => i.split(':')[0]); const prev = base.has('mine') ? nums([...base.get('mine')]) : null; const f = fresh('mine', items, () => 'revisão nova: fsd-pr --mine'); if (f) return f; const gone = prev ? prev.filter((n) => !nums(items).includes(n)) : []; if (gone.length) { base.set('mine', new Set(items)); return `PR ${gone.join(' ')} mesclado/fechado: fsd-queue`; } return ''; },
   ready: () => fresh('ready', L.openPrs().filter((p) => L.readyIdle(p, false)).map((p) => '#' + p.number), (n) => `pronto parado: ${n.join(' ')} (fsd-merge --ready)`),
   deadlock: () => { const t = timing().deadlock; const f = L.findDeadlocks(L.waitsList(), { now: L.clock(), activityOf: L.activityOf, cycleMin: Number(t.cycleMin), stallMin: Number(t.stallMin) }); return L.deadlocksNew(f, NOW).map((x) => x.line).join(' | '); },
+  // Kevin: card novo no Backlog ou label decision nova acorda o Monitor, para ele não dormir sobre um Backlog cheio (#159).
+  backlog: () => fresh('col:backlog', colItems(L.STAGE.backlog), (n) => `Backlog (Kevin): ${n.join(' ')} (fsd-queue)`),
+  decision: () => fresh('decision', (L.ghJson(['issue', 'list', '--label', 'decision', '--state', 'open', '--json', 'number', '--limit', '100']) || []).map((x) => '#' + x.number), (n) => `decision: ${n.join(' ')} (fsd-issue decide)`),
   blocked: () => L.unblockedNew(L.unblocked(), NOW).map((x) => x.line).join(' | '),
   column: (c) => (c = L.stageName(c), fresh('col:' + c, colItems(c), (n) => `${c}: ${n.join(' ')}`)),
 };
@@ -77,7 +80,7 @@ function inbox() {
   return `avisos (${n.length}): ${n.map((i) => L.noticeLine(i).replace(/\s*\n\s*/g, ' ')).join(' | ')}`;
 }
 // Casos de cada papel: [nome do caso em timing.wait, verificação].
-const ANY = { kevin: [['ready', () => W.ready()], ['todo', () => W.todo()], ['offline', offline], ['deadlock', () => W.deadlock()], ['blocked', () => W.blocked()]], mel: [['todo', () => W.todo()], ['column', () => W.column(L.STAGE.archReady)]], stuart: [['mine', () => W.mine()], ['column', () => W.column(L.STAGE.devReady)]], bob: [['todo', () => W.todo()]] };
+const ANY = { kevin: [['ready', () => W.ready()], ['todo', () => W.todo()], ['offline', offline], ['deadlock', () => W.deadlock()], ['blocked', () => W.blocked()], ['backlog', () => W.backlog()], ['decision', () => W.decision()]], mel: [['todo', () => W.todo()], ['column', () => W.column(L.STAGE.archReady)]], stuart: [['mine', () => W.mine()], ['column', () => W.column(L.STAGE.devReady)]], bob: [['todo', () => W.todo()]] };
 let first;
 // Lista de [caso, verificação] do pedido: no "any", os casos do papel; senão, um só.
 function checks() {
@@ -85,7 +88,7 @@ function checks() {
   if (kind === 'pr') return [['pr', prCheck]];
   if (kind === 'column') { if (!x) L.die('uso: fsd-wait column "<coluna>"', 2); return [['column', () => W.column(x)]]; }
   if (W[kind]) return [[kind, () => W[kind]()]];
-  L.die('uso: fsd-wait any | pr <n> <condição> | todo | mine | ready | deadlock | blocked | column "<coluna>"  [--now]', 2);
+  L.die('uso: fsd-wait any | pr <n> <condição> | todo | mine | ready | deadlock | blocked | backlog | decision | column "<coluna>"  [--now]', 2);
 }
 function prCheck() {
   if (!['merged', 'closed', 'approved', 'changes', 'new-head'].includes(y)) L.die('uso: fsd-wait pr <n> merged|closed|approved|changes|new-head', 2);
