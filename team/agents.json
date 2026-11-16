@@ -152,6 +152,13 @@
       "loopSeconds": 600,
       "mergedMin": 60
     },
+    "progress": {
+      "_comment": "fsd-progress (o vigia roda a cada rodada, sem token): avisa o Kevin do que parou. everyMin (ping): no máximo uma conferência por esse tempo. stallMin (prazo): card aberto sem movimento (coluna, comentário, commit, PR) há tanto tempo. pauseMin (prazo): PAUSE ligado há tanto tempo. inboxMin (prazo): aviso parado na caixa de um agente há tanto tempo.",
+      "everyMin": 5,
+      "stallMin": 20,
+      "pauseMin": 120,
+      "inboxMin": 15
+    },
     "stop": {
       "_comment": "fsd-stop: pollSeconds (ping) confere o HANDOFF-OK; waitSeconds é o prazo antes de desistir (a sessão fica aberta).",
       "pollSeconds": 5,

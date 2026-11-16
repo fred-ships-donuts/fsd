@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // fsd-board — o quadro do time, assinado pelo bot do agente ($FSD_AGENT).
 //   fsd-board list [coluna] [-t]       uma linha por coluna (Done vira contagem; -t mostra títulos)
+//   fsd-board list --json              todos os itens: [{"column","number","type","updatedAt"}] (o fsd-progress usa)
 //   fsd-board move "<coluna>" <n…>     põe os issues/PRs no quadro, se faltarem, e muda a coluna (também aceita: move <n> "<coluna>")
 //   fsd-board rename [--dry]           põe nas colunas do GitHub os nomes de fsd-stages.mjs (com o responsável entre parênteses), no lugar,
 //                                      e cria as colunas que faltam (na ordem de fsd-stages.mjs): mesmas opções, nenhum card muda de
@@ -59,7 +60,7 @@ async function itemsOf(p) {
   const items = []; let after = null;
   do {
     const d = await gql('org', `query($id:ID!,$a:String){node(id:$id){... on ProjectV2{items(first:100,after:$a){pageInfo{hasNextPage endCursor}
-      nodes{id status:fieldValueByName(name:"Status"){... on ProjectV2ItemFieldSingleSelectValue{name optionId}}
+      nodes{id updatedAt status:fieldValueByName(name:"Status"){... on ProjectV2ItemFieldSingleSelectValue{name optionId}}
       content{__typename ... on Issue{number title state} ... on PullRequest{number title state} ... on DraftIssue{title}}}}}}}`, { id: p.id, a: after });
     const page = d.node.items; items.push(...page.nodes); after = page.pageInfo.hasNextPage ? page.pageInfo.endCursor : null;
   } while (after);
@@ -67,9 +68,13 @@ async function itemsOf(p) {
 }
 const same = (a, b) => stageName(a) === stageName(b);
 
-async function list(column, titles) {
+async function list(column, titles, json) {
   const p = await project();
   const items = await itemsOf(p);
+  if (json) {
+    console.log(JSON.stringify(items.map((i) => ({ column: i.status?.name ?? null, number: i.content?.number ?? null, type: i.content?.__typename ?? null, updatedAt: i.updatedAt ?? null }))));
+    return;
+  }
   if (column) column = stageName(column);
   const cols = column ? p.field.options.filter(o => same(o.name, column)) : p.field.options;
   if (column && !cols.length) die(`coluna "${column}" não existe. Colunas: ${p.field.options.map(o => o.name).join(', ')}`, 2);
@@ -143,7 +148,7 @@ async function rename(args) {
 }
 
 const [cmd, ...rest] = process.argv.slice(2);
-if (cmd === 'list') await list(rest.find(x => x !== '-t'), rest.includes('-t'));
+if (cmd === 'list') await list(rest.find(x => x !== '-t' && x !== '--json'), rest.includes('-t'), rest.includes('--json'));
 else if (cmd === 'move') await move(rest);
 else if (cmd === 'rename') await rename(rest);
-else die('uso: fsd-board list [coluna] [-t] | fsd-board move "<coluna>" <n…> | fsd-board rename [--dry]', 2);
+else die('uso: fsd-board list [coluna] [-t] [--json] | fsd-board move "<coluna>" <n…> | fsd-board rename [--dry]', 2);

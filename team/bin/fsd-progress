@@ -1,0 +1,53 @@
+#!/usr/bin/env node
+// fsd-progress [--now] [--dry] [--fixture <arquivo>] — avisa o Kevin do que parou: card aberto sem movimento, PAUSE velho, aviso velho
+// numa caixa. Sem token e só leitura: nunca escreve no GitHub nem chama o autor; só estado local ($FSD_STATE/progress.json, progress.at)
+// e `fsd-notify kevin` (remetente "vigia"). Sem --now roda no máximo a cada timing.progress.everyMin. --dry ou FSD_DRY=1: imprime
+// as linhas, não envia nem grava. Tempos: agents.json → timing.progress (sem valor padrão no código). Erro de leitura: exit 0, uma linha em stderr.
+// --fixture: JSON { cards, pauseAt, inboxes, now } no lugar da leitura (teste). Regras puras em fsd-progress.mjs.
+import { readFileSync, statSync, writeFileSync, mkdirSync, utimesSync, closeSync, openSync } from 'node:fs';
+import { join, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { execFileSync, spawnSync } from 'node:child_process';
+import { timing } from './fsd-timing.mjs';
+import * as L from './fsd-lib.mjs';
+import { buildCards, findStalls, findPause, findOldNotices } from './fsd-progress.mjs';
+
+const BIN = dirname(fileURLToPath(import.meta.url));
+const args = process.argv.slice(2);
+const DRY = args.includes('--dry') || !!process.env.FSD_DRY;
+const fx = args.includes('--fixture') ? args[args.indexOf('--fixture') + 1] : null;
+
+let cfg;
+try { cfg = timing().progress; } catch (e) { console.error(`fsd-progress: ${e.message.replace(/timing sem progress\./, 'timing.progress sem ')}`); process.exit(1); }
+
+const stamp = join(L.stateDir(), 'progress.at');
+if (!args.includes('--now') && !DRY) {
+  try { if (Date.now() - statSync(stamp).mtimeMs < cfg.everyMin * 60000) process.exit(0); } catch {}
+}
+
+function gather() {
+  const board = JSON.parse(execFileSync(join(BIN, 'fsd-board'), ['list', '--json'], { encoding: 'utf8' }));
+  const issues = L.ghJson(['issue', 'list', '--state', 'open', '--json', 'number,updatedAt,labels', '--limit', '100']) || [];
+  const prs = L.ghJson(['pr', 'list', '--state', 'open', '--json', 'number,body,updatedAt,commits', '--limit', '100']) || [];
+  let pauseAt = null; try { pauseAt = statSync(join(L.stateDir(), 'PAUSE')).mtimeMs; } catch {}
+  const inboxes = {};
+  for (const a of L.AGENTS) {
+    try { inboxes[a] = readFileSync(join(L.inboxDir(), a), 'utf8').split('\n').filter((l) => l.trim()).map((l) => JSON.parse(l)); } catch {}
+  }
+  return { cards: buildCards({ board, issues, prs, closes: L.closes }), pauseAt, inboxes };
+}
+
+let data;
+try { data = fx ? JSON.parse(readFileSync(fx, 'utf8')) : gather(); } catch (e) { console.error(`fsd-progress: leitura falhou: ${String(e.message).split('\n')[0]}`); process.exit(0); }
+const now = data.now ? Date.parse(data.now) : Date.now();
+const all = [
+  ...findStalls({ cards: data.cards, now, stallMin: cfg.stallMin }),
+  ...findPause({ pauseAt: data.pauseAt, now, pauseMin: cfg.pauseMin, path: `${L.stateDir()}/PAUSE` }),
+  ...findOldNotices({ inboxes: data.inboxes, now, inboxMin: cfg.inboxMin }),
+];
+const fresh = L.seenNew('progress.json', all, false, !DRY);
+for (const f of fresh) {
+  console.log(f.line);
+  if (!DRY) spawnSync(join(BIN, 'fsd-notify'), ['kevin', f.line], { env: { ...process.env, FSD_NOTIFY_FROM: 'vigia' }, stdio: 'ignore' });
+}
+if (!DRY) { try { mkdirSync(dirname(stamp), { recursive: true }); closeSync(openSync(stamp, 'a')); const t = new Date(); utimesSync(stamp, t, t); } catch {} }
