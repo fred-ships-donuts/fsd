@@ -53,6 +53,7 @@ tudo, o arquivo local (comum, depois o agente); um valor local comum vence até 
 é campo a campo também dentro de objetos: `bands.normal.urgentAt` sozinho não apaga o resto de `bands`. Quem lê é o
 `bin/fsd-context.mjs` (guard, vigia, `fsd-restart`, `fsd-stats`), a cada chamada, sem reabrir o agente. Arquivo local
 inválido: o vigia mostra `configuração inválida` no agente, sem ação, e segue no ar (uma linha no `watch.log` por erro).
+Para mudar um agente só, sem passar por cima do valor de agente do `agents.json` de todos, use `agents.<nome>.context`.
 
     { "claude_common": { "context": { "restartAbove": 100000 } } }
 
@@ -246,7 +247,7 @@ quando o agente gravar o próximo rascunho.
 
 - **Outra máquina:** os mesmos segredos vão cifrados em `secrets.tar.age`. Na matriz: `bin/fsd-secrets pack` e commit; na remota: `bin/fsd-secrets unpack`. Passo a passo do container em `team/docs/CONTAINER-PASSO-A-PASSO.md`; valores da sua instalação em `setup/team.env.example`.
 - **Depois de mover ou renomear arquivos:** `setup/check-paths` (ou `npm run check:paths`) lista todo link, âncora, caminho de script e link simbólico quebrado, com `arquivo:linha`, e sai 1 se houver algum. Só lê; `--root <pasta>` confere outra árvore.
-- **Antes de mexer em caminhos, setup ou scripts:** `setup/simulate-envs` clona o branch atual em vários layouts (containers com nomes e caminhos diferentes, a matriz, caminho com espaços) e mostra onde quebra; termina com saída 0 só sem falhas. Precisa das chaves dos Apps em `$FSD_STATE/keys` (o estado real do time): sem elas recusa com saída 2, em vez de falhar por ambiente.
+- **Antes de mexer em caminhos, setup ou scripts:** `setup/simulate-envs` clona o branch atual em vários layouts (containers com nomes e caminhos diferentes, a matriz, caminho com espaços) e mostra onde quebra; termina com saída 0 só sem falhas.
 - **`keys/<slug>.pem`:** perdeu ou vazou? Gere outra na página do App e apague a antiga.
 - **`claude-oauth-token`:** troca com `claude setup-token`. Salve sem ecoar na tela: `read -rsp "token: " T && umask 077 && printf '%s\n' "$T" > claude-oauth-token && unset T`.
 - **`ai-memory-tokens/<nome>`:** troca com `ai-memory api-key rotate <ID> --json`, gravando o `aim_…` novo no arquivo. Para ver os IDs, use `ai-memory api-key list`.

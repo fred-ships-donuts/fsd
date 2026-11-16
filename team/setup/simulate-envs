@@ -11,14 +11,9 @@
 set -uo pipefail
 HERE="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"
 SRC="$(dirname "$(dirname "$HERE")")"; BR="$(git -C "$SRC" branch --show-current)"; KEEP=0; [ "${1:-}" = --keep ] && KEEP=1
-REAL_STATE="${FSD_STATE:-$HOME/.config/fsd-agents}"
-# Os layouts ligam as chaves dos Apps do estado real (fsd-agent e fsd-pr as leem): sem elas, 6 checagens falham em todo
-# layout por causa do ambiente, não do código. Recusa logo, com o motivo (ex.: QA com HOME temporário).
-if ! ls "$REAL_STATE"/keys/*.pem >/dev/null 2>&1; then
-  echo "simulate-envs: sem chaves em $REAL_STATE/keys (rode com o HOME real ou FSD_STATE apontando para o estado do time)" >&2; exit 2
-fi
-BASE="$(mktemp -d /tmp/fsd-sim.XXXX)"; RES="$BASE/results"; : > "$RES"
-[ "$KEEP" = 1 ] || trap 'rm -rf "$BASE"' EXIT
+BASE="$(mktemp -d /tmp/fsd-sim.XXXX)"; REAL_STATE="${FSD_STATE:-$HOME/.config/fsd-agents}"; RES="$BASE/results"; : > "$RES"
+# Na saída, mesmo abortando no meio: derruba o servidor tmux da simulação (socket fsd-sim em $BASE) e apaga $BASE.
+trap 'TMUX_TMPDIR="$BASE/tmux-sim" tmux -L fsd-sim kill-server 2>/dev/null; [ "$KEEP" = 1 ] || rm -rf "$BASE"' EXIT
 ok()  { echo "  PASS $*"; echo P >> "$RES"; }
 bad() { echo "  FAIL $*"; echo F >> "$RES"; }
 chk() { local d="$1"; shift; local o; if o=$("$@" 2>&1); then ok "$d"; else bad "$d :: $(tail -3 <<<"$o" | tr '\n' ' ' | cut -c1-300)"; fi; }
