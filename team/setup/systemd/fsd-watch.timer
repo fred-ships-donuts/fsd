@@ -1,0 +1,9 @@
+[Unit]
+Description=fsd: keep fsd-watch running
+
+[Timer]
+OnBootSec=1min
+OnUnitInactiveSec=1min
+
+[Install]
+WantedBy=timers.target

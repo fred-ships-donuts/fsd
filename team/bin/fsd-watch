@@ -20,7 +20,7 @@
 //   sem ferramenta em andamento, sem sinal há mais de silentMin;
 //   Bash em andamento: só depois do timeout do próprio comando + toolGraceMin, e sem sinal há mais de silentMin;
 //   outra ferramenta em andamento (Agent, WebFetch…): sem sinal há mais de toolDefaultMin.
-import { readFileSync, readdirSync, statSync, existsSync, appendFileSync, writeFileSync, rmSync } from 'node:fs';
+import { readFileSync, readdirSync, statSync, existsSync, appendFileSync, writeFileSync, rmSync, mkdirSync, openSync, writeSync, closeSync, unlinkSync, renameSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
@@ -175,7 +175,11 @@ function act(agent, r, mem = {}) {
   if (paused) return 'PAUSE: nada';
   const s = `fsd-${agent}`;
   if (r.act === 'start' || r.act === 'restart' || r.act === 'reload') { try { rmSync(liveDir(agent), { recursive: true, force: true }); } catch {} }   // registros da sessão morta
-  if (r.act === 'start') { const c = sh('tmux', ['new-session', '-d', '-s', s, '-c', REPO, LAUNCH, agent, 'claude', kick(agent, 'sessão não existia')]); return c.status === 0 ? 'subiu' : `falhou: ${c.stderr.trim()}`; }
+  if (r.act === 'start') {
+    // Reconfere logo antes de criar: sessão viva → não sobe nada e não registra (#174).
+    if (sh('tmux', ['has-session', '-t', s]).status === 0) return 'já avisado: a sessão existe';
+    const c = sh('tmux', ['new-session', '-d', '-s', s, '-c', REPO, LAUNCH, agent, 'claude', kick(agent, 'sessão não existia')]); return c.status === 0 ? 'subiu' : `falhou: ${c.stderr.trim()}`;
+  }
   if (r.act === 'restart' || r.act === 'reload') { const c = sh('tmux', ['respawn-pane', '-k', '-t', s, '-c', REPO, LAUNCH, agent, 'claude', kick(agent, `${r.state}, ${k(r.ctx)}`)]); return c.status === 0 ? 'reiniciou' : `falhou: ${c.stderr.trim()}`; }
   if (r.act === 'dismiss') {   // a tecla do diálogo vai só a este painel, e nunca a um shell (#129)
     const cmd = (sh('tmux', ['display-message', '-p', '-t', s, '#{pane_current_command}']).stdout || '').trim();
@@ -259,6 +263,25 @@ function table(rows) {
 
 if (!LOOP) { console.log(table(round())); console.log(cleanupCheck()); { const cl = checkoutLine(); if (cl) console.log(cl); } if (timingLocalError()) console.log(`agents.local.json (timing) ignorado: ${timingLocalError()}`); }
 else {
+  // Um só vigia por vez ($FSD_STATE/watch.pid, criado com wx; pid morto é assumido), como o fsd-cleanup. Um segundo laço sai 0 sem fazer nada:
+  // é o que deixa o supervisor (systemd/supervisord) chamar sempre. Cada rodada grava $FSD_STATE/watch.beat (hora ISO) para quem confere se vive.
+  const DIR = process.env.FSD_STATE || join(process.env.HOME, '.config', 'fsd-agents'), PIDFILE = join(DIR, 'watch.pid'), BEAT = join(DIR, 'watch.beat');
+  const alive = (pid) => { try { process.kill(pid, 0); return true; } catch (e) { return e.code === 'EPERM'; } };
+  const freePid = () => { try { if (Number(readFileSync(PIDFILE, 'utf8').trim()) === process.pid) unlinkSync(PIDFILE); } catch {} };
+  mkdirSync(DIR, { recursive: true });
+  for (let i = 0; ; i++) {
+    try { const fd = openSync(PIDFILE, 'wx'); writeSync(fd, String(process.pid)); closeSync(fd); break; }
+    catch (e) {
+      if (e.code !== 'EEXIST') throw e;
+      const pid = Number(readFileSync(PIDFILE, 'utf8').trim());
+      if (Number.isInteger(pid) && pid > 0 && alive(pid)) { console.log(`fsd-watch: already running (pid ${pid})`); process.exit(0); }
+      if (i >= 2) { console.log('fsd-watch: could not take the pidfile; try again'); process.exit(3); }
+      try { unlinkSync(PIDFILE); } catch {}   // pid morto: assume
+    }
+  }
+  process.on('exit', freePid);
+  for (const [sig, n] of [['SIGTERM', 15], ['SIGINT', 2], ['SIGHUP', 1]]) process.on(sig, () => process.exit(128 + n));
+  const beat = () => { try { writeFileSync(`${BEAT}.${process.pid}`, new Date().toISOString() + '\n'); renameSync(`${BEAT}.${process.pid}`, BEAT); } catch {} };
   log(`vigia ligado (a cada ${LOOP}s${FIX ? ', com --fix' : ''})`);
   // Código velho: o que este laço carregou na partida. Mudou e compila → o processo sai e um filho assume. Sem --loop, nunca.
   // O agents.local.json entra só quando existe (ausente contaria como "não compila" e travaria a reexecução): criar,
@@ -266,5 +289,5 @@ else {
   const LOCAL = join(process.env.FSD_STATE || join(process.env.HOME, '.config', 'fsd-agents'), 'agents.local.json');
   const SRC = () => ['fsd-watch', 'fsd-cleanup', 'fsd-lib.mjs', 'fsd-redirects.mjs', 'fsd-timing.mjs', 'fsd-context.mjs', 'fsd-local.mjs', 'fsd-reload.mjs', 'fsd-follow.mjs', 'fsd-alert.mjs', 'fsd-alert'].map((f) => join(BIN, f)).concat(join(ROOT, 'agents.json'), join(ROOT, 'redirects.json'), existsSync(LOCAL) ? [LOCAL] : []);
   const startFp = fingerprint(SRC());
-  for (;;) { round(); cleanupCheck(); checkoutLine(); reexecIfChanged({ files: SRC(), startFp, script: join(BIN, 'fsd-watch'), args: process.argv.slice(2), log }); sh('sleep', [String(LOOP)]); }
+  for (;;) { round(); cleanupCheck(); checkoutLine(); beat(); reexecIfChanged({ files: SRC(), startFp, script: join(BIN, 'fsd-watch'), args: process.argv.slice(2), log, beforeExit: freePid }); await new Promise((r) => setTimeout(r, LOOP * 1000)); }
 }
