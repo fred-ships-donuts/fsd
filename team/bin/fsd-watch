@@ -174,7 +174,11 @@ function act(agent, r, mem = {}) {
   if (paused) return 'PAUSE: nada';
   const s = `fsd-${agent}`;
   if (r.act === 'start' || r.act === 'restart' || r.act === 'reload') { try { rmSync(liveDir(agent), { recursive: true, force: true }); } catch {} }   // registros da sessão morta
-  if (r.act === 'start') { const c = sh('tmux', ['new-session', '-d', '-s', s, '-c', REPO, LAUNCH, agent, 'claude', kick(agent, 'sessão não existia')]); return c.status === 0 ? 'subiu' : `falhou: ${c.stderr.trim()}`; }
+  if (r.act === 'start') {
+    // Reconfere logo antes de criar: sessão viva → não sobe nada e não registra (#174).
+    if (sh('tmux', ['has-session', '-t', s]).status === 0) return 'já avisado: a sessão existe';
+    const c = sh('tmux', ['new-session', '-d', '-s', s, '-c', REPO, LAUNCH, agent, 'claude', kick(agent, 'sessão não existia')]); return c.status === 0 ? 'subiu' : `falhou: ${c.stderr.trim()}`;
+  }
   if (r.act === 'restart' || r.act === 'reload') { const c = sh('tmux', ['respawn-pane', '-k', '-t', s, '-c', REPO, LAUNCH, agent, 'claude', kick(agent, `${r.state}, ${k(r.ctx)}`)]); return c.status === 0 ? 'reiniciou' : `falhou: ${c.stderr.trim()}`; }
   if (r.act === 'dismiss') {   // a tecla do diálogo vai só a este painel, e nunca a um shell (#129)
     const cmd = (sh('tmux', ['display-message', '-p', '-t', s, '#{pane_current_command}']).stdout || '').trim();
