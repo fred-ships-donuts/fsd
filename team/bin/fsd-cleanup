@@ -17,6 +17,7 @@ import { spawnSync } from 'node:child_process';
 import { timing } from './fsd-timing.mjs';
 import { fingerprint, reexecIfChanged } from './fsd-reload.mjs';
 import { followDevelop, checkoutState } from './fsd-follow.mjs';
+import { killLoops } from './fsd-loops.mjs';
 
 const BIN = dirname(fileURLToPath(import.meta.url)); const ROOT = dirname(BIN);
 const REPO = resolve(process.env.FSD_REPO || dirname(ROOT));
@@ -54,6 +55,8 @@ const list = (args, strip) => { const r = git(args); return r.ok ? r.out.split('
 function round() {
   if (existsSync(PAUSE)) { log('PAUSE: nada', 'pause'); return; }
   said.delete('pause');
+  // Laços de teste esquecidos (FSD_STATE sob /tmp, com mais de 1 h): encerra e registra uma linha (#198). Sem FSD_STATE ou com o real, nunca.
+  for (const l of killLoops({ dir: '/tmp', olderThanMin: 60, dry: DRY })) log(`${DRY ? 'faria: ' : ''}encerrou laço de teste pid ${l.pid} (${l.args}, estado ${l.state}, ${l.ageMin} min)`);
   if (!git(['fetch', '-q', 'origin', '--prune']).ok) { log('fetch falhou: rodada pulada', 'fetch'); return; }
   said.delete('fetch');
   // O checkout principal acompanha a origin/develop (#173): o mesmo motivo vai ao log uma vez só; --dry só diz o que faria.

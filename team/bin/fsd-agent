@@ -108,6 +108,7 @@ claude_wrap() {
   # Um prompt interativo na ferramenta Bash nunca volta até o timeout: aqui ele falha rápido, com erro legível. Só na sessão do claude
   # (o shell interativo do autor não muda). GIT_SSH_COMMAND já é "false" acima (nenhum ssh). Sem CI=1: muda o commitlint do fsd-pr (simulate-envs).
   export GIT_EDITOR=true GIT_TERMINAL_PROMPT=0 GIT_PAGER=cat PAGER=cat npm_config_yes=true
+  node "$HERE/fsd-revive.mjs" "$name" >/dev/null 2>&1 || true   # #197: sem vigia vivo, esta sessão o sobe
   exec claude --settings "$FSD_CLAUDE_SETTINGS" "${extra[@]}" "$@"
 }
 if [ $# -eq 0 ]; then

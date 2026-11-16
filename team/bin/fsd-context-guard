@@ -15,6 +15,7 @@ import { join } from 'node:path';
 import { context, wrapUpAllowed, wrapUpReason } from './fsd-context.mjs';
 import { liveDir } from './fsd-timing.mjs';
 import { usageConfig, readCache, over, kick } from './fsd-usage.mjs';
+import { reviveWatcher } from './fsd-revive.mjs';
 
 // ── Mensagens (editar aqui). {used} {limit} {calls} {cost} {heavy} ──
 const HANDOFF = 'WIP no GitHub, memory_handoff_begin (feito, falta, branch/worktree, próximo passo) e fsd-restart';
@@ -43,6 +44,7 @@ const WINDOW = 20, RECENT = 3, MIN_COST = 1000;
 let input = {}; try { input = JSON.parse(readStdin() || '{}'); } catch { process.exit(0); }
 if (cfgWarn) console.error(cfgWarn);
 const ev = input.hook_event_name, PRINT = process.argv.includes('--print');
+if (!PRINT && (ev === 'UserPromptSubmit' || ev === 'PostToolUse')) reviveWatcher();   // #197: o vigia morto sobe de novo (só checa arquivos)
 if (!PRINT) {
   if (ev !== 'PreToolUse') live();   // a ferramenta só é registrada se não for negada, abaixo
   if (ev === 'PostToolUseFailure') process.exit(0);
