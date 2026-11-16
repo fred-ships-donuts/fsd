@@ -85,7 +85,7 @@ else if (a[0] === 'open') {
   const mt = L.run('git', ['-C', dir, 'merge-tree', '--write-tree', '--name-only', 'origin/develop', 'HEAD'], { allowFail: true });
   if (!mt.ok) {
     const files = conflictFiles(mt.out);
-    if (!files.length) L.die(`não consegui conferir o conflito com a develop: ${L.firstLine(mt.out || mt.err || 'git merge-tree falhou')}`, 3);
+    if (!files.length) L.die(`não consegui conferir o conflito com a develop (o git merge-tree --write-tree exige git ≥ 2.38): ${L.firstLine(mt.out || mt.err || 'git merge-tree falhou')}`, 3);
     L.die(`o branch tem conflito com a develop; nada foi enviado. Arquivos:\n${files.map((f) => '  ' + f).join('\n')}\nresolva: fsd-dev sync -C ${dir}, corrija, commite e rode fsd-pr open de novo.`, 1);
   }
   L.write('git', ['-C', dir, 'push', '-q', '-u', 'origin', branch]);

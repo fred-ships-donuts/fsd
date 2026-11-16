@@ -11,5 +11,5 @@ export function conflictFiles(out) {
 
 export function refuseConflicting(pr, who) {
   if (pr.mergeable !== 'CONFLICTING') return '';
-  return `#${pr.number} está em conflito com a develop: ${who} não começa nem publica nada. O card volta para a fila do desenvolvedor ("PR em conflito", fsd-dev sync -C <worktree>); espere o commit novo.`;
+  return `#${pr.number} está em conflito com a develop: ${who} não começa nem publica nada. O card volta para a fila do desenvolvedor ("PR em conflito", fsd-dev sync -C <worktree>); espere o commit novo (nem um comentário avulso com gh pr comment).`;
 }
