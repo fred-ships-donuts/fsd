@@ -22,8 +22,9 @@
     ],
     "settingSources": "user,local",
     "_settingSources": "user,local pula o .claude/settings.json do projeto: só valem as configurações do fsd (claude-settings.json e o settings.json do agente).",
+    "usage": { "_comment": "Uso da conta do time (#193): fsd-usage busca a cada refreshSeconds; a partir de stopPct (%) em qualquer janela (5h ou semanal) o guard manda terminar e parar, e o PAUSE é criado.", "refreshSeconds": 300, "stopPct": 90 },
     "context": {
-      "_comment": "Contexto por sessão: teto em limit (tokens, sem compactação automática; até 200k o fsd-agent desliga a janela de 1M do modelo; acima, ela fica ligada e o teto é o limit). O fsd-context-guard julga sozinho: livre = limit − atual − marginPct% do limit; custo = crescimento médio por chamada (últimas 20); restam = livre ÷ custo. Sessão pesada = alguma das 3 últimas chamadas custou ≥ heavyFactor × a média; aí valem as faixas heavy. Restam ≤ urgentAt → urgente (🔴, em negrito); < mediumAt → médio (🟡); senão nada. Mensagens no topo de bin/fsd-context-guard.",
+      "_comment": "Contexto por sessão: teto em limit (tokens, sem compactação automática; até 200k o fsd-agent desliga a janela de 1M do modelo; acima, ela fica ligada e o teto é o limit). O fsd-context-guard julga sozinho: livre = limit − atual − marginTokens (tokens); custo = crescimento médio por chamada (últimas 20); restam = livre ÷ custo. Sessão pesada = alguma das 3 últimas chamadas custou ≥ heavyFactor × a média; aí valem as faixas heavy. Restam ≤ urgentAt → urgente (🔴, em negrito); < mediumAt → médio (🟡); senão nada. Mensagens no topo de bin/fsd-context-guard.",
       "limit": 250000,
       "outputReserve": 32000,
       "_outputReserve": "A API recusa o prompt antes do limit (o Stuart estourou com 177k de 200k em 2026-11-09): o guard conta como útil limit − outputReserve.",
@@ -31,8 +32,10 @@
       "mediumFree": 30000,
       "_free": "Piso de espaço livre (tokens): a média por chamada (~1k) não prevê uma leitura grande, como um diff de revisão. Livre ≤ urgentFree → urgente; < mediumFree → médio.",
       "restartAbove": 150000,
-      "_restartAbove": "Acima disto (tokens) o guard nega o Monitor e o fsd-restart reinicia; abaixo, a sessão segue. Por agente: agents.<nome>.context.restartAbove.",
-      "marginPct": 5,
+      "_restartAbove": "Acima disto (tokens) o guard nega toda ferramenta fora do conjunto de fechamento (commit, push, fsd-pr open, fsd-restart…) e o fsd-restart reinicia; abaixo, a sessão segue. Por agente: agents.<nome>.context.restartAbove.",
+      "hardMarginTokens": 10000,
+      "_hardMarginTokens": "Teto duro do vigia: restartAbove + isto (tokens). Acima dele o vigia reinicia o agente mesmo trabalhando, entre duas ferramentas (#193).",
+      "marginTokens": 5000,
       "heavyFactor": 1.5,
       "bands": {
         "normal": {
