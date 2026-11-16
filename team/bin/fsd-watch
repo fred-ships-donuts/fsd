@@ -35,6 +35,7 @@ import { resetTime, shouldAlert, clearAlert } from './fsd-alert.mjs';
 import { fingerprint, reexecIfChanged, settingsHash, safeToRestart } from './fsd-reload.mjs';
 import { checkoutState } from './fsd-follow.mjs';
 import { load as loadRedirects } from './fsd-redirects.mjs';
+import { refuseIfQa } from './fsd-qa-guard.mjs';
 
 const BIN = dirname(fileURLToPath(import.meta.url)); const ROOT = dirname(BIN);
 const REPO = process.env.FSD_REPO || dirname(ROOT); // o clone em que team/ mora
@@ -46,6 +47,7 @@ const RD = loadRedirects(); const ASKS = (RD.authorAsks || []).map((p) => new Re
 const AGENTS = ['kevin', 'mel', 'stuart', 'bob'].filter((a) => cfg.agents[a]);
 const STATE = join(tmpdir(), 'fsd-watch-state.json');
 const a = process.argv.slice(2); const FIX = a.includes('--fix');
+if (FIX) refuseIfQa({ repoDir: REPO });   // #169: de um worktree de QA, só com estado e tmux privados
 const LOOP = a.includes('--loop') ? Number(a[a.indexOf('--loop') + 1]) || Number(T.loopSeconds) : 0;
 
 // FSD_TMUX_SOCKET (teste num servidor tmux isolado): todo tmux daqui ganha -L <socket>; sem ele, o comportamento de sempre.
