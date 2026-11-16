@@ -47,6 +47,12 @@ do `agents.json`, campo a campo. Vale na próxima vez que o agente abrir.
 
     { "agents": { "mel": { "claude": { "model": "claude-sonnet-5-5", "effort": "medium" } } } }
 
+O mesmo arquivo ajusta o contexto (`claude_common.context` do `agents.json`) só nesta instalação: `claude_common.context`
+vale para todos e `agents.<nome>.context` para um agente, nessa ordem, por cima do `agents.json`. Quem lê é o
+`bin/fsd-context.mjs` (guard, vigia, `fsd-restart`, `fsd-stats`), a cada chamada, sem reabrir o agente.
+
+    { "claude_common": { "context": { "restartAbove": 100000 } } }
+
 Comuns a todos (`claude_common` no `agents.json`): NotebookEdit, Artifact*, DesignSync,
 RemoteTrigger, Cron*, ScheduleWakeup, PushNotification. `--model` e `--effort` passados no
 comando passam por cima do padrão.
@@ -127,7 +133,7 @@ AGENTS.md                   ⚙️     como achar código com o fsd-map (lido ta
 ```
 
 **Para mudar algo, o arquivo é:**
-- modelo, esforço ou ferramentas de um agente: `agents.json` (padrão do time) ou `~/.config/fsd-agents/agents.local.json` (só esta instalação, fora do git);
+- modelo, esforço, ferramentas ou contexto de um agente: `agents.json` (padrão do time) ou `~/.config/fsd-agents/agents.local.json` (só esta instalação, fora do git);
 - o que um agente pode escrever: `agents/<nome>/claude/settings.json`;
 - o que vale para todos: `claude-settings.json` e `common/team.md`;
 - um tempo de espera (ping ou prazo): `agents.json` → `timing`;
