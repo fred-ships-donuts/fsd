@@ -1,15 +1,16 @@
 #!/usr/bin/env node
-// fsd-denied-hook — PermissionDenied / PostToolUseFailure (grava) e PreToolUse / PostToolUse (entrega o comando do time).
+// fsd-denied-hook — PermissionDenied (grava, só ele) e PreToolUse / PostToolUse (entrega o comando do time).
+// Falha comum de comando (rede, exit 1) não é negação: PostToolUseFailure não grava. Negação sem linha na tabela grava o id genérico.
 // Nunca bloqueia nem pergunta: qualquer erro sai 0 calado. O texto vem do redirects.json, não do comando negado.
 import { readFileSync } from 'node:fs';
 try {
   const i = JSON.parse(readFileSync(0, 'utf8') || '{}');
-  const ev = i.hook_event_name; const { record, consume } = await import('./fsd-denied.mjs');
-  if (ev === 'PermissionDenied' || ev === 'PostToolUseFailure') {
+  const ev = i.hook_event_name; const { record, consume, UNMATCHED } = await import('./fsd-denied.mjs');
+  if (ev === 'PermissionDenied') {
     if (i.tool_name === 'Bash' && typeof i.tool_input?.command === 'string') {
       const { redirect } = await import('./fsd-redirects.mjs');
       const r = redirect(i.tool_input.command, { agent: process.env.FSD_AGENT || '', cwd: i.cwd });
-      if (r) record({ session: i.session_id, toolUseId: i.tool_use_id, id: r.id });
+      record({ session: i.session_id, toolUseId: i.tool_use_id, id: r ? r.id : UNMATCHED });
     }
   } else if (ev === 'PreToolUse' || ev === 'PostToolUse') {
     const id = consume({ session: i.session_id });
