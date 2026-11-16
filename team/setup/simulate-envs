@@ -5,23 +5,29 @@
 # e um estado de agentes que veio de outra máquina. Confere a raiz do repo pelos scripts (direto e pelo link),
 # o agents.json, fsd-dev start (com e sem tarefa), fsd-pr open (regra de commits e npm ci automático), fsd-agent
 # (modelo, janela, perfis religados, com um claude falso), a CLI (build e task) e os arquivos citados pelas skills.
-# Não toca no estado real nem no GitHub: tudo em /tmp, FSD_DRY nos comandos que escreveriam no GitHub. Lê as
-# chaves dos Apps em ~/.config/fsd-agents/keys (o fsd-agent pede um token) e consulta issues pelo gh.
+# Não gasta token nem toca no estado real: o claude e o gh são falsos, o token do App vem de um cache semeado (sem
+# chaves, sem api.github.com) e cada ambiente tem HOME, FSD_STATE, TMPDIR e socket tmux próprios. Roda em qualquer
+# máquina, com HOME e FSD_STATE vazios. Recusa (exit 2) com mudança não commitada: ele clona o branch commitado.
 # Não simula outro usuário, outro UID nem um container de verdade: para isso, rode num host com Docker.
 set -uo pipefail
 HERE="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"
 SRC="$(dirname "$(dirname "$HERE")")"; BR="$(git -C "$SRC" branch --show-current)"; KEEP=0; [ "${1:-}" = --keep ] && KEEP=1
-BASE="$(mktemp -d /tmp/fsd-sim.XXXX)"; REAL_STATE="${FSD_STATE:-$HOME/.config/fsd-agents}"; RES="$BASE/results"; : > "$RES"
-# FSD_STATE de uma sessão de teste (sem keys/) não serve de estado real: cai no padrão.
-[ -e "$REAL_STATE/keys" ] || REAL_STATE="$HOME/.config/fsd-agents"
-# Na saída, mesmo abortando no meio: derruba o servidor tmux da simulação (socket fsd-sim em $BASE) e apaga $BASE.
-# Hermético: nenhuma FSD_* da sessão de quem roda (FSD_DRY, FSD_STATE, FSD_TMUX_SOCKET…) entra nos ambientes simulados. O estado real já foi lido acima (REAL_STATE).
+# O clone só vê o que está commitado: mudança local (exceto neste script, que roda daqui) seria ignorada em silêncio.
+dirty="$(git -C "$SRC" status --porcelain | grep -v " team/setup/simulate-envs$")"
+if [ -n "$dirty" ]; then echo "simulate-envs: mudanças não commitadas em $SRC:" >&2; echo "$dirty" >&2; echo "commit first; simulate-envs tests the committed branch" >&2; exit 2; fi
+BASE="$(mktemp -d "${TMPDIR:-/tmp}/fsd-sim.XXXX")"; RES="$BASE/results"; : > "$RES"
+# Na saída, mesmo abortando no meio: derruba os servidores tmux da simulação (sockets em $BASE) e apaga $BASE.
+# Hermético: nenhuma FSD_* da sessão de quem roda (FSD_DRY, FSD_STATE, FSD_TMUX_SOCKET…) entra nos ambientes simulados.
 for v in $(compgen -e | grep '^FSD_'); do unset "$v"; done
-trap 'TMUX_TMPDIR="$BASE/tmux-sim" tmux -L fsd-sim kill-server 2>/dev/null; [ "$KEEP" = 1 ] || rm -rf "$BASE"' EXIT
+trap 'for d in "$BASE"/tmux-*; do [ -d "$d" ] && TMUX_TMPDIR="$d" tmux -L fsd-sim kill-server 2>/dev/null; done; TMUX_TMPDIR="$BASE/tmux-watch" tmux -L "fsdsim$$" kill-server 2>/dev/null; [ "$KEEP" = 1 ] || rm -rf "$BASE"' EXIT
 ok()  { echo "  PASS $*"; echo P >> "$RES"; }
 bad() { echo "  FAIL $*"; echo F >> "$RES"; }
 chk() { local d="$1"; shift; local o; if o=$("$@" 2>&1); then ok "$d"; else bad "$d :: $(tail -3 <<<"$o" | tr '\n' ' ' | cut -c1-300)"; fi; }
-mkdir -p "$BASE/stub"; printf '#!/usr/bin/env bash\necho "STUB claude $* | DISABLE_1M=${CLAUDE_CODE_DISABLE_1M_CONTEXT:-<unset>} | WINDOW=${CLAUDE_CODE_AUTO_COMPACT_WINDOW:-}"\n' > "$BASE/stub/claude"; chmod +x "$BASE/stub/claude"
+mkdir -p "$BASE/stub" "$BASE/trap"; for b in claude gh; do printf '#!/bin/sh\necho "$0 $*" >> "%s/trap.hits"; exit 99\n' "$BASE" > "$BASE/trap/$b"; chmod +x "$BASE/trap/$b"; done
+# Rede: nenhum processo node da simulação fala com api.github.com nem com a Anthropic (o fsd-watch chama o fsd-progress, que lê o
+# quadro): a conexão falha na hora. O registro do npm segue livre (o npm ci dos cenários).
+printf 'const n=require("net"),c=n.Socket.prototype.connect;n.Socket.prototype.connect=function(...a){const h=a[0]&&a[0].host;if(/(^|\\.)(github\\.com|anthropic\\.com)$/.test(h||""))throw new Error("simulate-envs: rede bloqueada: "+h);return c.apply(this,a)}\n' > "$BASE/nonet.cjs"; export NODE_OPTIONS="${NODE_OPTIONS:-} --require $BASE/nonet.cjs"
+printf '#!/usr/bin/env bash\necho "STUB claude $* | DISABLE_1M=${CLAUDE_CODE_DISABLE_1M_CONTEXT:-<unset>} | WINDOW=${CLAUDE_CODE_AUTO_COMPACT_WINDOW:-}"\n' > "$BASE/stub/claude"; chmod +x "$BASE/stub/claude"
 # gh de verdade simulado (FSD_REAL_GH): o issue da tarefa existe e está aberto, sem depender do estado do GitHub (o #81 já fechou).
 printf '#!/usr/bin/env bash\nif [ "$1 $2" = "issue view" ]; then echo "{\\"number\\":$3,\\"title\\":\\"sim\\",\\"body\\":\\"\\",\\"state\\":\\"OPEN\\",\\"labels\\":[],\\"comments\\":[]}"; else echo "gh simulado: $*" >&2; exit 1; fi\n' > "$BASE/stub/gh-real"; chmod +x "$BASE/stub/gh-real"
 
@@ -34,18 +40,22 @@ mkenv() { # nome repo home FSD_REPO(set|unset) links(container|host) node_module
   git -C "$repo" fetch -q origin "+refs/heads/develop:refs/remotes/origin/develop"
   [ "$nm" = link ] && ln -s "$SRC/node_modules" "$repo/node_modules"
   local st="$home/.config/fsd-agents"; mkdir -p "$st/agents/mel/claude" "$st/agents/kevin/claude" "$st/ai-memory-tokens" "$st/cache"
-  ln -s "$REAL_STATE/keys" "$st/keys"; echo dummy > "$st/claude-oauth-token"; echo dummy > "$st/ai-memory-tokens/mel"
+  # Token do App sem chave e sem rede: o fsd-token devolve o cache enquanto faltar mais de 10 min para expirar.
+  node -e 'const fs=require("fs"),[a,d]=process.argv.slice(1),x=new Date(Date.now()+864e5).toISOString();for(const n of Object.keys(JSON.parse(fs.readFileSync(a)).agents))for(const f of [n,n+"-org"])fs.writeFileSync(d+"/"+f+".json",JSON.stringify({token:"sim",expires_at:x}),{mode:0o600})' "$repo/team/agents.json" "$st/cache"
+  echo dummy > "$st/claude-oauth-token"; echo dummy > "$st/ai-memory-tokens/mel"
   ln -s /media/outra-maquina/Projects/fred-ships-donuts/team/agents/mel/claude/CLAUDE.md "$st/agents/mel/claude/CLAUDE.md"
   echo "cópia antiga" > "$st/agents/kevin/claude/CLAUDE.md"
   if [ "$links" = container ]; then printf '#!/bin/sh\nexec "%s/team/bin/fsd-agent" "$@"\n' "$repo" > "$home/.local/bin/fsd-agent"; chmod +x "$home/.local/bin/fsd-agent"
     for b in fsd-stats fsd-watch fsd-cleanup fsd-sync-pair fsd-map; do ln -s "$repo/team/bin/$b" "$home/.local/bin/$b"; done
   else for b in fsd-agent fsd-memory-backup fsd-sync-pair fsd-restart fsd-trash fsd-stop fsd-map; do ln -s "$repo/team/bin/$b" "$home/.local/bin/$b"; done; fi
   local T="$repo/team/bin" L="$home/.local/bin"
-  run() { ( export HOME="$home" FSD_STATE="$st" PATH="$BASE/stub:$home/.local/bin:$PATH"; unset FSD_REPO FSD_DRY; [ "$setrepo" = set ] && export FSD_REPO="$repo"; cd "$home" && "$@" ); }
+  mkdir -p "$home/tmp"
+  run() { ( export HOME="$home" FSD_STATE="$st" TMPDIR="$home/tmp" FSD_REAL_GH="$BASE/stub/gh-real" PATH="$BASE/stub:$home/.local/bin:$BASE/trap:$PATH"; unset FSD_REPO FSD_DRY; [ "$setrepo" = set ] && export FSD_REPO="$repo"; cd "$home" && "$@" ); }
   # 1. raiz do repo e configuração
   for s in "$T/fsd-trash" "$L/fsd-trash"; do [ -e "$s" ] || continue
     o=$(run env FSD_DRY=1 "$s" "$repo" 2>&1); [ "$o" = "recusado: $repo" ] && ok "fsd-trash protege o repo (${s#$BASE/})" || bad "fsd-trash ${s#$BASE/}: $o"; done
   chk "fsd-lib REPO_DIR = repo" run bash -c '[ "$(node --input-type=module -e "import(process.argv[1]).then(m=>console.log(m.REPO_DIR))" "$0")" = "$1" ]' "$T/fsd-lib.mjs" "$repo"
+  chk "fsd-token: cache semeado vale sem chaves e sem rede (mel)" run bash -c '[ ! -e "$FSD_STATE/keys" ] && [ "$("$0" mel)" = sim ] && [ "$("$0" mel org)" = sim ]' "$T/fsd-token"
   chk "fsd-context lê agents.json" run node "$T/fsd-context.mjs" mel limit restartAbove
   printf '%s' '{"claude_common":{"context":{"restartAbove":100000}},"agents":{"bob":{"context":{"restartAbove":90000}}}}' > "$st/agents.local.json"
   chk "fsd-context: agents.local.json por cima (comum e por agente)" run bash -c '[ "$(node "$0" mel restartAbove)" = 100000 ] && [ "$(node "$0" bob restartAbove)" = 90000 ]' "$T/fsd-context.mjs"
@@ -57,7 +67,7 @@ mkenv() { # nome repo home FSD_REPO(set|unset) links(container|host) node_module
   # atrás) obriga o fsd-watch a ler o contexto; ele deve mostrar "configuração inválida" e sair 0.
   printf '{x' > "$st/agents.local.json"
   local tx="$st/agents/mel/claude/projects/sim"; mkdir -p "$tx"; echo '{}' > "$tx/s.jsonl"; touch -d '1 hour ago' "$tx/s.jsonl"
-  local tsock="$BASE/tmux-sim"; mkdir -p "$tsock"; chmod 700 "$tsock"
+  local tsock="$BASE/tmux-$n"; mkdir -p "$tsock"; chmod 700 "$tsock"
   TMUX_TMPDIR="$tsock" tmux -L fsd-sim -f /dev/null new-session -d -s fsd-mel 'sleep 600'
   # TMPDIR próprio: o hash da sessão (fsd-live-hash), as ferramentas em andamento (fsd-live) e o fsd-watch-state.json
   # moram em $TMPDIR, os mesmos dos agentes reais desta máquina. Sem isolar, o Mel simulado cai em "configuração antiga"
@@ -73,22 +83,22 @@ mkenv() { # nome repo home FSD_REPO(set|unset) links(container|host) node_module
   local W="$repo/.claude/worktrees/chore-sim-x"
   chk "worktree sem marca de tarefa" bash -c '! git -C "$0" config --get branch.chore/sim-x.fsd-issue' "$repo"
   git -C "$W" commit -q --allow-empty -m "chore: sim commit"
-  chk "fsd-pr open sem tarefa: commitlint ok, faria o push" run bash -c 'FSD_DRY=1 FSD_AGENT=stuart FSD_STATE="$2" "$0" open "chore: sim" --docs -C "$1" 2>&1 | tee /dev/stderr | grep -q "\[dry\] git -C .* push"' "$T/fsd-pr" "$W" "$REAL_STATE"
+  chk "fsd-pr open sem tarefa: commitlint ok, faria o push" run bash -c 'FSD_DRY=1 FSD_AGENT=stuart FSD_STATE="$2" "$0" open "chore: sim" --docs -C "$1" 2>&1 | tee /dev/stderr | grep -q "\[dry\] git -C .* push"' "$T/fsd-pr" "$W" "$st"
   # conflito com a develop (#154): origem local, o branch e a develop mudam a mesma linha; nada pode ir ao push
   local CF="$BASE/cf-$n" gc="git -c user.email=sim@sim -c user.name=sim"; mkdir -p "$CF"
   git init -q -b develop "$CF/seed" && echo base > "$CF/seed/f" && git -C "$CF/seed" add f && $gc -C "$CF/seed" commit -qm "chore: seed"
   git clone -q --bare "$CF/seed" "$CF/origin.git" && git clone -q "$CF/origin.git" "$CF/w" && git clone -q "$CF/origin.git" "$CF/other"
   git -C "$CF/w" checkout -qb chore/sim-conflict && echo mine > "$CF/w/f" && $gc -C "$CF/w" commit -qam "chore: sim mine"
   echo theirs > "$CF/other/f" && $gc -C "$CF/other" commit -qam "chore: sim theirs" && git -C "$CF/other" push -q origin develop
-  chk "fsd-pr open com conflito: exit 1, lista o arquivo, dica do sync, nada no push" run bash -c 'o=$(FSD_DRY=1 FSD_AGENT=stuart FSD_STATE="$2" "$0" open "chore: sim" --docs -C "$1" 2>&1); rc=$?; [ "$rc" = 1 ] && grep -qx "  f" <<<"$o" && grep -q "fsd-dev sync -C" <<<"$o" && ! grep -q "\[dry\] git .* push" <<<"$o"' "$T/fsd-pr" "$CF/w" "$REAL_STATE"
+  chk "fsd-pr open com conflito: exit 1, lista o arquivo, dica do sync, nada no push" run bash -c 'o=$(FSD_DRY=1 FSD_AGENT=stuart FSD_STATE="$2" "$0" open "chore: sim" --docs -C "$1" 2>&1); rc=$?; [ "$rc" = 1 ] && grep -qx "  f" <<<"$o" && grep -q "fsd-dev sync -C" <<<"$o" && ! grep -q "\[dry\] git .* push" <<<"$o"' "$T/fsd-pr" "$CF/w" "$st"
   git -C "$W" commit -q --allow-empty -m "wip"
   chk "fsd-pr open recusa 'wip'" run bash -c 'FSD_DRY=1 FSD_AGENT=stuart "$0" open "chore: sim" --docs -C "$1" 2>&1 | grep -q "commit fora da regra"' "$T/fsd-pr" "$W"
   # 3. trabalho com tarefa (marca gravada como o fsd-dev start <n> faz)
   git -C "$repo" worktree add -q -b feature/81-sim "$repo/.claude/worktrees/t81" origin/develop && git -C "$repo" config branch.feature/81-sim.fsd-issue 81
   git -C "$repo/.claude/worktrees/t81" commit -q --allow-empty -m "feat: sim (#81)"
-  chk "com tarefa #81: 'feat: sim (#81)' passa" run bash -c 'FSD_DRY=1 FSD_REAL_GH="$3" FSD_AGENT=stuart FSD_STATE="$2" "$0" open "feat: sim" --docs -C "$1" 2>&1 | grep -q "\[dry\] git -C .* push"' "$T/fsd-pr" "$repo/.claude/worktrees/t81" "$REAL_STATE" "$BASE/stub/gh-real"
+  chk "com tarefa #81: 'feat: sim (#81)' passa" run bash -c 'FSD_DRY=1 FSD_REAL_GH="$3" FSD_AGENT=stuart FSD_STATE="$2" "$0" open "feat: sim" --docs -C "$1" 2>&1 | grep -q "\[dry\] git -C .* push"' "$T/fsd-pr" "$repo/.claude/worktrees/t81" "$st" "$BASE/stub/gh-real"
   git -C "$repo/.claude/worktrees/t81" commit -q --allow-empty -m "feat: sem número"
-  chk "com tarefa #81: commit sem (#81) é recusado" run bash -c 'FSD_DRY=1 FSD_REAL_GH="$3" FSD_AGENT=stuart FSD_STATE="$2" "$0" open "feat: sim" --docs -C "$1" 2>&1 | grep -q "fsd-task-ref"' "$T/fsd-pr" "$repo/.claude/worktrees/t81" "$REAL_STATE" "$BASE/stub/gh-real"
+  chk "com tarefa #81: commit sem (#81) é recusado" run bash -c 'FSD_DRY=1 FSD_REAL_GH="$3" FSD_AGENT=stuart FSD_STATE="$2" "$0" open "feat: sim" --docs -C "$1" 2>&1 | grep -q "fsd-task-ref"' "$T/fsd-pr" "$repo/.claude/worktrees/t81" "$st" "$BASE/stub/gh-real"
   # 4. fsd-agent com claude simulado
   o=$(run "$T/fsd-agent" mel claude 2>&1)
   local model; model=$(node -p 'require(process.argv[1]).agents.mel.claude.model' "$repo/team/agents.json")   # o modelo do mel vem do agents.json, não de um valor fixo aqui
@@ -115,17 +125,18 @@ mkenv() { # nome repo home FSD_REPO(set|unset) links(container|host) node_module
   local miss=0; for sk in "$repo"/src/skills/_i18n/*/*/SKILL.md; do d=$(dirname "$sk"); while read -r p; do [ -n "$p" ] && [ ! -e "$d/$p" ] && { bad "skill ${d#$repo/} cita $p"; miss=1; }; done < <(grep -oE '(scripts|references|templates)/[A-Za-z0-9_./-]+[A-Za-z0-9_]' "$sk" | sort -u); done; [ $miss = 0 ] && ok "skills: arquivos citados existem"
   # 7. fsd-map pelo atalho: mapa fora do repo, HOME sem rastro do motor
   if [ -n "$MAPENG" ]; then
-    chk "fsd-map pelo atalho: grep acha código, repo intacto, HOME limpo" bash -c 'cd "$1" && o=$(HOME="$2" FSD_MAP_HOME="$2/.local/share/fsd/map" FSD_MAP_PKG="$3" "$2/.local/bin/fsd-map" grep openPrs) && grep -q "fsd-lib.mjs" <<<"$o" && [ -z "$(git status --porcelain | grep -v " node_modules$")" ] && [ ! -e "$2/.trail" ] && [ ! -e "$2/.graft" ] && ls "$2/.local/share/fsd/map/maps" | grep -q .' _ "$repo" "$home" "$MAPENG"
+    local eng="$BASE/eng-$n"; cp -a "$MAPENG" "$eng"   # cópia própria: o patch do fsd-map reescreve arquivos do motor
+    chk "fsd-map pelo atalho: grep acha código, repo intacto, HOME limpo" bash -c 'cd "$1" && o=$(HOME="$2" FSD_MAP_HOME="$2/.local/share/fsd/map" FSD_MAP_PKG="$3" "$2/.local/bin/fsd-map" grep openPrs) && grep -q "fsd-lib.mjs" <<<"$o" && [ -z "$(git status --porcelain | grep -v " node_modules$")" ] && [ ! -e "$2/.trail" ] && [ ! -e "$2/.graft" ] && ls "$2/.local/share/fsd/map/maps" | grep -q .' _ "$repo" "$home" "$eng"
   fi
 }
 npmci() { # cenários do npm ci automático do fsd-pr num clone sem node_modules
   local repo="$BASE/n/repo" home="$BASE/n/home"; echo "== npm ci automático | repo=$repo"
-  mkdir -p "$home"; git clone -q --no-hardlinks "$SRC" "$repo" && git -C "$repo" checkout -q "$BR" && git -C "$repo" config user.email s@s && git -C "$repo" config user.name s
+  local st="$BASE/n/state"; mkdir -p "$home" "$st" "$home/tmp"; git clone -q --no-hardlinks "$SRC" "$repo" && git -C "$repo" checkout -q "$BR" && git -C "$repo" config user.email s@s && git -C "$repo" config user.name s
   git -C "$repo" fetch -q origin "+refs/heads/develop:refs/remotes/origin/develop"; git -C "$repo" switch -q -c chore/npm-sim; git -C "$repo" commit -q --allow-empty -m "chore: npm sim"
-  pr() { ( export HOME="$home" FSD_DRY=1 FSD_AGENT=stuart FSD_STATE="$REAL_STATE" FSD_REPO="$repo"; timeout 900 "$repo/team/bin/fsd-pr" open "chore: npm" --docs -C "$repo" 2>&1 ); }
+  pr() { ( export HOME="$home" TMPDIR="$home/tmp" PATH="$BASE/stub:$BASE/trap:$PATH" FSD_REAL_GH="$BASE/stub/gh-real" npm_config_cache="$BASE/npm-cache" npm_config_prefer_offline=true FSD_DRY=1 FSD_AGENT=stuart FSD_STATE="$st" FSD_REPO="$repo"; timeout 900 "$repo/team/bin/fsd-pr" open "chore: npm" --docs -C "$repo" 2>&1 ); }
   # a) npm ausente: falha clara, sem loop, trava solta
   local nodeonly="$BASE/nodeonly"; mkdir -p "$nodeonly"; ln -s "$(command -v node)" "$nodeonly/node"; ln -s "$(command -v git)" "$nodeonly/git"
-  o=$( export PATH="$nodeonly:/usr/bin:/bin"; ( export HOME="$home" FSD_DRY=1 FSD_AGENT=stuart FSD_STATE="$REAL_STATE" FSD_REPO="$repo"; PATH="$nodeonly:/bin"; timeout 60 "$repo/team/bin/fsd-pr" open x --docs -C "$repo" 2>&1 ) ); rc=$?
+  o=$( export PATH="$nodeonly:/usr/bin:/bin"; ( export HOME="$home" TMPDIR="$home/tmp" PATH="$BASE/stub:$BASE/trap:$PATH" FSD_REAL_GH="$BASE/stub/gh-real" npm_config_cache="$BASE/npm-cache" npm_config_prefer_offline=true FSD_DRY=1 FSD_AGENT=stuart FSD_STATE="$st" FSD_REPO="$repo"; PATH="$nodeonly:/bin"; timeout 60 "$repo/team/bin/fsd-pr" open x --docs -C "$repo" 2>&1 ) ); rc=$?
   { grep -q "npm ci falhou" <<<"$o" && [ ! -e "$repo/.git/fsd-npm-ci.lock" ]; } && ok "sem npm: erro claro e trava solta" || bad "sem npm (rc=$rc): $(tail -2 <<<"$o" | tr '\n' ' ')"
   # b) trava velha (> 10 min) é removida e o npm ci roda; c) depois, commitlint presente: sem novo npm ci
   mkdir "$repo/.git/fsd-npm-ci.lock"; touch -d '20 minutes ago' "$repo/.git/fsd-npm-ci.lock"
@@ -182,19 +193,28 @@ mapsim() { # fsd-map: patch, saída sem a marca do motor, worktree, versão dife
 # Vigia com as quatro sessões vivas num servidor tmux isolado (FSD_TMUX_SOCKET): nenhuma linha "sem sessão", nenhuma sessão nova (#174).
 watchsim() {
   local sock="fsdsim$$" st="$BASE/watch-st" a o
-  mkdir -p "$st"; echo "== vigia com sessões vivas | tmux -L $sock"
+  mkdir -p "$st" "$BASE/watch-home/tmp"; chmod 700 "$BASE/tmux-watch" 2>/dev/null || { mkdir -p "$BASE/tmux-watch"; chmod 700 "$BASE/tmux-watch"; }
+  export TMUX_TMPDIR="$BASE/tmux-watch"; echo "== vigia com sessões vivas | tmux -L $sock"
   for a in kevin mel stuart bob; do tmux -L "$sock" new-session -d -s "fsd-$a" "sleep 120"; done
-  o=$(cd "$SRC" && env FSD_STATE="$st" FSD_TMUX_SOCKET="$sock" HOME="$BASE/watch-home" "$SRC/team/bin/fsd-watch" --fix 2>&1); local n; n=$(tmux -L "$sock" list-sessions 2>/dev/null | wc -l)
+  o=$(cd "$SRC" && env FSD_STATE="$st" FSD_TMUX_SOCKET="$sock" HOME="$BASE/watch-home" TMPDIR="$BASE/watch-home/tmp" "$SRC/team/bin/fsd-watch" --fix 2>&1); local n; n=$(tmux -L "$sock" list-sessions 2>/dev/null | wc -l)
   { ! grep -q "sem sessão" "$st/watch.log" 2>/dev/null && [ "$n" = 4 ]; } && ok "sessões vivas: sem 'sem sessão' no log e 4 sessões (sem duplicar)" || bad "sessões vivas: log=$(cat "$st/watch.log" 2>/dev/null | head -3 | tr '\n' ' ') sessões=$n"
   tmux -L "$sock" kill-server 2>/dev/null
 }
 mapengine
-mkenv container-fsd  "$BASE/c1/media/fsd/Projects/projetos/fred-ships-donuts" "$BASE/c1/home/fsd" set   container link
-mkenv container-outro "$BASE/c2/srv/code/fsd"                                   "$BASE/c2/home/dev" unset container link
-mkenv host-matriz     "$BASE/h/media/fredericojacobi/Projects/projetos/fred-ships-donuts" "$BASE/h/home/fredericojacobi" unset host link
-mkenv com-espacos     "$BASE/s/My Projects/fred ships donuts"                   "$BASE/s/home/user x" unset host link
-npmci
-mapsim
-watchsim
+# Cada cenário roda em paralelo, isolado (HOME, FSD_STATE, TMPDIR, socket tmux e cópia do motor do fsd-map próprios),
+# e a saída de cada um fica agrupada: sai inteira, na ordem fixa, quando todos terminarem.
+mkdir -p "$BASE/out"
+scn() { local f="$1"; shift; "$@" > "$BASE/out/$f" 2>&1 & }
+scn 1 mkenv container-fsd  "$BASE/c1/media/fsd/Projects/projetos/fred-ships-donuts" "$BASE/c1/home/fsd" set   container link
+scn 2 mkenv container-outro "$BASE/c2/srv/code/fsd"                                   "$BASE/c2/home/dev" unset container link
+scn 3 mkenv host-matriz     "$BASE/h/media/fredericojacobi/Projects/projetos/fred-ships-donuts" "$BASE/h/home/fredericojacobi" unset host link
+scn 4 mkenv com-espacos     "$BASE/s/My Projects/fred ships donuts"                   "$BASE/s/home/user x" unset host link
+scn 5 npmci
+scn 6 mapsim
+scn 7 watchsim
+wait
+cat "$BASE"/out/[1-7]
+# Nada saiu dos falsos: um claude ou gh de verdade teria caído nestes que vêm depois deles no PATH.
+[ -s "$BASE/trap.hits" ] && bad "claude/gh de verdade foi chamado: $(head -3 "$BASE/trap.hits" | tr '\n' ' ')" || ok "nenhum claude ou gh de verdade foi chamado (só os falsos)"
 p=$(grep -c P "$RES"); f=$(grep -c F "$RES"); echo "== total: $p PASS, $f FAIL$([ "$KEEP" = 1 ] && echo "  (mantido em $BASE)")"
 [ "$f" = 0 ]
