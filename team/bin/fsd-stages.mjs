@@ -31,6 +31,7 @@ export const TRANSITIONS = [
   { from: 'review', to: 'mergeReady', by: 'fsd-qa' },
   { from: 'mergeReady', to: 'done', by: 'fsd-merge' },
   { from: 'any', to: 'backlog', by: 'fsd-qa' },
+  { from: 'any', to: 'backlog', by: 'fsd-issue' },   // fsd-issue new cria em Backlog (ou na coluna de --to)
   { from: 'dev', to: 'devReady', by: 'manual' },
 ];
 

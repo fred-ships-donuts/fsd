@@ -48,6 +48,12 @@ test('skills named in the diagram exist', () => {
   for (const s of Object.values(SKILLS).flat()) assert.ok(dirs.some((d) => existsSync(join(d, s))), `skill ${s}`);
 });
 
+test('every column with an owner action has a skill and the blocked detour', () => {
+  const out = render();
+  for (const k of Object.keys(COLUMNS).filter((x) => x !== 'done')) assert.ok(out.includes(`  ${k} -.-> blocked`), `blocked a partir de ${k}`);
+  for (const k of ['backlog', 'mergeReady']) assert.ok(out.includes(`  sk_${k} -.- ${k}`), `skill em ${k}`);
+});
+
 test('block has the detours and balanced node ids', () => {
   const out = render();
   for (const w of ['Changes Requested', 'blocked', 'ação negada', 'writing-handoffs', 'running-qa-workflow']) assert.ok(out.includes(w), w);

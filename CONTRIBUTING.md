@@ -96,18 +96,27 @@ flowchart TD
   review -->|"fsd-review, fsd-qa"| changes
   review -->|"fsd-review, fsd-qa"| mergeReady
   mergeReady -->|"fsd-merge"| done
-  any -->|"fsd-qa"| backlog
+  any -->|"fsd-qa, fsd-issue"| backlog
   dev -->|"manual"| devReady
   blocked{{"label blocked<br/>Kevin tira"}}
+  backlog -.-> blocked
+  archReady -.-> blocked
   arch -.-> blocked
+  devReady -.-> blocked
   dev -.-> blocked
+  review -.-> blocked
   changes -.-> blocked
+  mergeReady -.-> blocked
+  sk_backlog["skill: writing-issues, running-pm-workflow"]
+  sk_backlog -.- backlog
   sk_arch["skill: writing-handoffs"]
   sk_arch -.- arch
   sk_dev["skill: running-dev-workflow, self-reviewing-changes"]
   sk_dev -.- dev
   sk_review["skill: reviewing-prs, running-qa-workflow"]
   sk_review -.- review
+  sk_mergeReady["skill: running-pm-workflow"]
+  sk_mergeReady -.- mergeReady
   denied{{"ação negada?"}} --> team["comando do time<br/>team/common/team.md"]
   tech{{"dúvida técnica?"}} --> mel["Mel decide"]
   prod{{"dúvida de produto?"}} --> kevin["Kevin decide"]

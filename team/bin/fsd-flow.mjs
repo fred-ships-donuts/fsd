@@ -10,12 +10,12 @@ export const DOC = new URL('../../CONTRIBUTING.md', import.meta.url).pathname;
 
 // Skill usada em cada etapa (chave de COLUMNS), mantida à mão.
 export const SKILLS = {
+  backlog: ['writing-issues', 'running-pm-workflow'],
   arch: ['writing-handoffs'],
   dev: ['running-dev-workflow', 'self-reviewing-changes'],
   review: ['reviewing-prs', 'running-qa-workflow'],
+  mergeReady: ['running-pm-workflow'],
 };
-// Colunas de trabalho onde o card pode ficar com a label blocked.
-const BLOCKABLE = ['arch', 'dev', 'changes'];
 
 const cap = (a) => a[0].toUpperCase() + a.slice(1);
 const q = (s) => `"${String(s).replace(/"/g, "'")}"`;
@@ -28,7 +28,7 @@ export function render(columns = COLUMNS, transitions = TRANSITIONS) {
   for (const t of transitions) { const key = `${t.from}>${t.to}`; edges.set(key, [...(edges.get(key) || []), t.by]); }
   for (const [key, by] of edges) { const [f, t] = key.split('>'); L.push(`  ${f} -->|${q(by.join(', '))}| ${t}`); }
   L.push('  blocked{{"label blocked<br/>Kevin tira"}}');
-  for (const k of BLOCKABLE) L.push(`  ${k} -.-> blocked`);
+  for (const k of Object.keys(columns).filter((x) => x !== 'done')) L.push(`  ${k} -.-> blocked`);
   for (const [k, list] of Object.entries(SKILLS)) { L.push(`  sk_${k}[${q('skill: ' + list.join(', '))}]`); L.push(`  sk_${k} -.- ${k}`); }
   L.push('  denied{{"ação negada?"}} --> team["comando do time<br/>team/common/team.md"]');
   L.push('  tech{{"dúvida técnica?"}} --> mel["Mel decide"]');
