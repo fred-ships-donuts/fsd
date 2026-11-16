@@ -175,6 +175,15 @@ mapsim() { # fsd-map: patch, saída sem a marca do motor, worktree, versão dife
   o=$(m grep openPrs 2>&1); rc=$?
   { [ $rc = 1 ] && [ "$(marks)" = 0 ] && grep -q "não aceita o patch" <<<"$o"; } && ok "código mudou: falha clara, nada gravado" || bad "código mudou (rc=$rc, marcas=$(marks)): $(tail -1 <<<"$o")"
 }
+# Vigia com as quatro sessões vivas num servidor tmux isolado (FSD_TMUX_SOCKET): nenhuma linha "sem sessão", nenhuma sessão nova (#174).
+watchsim() {
+  local sock="fsdsim$$" st="$BASE/watch-st" a o
+  mkdir -p "$st"; echo "== vigia com sessões vivas | tmux -L $sock"
+  for a in kevin mel stuart bob; do tmux -L "$sock" new-session -d -s "fsd-$a" "sleep 120"; done
+  o=$(cd "$SRC" && env FSD_STATE="$st" FSD_TMUX_SOCKET="$sock" HOME="$BASE/watch-home" "$SRC/team/bin/fsd-watch" --fix 2>&1); local n; n=$(tmux -L "$sock" list-sessions 2>/dev/null | wc -l)
+  { ! grep -q "sem sessão" "$st/watch.log" 2>/dev/null && [ "$n" = 4 ]; } && ok "sessões vivas: sem 'sem sessão' no log e 4 sessões (sem duplicar)" || bad "sessões vivas: log=$(cat "$st/watch.log" 2>/dev/null | head -3 | tr '\n' ' ') sessões=$n"
+  tmux -L "$sock" kill-server 2>/dev/null
+}
 mapengine
 mkenv container-fsd  "$BASE/c1/media/fsd/Projects/projetos/fred-ships-donuts" "$BASE/c1/home/fsd" set   container link
 mkenv container-outro "$BASE/c2/srv/code/fsd"                                   "$BASE/c2/home/dev" unset container link
@@ -182,5 +191,6 @@ mkenv host-matriz     "$BASE/h/media/fredericojacobi/Projects/projetos/fred-ship
 mkenv com-espacos     "$BASE/s/My Projects/fred ships donuts"                   "$BASE/s/home/user x" unset host link
 npmci
 mapsim
+watchsim
 p=$(grep -c P "$RES"); f=$(grep -c F "$RES"); echo "== total: $p PASS, $f FAIL$([ "$KEEP" = 1 ] && echo "  (mantido em $BASE)")"
 [ "$f" = 0 ]
