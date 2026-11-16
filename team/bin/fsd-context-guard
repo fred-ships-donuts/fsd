@@ -14,6 +14,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { context, wrapUpAllowed, wrapUpReason } from './fsd-context.mjs';
 import { liveDir } from './fsd-timing.mjs';
+import { usageConfig, readCache, over, kick } from './fsd-usage.mjs';
 
 // ── Mensagens (editar aqui). {used} {limit} {calls} {cost} {heavy} ──
 const HANDOFF = 'WIP no GitHub, memory_handoff_begin (feito, falta, branch/worktree, próximo passo) e fsd-restart';
@@ -33,6 +34,10 @@ try { C = context(); } catch (e) {
 const LIMIT = Math.min(C.limit - C.outputReserve, C.restartAbove) + C.outputReserve, RESERVE = C.outputReserve, MARGIN = C.limit * C.marginPct / 100, FACTOR = C.heavyFactor;
 const BANDS = { normal: [C.bands.normal.urgentAt, C.bands.normal.mediumAt], heavy: [C.bands.heavy.urgentAt, C.bands.heavy.mediumAt] };
 const FREE = { urgent: C.urgentFree, medium: C.mediumFree };
+// Uso da conta (#193): lê o cache; se velho, um refresh destacado (sem token). Config ou cache ruins nunca derrubam o hook.
+let USAGE = null;
+try { const uc = usageConfig(), cache = readCache(); kick(cache, uc); USAGE = over(cache, uc.stopPct); } catch {}
+const USAGE_MSG = () => `**🚨🚨 USO DA CONTA DO TIME EM ${Math.round(USAGE.pct)}% (janela ${USAGE.window === 'five_hour' ? '5h' : 'semanal'}). PARE DE ENROLAR. Termine AGORA o que está em mãos até o fim: commit, push, PR sem conflito, revisão publicada. NÃO comece trabalho novo (nada de fsd-dev start, fsd-review start, fsd-qa prep, Monitor). Depois: memory_handoff_begin e fsd-restart. Sem desculpa, sem pergunta, SEM DEMORA.**`;
 const WINDOW = 20, RECENT = 3, MIN_COST = 1000;
 
 let input = {}; try { input = JSON.parse(readStdin() || '{}'); } catch { process.exit(0); }
@@ -55,6 +60,10 @@ if (PRINT) {
 }
 if (input.hook_event_name === 'PreToolUse') {
   const above = C.restartAbove;
+  if (USAGE && !wrapUpAllowed(input.tool_name, input.tool_input) && (input.tool_name === 'Monitor' || (input.tool_name === 'Bash' && /(^|[\s;&|])(fsd-dev\s+start|fsd-review\s+start|fsd-qa\s+prep)(\s|$)/.test(String(input.tool_input?.command || ''))))) {
+    console.log(JSON.stringify({ hookSpecificOutput: { hookEventName: 'PreToolUse', permissionDecision: 'deny', permissionDecisionReason: `Uso da conta em ${Math.round(USAGE.pct)}%: nada de trabalho novo. Termine o que está aberto (commit, push, PR, revisão), memory_handoff_begin e fsd-restart.` } }));
+    process.exit(0);
+  }
   // Acima de restartAbove só passa o conjunto de fechamento (#193); o Monitor tem a razão própria, abaixo.
   if (used > above && input.tool_name !== 'Monitor' && !wrapUpAllowed(input.tool_name, input.tool_input)) console.log(JSON.stringify({ hookSpecificOutput: { hookEventName: 'PreToolUse', permissionDecision: 'deny', permissionDecisionReason: wrapUpReason(used, above) } }));
   else if (input.tool_name === 'Monitor' && used > above) console.log(JSON.stringify({ hookSpecificOutput: { hookEventName: 'PreToolUse', permissionDecision: 'deny',
@@ -62,6 +71,8 @@ if (input.hook_event_name === 'PreToolUse') {
   else live();
   process.exit(0);
 }
+if (USAGE && ev === 'Stop' && !input.stop_hook_active) { console.log(JSON.stringify({ decision: 'block', reason: USAGE_MSG() })); process.exit(0); }
+if (USAGE && (ev === 'PostToolUse' || ev === 'UserPromptSubmit')) { console.log(JSON.stringify({ hookSpecificOutput: { hookEventName: ev, additionalContext: USAGE_MSG() }, systemMessage: `🚨 uso da conta ${Math.round(USAGE.pct)}%: terminar e parar` })); process.exit(0); }
 if (!level) process.exit(0);
 
 const state = join(tmpdir(), `fsd-ctx-${input.session_id || 'x'}.json`);
