@@ -53,7 +53,7 @@ const colItems = (c) => { const r = spawnSync(L.BIN + '/fsd-board', ['list', c],
 const W = {
   todo: () => fresh('todo', L.todo(me).map((p) => `#${p.number}@${p.headRefOid.slice(0, 7)}`), (n) => `revisar ${n.join(' ')}`),
   mine: () => { const items = L.openPrs().filter((p) => L.norm(p.author?.login) === me).map((p) => `#${p.number}:${(p.reviews || []).length}`); const nums = (l) => l.map((i) => i.split(':')[0]); const prev = base.has('mine') ? nums([...base.get('mine')]) : null; const f = fresh('mine', items, () => 'revisão nova: fsd-pr --mine'); if (f) return f; const gone = prev ? prev.filter((n) => !nums(items).includes(n)) : []; if (gone.length) { base.set('mine', new Set(items)); return `PR ${gone.join(' ')} mesclado/fechado: fsd-queue`; } return ''; },
-  ready: () => fresh('ready', L.openPrs().filter((p) => L.readyIdle(p, false)).map((p) => '#' + p.number), (n) => `pronto parado: ${n.join(' ')} (fsd-merge --ready)`),
+  ready: () => { const prs = L.openPrs(); if (!L.DRY) L.promoteGreen(prs); return fresh('ready', prs.filter((p) => L.readyIdle(p, false)).map((p) => '#' + p.number), (n) => `pronto parado: ${n.join(' ')} (fsd-merge --ready)`); },
   deadlock: () => { const t = timing().deadlock; const f = L.findDeadlocks(L.waitsList(), { now: L.clock(), activityOf: L.activityOf, cycleMin: Number(t.cycleMin), stallMin: Number(t.stallMin) }); return L.deadlocksNew(f, NOW).map((x) => x.line).join(' | '); },
   // Kevin: card novo no Backlog ou label decision nova acorda o Monitor, para ele não dormir sobre um Backlog cheio (#159).
   backlog: () => fresh('col:backlog', colItems(L.STAGE.backlog).filter((i) => !RESERVED.includes(Number(i.replace(/\D/g, '')))), (n) => `Backlog (Kevin): ${n.join(' ')} (fsd-queue)`),

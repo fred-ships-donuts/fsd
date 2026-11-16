@@ -58,7 +58,7 @@ export function closes(body) {
   return [...out];
 }
 
-const PR_FIELDS = 'number,title,url,state,isDraft,baseRefName,headRefName,headRefOid,author,reviews,mergeable,body,mergeCommit';
+const PR_FIELDS = 'number,title,url,state,isDraft,baseRefName,headRefName,headRefOid,author,reviews,mergeable,body,mergeCommit,statusCheckRollup';
 export function pr(n) {
   const r = run(join(BIN, 'gh'), ['pr', 'view', String(n), '--json', PR_FIELDS], { allowFail: true });
   if (!r.ok) die(/not found|Could not resolve/i.test(r.err) ? `PR #${n} não encontrado` : `gh falhou: ${r.err.slice(0, 200)}`, /not found|Could not resolve/i.test(r.err) ? 1 : 4);
@@ -249,6 +249,28 @@ export function columnCards(col) {
 export function devCards() {
   return [STAGE.changes, STAGE.dev].flatMap((col) => columnCards(col).map((n) => ({ n, col })));
 }
+// CI obrigatório (#152): os jobs do workflow regression.yml. 'green' só com todos presentes e SUCCESS; 'red' se algum falhou;
+// 'pending' se falta job ou algum não terminou (inclui "ainda sem checks").
+export const REQUIRED_CI = ['build', 'test', 'paths', 'shellcheck'];
+const CI_BAD = ['FAILURE', 'CANCELLED', 'TIMED_OUT', 'ACTION_REQUIRED', 'STARTUP_FAILURE', 'ERROR'];
+export function ciState(p) {
+  const by = new Map((p.statusCheckRollup || []).filter((c) => c.workflowName === 'regression').map((c) => [c.name, c]));
+  const res = REQUIRED_CI.map((k) => by.get(k));
+  if (res.some((c) => c && CI_BAD.includes(c.conclusion))) return 'red';
+  return res.every((c) => c && c.status === 'COMPLETED' && c.conclusion === 'SUCCESS') ? 'green' : 'pending';
+}
+// 2 aprovações e CI verde → Ready to Merge (Kevin) + avisa o autor.
+export function promote(p) {
+  const n = p.number; const cl = closes(p.body); const author = agentOf(p.author?.login);
+  return [board(STAGE.mergeReady, cl), noticeSummary(notify([author], `PR #${n} tem 2 aprovações e CI verde: rode fsd-merge ${n}.`))].filter(Boolean).join(' | ');
+}
+// CI que ficou verde depois das 2 aprovações: leva o card para Ready to Merge. Devolve os PRs promovidos.
+export function promoteGreen(prs) {
+  const have = new Set(columnCards(STAGE.mergeReady));
+  const out = [];
+  for (const p of prs) { const cl = closes(p.body); if (!ready(p) || (cl.length && cl.every((c) => have.has(c)))) continue; promote(p); out.push(p.number); }
+  return out;
+}
 // Depois de uma revisão: mudança pedida → Changes Requested (Stuart) + avisa o autor (e, se ele está em outro card, manda terminar o commit,
 // devolver o card novo para Ready for Development e ir para a correção); 2 aprovações atuais → Ready to Merge (Kevin) + avisa o autor.
 export function afterReview(n) {
@@ -258,12 +280,16 @@ export function afterReview(n) {
     const rework = other.length ? ` Você está em ${other.map((c) => '#' + c.n).join(', ')} (${STAGE.dev}): termine o commit atual, devolva o card com fsd-board move "${STAGE.devReady}" ${other.map((c) => c.n).join(' ')} (mantenha o worktree) e vá para a correção.` : '';
     return [board(STAGE.changes, cl), noticeSummary(notify([author], `PR #${n}: mudanças pedidas por ${s.changes.join(',')}. Veja a revisão.${rework}`))].filter(Boolean).join(' | ');
   }
-  if (s.approvers.length >= 2) return [board(STAGE.mergeReady, cl), noticeSummary(notify([author], `PR #${n} tem 2 aprovações: rode fsd-merge ${n}.`))].filter(Boolean).join(' | ');
+  if (s.approvers.length >= 2) {
+    const ci = ciState(p);
+    if (ci !== 'green') return [`2 aprovações, CI ${ci}: o card fica onde está`, noticeSummary(notify([author], `PR #${n} tem 2 aprovações, mas o CI da regressão está ${ci}: o card só vai para ${STAGE.mergeReady} com o CI verde.`))].filter(Boolean).join(' | ');
+    return promote(p);
+  }
   return `aprovações ${s.approvers.length}/2`;
 }
 
-// PRs prontos para entrar: abertos, não draft, base develop, 2+ aprovações atuais, sem pedido de mudança, sem conflito.
-export const ready = (p) => { const s = reviewState(p); return p.state === 'OPEN' && !p.isDraft && p.baseRefName === 'develop' && s.approvers.length >= 2 && !s.changes.length && p.mergeable !== 'CONFLICTING'; };
+// PRs prontos para entrar: abertos, não draft, base develop, 2+ aprovações atuais, sem pedido de mudança, sem conflito, CI verde.
+export const ready = (p) => { const s = reviewState(p); return p.state === 'OPEN' && !p.isDraft && p.baseRefName === 'develop' && s.approvers.length >= 2 && !s.changes.length && p.mergeable !== 'CONFLICTING' && ciState(p) === 'green'; };
 // Prontos "parados": de agentes (PR do autor só por número), com a 2ª aprovação há mais de agents.json → timing.readyGraceMin
 // (FSD_READY_GRACE passa por cima).
 // Assim o autor do PR mescla primeiro; --now ignora a espera.
