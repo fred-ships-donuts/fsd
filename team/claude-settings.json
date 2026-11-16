@@ -276,6 +276,15 @@
             "timeout": 5
           }
         ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$FSD_TEAM/bin/fsd-stop-guard",
+            "timeout": 5
+          }
+        ]
       }
     ],
     "SessionEnd": [
