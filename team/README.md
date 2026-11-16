@@ -48,8 +48,11 @@ do `agents.json`, campo a campo. Vale na próxima vez que o agente abrir.
     { "agents": { "mel": { "claude": { "model": "claude-sonnet-5-5", "effort": "medium" } } } }
 
 O mesmo arquivo ajusta o contexto (`claude_common.context` do `agents.json`) só nesta instalação: `claude_common.context`
-vale para todos e `agents.<nome>.context` para um agente, nessa ordem, por cima do `agents.json`. Quem lê é o
-`bin/fsd-context.mjs` (guard, vigia, `fsd-restart`, `fsd-stats`), a cada chamada, sem reabrir o agente.
+vale para todos e `agents.<nome>.context` para um agente. Ordem: `agents.json` (comum, depois o agente) e, por cima de
+tudo, o arquivo local (comum, depois o agente); um valor local comum vence até o valor por agente do `agents.json`. O merge
+é campo a campo também dentro de objetos: `bands.normal.urgentAt` sozinho não apaga o resto de `bands`. Quem lê é o
+`bin/fsd-context.mjs` (guard, vigia, `fsd-restart`, `fsd-stats`), a cada chamada, sem reabrir o agente. Arquivo local
+inválido: o vigia mostra `configuração inválida` no agente, sem ação, e segue no ar (uma linha no `watch.log` por erro).
 
     { "claude_common": { "context": { "restartAbove": 100000 } } }
 

@@ -164,7 +164,13 @@ function round() {
   let st = {}; try { st = JSON.parse(readFileSync(STATE, 'utf8')); } catch {}
   const rows = [];
   for (const ag of AGENTS) {
-    const r = classify(ag, st); let done = '-';
+    // Configuração ruim (ex.: agents.local.json editado à mão com erro) não derruba o vigia: o agente fica sem ação
+    // nesta rodada e o erro vai ao log uma vez por mudança.
+    let r; try { r = classify(ag, st); delete st[`cfgerr:${ag}`]; } catch (e) {
+      r = { state: 'configuração inválida', act: null };
+      if (st[`cfgerr:${ag}`] !== e.message) { st[`cfgerr:${ag}`] = e.message; log(`${ag}: configuração inválida (${e.message})`); }
+    }
+    let done = '-';
     if (r.act) {
       const key = `${ag}:${r.act}`, last = st[key] || 0;
       if (!FIX) done = `faria: ${r.act}`;

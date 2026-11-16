@@ -44,7 +44,16 @@ mkenv() { # nome repo home FSD_REPO(set|unset) links(container|host) node_module
   chk "fsd-context lê agents.json" run node "$T/fsd-context.mjs" mel limit restartAbove
   printf '%s' '{"claude_common":{"context":{"restartAbove":100000}},"agents":{"bob":{"context":{"restartAbove":90000}}}}' > "$st/agents.local.json"
   chk "fsd-context: agents.local.json por cima (comum e por agente)" run bash -c '[ "$(node "$0" mel restartAbove)" = 100000 ] && [ "$(node "$0" bob restartAbove)" = 90000 ]' "$T/fsd-context.mjs"
-  rm -f "$st/agents.local.json"
+  printf '%s' '{"claude_common":{"context":{"bands":{"normal":{"urgentAt":3}}}}}' > "$st/agents.local.json"
+  chk "fsd-context: objeto aninhado local muda só o campo dado" run bash -c '[ "$(node "$0" mel bands.normal.urgentAt bands.normal.mediumAt bands.heavy.urgentAt | tr "\n" " ")" = "3 4 3 " ]' "$T/fsd-context.mjs"
+  # agents.local.json quebrado não derruba o vigia: mel ocioso sem Monitor (sessão num tmux isolado, transcript de 1 h
+  # atrás) obriga o fsd-watch a ler o contexto; ele deve mostrar "configuração inválida" e sair 0.
+  printf '{x' > "$st/agents.local.json"
+  local tx="$st/agents/mel/claude/projects/sim"; mkdir -p "$tx"; echo '{}' > "$tx/s.jsonl"; touch -d '1 hour ago' "$tx/s.jsonl"
+  local tsock="$BASE/tmux-sim"; mkdir -p "$tsock"; chmod 700 "$tsock"
+  TMUX_TMPDIR="$tsock" tmux -L fsd-sim new-session -d -s fsd-mel 'sleep 600'
+  chk "fsd-watch: agents.local.json inválido → 'configuração inválida', vigia segue" run env TMUX_TMPDIR="$tsock" FSD_TMUX_SOCKET=fsd-sim bash -c 'o=$("$0" 2>&1) && grep -q "configuração inválida" <<<"$o" && ! grep -q "at .*fsd-context" <<<"$o"' "$T/fsd-watch"
+  TMUX_TMPDIR="$tsock" tmux -L fsd-sim kill-server 2>/dev/null; rm -rf "$tx" "$st/agents.local.json"
   chk "fsd-redirects --check: tabela do team.md em dia" run node "$T/fsd-redirects.mjs" --check
   chk "fsd-redirects --test: fixtures do hook" run node "$T/fsd-redirects.mjs" --test
   chk "fsd-sync-pair: modelos achados pelo link" run bash -c 'H=$(dirname "$(readlink -f "$0")"); test -f "$(dirname "$H")/setup/syncthing/agent.stignore"' "$L/fsd-sync-pair"
