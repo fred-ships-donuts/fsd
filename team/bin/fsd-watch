@@ -25,6 +25,7 @@ import { fileURLToPath } from 'node:url';
 import { spawnSync, spawn } from 'node:child_process';
 import { context } from './fsd-context.mjs';
 import { timing, liveDir, settingsHashFile } from './fsd-timing.mjs';
+import { paneState } from './fsd-pane.mjs';
 import { fingerprint, reexecIfChanged, settingsHash, safeToRestart } from './fsd-reload.mjs';
 import { load as loadRedirects } from './fsd-redirects.mjs';
 
@@ -138,6 +139,24 @@ function kick(agent, why) {
   return `Sessão nova de ${agent} (contexto limpo; o vigia reiniciou: ${why}). Antes de tudo confira o seu worktree (git status, commits sem push) e retome de lá. A fila abaixo é o estado atual; não releia o GitHub. Siga o team.md; sem trabalho, avise o Kevin e arme o Monitor (fsd-wait). Fila: ${q}`;
 }
 
+// Única porta de teclas no painel de um agente (nudge e redirect). Olha o painel antes de digitar: shell → reinicia (nunca digita no
+// shell); diálogo na tela → não digita; linha de entrada com texto → C-u antes; senão cola e dá Enter. `ok` é o que o ato devolve.
+function safeSend(agent, msg, ok) {
+  const s = `fsd-${agent}`;
+  const cmd = (sh('tmux', ['display-message', '-p', '-t', s, '#{pane_current_command}']).stdout || '').trim();
+  const tail = (sh('tmux', ['capture-pane', '-p', '-t', s]).stdout || '').split('\n').filter((l) => l.trim()).slice(-14);
+  const state = paneState({ cmd, tail });
+  if (state === 'shell') {
+    try { rmSync(liveDir(agent), { recursive: true, force: true }); } catch {}   // registros da sessão morta, como em restart
+    const c = sh('tmux', ['respawn-pane', '-k', '-t', s, '-c', REPO, LAUNCH, agent, 'claude', kick(agent, `painel caiu no shell (${cmd})`)]);
+    return c.status === 0 ? 'painel no shell: reiniciou, sem digitar' : `falhou: ${c.stderr.trim()}`;
+  }
+  if (state === 'dialog') { log(`${agent}: dialog on screen, not typing`); return 'dialog on screen, not typing'; }
+  if (state === 'input') { sh('tmux', ['send-keys', '-t', s, 'C-u']); log(`${agent}: input line not empty, cleared with C-u before typing`); }
+  sh('tmux', ['load-buffer', '-b', `w-${agent}`, '-'], { input: msg }); sh('tmux', ['paste-buffer', '-p', '-d', '-b', `w-${agent}`, '-t', s]);
+  sh('sleep', ['0.4']); sh('tmux', ['send-keys', '-t', s, 'Enter']); return ok;
+}
+
 function act(agent, r) {
   const paused = existsSync(join((process.env.FSD_STATE || join(process.env.HOME, '.config', 'fsd-agents')), 'PAUSE'));
   if (r.act === 'alert') { sh('notify-send', ['-u', 'critical', `fsd: ${agent}`, `${r.state}: precisa de você no tmux fsd-${agent}`]); return `avisou o autor (${r.state})`; }
@@ -149,13 +168,11 @@ function act(agent, r) {
   if (r.act === 'redirect') {
     sh(join(BIN, 'fsd-notify'), ['kevin', `${agent} pediu ao autor: ${r.ask}`]);
     const msg = '[fsd-aviso do vigia] Do not wait for the author. Take the team command for it (team.md, "Ação negada → comando do time") or move on and tell Kevin with fsd-notify.';
-    sh('tmux', ['load-buffer', '-b', `w-${agent}`, '-'], { input: msg }); sh('tmux', ['paste-buffer', '-p', '-d', '-b', `w-${agent}`, '-t', s]);
-    sh('sleep', ['0.4']); sh('tmux', ['send-keys', '-t', s, 'Enter']); return 'avisou o Kevin e empurrou';
+    return safeSend(agent, msg, 'avisou o Kevin e empurrou');
   }
   if (r.act === 'nudge') {
     const msg = `[fsd-aviso do vigia] Você está parado sem Monitor há ${min(r.idle)} min. Terminou uma entrega? fsd-restart. Sem trabalho: avise o Kevin e arme o Monitor (fsd-wait any).`;
-    sh('tmux', ['load-buffer', '-b', `w-${agent}`, '-'], { input: msg }); sh('tmux', ['paste-buffer', '-p', '-d', '-b', `w-${agent}`, '-t', s]);
-    sh('sleep', ['0.4']); sh('tmux', ['send-keys', '-t', s, 'Enter']); return 'empurrou';
+    return safeSend(agent, msg, 'empurrou');
   }
   return '';
 }
