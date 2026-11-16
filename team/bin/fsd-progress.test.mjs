@@ -4,7 +4,7 @@ import { mkdtempSync, writeFileSync, readFileSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
-import { findStalls, findPause, findOldNotices, buildCards } from './fsd-progress.mjs';
+import { PR_FIELDS, findStalls, findPause, findOldNotices, buildCards } from './fsd-progress.mjs';
 
 const BIN = new URL('.', import.meta.url).pathname;
 const NOW = Date.parse('2026-11-16T12:00:00Z');
@@ -88,4 +88,9 @@ test('CLI: old PAUSE and old notice each give one line; PAUSE stays', () => {
 });
 test('CLI never writes to GitHub', () => {
   for (const f of ['fsd-progress', 'fsd-progress.mjs']) assert.doesNotMatch(readFileSync(join(BIN, f), 'utf8'), /ghw|issue comment|-X (POST|PATCH)/);
+});
+
+test('a lista de PRs não pede commits (limite de 500.000 nós do GraphQL, #194)', () => {
+  assert.ok(!PR_FIELDS.split(',').includes('commits'));
+  assert.match(readFileSync(BIN + 'fsd-progress', 'utf8'), /\['pr', 'list', '--state', 'open', '--json', PR_FIELDS/);
 });
