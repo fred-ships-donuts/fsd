@@ -72,6 +72,48 @@ As skills do time que produzem e consomem esses documentos ficam em `team/agents
 | Ready to Merge (Kevin) | O PR tem 2 aprovações no último commit e nenhum pedido de mudança: espera o merge, feito pelo autor do PR com `fsd-merge <n>`. |
 | Done | PR mesclado na `develop`; o issue foi fechado pelo `Closes #N` (a `develop` é a branch padrão). |
 
+O caminho do card e os desvios, gerado por `team/bin/fsd-flow`; não edite à mão (`fsd-flow --write` atualiza; o `npm test` confere):
+
+<!-- flow:start -->
+```mermaid
+flowchart TD
+  backlog["Backlog<br/>Kevin"]
+  archReady["Ready for Architecture<br/>Mel"]
+  arch["Architecting<br/>Mel"]
+  devReady["Ready for Development<br/>Stuart"]
+  dev["Developing<br/>Stuart"]
+  review["In Review<br/>Mel, Bob"]
+  changes["Changes Requested<br/>Stuart"]
+  mergeReady["Ready to Merge<br/>Kevin"]
+  done["Done"]
+  any(["qualquer coluna"])
+  backlog -->|"manual"| archReady
+  archReady -->|"fsd-arq"| arch
+  arch -->|"fsd-arq"| devReady
+  devReady -->|"fsd-dev"| dev
+  dev -->|"fsd-pr"| review
+  changes -->|"fsd-pr"| review
+  review -->|"fsd-review, fsd-qa"| changes
+  review -->|"fsd-review, fsd-qa"| mergeReady
+  mergeReady -->|"fsd-merge"| done
+  any -->|"fsd-qa"| backlog
+  dev -->|"manual"| devReady
+  blocked{{"label blocked<br/>Kevin tira"}}
+  arch -.-> blocked
+  dev -.-> blocked
+  changes -.-> blocked
+  sk_arch["skill: writing-handoffs"]
+  sk_arch -.- arch
+  sk_dev["skill: running-dev-workflow, self-reviewing-changes"]
+  sk_dev -.- dev
+  sk_review["skill: reviewing-prs, running-qa-workflow"]
+  sk_review -.- review
+  denied{{"ação negada?"}} --> team["comando do time<br/>team/common/team.md"]
+  tech{{"dúvida técnica?"}} --> mel["Mel decide"]
+  prod{{"dúvida de produto?"}} --> kevin["Kevin decide"]
+```
+<!-- flow:end -->
+
 ## 3. Branch
 
 - Um branch por trabalho, num worktree próprio criado a partir da `develop` por `fsd-dev start <n>` (com tarefa: grava o issue no branch) ou `fsd-dev start - <slug>` (sem tarefa). Ninguém troca de branch na pasta principal.

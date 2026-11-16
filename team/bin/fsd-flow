@@ -1,0 +1,4 @@
+#!/usr/bin/env node
+// fsd-flow --write | --check | --print  (a lógica está em fsd-flow.mjs)
+import { main } from './fsd-flow.mjs';
+process.exit(main(process.argv.slice(2)));

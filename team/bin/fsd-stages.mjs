@@ -4,7 +4,7 @@
 // (o fsd-board importa este módulo sem o fsd-lib).
 // O nome da coluna leva o responsável entre parênteses ("Ready for Development (Stuart)"). Nome e responsável vêm da mesma
 // linha da tabela, então não divergem. queue = fila de um papel: quem recebe o aviso quando um card chega (OWNERS).
-const COLUMNS = {
+export const COLUMNS = {
   backlog: { base: 'Backlog', who: ['kevin'] },
   archReady: { base: 'Ready for Architecture', who: ['mel'], queue: true },
   arch: { base: 'Architecting', who: ['mel'] },
@@ -15,6 +15,25 @@ const COLUMNS = {
   mergeReady: { base: 'Ready to Merge', who: ['kevin'] },
   done: { base: 'Done', who: [] },
 };
+// Transições do card: from/to são chaves de COLUMNS ('any' em from = qualquer coluna); by = o comando de team/bin que escreve o destino, ou
+// 'manual' (Kevin, fsd-board move, a interface do GitHub). Dados puros: o fsd-flow desenha o fluxo daqui e o fsd-flow.test.mjs confere
+// com o código dos comandos (coluna escrita por um comando sem aresta aqui, ou aresta cujo comando não escreve o destino, falha o npm test).
+export const TRANSITIONS = [
+  { from: 'backlog', to: 'archReady', by: 'manual' },
+  { from: 'archReady', to: 'arch', by: 'fsd-arq' },
+  { from: 'arch', to: 'devReady', by: 'fsd-arq' },
+  { from: 'devReady', to: 'dev', by: 'fsd-dev' },
+  { from: 'dev', to: 'review', by: 'fsd-pr' },
+  { from: 'changes', to: 'review', by: 'fsd-pr' },
+  { from: 'review', to: 'changes', by: 'fsd-review' },
+  { from: 'review', to: 'changes', by: 'fsd-qa' },
+  { from: 'review', to: 'mergeReady', by: 'fsd-review' },
+  { from: 'review', to: 'mergeReady', by: 'fsd-qa' },
+  { from: 'mergeReady', to: 'done', by: 'fsd-merge' },
+  { from: 'any', to: 'backlog', by: 'fsd-qa' },
+  { from: 'dev', to: 'devReady', by: 'manual' },
+];
+
 const cap = (a) => a[0].toUpperCase() + a.slice(1);
 const full = (c) => (c.who.length ? `${c.base} (${c.who.map(cap).join(', ')})` : c.base);
 export const STAGE = Object.fromEntries(Object.entries(COLUMNS).map(([k, c]) => [k, full(c)]));
