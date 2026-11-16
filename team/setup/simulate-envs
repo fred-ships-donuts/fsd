@@ -17,7 +17,7 @@ BASE="$(mktemp -d /tmp/fsd-sim.XXXX)"; REAL_STATE="${FSD_STATE:-$HOME/.config/fs
 # Na saída, mesmo abortando no meio: derruba o servidor tmux da simulação (socket fsd-sim em $BASE) e apaga $BASE.
 # Hermético: nenhuma FSD_* da sessão de quem roda (FSD_DRY, FSD_STATE, FSD_TMUX_SOCKET…) entra nos ambientes simulados. O estado real já foi lido acima (REAL_STATE).
 for v in $(compgen -e | grep '^FSD_'); do unset "$v"; done
-trap 'TMUX_TMPDIR="$BASE/tmux-sim" tmux -L fsd-sim kill-server 2>/dev/null; [ "$KEEP" = 1 ] || rm -rf "$BASE"' EXIT
+trap 'node "$SRC/team/bin/fsd-loops.mjs" kill --under "$BASE" >/dev/null 2>&1; TMUX_TMPDIR="$BASE/tmux-sim" tmux -L fsd-sim kill-server 2>/dev/null; [ "$KEEP" = 1 ] || rm -rf "$BASE"' EXIT
 ok()  { echo "  PASS $*"; echo P >> "$RES"; }
 bad() { echo "  FAIL $*"; echo F >> "$RES"; }
 chk() { local d="$1"; shift; local o; if o=$("$@" 2>&1); then ok "$d"; else bad "$d :: $(tail -3 <<<"$o" | tr '\n' ' ' | cut -c1-300)"; fi; }
