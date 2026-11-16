@@ -18,6 +18,7 @@ import { timing } from './fsd-timing.mjs';
 import { fingerprint, reexecIfChanged } from './fsd-reload.mjs';
 import { followDevelop, checkoutState } from './fsd-follow.mjs';
 import { killLoops } from './fsd-loops.mjs';
+import { refuseIfQa } from './fsd-qa-guard.mjs';
 
 const BIN = dirname(fileURLToPath(import.meta.url)); const ROOT = dirname(BIN);
 const REPO = resolve(process.env.FSD_REPO || dirname(ROOT));
@@ -29,6 +30,7 @@ const a = process.argv.slice(2); const DRY = a.includes('--dry') || !!process.en
 const li = a.indexOf('--loop'); const LOOP = li >= 0 ? (Number(a[li + 1]) > 0 ? Number(a[li + 1]) : Number(timing().cleanup.loopSeconds)) : 0;
 for (const x of a) if (!['--once', '--loop', '--dry'].includes(x) && !(li >= 0 && x === a[li + 1] && Number(x) > 0)) { console.log('uso: fsd-cleanup [--once] [--loop [segundos]] [--dry]'); process.exit(2); }
 
+if (!DRY) refuseIfQa({ repoDir: REPO, needTmux: false });   // #169: de um worktree de QA, só com FSD_STATE privado
 const env = { ...process.env, FSD_AGENT: 'kevin', GH_REPO: process.env.GH_REPO || SLUG };
 const sh = (cmd, args, o = {}) => spawnSync(cmd, args, { encoding: 'utf8', timeout: 120000, env, ...o });
 const git = (args, cwd = REPO) => { const r = sh('git', ['-C', cwd, ...args]); return { ok: r.status === 0, out: (r.stdout || '').trim(), err: (r.stderr || r.stdout || '').trim().split('\n')[0].slice(0, 200) }; };
