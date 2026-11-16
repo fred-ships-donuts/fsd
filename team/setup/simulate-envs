@@ -12,7 +12,11 @@ set -uo pipefail
 HERE="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"
 SRC="$(dirname "$(dirname "$HERE")")"; BR="$(git -C "$SRC" branch --show-current)"; KEEP=0; [ "${1:-}" = --keep ] && KEEP=1
 BASE="$(mktemp -d /tmp/fsd-sim.XXXX)"; REAL_STATE="${FSD_STATE:-$HOME/.config/fsd-agents}"; RES="$BASE/results"; : > "$RES"
+# FSD_STATE de uma sessão de teste (sem keys/) não serve de estado real: cai no padrão.
+[ -e "$REAL_STATE/keys" ] || REAL_STATE="$HOME/.config/fsd-agents"
 # Na saída, mesmo abortando no meio: derruba o servidor tmux da simulação (socket fsd-sim em $BASE) e apaga $BASE.
+# Hermético: nenhuma FSD_* da sessão de quem roda (FSD_DRY, FSD_STATE, FSD_TMUX_SOCKET…) entra nos ambientes simulados. O estado real já foi lido acima (REAL_STATE).
+for v in $(compgen -e | grep '^FSD_'); do unset "$v"; done
 trap 'TMUX_TMPDIR="$BASE/tmux-sim" tmux -L fsd-sim kill-server 2>/dev/null; [ "$KEEP" = 1 ] || rm -rf "$BASE"' EXIT
 ok()  { echo "  PASS $*"; echo P >> "$RES"; }
 bad() { echo "  FAIL $*"; echo F >> "$RES"; }
