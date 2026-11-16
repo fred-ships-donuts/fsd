@@ -11,7 +11,13 @@
 set -uo pipefail
 HERE="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"
 SRC="$(dirname "$(dirname "$HERE")")"; BR="$(git -C "$SRC" branch --show-current)"; KEEP=0; [ "${1:-}" = --keep ] && KEEP=1
-BASE="$(mktemp -d /tmp/fsd-sim.XXXX)"; REAL_STATE="${FSD_STATE:-$HOME/.config/fsd-agents}"; RES="$BASE/results"; : > "$RES"
+REAL_STATE="${FSD_STATE:-$HOME/.config/fsd-agents}"
+# Os layouts ligam as chaves dos Apps do estado real (fsd-agent e fsd-pr as leem): sem elas, 6 checagens falham em todo
+# layout por causa do ambiente, não do código. Recusa logo, com o motivo (ex.: QA com HOME temporário).
+if ! ls "$REAL_STATE"/keys/*.pem >/dev/null 2>&1; then
+  echo "simulate-envs: sem chaves em $REAL_STATE/keys (rode com o HOME real ou FSD_STATE apontando para o estado do time)" >&2; exit 2
+fi
+BASE="$(mktemp -d /tmp/fsd-sim.XXXX)"; RES="$BASE/results"; : > "$RES"
 [ "$KEEP" = 1 ] || trap 'rm -rf "$BASE"' EXIT
 ok()  { echo "  PASS $*"; echo P >> "$RES"; }
 bad() { echo "  FAIL $*"; echo F >> "$RES"; }
@@ -52,7 +58,10 @@ mkenv() { # nome repo home FSD_REPO(set|unset) links(container|host) node_module
   local tx="$st/agents/mel/claude/projects/sim"; mkdir -p "$tx"; echo '{}' > "$tx/s.jsonl"; touch -d '1 hour ago' "$tx/s.jsonl"
   local tsock="$BASE/tmux-sim"; mkdir -p "$tsock"; chmod 700 "$tsock"
   TMUX_TMPDIR="$tsock" tmux -L fsd-sim new-session -d -s fsd-mel 'sleep 600'
-  chk "fsd-watch: agents.local.json inválido → 'configuração inválida', vigia segue" run env TMUX_TMPDIR="$tsock" FSD_TMUX_SOCKET=fsd-sim bash -c 'o=$("$0" 2>&1) && grep -q "configuração inválida" <<<"$o" && ! grep -q "at .*fsd-context" <<<"$o"' "$T/fsd-watch"
+  # TMPDIR próprio: o hash da configuração da sessão mora em $TMPDIR/fsd-live-hash, o mesmo dos agentes reais desta
+  # máquina; sem isolar, o hash do Mel real faz o Mel simulado cair em "configuração antiga" antes de ler o contexto.
+  local ttmp; ttmp="$(mktemp -d "$BASE/tmp.XXXX")"
+  chk "fsd-watch: agents.local.json inválido → 'configuração inválida', vigia segue" run env TMPDIR="$ttmp" TMUX_TMPDIR="$tsock" FSD_TMUX_SOCKET=fsd-sim bash -c 'o=$("$0" 2>&1) && grep -q "configuração inválida" <<<"$o" && ! grep -q "at .*fsd-context" <<<"$o"' "$T/fsd-watch"
   TMUX_TMPDIR="$tsock" tmux -L fsd-sim kill-server 2>/dev/null; rm -rf "$tx" "$st/agents.local.json"
   chk "fsd-redirects --check: tabela do team.md em dia" run node "$T/fsd-redirects.mjs" --check
   chk "fsd-redirects --test: fixtures do hook" run node "$T/fsd-redirects.mjs" --test
