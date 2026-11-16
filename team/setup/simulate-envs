@@ -143,7 +143,7 @@ npmci() { # cenários do npm ci automático do fsd-pr num clone sem node_modules
 # Motor do fsd-map para os cenários: cópia do pacote instalado aqui (sem o patch), dependências por link.
 MAPENG=""
 mapengine() {
-  local real; real=$(FSD_MAP_HOME= "$SRC/team/bin/fsd-map" status 2>/dev/null | sed -n '1s/.* em //p')
+  local real; real=$(FSD_MAP_HOME="" "$SRC/team/bin/fsd-map" status 2>/dev/null | sed -n '1s/.* em //p')
   local pkg="$real/node_modules/@trailhq/trail-code"
   [ -n "$real" ] && [ -d "$pkg" ] || { echo "== fsd-map: motor não instalado aqui (rode fsd-map status): cenários pulados"; return; }
   MAPENG="$BASE/engine"; mkdir -p "$MAPENG/node_modules/@trailhq"

@@ -1,0 +1,64 @@
+# Regressão de todo PR para a develop (#151): build, testes, caminhos e shellcheck, cada um como um check próprio.
+# Falha quando: o tsc não compila, um teste (npm test: CLI e team/bin/*.test.mjs) quebra, um link ou caminho citado no repositório não
+# existe (npm run check:paths), ou o shellcheck acha aviso nos scripts bash de team/bin e team/setup (escolhidos pelo shebang).
+# Não gasta token: sem chamada ao Claude, sem chave de App, sem secret e sem a API do GitHub (só checkout, setup-node e npm ci).
+# O simulate-envs não roda aqui: é o passo do QA (#153). Tornar este workflow check obrigatório é o #152.
+name: regression
+
+on:
+  pull_request:
+    branches: [develop]
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: regression-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm test
+
+  paths:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # check-paths só usa módulos do node e o git: sem npm ci.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm run check:paths
+
+  shellcheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: shellcheck nos scripts bash de team/bin e team/setup
+        run: |
+          # A lista vem do shebang, não de uma lista mantida à mão: script novo entra sozinho. Os de node ficam de fora.
+          files=$(git ls-files team/bin team/setup | while read -r f; do if head -1 "$f" | grep -qE '^#!.*(ba)?sh'; then echo "$f"; fi; done)
+          echo "$files"
+          [ -n "$files" ] || { echo "no bash scripts found"; exit 1; }
+          # shellcheck disable=SC2086  # a lista é de caminhos sem espaço, um por linha
+          shellcheck -x --severity=warning $files

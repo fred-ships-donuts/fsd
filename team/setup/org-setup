@@ -34,7 +34,7 @@ fi
 read -r new_id new_num fld < <(python3 -c 'import json,sys;d=json.load(sys.stdin);print(d["id"],d["number"],d["field"]["id"])' <<<"$new")
 echo "quadro: $(python3 -c 'import json,sys;print(json.load(sys.stdin)["url"])' <<<"$new")"
 ok=0
-while IFS=$'\t' read -r cid num st; do
+while IFS=$'\t' read -r cid _num st; do
   [ -z "$cid" ] && continue
   it=$(gh api graphql -f query='mutation($p:ID!,$c:ID!){addProjectV2ItemById(input:{projectId:$p,contentId:$c}){item{id}}}' -f p="$new_id" -f c="$cid" --jq .data.addProjectV2ItemById.item.id)
   if [ -n "$st" ]; then
