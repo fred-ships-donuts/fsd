@@ -83,7 +83,7 @@ comando passam por cima do padrão.
 ├── agents.json             ⚙️     por agente: model, effort, disallowedTools, dados do GitHub App
 │                                  "claude_common": ferramentas cortadas para todos
 │                                  "timing": tempos do time (pings e prazos), ver "Tempos do time"
-├── claude-settings.json    ⚙️     comum: hooks (RTK, ai-memory, fsd-context-guard), deny comuns, permissões do ai-memory e do fsd-map
+├── claude-settings.json    ⚙️     comum: hooks (RTK, ai-memory, fsd-context-guard, fsd-stop-guard), deny comuns, permissões do ai-memory e do fsd-map
 ├── redirects.json          ⚙️     fonte única de "ação negada → comando do time" (hook, vigia e tabela do team.md)
 ├── mcp.json                ⚙️     o único MCP dos agentes: ai-memory
 ├── common/
@@ -178,6 +178,7 @@ no código. **Ping** é de quanto em quanto tempo algo confere; **prazo** é dep
 gastar token:
 - gravação no transcript da sessão ou de um subagente;
 - contador de tokens do rodapé do painel mudando entre duas rodadas (o modelo está gerando);
+- **Hook Stop `fsd-stop-guard`:** o agente que termina o turno pedindo algo ao autor (última linha com `?`, ou um padrão de `redirects.json` → `stopAsks`/`authorAsks` no fim da mensagem) é bloqueado uma vez com "não espere o autor"; o mesmo pedido de novo em 30 min passa e o Kevin recebe um `fsd-notify`. Log em `$FSD_STATE/stop-guard.log`; o Kevin fica de fora (`authorAsksSkip`). `fsd-wait --waiting-for author` é recusado (exit 2).
 - ferramenta em andamento: o hook `fsd-context-guard` grava um arquivo por ferramenta em `/tmp/fsd-live/<agente>/`
   no `PreToolUse` e apaga no `PostToolUse`. Um Bash em andamento vale até o timeout do próprio comando mais
   `toolGraceMin`, mesmo em silêncio (`npm ci`, testes).
@@ -196,7 +197,8 @@ O nome de cada coluna do Status leva o responsável entre parênteses (`Ready fo
 
 - **Hook** (`PreToolUse`, Bash): casa o comando por token (separa `&&`, `||`, `;`, `|`, ignora `rtk`/`sudo`/`VAR=x`/`cd`/caminho do programa, não olha dentro de aspas nem de heredoc) e nega com `Blocked: <por quê>. Use: <comando>. Do not ask the author.`, com `<worktree>` e `<n>` preenchidos quando dá para saber. Só nega: nunca `allow`; erro de qualquer tipo sai 0 calado. As regras de `deny` e o classificador seguem de guarda.
 - **Vigia, código e configuração velhos:** com `--loop`, o `fsd-watch` e o `fsd-cleanup` se reexecutam (`fsd-reload.mjs`, exit 0, mesmo pid file) quando muda um arquivo da fonte e todos compilam; se algum não compila, o código antigo segue e o log avisa uma vez. A sessão que subiu com outro `claude-settings.json`/`redirects.json` (hash em `$TMPDIR/fsd-live-hash/<agente>`, gravado pelo `fsd-agent`) é reiniciada só no ponto seguro (parada no prompt, sem ferramenta, sem diálogo); sem hash gravado, nada.
-- **Vigia:** agente parado cujo fim de painel pede uma ação ao autor (`authorAsks`) → `fsd-notify kevin "<agente> pediu ao autor: …"` e um empurrão "não espere o autor". Respeita `PAUSE` e `watch.cooldownMin`; o mesmo pedido na tela não repete; `[fsd-aviso …]` não conta. `FSD_TMUX_SOCKET=<nome>` põe `-L <nome>` em todo `tmux` do `fsd-watch` e do `fsd-notify` (teste em servidor isolado).
+- **Vigia:** agente parado cujo fim de painel pede uma ação ao autor (`authorAsks`) → `fsd-notify kevin "<agente> pediu ao autor: …"` e um empurrão "não espere o autor". Respeita `PAUSE` e `watch.cooldownMin`; o mesmo pedido na tela não repete; `[fsd-aviso …]` não conta. Toda tecla vai por `safeSend`: painel caído num shell (`bash`/`zsh`/`sh`) é reiniciado e nada é digitado; diálogo na tela (`❯ 1.`, `Do you want`, `Press Enter to continue`, `trust`) → não digita e loga `dialog on screen, not typing`; linha de entrada com texto → `C-u` antes (logado). `FSD_TMUX_SOCKET=<nome>` põe `-L <nome>` em todo `tmux` do `fsd-watch` e do `fsd-notify` (teste em servidor isolado).
+- **Alerta ao autor (`fsd-alert`):** permissão que nenhum comando do time resolve e limite de uso (com a hora de reinício) viram um alerta por estado, até o estado sair da tela. Canais: toast do Windows (`powershell.exe`, WSL) e depois `notify-send` (o primeiro desktop que entrega vale), a linha em `$FSD_STATE/ALERT` (sempre) e um comentário do Kevin na issue fixa `agents.json → alert.issue` (só se nenhum desktop entregou). Sai 0 sempre; `FSD_DRY=1` não mostra toast nem comenta. O limite de uso nunca reinicia a sessão.
 - `fsd-redirects --test` confere `docs/redirect-fixtures.tsv` (agente, pasta, comando, esperado) e sai 1 com a lista dos que diferem. `--write` reescreve o bloco do `team.md`; `--check` sai 1 se ele estiver velho. Os dois rodam no `simulate-envs`.
 
 ## Detector de impasse

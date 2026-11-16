@@ -101,6 +101,9 @@ claude_wrap() {
   else echo "[fsd-agent] sem $aim: o ai-memory recusa este agente" >&2; export AI_MEMORY_AUTH_TOKEN="missing"; fi
   # hash da configuração com que esta sessão sobe: o vigia reinicia a sessão que ficou com uma configuração velha (fsd-reload.mjs)
   hf="${TMPDIR:-/tmp}/fsd-live-hash/$name"; mkdir -p "$(dirname "$hf")" && node "$HERE/fsd-reload.mjs" hash "$ROOT" > "$hf" 2>/dev/null || rm -f "$hf"
+  # Um prompt interativo na ferramenta Bash nunca volta até o timeout: aqui ele falha rápido, com erro legível. Só na sessão do claude
+  # (o shell interativo do autor não muda). GIT_SSH_COMMAND já é "false" acima (nenhum ssh). Sem CI=1: muda o commitlint do fsd-pr (simulate-envs).
+  export GIT_EDITOR=true GIT_TERMINAL_PROMPT=0 GIT_PAGER=cat PAGER=cat npm_config_yes=true
   exec claude --settings "$FSD_CLAUDE_SETTINGS" "${extra[@]}" "$@"
 }
 if [ $# -eq 0 ]; then

@@ -1,5 +1,5 @@
 {
-  "_comment": "Fonte única de 'ação negada → comando do time'. Lida pelo hook fsd-redirect-hook, pelo fsd-watch (authorAsks) e pelo bloco gerado em common/team.md (fsd-redirects --write; --check falha se o bloco estiver velho). Cada entrada: id; label (a coluna da tabela); match (program, words = subcomandos seguidos, cada um uma regex (checkout|switch), argRegex = regex sobre os argumentos, main = só na pasta principal, skipIfAny = argumentos que deixam o comando como está); do (default, ou por agente: texto = comando do time, { say } = só o aviso); n (pr|issue = de onde vem o <n>); why. Sem match = entrada só de documentação (o vigia cuida). Marcadores: <worktree> <n> <title>. authorAsksSkip: agentes que o vigia não vigia por pedido ao autor (o Kevin decide pelo autor).",
+  "_comment": "Fonte única de 'ação negada → comando do time'. Lida pelo hook fsd-redirect-hook, pelo fsd-watch (authorAsks) e pelo bloco gerado em common/team.md (fsd-redirects --write; --check falha se o bloco estiver velho). Cada entrada: id; label (a coluna da tabela); match (program, words = subcomandos seguidos, cada um uma regex (checkout|switch), argRegex = regex sobre os argumentos, main = só na pasta principal, skipIfAny = argumentos que deixam o comando como está); do (default, ou por agente: texto = comando do time, { say } = só o aviso); n (pr|issue = de onde vem o <n>); why. Sem match = entrada só de documentação (o vigia cuida). Marcadores: <worktree> <n> <title>. stopAsks: padrões (regex, sem diferenciar caixa) que o hook Stop fsd-stop-guard aplica ao fim da última mensagem do agente, além de authorAsks; a última linha terminada em ? também conta. authorAsksSkip: agentes que o vigia não vigia por pedido ao autor (o Kevin decide pelo autor).",
   "redirects": [
     {
       "id": "git-push",
@@ -209,6 +209,15 @@
     "\\byou\\s+(need|have)\\s+to\\s+(allow|authorize|run)\\b",
     "\\brun\\b.{0,60}\\byourself\\b",
     "\\bpreciso\\s+que\\s+(voc[eê]|o\\s+autor)\\s+(libere|autorize|rode)\\b"
+  ],
+  "stopAsks": [
+    "\\b(continuo|segue|estou|fico)\\s+parad[oa]\\b",
+    "\\bna\\s+sua\\s+decis[aã]o\\b",
+    "\\besperando\\s+(voc[eê]|o\\s+autor|sua|seu)\\b",
+    "\\bcomo\\s+(quer|prefere|devo)\\b",
+    "\\bpreciso\\s+de\\s+(uma\\s+)?(regra|permiss|libera|autoriza)",
+    "\\bwaiting\\s+for\\s+(you|the\\s+author)\\b",
+    "\\b(can|could)\\s+you\\s+(run|allow|approve|authorize)\\b"
   ],
   "authorAsksSkip": [
     "kevin"

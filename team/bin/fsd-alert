@@ -1,0 +1,52 @@
+#!/usr/bin/env node
+// fsd-alert <agente> <estado> "<texto>" — avisa o autor pelos canais, em ordem: toast do Windows (powershell.exe, WSL), notify-send (o primeiro
+// que entrega vale), a linha em $FSD_STATE/ALERT (sempre) e um comentário do Kevin na issue fixa agents.json → alert.issue (só se nenhum desktop
+// entregou). Sai 0 sempre; stdout, uma linha: "fsd-alert: <canais>" ou "fsd-alert: nenhum canal entregou". FSD_DRY=1: sem toast, sem notify-send,
+// mostra o comentário que enviaria; o arquivo ALERT é escrito mesmo assim (use um FSD_STATE temporário).
+import { spawnSync } from 'node:child_process';
+import { appendFileSync, mkdirSync, chmodSync, readFileSync } from 'node:fs';
+import { join, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { sanitize, deliver } from './fsd-alert.mjs';
+
+const BIN = dirname(fileURLToPath(import.meta.url));
+const DRY = process.env.FSD_DRY === '1';
+const STATE = process.env.FSD_STATE || join(process.env.HOME || '', '.config', 'fsd-agents');
+const [agent, state, text] = process.argv.slice(2);
+if (!agent || !state) { console.log('uso: fsd-alert <agente> <estado> "<texto>"'); process.exit(0); }
+const has = (cmd) => spawnSync('sh', ['-c', 'command -v "$0"', cmd], { encoding: 'utf8' }).status === 0;
+const AUMID = '{1AC14E77-02E7-4E5D-B744-2EB1AE5198B7}\\WindowsPowerShell\\v1.0\\powershell.exe';
+// Roteiro fixo: o texto do alerta só entra pelo ambiente (FSD_ALERT_TITLE/TEXT em WSLENV), nunca na linha de comando do PowerShell.
+const TOAST = `$ErrorActionPreference='Stop'
+[Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime] | Out-Null
+[Windows.Data.Xml.Dom.XmlDocument, Windows.Data.Xml.Dom.XmlDocument, ContentType = WindowsRuntime] | Out-Null
+$x = New-Object Windows.Data.Xml.Dom.XmlDocument
+$x.LoadXml('<toast><visual><binding template="ToastGeneric"><text/><text/></binding></visual></toast>')
+$t = $x.GetElementsByTagName('text'); $t.Item(0).InnerText = $env:FSD_ALERT_TITLE; $t.Item(1).InnerText = $env:FSD_ALERT_TEXT
+[Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier('${AUMID}').Show([Windows.UI.Notifications.ToastNotification]::new($x))`;
+
+const channels = {
+  desktop: [
+    { name: 'toast', send: (m) => {
+      if (DRY || !has('powershell.exe')) return false;
+      const wslenv = ['FSD_ALERT_TITLE/u', 'FSD_ALERT_TEXT/u', process.env.WSLENV].filter(Boolean).join(':');
+      const r = spawnSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', TOAST], { timeout: 5000, encoding: 'utf8',
+        env: { ...process.env, WSLENV: wslenv, FSD_ALERT_TITLE: `fsd: ${m.agent}`, FSD_ALERT_TEXT: `${m.state}: ${m.text}` } });
+      return r.status === 0; } },
+    { name: 'notify-send', send: (m) => !DRY && has('notify-send') && spawnSync('notify-send', ['-u', 'critical', `fsd: ${m.agent}`, `${m.state}: ${m.text}`], { timeout: 5000 }).status === 0 },
+  ],
+  file: (m) => { mkdirSync(STATE, { recursive: true }); const f = join(STATE, 'ALERT');
+    appendFileSync(f, `${new Date().toISOString()}\t${m.agent}\t${m.state}\t${m.text}\n`, { mode: 0o600 }); try { chmodSync(f, 0o600); } catch {} return true; },
+  github: (m) => {
+    let issue; try { issue = JSON.parse(readFileSync(join(BIN, '..', 'agents.json'), 'utf8')).alert?.issue; } catch {}
+    if (!issue) { console.error('sem issue fixo (alert.issue)'); return false; }
+    // Só o nome do agente, o estado e o texto já saneado (o horário do limite): nunca o texto do painel.
+    const body = `**fsd alert** ${m.agent}: ${m.state} — ${m.text}`;
+    if (DRY) { console.error(`[dry] gh issue comment ${issue} (como kevin): ${body}`); return true; }
+    const r = spawnSync(join(BIN, 'gh'), ['issue', 'comment', String(issue), '--body-file', '-'], { input: body, timeout: 10000, encoding: 'utf8', env: { ...process.env, FSD_AGENT: 'kevin' } });
+    if (r.status !== 0) console.error(`github: ${sanitize(r.error?.message || r.stderr || `exit ${r.status}`, 160)}`);
+    return r.status === 0; },
+};
+const done = deliver({ agent, state, text: sanitize(text, 200), channels, log: (m) => console.error(`fsd-alert: ${m}`) });
+console.log(done.length ? `fsd-alert: ${done.join(',')}` : 'fsd-alert: nenhum canal entregou');
+process.exit(0);

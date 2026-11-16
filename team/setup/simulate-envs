@@ -57,14 +57,15 @@ mkenv() { # nome repo home FSD_REPO(set|unset) links(container|host) node_module
   printf '{x' > "$st/agents.local.json"
   local tx="$st/agents/mel/claude/projects/sim"; mkdir -p "$tx"; echo '{}' > "$tx/s.jsonl"; touch -d '1 hour ago' "$tx/s.jsonl"
   local tsock="$BASE/tmux-sim"; mkdir -p "$tsock"; chmod 700 "$tsock"
-  TMUX_TMPDIR="$tsock" tmux -L fsd-sim new-session -d -s fsd-mel 'sleep 600'
-  # TMPDIR próprio: o hash da configuração da sessão mora em $TMPDIR/fsd-live-hash, o mesmo dos agentes reais desta
-  # máquina; sem isolar, o hash do Mel real faz o Mel simulado cair em "configuração antiga" antes de ler o contexto.
+  TMUX_TMPDIR="$tsock" tmux -L fsd-sim -f /dev/null new-session -d -s fsd-mel 'sleep 600'
+  # TMPDIR próprio: o hash da sessão (fsd-live-hash), as ferramentas em andamento (fsd-live) e o fsd-watch-state.json
+  # moram em $TMPDIR, os mesmos dos agentes reais desta máquina. Sem isolar, o Mel simulado cai em "configuração antiga"
+  # conforme o que o Mel real estiver fazendo, e o check grava no estado do vigia real.
   local ttmp; ttmp="$(mktemp -d "$BASE/tmp.XXXX")"
-  chk "fsd-watch: agents.local.json inválido → 'configuração inválida', vigia segue" run env TMPDIR="$ttmp" TMUX_TMPDIR="$tsock" FSD_TMUX_SOCKET=fsd-sim bash -c 'o=$("$0" 2>&1) && grep -q "configuração inválida" <<<"$o" && ! grep -q "at .*fsd-context" <<<"$o"' "$T/fsd-watch"
+  chk "fsd-watch: agents.local.json inválido → 'configuração inválida', vigia segue" run env TMPDIR="$ttmp" TMUX_TMPDIR="$tsock" FSD_TMUX_SOCKET=fsd-sim bash -c 'o=$("$0" 2>&1) && grep -q "Mel .*configuração inválida" <<<"$o" && ! grep -q "at .*fsd-context" <<<"$o" && grep -q "mel: configuração inválida (agents.local.json inválido" "$1/watch.log"' "$T/fsd-watch" "$st"
   TMUX_TMPDIR="$tsock" tmux -L fsd-sim kill-server 2>/dev/null; rm -rf "$tx" "$st/agents.local.json"
-  chk "fsd-redirects --check: tabela do team.md em dia" run node "$T/fsd-redirects.mjs" --check
-  chk "fsd-redirects --test: fixtures do hook" run node "$T/fsd-redirects.mjs" --test
+  chk "fsd-redirects --check: tabela do team.md em dia" run "$T/fsd-redirects" --check
+  chk "fsd-redirects --test: fixtures do hook" run "$T/fsd-redirects" --test
   chk "fsd-sync-pair: modelos achados pelo link" run bash -c 'H=$(dirname "$(readlink -f "$0")"); test -f "$(dirname "$H")/setup/syncthing/agent.stignore"' "$L/fsd-sync-pair"
   # 2. trabalho sem tarefa: fsd-dev start - (de verdade, só local) e fsd-pr open (dry)
   chk "fsd-dev start - sim-x cria worktree chore/sim-x" run env FSD_AGENT=stuart "$T/fsd-dev" start - sim-x --chore
