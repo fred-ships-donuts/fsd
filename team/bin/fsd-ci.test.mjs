@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { ciState, ready, REQUIRED_CI } from './fsd-lib.mjs';
+import { ciState, ready, reviewOutcome, REQUIRED_CI } from './fsd-lib.mjs';
 
 const check = (name, conclusion, status = 'COMPLETED') => ({ name, conclusion, status, workflowName: 'regression' });
 const all = (conclusion) => REQUIRED_CI.map((n) => check(n, conclusion));
@@ -32,4 +32,16 @@ test('ready: 2 approvals need green CI', () => {
   assert.equal(ready(pr(all('FAILURE'))), false);
   assert.equal(ready(pr([])), false);
   assert.equal(ready(pr(all('SUCCESS').slice(1))), false);
+});
+
+test('reviewOutcome: 2 approvals with CI not green hold the card; green promotes', () => {
+  assert.equal(reviewOutcome(pr(all('SUCCESS'))), 'promote');
+  assert.equal(reviewOutcome(pr(all('FAILURE'))), 'hold-ci');
+  assert.equal(reviewOutcome(pr([])), 'hold-ci');
+});
+
+test('reviewOutcome: changes requested win over CI, and fewer than 2 approvals just count', () => {
+  const changes = { state: 'CHANGES_REQUESTED', author: { login: 'fsd-bob[bot]' }, commit: { oid: 'abc' } };
+  assert.equal(reviewOutcome({ ...pr(all('SUCCESS')), reviews: [changes] }), 'changes');
+  assert.equal(reviewOutcome({ ...pr(all('SUCCESS')), reviews: [approved('fsd-mel[bot]')] }), 'count');
 });

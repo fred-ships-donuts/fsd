@@ -273,16 +273,23 @@ export function promoteGreen(prs) {
 }
 // Depois de uma revisão: mudança pedida → Changes Requested (Stuart) + avisa o autor (e, se ele está em outro card, manda terminar o commit,
 // devolver o card novo para Ready for Development e ir para a correção); 2 aprovações atuais → Ready to Merge (Kevin) + avisa o autor.
+// A decisão pura de afterReview (sem gh nem avisos): 'changes' | 'promote' | 'hold-ci' (2 aprovações, CI não verde) | 'count'.
+export function reviewOutcome(p) {
+  const s = reviewState(p);
+  if (s.changes.length) return 'changes';
+  if (s.approvers.length >= 2) return ciState(p) === 'green' ? 'promote' : 'hold-ci';
+  return 'count';
+}
 export function afterReview(n) {
   const p = pr(n); const s = reviewState(p); const cl = closes(p.body); const author = agentOf(p.author?.login);
-  if (s.changes.length) {
+  if (reviewOutcome(p) === 'changes') {
     const other = devCards().filter((c) => !cl.includes(c.n) && c.col === STAGE.dev);
     const rework = other.length ? ` Você está em ${other.map((c) => '#' + c.n).join(', ')} (${STAGE.dev}): termine o commit atual, devolva o card com fsd-board move "${STAGE.devReady}" ${other.map((c) => c.n).join(' ')} (mantenha o worktree) e vá para a correção.` : '';
     return [board(STAGE.changes, cl), noticeSummary(notify([author], `PR #${n}: mudanças pedidas por ${s.changes.join(',')}. Veja a revisão.${rework}`))].filter(Boolean).join(' | ');
   }
   if (s.approvers.length >= 2) {
     const ci = ciState(p);
-    if (ci !== 'green') return [`2 aprovações, CI ${ci}: o card fica onde está`, noticeSummary(notify([author], `PR #${n} tem 2 aprovações, mas o CI da regressão está ${ci}: o card só vai para ${STAGE.mergeReady} com o CI verde.`))].filter(Boolean).join(' | ');
+    if (reviewOutcome(p) === 'hold-ci') return [`2 aprovações, CI ${ci}: o card fica onde está`, noticeSummary(notify([author], `PR #${n} tem 2 aprovações, mas o CI da regressão está ${ci}: o card só vai para ${STAGE.mergeReady} com o CI verde.`))].filter(Boolean).join(' | ');
     return promote(p);
   }
   return `aprovações ${s.approvers.length}/2`;
