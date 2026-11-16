@@ -51,6 +51,13 @@ mkenv() { # nome repo home FSD_REPO(set|unset) links(container|host) node_module
   chk "worktree sem marca de tarefa" bash -c '! git -C "$0" config --get branch.chore/sim-x.fsd-issue' "$repo"
   git -C "$W" commit -q --allow-empty -m "chore: sim commit"
   chk "fsd-pr open sem tarefa: commitlint ok, faria o push" run bash -c 'FSD_DRY=1 FSD_AGENT=stuart FSD_STATE="$2" "$0" open "chore: sim" --docs -C "$1" 2>&1 | tee /dev/stderr | grep -q "\[dry\] git -C .* push"' "$T/fsd-pr" "$W" "$REAL_STATE"
+  # conflito com a develop (#154): origem local, o branch e a develop mudam a mesma linha; nada pode ir ao push
+  local CF="$BASE/cf-$n" gc="git -c user.email=sim@sim -c user.name=sim"; mkdir -p "$CF"
+  git init -q -b develop "$CF/seed" && echo base > "$CF/seed/f" && git -C "$CF/seed" add f && $gc -C "$CF/seed" commit -qm "chore: seed"
+  git clone -q --bare "$CF/seed" "$CF/origin.git" && git clone -q "$CF/origin.git" "$CF/w" && git clone -q "$CF/origin.git" "$CF/other"
+  git -C "$CF/w" checkout -qb chore/sim-conflict && echo mine > "$CF/w/f" && $gc -C "$CF/w" commit -qam "chore: sim mine"
+  echo theirs > "$CF/other/f" && $gc -C "$CF/other" commit -qam "chore: sim theirs" && git -C "$CF/other" push -q origin develop
+  chk "fsd-pr open com conflito: exit 1, lista o arquivo, dica do sync, nada no push" run bash -c 'o=$(FSD_DRY=1 FSD_AGENT=stuart FSD_STATE="$2" "$0" open "chore: sim" --docs -C "$1" 2>&1); rc=$?; [ "$rc" = 1 ] && grep -qx "  f" <<<"$o" && grep -q "fsd-dev sync -C" <<<"$o" && ! grep -q "\[dry\] git .* push" <<<"$o"' "$T/fsd-pr" "$CF/w" "$REAL_STATE"
   git -C "$W" commit -q --allow-empty -m "wip"
   chk "fsd-pr open recusa 'wip'" run bash -c 'FSD_DRY=1 FSD_AGENT=stuart "$0" open "chore: sim" --docs -C "$1" 2>&1 | grep -q "commit fora da regra"' "$T/fsd-pr" "$W"
   # 3. trabalho com tarefa (marca gravada como o fsd-dev start <n> faz)

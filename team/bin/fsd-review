@@ -6,12 +6,13 @@
 //                                    publica a revisão presa ao commit lido no start (recusa se o PR mudou), move o card e avisa
 import * as L from './fsd-lib.mjs';
 import { rmSync } from 'node:fs';
+import { refuseConflicting } from './fsd-conflict.mjs';
 const [cmd, n, ...rest] = process.argv.slice(2);
 const NOISE = /(^|\/)(package-lock\.json|pnpm-lock\.yaml|yarn\.lock)$|^dist\//;
 const SF = `/tmp/fsd-${L.ME || 'x'}/review-${n}.json`;
 if (!/^\d+$/.test(n || '')) L.die('uso: fsd-review start|diff|read|post <n> …', 2);
 if (cmd === 'start') {
-  const p = L.pr(n); const files = L.ghJson(['pr', 'view', n, '--json', 'files']).files;
+  const p = L.pr(n); const refuse = refuseConflicting(p, 'fsd-review'); if (refuse) L.die(refuse, 1); const files = L.ghJson(['pr', 'view', n, '--json', 'files']).files;
   L.saveState(SF, { sha: p.headRefOid });
   const b = L.board(L.STAGE.review, L.closes(p.body)); const shown = files.filter((f) => !NOISE.test(f.path));
   console.log(`#${n} ${p.title.slice(0, 60)} | head ${p.headRefOid.slice(0, 7)} | ${files.length} arquivos${files.length - shown.length ? ` (${files.length - shown.length} ocultos)` : ''}${b ? ' | ' + b : ''}`);
@@ -34,6 +35,7 @@ if (cmd === 'start') {
   const [kind, file] = rest; const ev = { approve: 'APPROVE', changes: 'REQUEST_CHANGES', comment: 'COMMENT' }[kind];
   if (!ev) L.die('uso: fsd-review post <n> approve|changes|comment <arquivo|->', 2);
   const body = L.readArgFile(file).trim(); if (!body) L.die('revisão vazia', 2);
+  const refuse = refuseConflicting(L.pr(n), 'fsd-review'); if (refuse) L.die(refuse, 1);
   if (L.ME === 'bob' && kind === 'approve' && L.closes(L.pr(n).body).length) L.die(`o Bob aprova PR que fecha issue só pelo fsd-qa, inclusive o de documentação: fsd-qa prep ${n}`, 1);
   const st = L.state(SF); if (!st) L.die(`rode fsd-review start ${n} antes de publicar`, 1);
   const cur = L.pr(n).headRefOid; if (st.sha !== cur) L.die(`#${n} tem commit novo (${cur.slice(0, 7)}): rode fsd-review start ${n} e revise de novo`, 1);
