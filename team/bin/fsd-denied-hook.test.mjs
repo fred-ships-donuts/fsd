@@ -26,3 +26,12 @@ test('falha comum (PostToolUseFailure) não grava e não entrega nada', withStat
   assert.equal(r.status, 0); assert.equal(r.stdout, '');
   assert.equal(next(d), '');
 }));
+test('git checkout negado na pasta principal casa com a tabela; num worktree não', withState((d) => {
+  const repo = join(d, 'main'); const wt = join(d, 'wt');
+  const g = (...a) => assert.equal(spawnSync('git', a, { encoding: 'utf8' }).status, 0);
+  g('init', '-q', repo); g('-C', repo, '-c', 'user.name=t', '-c', 'user.email=t@t', 'commit', '-q', '--allow-empty', '-m', 'i');
+  g('-C', repo, 'worktree', 'add', '-q', '-b', 'b', wt);
+  const deny = (cwd, id) => { run(d, { ...base, cwd, hook_event_name: 'PermissionDenied', tool_use_id: id, tool_input: { command: 'git checkout develop' } }); return next(d); };
+  assert.match(deny(repo, 'm1'), /fsd-dev start/);
+  assert.match(deny(wt, 'w1'), /fsd-notify kevin/);
+}));
