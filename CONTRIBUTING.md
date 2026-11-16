@@ -134,6 +134,7 @@ A verificação do PR é do QA (Bob):
 
 ## 6. Coordenação entre as sessões
 
+- Uma tarefa é referenciada pelo número do issue, nunca pelo número do PR. O PR vem depois, entre parênteses: `#142 (PR #140)`. Vale para o quadro, os comentários, as passagens e as mensagens entre as sessões.
 - Toda mensagem entre as sessões cita o commit ou o PR de onde ler.
 - Hashes são copiados do `git`, nunca escritos de memória.
 - Nenhum agente pergunta, avisa, menciona ou espera o autor, por nenhum meio. Dúvida técnica: o Mel decide. Produto, escopo e aceite: o Kevin decide e registra no issue.
