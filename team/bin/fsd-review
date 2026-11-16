@@ -14,7 +14,7 @@ if (!/^\d+$/.test(n || '')) L.die('uso: fsd-review start|diff|read|post <n> …'
 if (cmd === 'start') {
   const p = L.pr(n); const refuse = refuseConflicting(p, 'fsd-review'); if (refuse) L.die(refuse, 1); const files = L.ghJson(['pr', 'view', n, '--json', 'files']).files;
   L.saveState(SF, { sha: p.headRefOid });
-  const b = L.board(L.STAGE.review, L.closes(p.body)); const shown = files.filter((f) => !NOISE.test(f.path));
+  const b = L.boardPr(p); const shown = files.filter((f) => !NOISE.test(f.path));
   console.log(`#${n} ${p.title.slice(0, 60)} | head ${p.headRefOid.slice(0, 7)} | ${files.length} arquivos${files.length - shown.length ? ` (${files.length - shown.length} ocultos)` : ''}${b ? ' | ' + b : ''}`);
   for (const f of shown) console.log(`${f.path} +${f.additions} -${f.deletions}`);
 } else if (cmd === 'diff') {

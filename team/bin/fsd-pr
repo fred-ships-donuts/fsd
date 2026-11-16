@@ -103,7 +103,7 @@ else if (a[0] === 'open') {
     const url = L.ghw(['pr', 'create', '--base', 'develop', '--head', branch, '--title', title, '--body-file', '-'], { input: body });
     num = Number(url.split('/').pop()); out = `PR #${num} ${url}`;
   }
-  const b = L.board(L.STAGE.review, issue ? [issue] : []);
+  const b = num ? L.boardPr(L.pr(num)) : '';   // em FSD_DRY o PR novo não existe
   const n = L.noticeSummary(L.notify(L.REVIEWERS.includes(L.ME) ? [...L.REVIEWERS, 'kevin'] : L.REVIEWERS, `PR #${num}${issue ? ` (issue #${issue})` : ''} ${existing.length ? 'tem commit novo' : 'pronto para revisão'}: fsd-pr --todo.`));
   console.log([out, b, n].filter(Boolean).join(' | '));
 }

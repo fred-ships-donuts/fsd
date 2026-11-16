@@ -66,7 +66,7 @@ if (cmd === 'prep') {
   if (!b2.ok) L.die(`BUILD FALHOU no ${sha.slice(0, 7)}: ${b2.err.slice(0, 300)}\n→ fsd-qa finish`, 1);
   tmux('new-session', '-d', '-s', T, '-x', '80', '-y', '24', '-c', `${Q}/work`);
   tmux('send-keys', '-t', T, `export HOME=${Q}/home PS1='$ '; alias fsd='node ${Q}/pr-${n}/dist/cli/fsd.js'; clear`, 'Enter');
-  const bd = L.board(L.STAGE.review, [i]);
+  const bd = L.boardPr(p);
   console.log(`PR #${n} | issue #${i} | ${sha.slice(0, 7)} | build ok | ${ac.items.length} itens${bd ? ' | ' + bd : ''}`);
   console.log(ac.items.map((x, k) => `${k + 1}. ${x.slice(0, 200)}`).join('\n'));
 } else if (cmd === 'run') {

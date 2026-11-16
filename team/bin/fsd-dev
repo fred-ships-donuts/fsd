@@ -33,7 +33,9 @@ if (cmd === 'start') {
   // A tarefa fica gravada no branch: o fsd-pr open só a reconhece por aqui (o número no nome não conta).
   if (task) L.write('git', ['-C', L.REPO_DIR, 'config', `branch.${branch}.fsd-issue`, String(n)]);
   else L.write('git', ['-C', L.REPO_DIR, 'config', '--unset', `branch.${branch}.fsd-issue`], { allowFail: true });
-  const b = task ? L.board(L.STAGE.dev, [Number(n)]) : '';
+  // Card que já tem PR vai para a coluna calculada (pulled); sem PR é trabalho novo: Developing.
+  const open = task ? L.openPrs().find((x) => x.headRefName === branch) : null;
+  const b = !task ? '' : open ? L.boardPr(open, { pulled: true }) : L.board(L.STAGE.dev, [Number(n)]);
   console.log(`worktree ${dir} | branch ${branch}${b ? ' | ' + b : ''}`);
   if (task) console.log(L.run(L.BIN + '/fsd-issue', ['show', n]));
 } else if (cmd === 'sync') {

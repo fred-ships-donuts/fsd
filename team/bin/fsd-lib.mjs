@@ -20,7 +20,9 @@ export const REVIEWERS = CFG.reviewers || ['mel', 'bob'];
 // Etapas do quadro e donos de cada fila: só em fsd-stages.mjs.
 import { STAGE, OWNERS, WHO, stageName, ownersOf } from './fsd-stages.mjs';
 import { timing } from './fsd-timing.mjs';
+import { cardColumn, prFromGh } from './fsd-column.mjs';
 export { STAGE, OWNERS, WHO, stageName, ownersOf };
+export { cardColumn, prFromGraphQL, prFromGh, PR_GRAPHQL } from './fsd-column.mjs';
 const NAME = String(process.argv[1] || 'fsd').split('/').pop();
 process.on('uncaughtException', (e) => { console.log(`${NAME}: ${String(e.message || e).split('\n')[0].slice(0, 200)}`); process.exit(e.code === 'ENOENT' ? 2 : (Number.isInteger(e.code) ? e.code : 4)); });
 process.on('unhandledRejection', (e) => { console.log(`${NAME}: ${String(e?.message || e).split('\n')[0].slice(0, 200)}`); process.exit(4); });
@@ -58,7 +60,7 @@ export function closes(body) {
   return [...out];
 }
 
-const PR_FIELDS = 'number,title,url,state,isDraft,baseRefName,headRefName,headRefOid,author,reviews,mergeable,body,mergeCommit,statusCheckRollup';
+const PR_FIELDS = 'number,title,url,state,isDraft,baseRefName,headRefName,headRefOid,author,reviews,mergeable,body,mergeCommit,reviewRequests,statusCheckRollup';
 export function pr(n) {
   const r = run(join(BIN, 'gh'), ['pr', 'view', String(n), '--json', PR_FIELDS], { allowFail: true });
   if (!r.ok) die(/not found|Could not resolve/i.test(r.err) ? `PR #${n} não encontrado` : `gh falhou: ${r.err.slice(0, 200)}`, /not found|Could not resolve/i.test(r.err) ? 1 : 4);
@@ -250,6 +252,11 @@ export function columnCards(col) {
 export function devCards() {
   return [STAGE.changes, STAGE.dev].flatMap((col) => columnCards(col).map((n) => ({ n, col })));
 }
+// Move o card de um PR para a coluna que cardColumn calcula (#187); null (fechado, draft) deixa o card onde está. `p` é o JSON do gh (L.pr).
+export function boardPr(p, { pulled = false, state } = {}) {
+  const n = prFromGh(p); if (state) n.state = state;
+  const col = cardColumn(n, { pulled }); return col ? board(col, closes(p.body)) : '';
+}
 // CI obrigatório (#152): os jobs do workflow regression.yml. 'green' só com todos presentes e SUCCESS; 'red' se algum falhou;
 // 'pending' se falta job ou algum não terminou (inclui "ainda sem checks").
 export const REQUIRED_CI = ['build', 'test', 'paths', 'shellcheck'];
@@ -282,11 +289,11 @@ export function reviewOutcome(p) {
   return 'count';
 }
 export function afterReview(n) {
-  const p = pr(n); const s = reviewState(p); const cl = closes(p.body); const author = agentOf(p.author?.login);
+  const p = pr(n); const s = reviewState(p); const cl = closes(p.body); const author = agentOf(p.author?.login); const col = cardColumn(prFromGh(p));
   if (reviewOutcome(p) === 'changes') {
     const other = devCards().filter((c) => !cl.includes(c.n) && c.col === STAGE.dev);
     const rework = other.length ? ` Você está em ${other.map((c) => '#' + c.n).join(', ')} (${STAGE.dev}): termine o commit atual, devolva o card com fsd-board move "${STAGE.devReady}" ${other.map((c) => c.n).join(' ')} (mantenha o worktree) e vá para a correção.` : '';
-    return [board(STAGE.changes, cl), noticeSummary(notify([author], `PR #${n}: mudanças pedidas por ${s.changes.join(',')}. Veja a revisão.${rework}`))].filter(Boolean).join(' | ');
+    return [board(col, cl), noticeSummary(notify([author], `PR #${n}: mudanças pedidas por ${s.changes.join(',') || 'conflito'}. Veja a revisão.${rework}`))].filter(Boolean).join(' | ');
   }
   if (s.approvers.length >= 2) {
     const ci = ciState(p);
