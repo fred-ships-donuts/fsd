@@ -65,6 +65,13 @@ mkenv() { # nome repo home FSD_REPO(set|unset) links(container|host) node_module
   grep -q -- "--model $model " <<<"$o" && ok "fsd-agent: modelo $model (agents.json)" || bad "fsd-agent modelo (esperado $model): $(tail -1 <<<"$o")"
   grep -q "DISABLE_1M=<unset> | WINDOW=250000" <<<"$o" && ok "fsd-agent: 1M ligada, teto 250000" || bad "fsd-agent janela: $(grep -o 'DISABLE.*' <<<"$o")"
   [ "$(readlink "$st/agents/mel/claude/CLAUDE.md")" = "$repo/team/agents/mel/claude/CLAUDE.md" ] && ok "perfil mel (link de outra máquina) religado" || bad "perfil mel: $(readlink "$st/agents/mel/claude/CLAUDE.md")"
+  # O import do team.md em cada CLAUDE.md (@~/…) tem que cair no team/common/team.md deste repo, pelo link common/.
+  local a imp want miss=""; want="$(readlink -f "$repo/team/common/team.md")"
+  for a in kevin mel stuart bob; do
+    imp=$(grep -o '^@~/[^ ]*team\.md' "$repo/team/agents/$a/claude/CLAUDE.md"); imp="${imp#@\~/}"
+    [ -n "$imp" ] && [ "$(readlink -f "$home/$imp")" = "$want" ] || miss+=" $a"
+  done
+  [ -z "$miss" ] && ok "team.md: o import do CLAUDE.md cai em team/common/team.md (4 agentes)" || bad "team.md: import não resolve para:$miss ($(readlink "$st/common"))"
   run "$T/fsd-agent" kevin claude >/dev/null 2>&1
   [ "$(readlink "$st/agents/kevin/claude/CLAUDE.md")" = "$repo/team/agents/kevin/claude/CLAUDE.md" ] && [ -f "$st/agents/kevin/claude/CLAUDE.md.pre-team" ] && ok "perfil kevin: cópia → .pre-team, link novo" || bad "perfil kevin"
   # 5. CLI
