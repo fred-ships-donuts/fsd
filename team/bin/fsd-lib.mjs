@@ -193,12 +193,13 @@ export function findDeadlocks(waits, { now, activityOf: act, cycleMin, stallMin 
 }
 // Memória persistida ($FSD_STATE/<arquivo>.json = { chave: sig }): o fsd-wait sai a cada evento, então a memória não pode ficar no processo.
 // Devolve só o que é novo ou mudou; guarda o que está presente e esquece o que sumiu (o mesmo achado formado de novo vale de novo).
-// Só o Kevin grava: quem não é o Kevin lê sem consumir, para o aviso do Kevin não se perder.
-export function seenNew(name, findings, all = false) {
+// Só o Kevin grava (persist = ME === 'kevin'): quem não é o Kevin lê sem consumir, para o aviso do Kevin não se perder. O fsd-progress,
+// que roda pelo vigia, passa persist: true.
+export function seenNew(name, findings, all = false, persist = ME === 'kevin') {
   const file = join(stateDir(), name); let seen = {};
   try { seen = JSON.parse(readFileSync(file, 'utf8')) || {}; } catch {}
   const next = Object.fromEntries(findings.map((f) => [f.key, f.sig]));
-  if (ME === 'kevin' && JSON.stringify(next) !== JSON.stringify(seen)) {
+  if (persist && JSON.stringify(next) !== JSON.stringify(seen)) {
     try { mkdirSync(dirname(file), { recursive: true }); const tmp = `${file}.${process.pid}.tmp`; writeFileSync(tmp, JSON.stringify(next)); renameSync(tmp, file); } catch {}
   }
   return all ? findings : findings.filter((f) => seen[f.key] !== f.sig);

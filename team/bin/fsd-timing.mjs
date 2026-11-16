@@ -11,7 +11,8 @@ import { localConfig, merge } from './fsd-local.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const REQUIRED = ['wait.default', 'wait.retries', 'waits.expireMin', 'deadlock.cycleMin', 'deadlock.stallMin', 'judge.timeoutMin', 'readyGraceMin', 'watch.loopSeconds', 'watch.idleMin', 'watch.silentMin',
-  'watch.toolGraceMin', 'watch.toolDefaultMin', 'watch.cooldownMin', 'stop.pollSeconds', 'stop.waitSeconds', 'cleanup.loopSeconds', 'cleanup.mergedMin'];
+  'watch.toolGraceMin', 'watch.toolDefaultMin', 'watch.cooldownMin', 'stop.pollSeconds', 'stop.waitSeconds', 'cleanup.loopSeconds', 'cleanup.mergedMin',
+  'progress.everyMin', 'progress.stallMin', 'progress.pauseMin', 'progress.inboxMin'];
 // Atalhos antigos, para um teste ou uma sessão só: valem mais que o agents.json.
 const ENV = { 'wait.default': 'FSD_WAIT_SECONDS', readyGraceMin: 'FSD_READY_GRACE', 'stop.waitSeconds': 'FSD_STOP_WAIT' };
 // Casos do fsd-wait com intervalo próprio (sem valor, vale wait.default).
