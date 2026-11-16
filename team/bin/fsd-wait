@@ -28,6 +28,7 @@ for (let i = 0; i < raw.length; i++) {
   else args.push(a);
 }
 if (WF.ref && !WF.for) usage('--pr/--issue only with --waiting-for');
+if (WF.for && /^(author|autor)$/i.test(WF.for)) usage('do not wait for the author. Decide with Kevin (fsd-issue decide) or take the team command (team.md, "Ação negada → comando do time")');
 if (WF.for) { if (!L.AGENTS.includes(WF.for)) usage(`unknown agent: ${WF.for}`); if (WF.for === L.ME) usage('cannot wait for yourself'); }
 const { timing, waitSeconds } = await import('./fsd-timing.mjs');
 const [kind, x, y] = args; const RETRIES = Number(timing().wait.retries);

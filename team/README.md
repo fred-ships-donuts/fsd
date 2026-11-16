@@ -74,7 +74,7 @@ comando passam por cima do padrão.
 ├── agents.json             ⚙️     por agente: model, effort, disallowedTools, dados do GitHub App
 │                                  "claude_common": ferramentas cortadas para todos
 │                                  "timing": tempos do time (pings e prazos), ver "Tempos do time"
-├── claude-settings.json    ⚙️     comum: hooks (RTK, ai-memory, fsd-context-guard), deny comuns, permissões do ai-memory e do fsd-map
+├── claude-settings.json    ⚙️     comum: hooks (RTK, ai-memory, fsd-context-guard, fsd-stop-guard), deny comuns, permissões do ai-memory e do fsd-map
 ├── redirects.json          ⚙️     fonte única de "ação negada → comando do time" (hook, vigia e tabela do team.md)
 ├── mcp.json                ⚙️     o único MCP dos agentes: ai-memory
 ├── common/
@@ -169,6 +169,7 @@ no código. **Ping** é de quanto em quanto tempo algo confere; **prazo** é dep
 gastar token:
 - gravação no transcript da sessão ou de um subagente;
 - contador de tokens do rodapé do painel mudando entre duas rodadas (o modelo está gerando);
+- **Hook Stop `fsd-stop-guard`:** o agente que termina o turno pedindo algo ao autor (última linha com `?`, ou um padrão de `redirects.json` → `stopAsks`/`authorAsks` no fim da mensagem) é bloqueado uma vez com "não espere o autor"; o mesmo pedido de novo em 30 min passa e o Kevin recebe um `fsd-notify`. Log em `$FSD_STATE/stop-guard.log`; o Kevin fica de fora (`authorAsksSkip`). `fsd-wait --waiting-for author` é recusado (exit 2).
 - ferramenta em andamento: o hook `fsd-context-guard` grava um arquivo por ferramenta em `/tmp/fsd-live/<agente>/`
   no `PreToolUse` e apaga no `PostToolUse`. Um Bash em andamento vale até o timeout do próprio comando mais
   `toolGraceMin`, mesmo em silêncio (`npm ci`, testes).

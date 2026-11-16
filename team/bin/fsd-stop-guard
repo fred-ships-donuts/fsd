@@ -1,0 +1,43 @@
+#!/usr/bin/env node
+// fsd-stop-guard — hook Stop. O agente termina o turno pedindo algo ao autor → bloqueia uma vez ("não espere o autor"). O Stop seguinte ao
+// bloqueio (ou o mesmo pedido) dentro de 30 min passa, e o Kevin é avisado (fsd-notify). Fail open: qualquer erro sai 0 calado, nunca exit 2. Sem FSD_AGENT, ou
+// agente em redirects.json → authorAsksSkip (o Kevin decide pelo autor): nada. Regras: fsd-stop-rules.mjs; frases: redirects.json (stopAsks, authorAsks).
+// Registro próprio ($TMPDIR/fsd-stop-guard/<agente>.json): passa só com registro recente E (stop_hook_active ou mesmo sig). Sozinho,
+// stop_hook_active é true depois de QUALQUER bloqueio de Stop (o do fsd-context-guard também) e deixaria passar um primeiro pedido.
+import { readFileSync, writeFileSync, mkdirSync, rmSync, appendFileSync, renameSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { tmpdir } from 'node:os';
+import { join, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { spawnSync } from 'node:child_process';
+
+const REASON = 'Do not wait for the author. Decide with the team (Kevin: fsd-issue decide) or take the team command (team.md, "Ação negada → comando do time"), and continue.';
+const WINDOW = 30 * 60000;
+try {
+  const agent = process.env.FSD_AGENT || ''; if (!agent) process.exit(0);
+  const HERE = dirname(fileURLToPath(import.meta.url));
+  const { load } = await import('./fsd-redirects.mjs'); const rules = load();
+  if ((rules.authorAsksSkip || []).includes(agent)) process.exit(0);
+  const { lastMessageText, tailOf, asksAuthor } = await import('./fsd-stop-rules.mjs');
+  const input = JSON.parse(readFileSync(0, 'utf8') || '{}');
+  let text = lastMessageText(input);
+  if (!text) { spawnSync('sleep', ['0.15']); text = lastMessageText(input); }   // a mensagem final pode ainda não estar gravada no transcript
+  const tail = tailOf(text);
+  const dir = join(tmpdir(), 'fsd-stop-guard'), file = join(dir, `${agent}.json`);
+  const state = process.env.FSD_STATE || join(process.env.HOME || '', '.config', 'fsd-agents');
+  const log = (m) => { try { mkdirSync(state, { recursive: true }); appendFileSync(join(state, 'stop-guard.log'), `${new Date().toISOString()} ${agent}: ${m}\n`); } catch {} };
+  let rec = null; try { rec = JSON.parse(readFileSync(file, 'utf8')); } catch {}
+  if (!asksAuthor(tail, rules)) { try { rmSync(file, { force: true }); } catch {} process.exit(0); }
+  const sig = createHash('sha256').update(tail).digest('hex');
+  // Passa se há registro recente e este é o Stop logo após o nosso bloqueio (stop_hook_active, qualquer redação) ou o mesmo pedido (sig).
+  if (rec && Date.now() - rec.at < WINDOW && (input.stop_hook_active === true || rec.sig === sig)) {
+    try { rmSync(file, { force: true }); } catch {}
+    log('second ask, passed through');
+    spawnSync(join(HERE, 'fsd-notify'), ['kevin', `${agent} ended a turn asking the author: ${tail.slice(0, 120)}`], { env: process.env, timeout: 4000 });
+    process.exit(0);
+  }
+  mkdirSync(dir, { recursive: true }); const tmp = `${file}.${process.pid}`; writeFileSync(tmp, JSON.stringify({ at: Date.now(), sig })); renameSync(tmp, file);
+  log(`blocked ask: ${tail.slice(0, 120).replace(/\n/g, ' ')}`);
+  process.stdout.write(JSON.stringify({ decision: 'block', reason: REASON }) + '\n');
+} catch {}
+process.exit(0);
