@@ -6,7 +6,7 @@ set -uo pipefail
 [ $# -gt 0 ] || { echo "uso: fsd-trash <caminho…>" >&2; exit 2; }
 HERE="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"
 repo="${FSD_REPO:-$(dirname "$(dirname "$HERE")")}"
-dir="/tmp/fsd-trash/${FSD_AGENT:-autor}"; mkdir -p -m 700 "$dir"
+dir="/tmp/fsd-trash/${FSD_AGENT:-autor}"; mkdir -p "$dir" && chmod 700 "$dir"
 find "/tmp/fsd-trash" -mindepth 2 -maxdepth 2 -mtime +3 -exec rm -rf -- {} + 2>/dev/null
 ts=$(date +%Y%m%d-%H%M%S); rc=0
 for p in "$@"; do

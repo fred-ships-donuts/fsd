@@ -22,8 +22,8 @@ export PATH="$HERE:$PATH"
 export GH_CONFIG_DIR="$STATE/gh-config/$name"; mkdir -p "$GH_CONFIG_DIR"   # sem acesso ao seu login do gh
 unset GH_TOKEN GITHUB_TOKEN GH_ENTERPRISE_TOKEN SSH_AUTH_SOCK
 export GIT_SSH_COMMAND="false"                                       # sem as suas chaves SSH
-export GIT_AUTHOR_NAME="$slug[bot]"   GIT_COMMITTER_NAME="$slug[bot]"
-export GIT_AUTHOR_EMAIL="$botid+$slug[bot]@users.noreply.github.com"
+export GIT_AUTHOR_NAME="${slug}[bot]"   GIT_COMMITTER_NAME="${slug}[bot]"
+export GIT_AUTHOR_EMAIL="$botid+${slug}[bot]@users.noreply.github.com"
 export GIT_COMMITTER_EMAIL="$GIT_AUTHOR_EMAIL"
 export GIT_CONFIG_COUNT=4
 export GIT_CONFIG_KEY_0="credential.https://github.com.helper" GIT_CONFIG_VALUE_0=""
@@ -39,7 +39,7 @@ claude_wrap() {
   # Sessões em comum: o ListAgents/SendMessage só enxerga as sessões da pasta sessions/ do perfil.
   # Com a sessions/ de cada agente apontando para $STATE/sessions, os quatro se veem e trocam mensagem.
   local shared="$STATE/sessions" own="$CLAUDE_CONFIG_DIR/sessions"
-  mkdir -p -m 700 "$shared" "$CLAUDE_CONFIG_DIR"
+  mkdir -p "$shared" "$CLAUDE_CONFIG_DIR" && chmod 700 "$shared" "$CLAUDE_CONFIG_DIR"
   if [ ! -L "$own" ]; then
     if [ -d "$own" ]; then find "$own" -mindepth 1 -maxdepth 1 -exec mv -n -t "$shared" {} +; rmdir "$own"; fi
     ln -s "$shared" "$own"
@@ -58,7 +58,7 @@ claude_wrap() {
   if [ -e "$STATE/common" ] && [ ! -L "$STATE/common" ]; then mv -n "$STATE/common" "$STATE/common.pre-team"; fi
   ln -sfn "$ROOT/common" "$STATE/common"
   local tok="$STATE/claude-oauth-token"
-  if [ -s "$tok" ]; then export CLAUDE_CODE_OAUTH_TOKEN="$(cat "$tok")"
+  if [ -s "$tok" ]; then CLAUDE_CODE_OAUTH_TOKEN="$(cat "$tok")"; export CLAUDE_CODE_OAUTH_TOKEN
   else echo "[fsd-agent] sem $tok: rode 'claude setup-token' e salve o token nesse arquivo (chmod 600)" >&2; exit 2; fi
   # Economias de token (agents.json → "claude"): modelo e esforço por papel, ferramentas cortadas
   # por papel e nenhum conector MCP (nem os da conta do claude.ai). --model/--effort só entram
@@ -101,7 +101,7 @@ claude_wrap() {
   # ai-memory como o próprio agente (usuário <nome> no servidor): o MCP e os hooks usam esta
   # credencial, então os handoffs dele voltam só para ele. Sem ela, nada de ai-memory como root.
   local aim="$STATE/ai-memory-tokens/$name"
-  if [ -s "$aim" ]; then export AI_MEMORY_AUTH_TOKEN="$(cat "$aim")"
+  if [ -s "$aim" ]; then AI_MEMORY_AUTH_TOKEN="$(cat "$aim")"; export AI_MEMORY_AUTH_TOKEN
   else echo "[fsd-agent] sem $aim: o ai-memory recusa este agente" >&2; export AI_MEMORY_AUTH_TOKEN="missing"; fi
   # hash da configuração com que esta sessão sobe: o vigia reinicia a sessão que ficou com uma configuração velha (fsd-reload.mjs)
   hf="${TMPDIR:-/tmp}/fsd-live-hash/$name"; mkdir -p "$(dirname "$hf")" && node "$HERE/fsd-reload.mjs" hash "$ROOT" > "$hf" 2>/dev/null || rm -f "$hf"
@@ -111,7 +111,7 @@ claude_wrap() {
   exec claude --settings "$FSD_CLAUDE_SETTINGS" "${extra[@]}" "$@"
 }
 if [ $# -eq 0 ]; then
-  echo "[fsd-agent] shell como $slug[bot] — 'exit' para sair"; exec "${SHELL:-bash}" -i
+  echo "[fsd-agent] shell como ${slug}[bot] — 'exit' para sair"; exec "${SHELL:-bash}" -i
 elif [ "$1" = "claude" ]; then
   shift; claude_wrap "$@"
 else
