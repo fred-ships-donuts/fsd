@@ -47,6 +47,9 @@ claude_wrap() {
   # CLAUDE.md, settings.json e skills/ do perfil são versionados em team/agents/<nome>/claude: o perfil só
   # liga neles (o Syncthing não leva esses nomes, ver setup/syncthing/agent.stignore). O que já existir
   # como arquivo ou pasta de verdade vai para <nome>.pre-team, uma vez só.
+  # Primeira subida sem humano (#161): onboarding e confiança do repo e dos worktrees no .claude.json do perfil, idempotente.
+  node "$HERE/fsd-profile.mjs" "$CLAUDE_CONFIG_DIR/.claude.json" "${FSD_REPO:-$(dirname "$ROOT")}" >/dev/null 2>&1 \
+    || echo "[fsd-agent] perfil $CLAUDE_CONFIG_DIR/.claude.json sem onboarding/confiança (ilegível ou erro): a primeira subida pode parar num diálogo" >&2
   local f src
   for f in CLAUDE.md settings.json skills; do
     src="$ROOT/agents/$name/claude/$f"; [ -e "$src" ] || continue

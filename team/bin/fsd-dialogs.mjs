@@ -8,6 +8,10 @@
 export const DIALOGS = [
   { name: 'auto mode onboarding', key: '3',
     all: [/^Teach auto mode about your environment\?$/, /^[❯>]?\s*1\. Yes$/, /^[❯>]?\s*3\. Don't show again$/] },
+  // Confiança da pasta (#161): o perfil já sai confiável (fsd-profile.mjs); isto é só o último recurso, com o texto exato do 2.1.x.
+  // Qualquer outra variante (outro título, outras opções) não casa e cai no alerta de permissão do vigia, sem tecla.
+  { name: 'trust folder', key: '1',
+    all: [/^Quick safety check: Is this a project you created or one you trust\?/, /^[❯>]?\s*1\. Yes, I trust this folder$/, /^[❯>]?\s*2\. No, exit$/] },
 ];
 const TAIL = 14;   // as mesmas linhas que o classify() do vigia olha
 

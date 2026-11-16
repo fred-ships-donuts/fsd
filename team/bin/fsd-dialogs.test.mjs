@@ -27,3 +27,11 @@ test('o diálogo só conta no fim do painel', () => {
   assert.equal(uiDialog([...onboarding.split('\n'), ...old].join('\n')), null, 'já rolou para cima');
   assert.deepEqual(uiDialog([...old, ...onboarding.split('\n')].join('\n')), { name: 'auto mode onboarding', key: '3' });
 });
+
+const trust = ['Quick safety check: Is this a project you created or one you trust? (Like your own code, a well-known open source project, or work from your team).', '', '❯ 1. Yes, I trust this folder', '  2. No, exit'].join('\n');
+test('o diálogo de confiança da pasta é reconhecido; uma variante diferente não recebe tecla', () => {
+  assert.deepEqual(uiDialog(trust), { name: 'trust folder', key: '1' });
+  assert.equal(uiDialog(trust.replace('No, exit', 'Maybe later')), null, 'opções diferentes');
+  assert.equal(uiDialog(trust.replace('Quick safety check', 'Another check')), null, 'título diferente');
+  assert.equal(uiDialog(trust.split('\n').slice(2).join('\n')), null, 'opções sem o título');
+});
