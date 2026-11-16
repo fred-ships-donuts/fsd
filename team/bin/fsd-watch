@@ -22,6 +22,7 @@ import { fileURLToPath } from 'node:url';
 import { spawnSync, spawn } from 'node:child_process';
 import { context } from './fsd-context.mjs';
 import { timing, liveDir } from './fsd-timing.mjs';
+import { paneState } from './fsd-pane.mjs';
 import { load as loadRedirects } from './fsd-redirects.mjs';
 
 const BIN = dirname(fileURLToPath(import.meta.url)); const ROOT = dirname(BIN);
@@ -129,20 +130,18 @@ function kick(agent, why) {
 
 // Única porta de teclas no painel de um agente (nudge e redirect). Olha o painel antes de digitar: shell → reinicia (nunca digita no
 // shell); diálogo na tela → não digita; linha de entrada com texto → C-u antes; senão cola e dá Enter. `ok` é o que o ato devolve.
-const SHELLS = ['bash', 'zsh', 'sh'];
-const DIALOG = /❯ 1\.|Do you want|Press Enter to continue|\btrust\b/i;
-const INPUT_TEXT = /^[│|]?\s*[>❯]\s+[^\s│|]/;   // "> texto" ou "│ > texto │" (as opções de diálogo "❯ 1." já saíram antes)
 function safeSend(agent, msg, ok) {
   const s = `fsd-${agent}`;
   const cmd = (sh('tmux', ['display-message', '-p', '-t', s, '#{pane_current_command}']).stdout || '').trim();
-  if (SHELLS.includes(cmd)) {
+  const tail = (sh('tmux', ['capture-pane', '-p', '-t', s]).stdout || '').split('\n').filter((l) => l.trim()).slice(-14);
+  const state = paneState({ cmd, tail });
+  if (state === 'shell') {
+    try { rmSync(liveDir(agent), { recursive: true, force: true }); } catch {}   // registros da sessão morta, como em restart
     const c = sh('tmux', ['respawn-pane', '-k', '-t', s, '-c', REPO, LAUNCH, agent, 'claude', kick(agent, `painel caiu no shell (${cmd})`)]);
     return c.status === 0 ? 'painel no shell: reiniciou, sem digitar' : `falhou: ${c.stderr.trim()}`;
   }
-  const tail = (sh('tmux', ['capture-pane', '-p', '-t', s]).stdout || '').split('\n').filter((l) => l.trim()).slice(-14);
-  if (tail.some((l) => DIALOG.test(l))) { log(`${agent}: dialog on screen, not typing`); return 'dialog on screen, not typing'; }
-  const box = tail.slice(-4).find((l) => INPUT_TEXT.test(l.trim()));
-  if (box) { sh('tmux', ['send-keys', '-t', s, 'C-u']); log(`${agent}: input line not empty, cleared with C-u before typing`); }
+  if (state === 'dialog') { log(`${agent}: dialog on screen, not typing`); return 'dialog on screen, not typing'; }
+  if (state === 'input') { sh('tmux', ['send-keys', '-t', s, 'C-u']); log(`${agent}: input line not empty, cleared with C-u before typing`); }
   sh('tmux', ['load-buffer', '-b', `w-${agent}`, '-'], { input: msg }); sh('tmux', ['paste-buffer', '-p', '-d', '-b', `w-${agent}`, '-t', s]);
   sh('sleep', ['0.4']); sh('tmux', ['send-keys', '-t', s, 'Enter']); return ok;
 }

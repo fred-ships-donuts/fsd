@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "tsx src/cli/fsd.ts",
     "prepack": "npm run build",
-    "test": "node --import tsx --test \"src/**/*.test.ts\"",
+    "test": "node --import tsx --test \"src/**/*.test.ts\" \"team/bin/*.test.mjs\"",
     "build": "tsc",
     "check:paths": "node team/setup/check-paths",
     "start": "node dist/cli/fsd.js",
