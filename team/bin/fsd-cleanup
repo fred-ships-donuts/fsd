@@ -16,6 +16,7 @@ import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import { timing } from './fsd-timing.mjs';
 import { fingerprint, reexecIfChanged } from './fsd-reload.mjs';
+import { followDevelop, checkoutState } from './fsd-follow.mjs';
 
 const BIN = dirname(fileURLToPath(import.meta.url)); const ROOT = dirname(BIN);
 const REPO = resolve(process.env.FSD_REPO || dirname(ROOT));
@@ -55,6 +56,8 @@ function round() {
   said.delete('pause');
   if (!git(['fetch', '-q', 'origin', '--prune']).ok) { log('fetch falhou: rodada pulada', 'fetch'); return; }
   said.delete('fetch');
+  // O checkout principal acompanha a origin/develop (#173): o mesmo motivo vai ao log uma vez só; --dry só diz o que faria.
+  { const f = DRY ? checkoutState(REPO) : followDevelop(REPO); if (f.msg) log(DRY && f.state === 'behind' ? `faria: ${f.msg}` : f.msg, 'follow'); else said.delete('follow'); }
   const remote = new Set(list(['branch', '-r', '--merged', 'origin/develop'], true)); const local = new Set(list(['branch', '--merged', 'origin/develop']));
   const wts = worktrees(); const names = [...new Set([...remote, ...local])].filter((b) => !PROTECTED.has(b)).sort();
   let removed = 0;
@@ -113,7 +116,7 @@ else {
   // Código velho: o que este laço carregou na partida. Mudou e compila → o processo sai e um filho assume (o exit libera o cleanup.pid).
   // O agents.local.json entra só quando existe (ausente contaria como "não compila"): mudar o timing local reexecuta.
   const LOCAL = join(STATE, 'agents.local.json');
-  const SRC = () => ['fsd-watch', 'fsd-cleanup', 'fsd-lib.mjs', 'fsd-redirects.mjs', 'fsd-timing.mjs', 'fsd-context.mjs', 'fsd-local.mjs', 'fsd-reload.mjs', 'fsd-alert.mjs', 'fsd-alert'].map((f) => join(BIN, f)).concat(join(ROOT, 'agents.json'), join(ROOT, 'redirects.json'), existsSync(LOCAL) ? [LOCAL] : []);
+  const SRC = () => ['fsd-watch', 'fsd-cleanup', 'fsd-lib.mjs', 'fsd-redirects.mjs', 'fsd-timing.mjs', 'fsd-context.mjs', 'fsd-local.mjs', 'fsd-reload.mjs', 'fsd-follow.mjs', 'fsd-alert.mjs', 'fsd-alert'].map((f) => join(BIN, f)).concat(join(ROOT, 'agents.json'), join(ROOT, 'redirects.json'), existsSync(LOCAL) ? [LOCAL] : []);
   const startFp = fingerprint(SRC());
   for (;;) {
     try { round(); } catch (e) { log(`rodada falhou: ${String(e.message || e).split('\n')[0]}`); }
