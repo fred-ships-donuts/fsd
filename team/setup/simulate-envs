@@ -12,7 +12,8 @@ set -uo pipefail
 HERE="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"
 SRC="$(dirname "$(dirname "$HERE")")"; BR="$(git -C "$SRC" branch --show-current)"; KEEP=0; [ "${1:-}" = --keep ] && KEEP=1
 BASE="$(mktemp -d /tmp/fsd-sim.XXXX)"; REAL_STATE="${FSD_STATE:-$HOME/.config/fsd-agents}"; RES="$BASE/results"; : > "$RES"
-[ "$KEEP" = 1 ] || trap 'rm -rf "$BASE"' EXIT
+# Na saída, mesmo abortando no meio: derruba o servidor tmux da simulação (socket fsd-sim em $BASE) e apaga $BASE.
+trap 'TMUX_TMPDIR="$BASE/tmux-sim" tmux -L fsd-sim kill-server 2>/dev/null; [ "$KEEP" = 1 ] || rm -rf "$BASE"' EXIT
 ok()  { echo "  PASS $*"; echo P >> "$RES"; }
 bad() { echo "  FAIL $*"; echo F >> "$RES"; }
 chk() { local d="$1"; shift; local o; if o=$("$@" 2>&1); then ok "$d"; else bad "$d :: $(tail -3 <<<"$o" | tr '\n' ' ' | cut -c1-300)"; fi; }
@@ -42,6 +43,24 @@ mkenv() { # nome repo home FSD_REPO(set|unset) links(container|host) node_module
     o=$(run env FSD_DRY=1 "$s" "$repo" 2>&1); [ "$o" = "recusado: $repo" ] && ok "fsd-trash protege o repo (${s#$BASE/})" || bad "fsd-trash ${s#$BASE/}: $o"; done
   chk "fsd-lib REPO_DIR = repo" run bash -c '[ "$(node --input-type=module -e "import(process.argv[1]).then(m=>console.log(m.REPO_DIR))" "$0")" = "$1" ]' "$T/fsd-lib.mjs" "$repo"
   chk "fsd-context lê agents.json" run node "$T/fsd-context.mjs" mel limit restartAbove
+  printf '%s' '{"claude_common":{"context":{"restartAbove":100000}},"agents":{"bob":{"context":{"restartAbove":90000}}}}' > "$st/agents.local.json"
+  chk "fsd-context: agents.local.json por cima (comum e por agente)" run bash -c '[ "$(node "$0" mel restartAbove)" = 100000 ] && [ "$(node "$0" bob restartAbove)" = 90000 ]' "$T/fsd-context.mjs"
+  printf '%s' '{"claude_common":{"context":{"bands":{"normal":{"urgentAt":3}}}}}' > "$st/agents.local.json"
+  chk "fsd-context: objeto aninhado local muda só o campo dado" run bash -c '[ "$(node "$0" mel bands.normal.urgentAt bands.normal.mediumAt bands.heavy.urgentAt | tr "\n" " ")" = "3 4 3 " ]' "$T/fsd-context.mjs"
+  printf '%s' '{"timing":{"readyGraceMin":3,"watch":{"idleMin":42}}}' > "$st/agents.local.json"
+  chk "fsd-timing: agents.local.json por cima, campo a campo" run bash -c '[ "$(node "$0" readyGraceMin watch.idleMin | tr "\n" " ")" = "3 42 " ] && [ "$(node "$0" watch.loopSeconds)" = "$(FSD_STATE=/nonexistent node "$0" watch.loopSeconds)" ]' "$T/fsd-timing.mjs"
+  # agents.local.json quebrado não derruba o vigia: mel ocioso sem Monitor (sessão num tmux isolado, transcript de 1 h
+  # atrás) obriga o fsd-watch a ler o contexto; ele deve mostrar "configuração inválida" e sair 0.
+  printf '{x' > "$st/agents.local.json"
+  local tx="$st/agents/mel/claude/projects/sim"; mkdir -p "$tx"; echo '{}' > "$tx/s.jsonl"; touch -d '1 hour ago' "$tx/s.jsonl"
+  local tsock="$BASE/tmux-sim"; mkdir -p "$tsock"; chmod 700 "$tsock"
+  TMUX_TMPDIR="$tsock" tmux -L fsd-sim -f /dev/null new-session -d -s fsd-mel 'sleep 600'
+  # TMPDIR próprio: o hash da sessão (fsd-live-hash), as ferramentas em andamento (fsd-live) e o fsd-watch-state.json
+  # moram em $TMPDIR, os mesmos dos agentes reais desta máquina. Sem isolar, o Mel simulado cai em "configuração antiga"
+  # conforme o que o Mel real estiver fazendo, e o check grava no estado do vigia real.
+  local ttmp; ttmp="$(mktemp -d "$BASE/tmp.XXXX")"
+  chk "fsd-watch: agents.local.json inválido → 'configuração inválida', vigia segue" run env TMPDIR="$ttmp" TMUX_TMPDIR="$tsock" FSD_TMUX_SOCKET=fsd-sim bash -c 'o=$("$0" 2>&1) && grep -q "Mel .*configuração inválida" <<<"$o" && ! grep -q "at .*fsd-context" <<<"$o" && grep -q "mel: configuração inválida (agents.local.json inválido" "$1/watch.log"' "$T/fsd-watch" "$st"
+  TMUX_TMPDIR="$tsock" tmux -L fsd-sim kill-server 2>/dev/null; rm -rf "$tx" "$st/agents.local.json"
   chk "fsd-redirects --check: tabela do team.md em dia" run "$T/fsd-redirects" --check
   chk "fsd-redirects --test: fixtures do hook" run "$T/fsd-redirects" --test
   chk "fsd-sync-pair: modelos achados pelo link" run bash -c 'H=$(dirname "$(readlink -f "$0")"); test -f "$(dirname "$H")/setup/syncthing/agent.stignore"' "$L/fsd-sync-pair"

@@ -47,6 +47,23 @@ do `agents.json`, campo a campo. Vale na próxima vez que o agente abrir.
 
     { "agents": { "mel": { "claude": { "model": "claude-sonnet-5-5", "effort": "medium" } } } }
 
+O mesmo arquivo ajusta o contexto (`claude_common.context` do `agents.json`) só nesta instalação: `claude_common.context`
+vale para todos e `agents.<nome>.context` para um agente. Ordem: `agents.json` (comum, depois o agente) e, por cima de
+tudo, o arquivo local (comum, depois o agente); um valor local comum vence até o valor por agente do `agents.json`. O merge
+é campo a campo também dentro de objetos: `bands.normal.urgentAt` sozinho não apaga o resto de `bands`. Quem lê é o
+`bin/fsd-context.mjs` (guard, vigia, `fsd-restart`, `fsd-stats`), a cada chamada, sem reabrir o agente. Arquivo local
+inválido: o vigia mostra `configuração inválida` no agente, sem ação, e segue no ar (uma linha no `watch.log` por erro).
+Para mudar um agente só, sem passar por cima do valor de agente do `agents.json` de todos, use `agents.<nome>.context`.
+
+    { "claude_common": { "context": { "restartAbove": 100000 } } }
+
+Os tempos do time (`timing`, ver "Tempos do time") também: o `timing` do arquivo local passa por cima do `agents.json`,
+campo a campo, e as variáveis de ambiente (`FSD_READY_GRACE` etc.) por cima de tudo. Quem lê é o `bin/fsd-timing.mjs`;
+o vigia e o `fsd-cleanup` reexecutam quando o arquivo local muda. Local inválido no `timing` é ignorado com aviso (stderr,
+tabela e `watch.log` do vigia) e vale o `agents.json`: um erro de digitação não derruba vigia, limpeza nem Monitor.
+
+    { "timing": { "readyGraceMin": 3 } }
+
 Comuns a todos (`claude_common` no `agents.json`): NotebookEdit, Artifact*, DesignSync,
 RemoteTrigger, Cron*, ScheduleWakeup, PushNotification. `--model` e `--effort` passados no
 comando passam por cima do padrão.
@@ -131,7 +148,7 @@ AGENTS.md                   ⚙️     como achar código com o fsd-map (lido ta
 ```
 
 **Para mudar algo, o arquivo é:**
-- modelo, esforço ou ferramentas de um agente: `agents.json` (padrão do time) ou `~/.config/fsd-agents/agents.local.json` (só esta instalação, fora do git);
+- modelo, esforço, ferramentas ou contexto de um agente: `agents.json` (padrão do time) ou `~/.config/fsd-agents/agents.local.json` (só esta instalação, fora do git);
 - o que um agente pode escrever: `agents/<nome>/claude/settings.json`;
 - o que vale para todos: `claude-settings.json` e `common/team.md`;
 - um tempo de espera (ping ou prazo): `agents.json` → `timing`;
