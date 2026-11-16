@@ -83,15 +83,18 @@ function peel(toks) {
 
 // Opções globais antes do subcomando: git -C <dir> / -c k=v / --no-pager…, gh -R <repo>. Devolve { args, cwd }.
 function globals(program, args, cwd) {
-  const a = args.slice(); let at = cwd;
+  const a = args.slice(); let at = cwd, sock = false;
   for (;;) {
     const x = a[0];
     if (program === 'git' && x === '-C' && a.length > 1) { at = resolve(at, a[1]); a.splice(0, 2); continue; }
     if (program === 'git' && x === '-c' && a.length > 1) { a.splice(0, 2); continue; }
     if (program === 'git' && /^(--no-pager|--paginate|-P|--no-replace-objects|--literal-pathspecs)$/.test(x || '')) { a.shift(); continue; }
     if (program === 'git' && /^--(git-dir|work-tree|namespace)=/.test(x || '')) { a.shift(); continue; }
+    if (program === 'tmux' && /^-([2CDluvVN]+|CC)$/.test(x || '')) { a.shift(); continue; }   // flags sem valor (-u, -2, -CC…): não são subcomando
+    if (program === 'tmux' && /^-[fcT]$/.test(x || '') && a.length > 1) { a.splice(0, 2); continue; }   // -f/-c/-T <valor>: não é subcomando
+    if (program === 'tmux' && /^-[LS]$/.test(x || '') && a.length > 1) { a.splice(0, 2); sock = true; continue; }   // -L/-S <socket>: sai o valor; fica a marca '-L' no fim (skipIfAny)
     if (program === 'gh' && /^(-R|--repo)$/.test(x || '') && a.length > 1) { a.splice(0, 2); continue; }
-    return { args: a, cwd: at };
+    return { args: sock ? a.concat('-L') : a, cwd: at };
   }
 }
 

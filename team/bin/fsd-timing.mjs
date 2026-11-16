@@ -19,6 +19,8 @@ const set = (o, path, v) => { const ks = path.split('.'); const last = ks.pop();
 
 // Sinal de vida: o fsd-context-guard grava aqui um arquivo por ferramenta em andamento; o fsd-watch lê.
 export const liveDir = (agent) => join(tmpdir(), 'fsd-live', String(agent));
+// Hash de claude-settings.json + redirects.json com que a sessão subiu. FORA de liveDir: o fsd-watch lê tudo ali como registro de ferramenta.
+export const settingsHashFile = (agent) => join(tmpdir(), 'fsd-live-hash', String(agent));
 
 let cache;
 export function timing() {

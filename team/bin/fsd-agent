@@ -99,6 +99,8 @@ claude_wrap() {
   local aim="$STATE/ai-memory-tokens/$name"
   if [ -s "$aim" ]; then export AI_MEMORY_AUTH_TOKEN="$(cat "$aim")"
   else echo "[fsd-agent] sem $aim: o ai-memory recusa este agente" >&2; export AI_MEMORY_AUTH_TOKEN="missing"; fi
+  # hash da configuração com que esta sessão sobe: o vigia reinicia a sessão que ficou com uma configuração velha (fsd-reload.mjs)
+  hf="${TMPDIR:-/tmp}/fsd-live-hash/$name"; mkdir -p "$(dirname "$hf")" && node "$HERE/fsd-reload.mjs" hash "$ROOT" > "$hf" 2>/dev/null || rm -f "$hf"
   exec claude --settings "$FSD_CLAUDE_SETTINGS" "${extra[@]}" "$@"
 }
 if [ $# -eq 0 ]; then
