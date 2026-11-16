@@ -188,7 +188,7 @@
       "do": {
         "default": "fsd-qa clean"
       },
-      "why": "an fsd-* session on the default server is an agent session; the QA terminal lives on its own socket, closed by fsd-qa clean"
+      "why": "an fsd-* session on the default server is an agent session; the QA terminal lives on its own socket, closed by fsd-qa clean (kill-session -a and '$0'-style targets are left to the later -L fsd hardening)"
     },
     {
       "id": "message-author",

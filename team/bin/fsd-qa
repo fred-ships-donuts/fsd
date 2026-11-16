@@ -11,7 +11,7 @@
 //                                     comentário do autor no PR contendo FSD_QA_REDO (team.md, "Impasse total").
 // fsd-qa finish                       confere que todo item foi rodado, publica o relatório em inglês (approve/request-changes), card, avisos, limpeza
 // fsd-qa bug "<título>" "<esperado>" [k]   issue de bug com o item k (padrão: o último rodado) e avisa o kevin
-// fsd-qa clean                        fecha o tmux e remove o worktree
+// fsd-qa clean                        fecha o tmux (o terminal vive no socket -L fsd-qa-<agente>) e remove o worktree
 import * as L from './fsd-lib.mjs';
 import { rmSync, readdirSync } from 'node:fs';
 const Q = `/tmp/fsd-qa-${L.ME || 'x'}`, SF = `${Q}/state.json`, T = `fsd-qa-${L.ME || 'x'}`;

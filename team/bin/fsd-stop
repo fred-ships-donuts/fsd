@@ -5,7 +5,7 @@
 #   (FSD_STOP_WAIT passa por cima; confere a cada timing.stop.pollSeconds),
 #   a sessão FICA aberta e o comando avisa (para fechar mesmo assim: --force).
 #   --sem-handoff  fecha na hora, sem handoff. Só quando o autor pedir expressamente "sem handoff".
-# Fecha também o terminal de teste do agente (fsd-qa-<agente>). O fsd-restart não reabre: a sessão inteira sai do tmux.
+# Fecha também o terminal de teste do agente (socket -L fsd-qa-<agente>, kill-server). O fsd-restart não reabre: a sessão inteira sai do tmux.
 set -uo pipefail
 HERE="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"
 ROOT="$(dirname "$HERE")"
