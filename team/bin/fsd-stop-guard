@@ -1,9 +1,9 @@
 #!/usr/bin/env node
-// fsd-stop-guard — hook Stop. O agente termina o turno pedindo algo ao autor → bloqueia uma vez ("não espere o autor"). O mesmo pedido de
-// novo dentro de 30 min passa, e o Kevin é avisado (fsd-notify). Fail open: qualquer erro sai 0 calado, nunca exit 2. Sem FSD_AGENT, ou
+// fsd-stop-guard — hook Stop. O agente termina o turno pedindo algo ao autor → bloqueia uma vez ("não espere o autor"). O Stop seguinte ao
+// bloqueio (ou o mesmo pedido) dentro de 30 min passa, e o Kevin é avisado (fsd-notify). Fail open: qualquer erro sai 0 calado, nunca exit 2. Sem FSD_AGENT, ou
 // agente em redirects.json → authorAsksSkip (o Kevin decide pelo autor): nada. Regras: fsd-stop-rules.mjs; frases: redirects.json (stopAsks, authorAsks).
-// Registro próprio ($TMPDIR/fsd-stop-guard/<agente>.json), não stop_hook_active: este é true depois de QUALQUER bloqueio de Stop (o do
-// fsd-context-guard também) e deixaria passar um primeiro pedido de verdade.
+// Registro próprio ($TMPDIR/fsd-stop-guard/<agente>.json): passa só com registro recente E (stop_hook_active ou mesmo sig). Sozinho,
+// stop_hook_active é true depois de QUALQUER bloqueio de Stop (o do fsd-context-guard também) e deixaria passar um primeiro pedido.
 import { readFileSync, writeFileSync, mkdirSync, rmSync, appendFileSync, renameSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { tmpdir } from 'node:os';
@@ -29,7 +29,8 @@ try {
   let rec = null; try { rec = JSON.parse(readFileSync(file, 'utf8')); } catch {}
   if (!asksAuthor(tail, rules)) { try { rmSync(file, { force: true }); } catch {} process.exit(0); }
   const sig = createHash('sha256').update(tail).digest('hex');
-  if (rec && rec.sig === sig && Date.now() - rec.at < WINDOW) {
+  // Passa se há registro recente e este é o Stop logo após o nosso bloqueio (stop_hook_active, qualquer redação) ou o mesmo pedido (sig).
+  if (rec && Date.now() - rec.at < WINDOW && (input.stop_hook_active === true || rec.sig === sig)) {
     try { rmSync(file, { force: true }); } catch {}
     log('second ask, passed through');
     spawnSync(join(HERE, 'fsd-notify'), ['kevin', `${agent} ended a turn asking the author: ${tail.slice(0, 120)}`], { env: process.env, timeout: 4000 });
