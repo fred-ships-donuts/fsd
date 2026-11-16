@@ -1,0 +1,28 @@
+#!/usr/bin/env node
+// fsd-denied-hook — PermissionDenied (grava, só ele) e PreToolUse / PostToolUse (entrega o comando do time).
+// Falha comum de comando (rede, exit 1) não é negação: PostToolUseFailure não grava. Negação sem linha na tabela grava o id genérico.
+// Nunca bloqueia nem pergunta: qualquer erro sai 0 calado. O texto vem do redirects.json, não do comando negado.
+import { readFileSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
+const git = (cwd, ...a) => { const r = spawnSync('git', ['-C', cwd, ...a], { encoding: 'utf8', timeout: 2000 }); return r.status === 0 ? r.stdout.trim() : ''; };
+// Pasta principal = git-dir igual ao git-common-dir (mesma regra do fsd-redirect-hook); sem isso 'git checkout' na principal nunca casa.
+const isMain = (cwd) => { const d = git(cwd, 'rev-parse', '--path-format=absolute', '--git-dir'); return !!d && d === git(cwd, 'rev-parse', '--path-format=absolute', '--git-common-dir'); };
+try {
+  const i = JSON.parse(readFileSync(0, 'utf8') || '{}');
+  const ev = i.hook_event_name; const { record, consume, UNMATCHED } = await import('./fsd-denied.mjs');
+  if (ev === 'PermissionDenied') {
+    if (i.tool_name === 'Bash' && typeof i.tool_input?.command === 'string') {
+      const { redirect } = await import('./fsd-redirects.mjs');
+      const r = redirect(i.tool_input.command, { agent: process.env.FSD_AGENT || '', cwd: i.cwd, isMain });
+      record({ session: i.session_id, toolUseId: i.tool_use_id, id: r ? r.id : UNMATCHED });
+    }
+  } else if (ev === 'PreToolUse' || ev === 'PostToolUse') {
+    const id = consume({ session: i.session_id });
+    if (id) {
+      const { reasonOf } = await import('./fsd-redirects.mjs');
+      const text = reasonOf(id, process.env.FSD_AGENT || '');
+      if (text) process.stdout.write(JSON.stringify({ hookSpecificOutput: { hookEventName: ev, additionalContext: text } }) + '\n');
+    }
+  }
+} catch {}
+process.exit(0);

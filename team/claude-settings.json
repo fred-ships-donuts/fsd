@@ -151,6 +151,7 @@
   },
   "hooks": {
     "PreToolUse": [
+      { "hooks": [{ "type": "command", "command": "$FSD_TEAM/bin/fsd-denied-hook", "timeout": 5 }] },
       {
         "matcher": "Bash",
         "hooks": [
@@ -184,6 +185,7 @@
       }
     ],
     "PostToolUse": [
+      { "hooks": [{ "type": "command", "command": "$FSD_TEAM/bin/fsd-denied-hook", "timeout": 5 }] },
       {
         "hooks": [
           {
@@ -220,6 +222,9 @@
           }
         ]
       }
+    ],
+    "PermissionDenied": [
+      { "hooks": [{ "type": "command", "command": "$FSD_TEAM/bin/fsd-denied-hook", "timeout": 5 }] }
     ],
     "PostToolUseFailure": [
       {

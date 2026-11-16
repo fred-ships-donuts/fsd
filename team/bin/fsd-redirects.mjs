@@ -140,6 +140,16 @@ export function redirect(command, ctx = {}, config = load()) {
   return null;
 }
 
+// Texto de uma entrada pelo id, só da tabela (sem o comando negado): <n>/<worktree> ficam literais. null se o id não existe.
+export function reasonOf(id, agent = '', config = load()) {
+  if (id === '_unmatched') return 'Blocked: this action is denied for agents. Do not ask the author: tell Kevin with `fsd-notify kevin "<what you need>"`.';
+  const e = config.redirects.find((x) => x.id === id); if (!e) return null;
+  const d = e.do?.[agent] !== undefined ? e.do[agent] : e.do?.default;
+  const why = e.why || 'this action is blocked for agents';
+  const cmd = typeof d === 'string' ? d : null; const say = d && typeof d === 'object' ? d.say : null;
+  return cmd ? `Blocked: ${why}. Use: ${cmd}. Do not ask the author.` : `Blocked: ${why}. ${say ? say + ' ' : ''}Do not ask the author.`;
+}
+
 // ── Tabela (bloco gerado em common/team.md) ──────────────────────────────────
 const cell = (d) => {
   const one = (v) => (typeof v === 'string' ? `\`${v.replace(/\|/g, '\\|')}\`` : v?.say ? v.say.replace(/\|/g, '\\|') : '—');
