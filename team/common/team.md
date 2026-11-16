@@ -43,6 +43,8 @@ Ação negada não é motivo para pedir ao autor: use o comando da linha (o hook
 | `git checkout <ref>` na pasta principal | `fsd-dev start <n>` | the main folder never changes branch; each piece of work lives in its own worktree |
 | `git switch <ref>` | `fsd-dev start <n>` | agents never switch branch in place (git switch is denied everywhere); each piece of work lives in its own worktree |
 | `gh issue create` | `fsd-issue new` | issues are created through fsd-issue, which sets the labels, the type and the board |
+| `tmux kill-server` sem `-L`/`-S` | `fsd-qa clean` | a bare kill-server ends the team's own tmux server and every agent session in it; the QA terminal lives on its own socket, closed by fsd-qa clean |
+| `tmux kill-session -t fsd-*` sem `-L`/`-S` | `fsd-qa clean` | an fsd-* session on the default server is an agent session; the QA terminal lives on its own socket, closed by fsd-qa clean (kill-session -a and '$0'-style targets are left to the later -L fsd hardening) |
 | pedir uma ação ao autor | `fsd-notify kevin "<what you need>" (Kevin: fsd-issue decide)` | agents never ask the author for an action; the watcher forwards such a request to Kevin |
 <!-- redirects:end -->
 

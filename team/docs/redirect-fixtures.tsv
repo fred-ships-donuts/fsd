@@ -41,3 +41,13 @@ mel	worktree	gh issue view 3	pass
 mel	worktree	gh pr list	pass
 stuart	worktree	fsd-pr open "x" -C /work/wt	pass
 bob	worktree	fsd-notify kevin "ok"	pass
+bob	worktree	tmux kill-server	fsd-qa clean
+bob	worktree	tmux kill-session -t fsd-bob	fsd-qa clean
+bob	worktree	tmux -f x kill-server	fsd-qa clean
+bob	worktree	tmux -u kill-server	fsd-qa clean
+bob	worktree	tmux -2 -u kill-server	fsd-qa clean
+bob	worktree	tmux -L fsd-qa-bob kill-server	pass
+bob	worktree	tmux -S /tmp/s kill-server	pass
+bob	worktree	tmux -L qa kill-session -t fsd-bob	pass
+bob	worktree	tmux kill-session -t other	pass
+bob	worktree	tmux ls	pass

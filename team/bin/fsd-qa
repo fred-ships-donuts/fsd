@@ -11,12 +11,13 @@
 //                                     comentário do autor no PR contendo FSD_QA_REDO (team.md, "Impasse total").
 // fsd-qa finish                       confere que todo item foi rodado, publica o relatório em inglês (approve/request-changes), card, avisos, limpeza
 // fsd-qa bug "<título>" "<esperado>" [k]   issue de bug com o item k (padrão: o último rodado) e avisa o kevin
-// fsd-qa clean                        fecha o tmux e remove o worktree
+// fsd-qa clean                        fecha o tmux (o terminal vive no socket -L fsd-qa-<agente>) e remove o worktree
 import * as L from './fsd-lib.mjs';
 import { rmSync, readdirSync } from 'node:fs';
 const Q = `/tmp/fsd-qa-${L.ME || 'x'}`, SF = `${Q}/state.json`, T = `fsd-qa-${L.ME || 'x'}`;
 const [cmd, ...a] = process.argv.slice(2);
-const tmux = (...x) => L.run('tmux', x, { allowFail: true });
+// Terminal de teste no socket próprio (-L fsd-qa-<agente>): um kill-server lá dentro não derruba o tmux do time.
+const tmux = (...x) => L.run('tmux', ['-L', T, ...x], { allowFail: true });
 const sleep = (ms) => L.run('sleep', [String(ms / 1000)]);
 const tidy = (txt) => txt.split('\n').map((l) => l.replace(/\s+$/, '')).filter((l) => !/__EXIT=|^__BEGIN$|^\$ ?$/.test(l) && !l.includes('echo __EXIT') && !l.includes('echo __BEGIN')).join('\n').replace(/\n{3,}/g, '\n\n').trim();
 const after = (raw) => { const i = raw.lastIndexOf('\n__BEGIN\n'); return i >= 0 ? raw.slice(i + 9) : raw.startsWith('__BEGIN\n') ? raw.slice(8) : raw; };
@@ -27,7 +28,7 @@ function need() {
   return s;
 }
 function clean(s) {
-  tmux('kill-session', '-t', T);
+  tmux('kill-server');
   let ds = []; try { ds = readdirSync(Q).filter((x) => /^pr-\d+$/.test(x)); } catch {}
   for (const d of ds) L.run('git', ['-C', L.REPO_DIR, 'worktree', 'remove', '--force', `${Q}/${d}`], { allowFail: true });
   L.run('git', ['-C', L.REPO_DIR, 'worktree', 'prune'], { allowFail: true });

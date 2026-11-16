@@ -156,6 +156,41 @@
       "why": "issues are created through fsd-issue, which sets the labels, the type and the board"
     },
     {
+      "id": "tmux-kill-server",
+      "label": "`tmux kill-server` sem `-L`/`-S`",
+      "match": {
+        "program": "tmux",
+        "words": [
+          "kill-server"
+        ],
+        "skipIfAny": [
+          "^-[LS]"
+        ]
+      },
+      "do": {
+        "default": "fsd-qa clean"
+      },
+      "why": "a bare kill-server ends the team's own tmux server and every agent session in it; the QA terminal lives on its own socket, closed by fsd-qa clean"
+    },
+    {
+      "id": "tmux-kill-session-fsd",
+      "label": "`tmux kill-session -t fsd-*` sem `-L`/`-S`",
+      "match": {
+        "program": "tmux",
+        "words": [
+          "kill-session"
+        ],
+        "argRegex": "-t\\s*=?fsd-",
+        "skipIfAny": [
+          "^-[LS]"
+        ]
+      },
+      "do": {
+        "default": "fsd-qa clean"
+      },
+      "why": "an fsd-* session on the default server is an agent session; the QA terminal lives on its own socket, closed by fsd-qa clean (kill-session -a and '$0'-style targets are left to the later -L fsd hardening)"
+    },
+    {
       "id": "message-author",
       "label": "pedir uma ação ao autor",
       "do": {
