@@ -12,7 +12,8 @@ set -uo pipefail
 HERE="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"
 SRC="$(dirname "$(dirname "$HERE")")"; BR="$(git -C "$SRC" branch --show-current)"; KEEP=0; [ "${1:-}" = --keep ] && KEEP=1
 BASE="$(mktemp -d /tmp/fsd-sim.XXXX)"; REAL_STATE="${FSD_STATE:-$HOME/.config/fsd-agents}"; RES="$BASE/results"; : > "$RES"
-[ "$KEEP" = 1 ] || trap 'rm -rf "$BASE"' EXIT
+# Na saída, mesmo abortando no meio: derruba o servidor tmux da simulação (socket fsd-sim em $BASE) e apaga $BASE.
+trap 'TMUX_TMPDIR="$BASE/tmux-sim" tmux -L fsd-sim kill-server 2>/dev/null; [ "$KEEP" = 1 ] || rm -rf "$BASE"' EXIT
 ok()  { echo "  PASS $*"; echo P >> "$RES"; }
 bad() { echo "  FAIL $*"; echo F >> "$RES"; }
 chk() { local d="$1"; shift; local o; if o=$("$@" 2>&1); then ok "$d"; else bad "$d :: $(tail -3 <<<"$o" | tr '\n' ' ' | cut -c1-300)"; fi; }
@@ -42,8 +43,26 @@ mkenv() { # nome repo home FSD_REPO(set|unset) links(container|host) node_module
     o=$(run env FSD_DRY=1 "$s" "$repo" 2>&1); [ "$o" = "recusado: $repo" ] && ok "fsd-trash protege o repo (${s#$BASE/})" || bad "fsd-trash ${s#$BASE/}: $o"; done
   chk "fsd-lib REPO_DIR = repo" run bash -c '[ "$(node --input-type=module -e "import(process.argv[1]).then(m=>console.log(m.REPO_DIR))" "$0")" = "$1" ]' "$T/fsd-lib.mjs" "$repo"
   chk "fsd-context lê agents.json" run node "$T/fsd-context.mjs" mel limit restartAbove
-  chk "fsd-redirects --check: tabela do team.md em dia" run node "$T/fsd-redirects.mjs" --check
-  chk "fsd-redirects --test: fixtures do hook" run node "$T/fsd-redirects.mjs" --test
+  printf '%s' '{"claude_common":{"context":{"restartAbove":100000}},"agents":{"bob":{"context":{"restartAbove":90000}}}}' > "$st/agents.local.json"
+  chk "fsd-context: agents.local.json por cima (comum e por agente)" run bash -c '[ "$(node "$0" mel restartAbove)" = 100000 ] && [ "$(node "$0" bob restartAbove)" = 90000 ]' "$T/fsd-context.mjs"
+  printf '%s' '{"claude_common":{"context":{"bands":{"normal":{"urgentAt":3}}}}}' > "$st/agents.local.json"
+  chk "fsd-context: objeto aninhado local muda só o campo dado" run bash -c '[ "$(node "$0" mel bands.normal.urgentAt bands.normal.mediumAt bands.heavy.urgentAt | tr "\n" " ")" = "3 4 3 " ]' "$T/fsd-context.mjs"
+  printf '%s' '{"timing":{"readyGraceMin":3,"watch":{"idleMin":42}}}' > "$st/agents.local.json"
+  chk "fsd-timing: agents.local.json por cima, campo a campo" run bash -c '[ "$(node "$0" readyGraceMin watch.idleMin | tr "\n" " ")" = "3 42 " ] && [ "$(node "$0" watch.loopSeconds)" = "$(FSD_STATE=/nonexistent node "$0" watch.loopSeconds)" ]' "$T/fsd-timing.mjs"
+  # agents.local.json quebrado não derruba o vigia: mel ocioso sem Monitor (sessão num tmux isolado, transcript de 1 h
+  # atrás) obriga o fsd-watch a ler o contexto; ele deve mostrar "configuração inválida" e sair 0.
+  printf '{x' > "$st/agents.local.json"
+  local tx="$st/agents/mel/claude/projects/sim"; mkdir -p "$tx"; echo '{}' > "$tx/s.jsonl"; touch -d '1 hour ago' "$tx/s.jsonl"
+  local tsock="$BASE/tmux-sim"; mkdir -p "$tsock"; chmod 700 "$tsock"
+  TMUX_TMPDIR="$tsock" tmux -L fsd-sim -f /dev/null new-session -d -s fsd-mel 'sleep 600'
+  # TMPDIR próprio: o hash da sessão (fsd-live-hash), as ferramentas em andamento (fsd-live) e o fsd-watch-state.json
+  # moram em $TMPDIR, os mesmos dos agentes reais desta máquina. Sem isolar, o Mel simulado cai em "configuração antiga"
+  # conforme o que o Mel real estiver fazendo, e o check grava no estado do vigia real.
+  local ttmp; ttmp="$(mktemp -d "$BASE/tmp.XXXX")"
+  chk "fsd-watch: agents.local.json inválido → 'configuração inválida', vigia segue" run env TMPDIR="$ttmp" TMUX_TMPDIR="$tsock" FSD_TMUX_SOCKET=fsd-sim bash -c 'o=$("$0" 2>&1) && grep -q "Mel .*configuração inválida" <<<"$o" && ! grep -q "at .*fsd-context" <<<"$o" && grep -q "mel: configuração inválida (agents.local.json inválido" "$1/watch.log"' "$T/fsd-watch" "$st"
+  TMUX_TMPDIR="$tsock" tmux -L fsd-sim kill-server 2>/dev/null; rm -rf "$tx" "$st/agents.local.json"
+  chk "fsd-redirects --check: tabela do team.md em dia" run "$T/fsd-redirects" --check
+  chk "fsd-redirects --test: fixtures do hook" run "$T/fsd-redirects" --test
   chk "fsd-sync-pair: modelos achados pelo link" run bash -c 'H=$(dirname "$(readlink -f "$0")"); test -f "$(dirname "$H")/setup/syncthing/agent.stignore"' "$L/fsd-sync-pair"
   # 2. trabalho sem tarefa: fsd-dev start - (de verdade, só local) e fsd-pr open (dry)
   chk "fsd-dev start - sim-x cria worktree chore/sim-x" run env FSD_AGENT=stuart "$T/fsd-dev" start - sim-x --chore
@@ -51,6 +70,13 @@ mkenv() { # nome repo home FSD_REPO(set|unset) links(container|host) node_module
   chk "worktree sem marca de tarefa" bash -c '! git -C "$0" config --get branch.chore/sim-x.fsd-issue' "$repo"
   git -C "$W" commit -q --allow-empty -m "chore: sim commit"
   chk "fsd-pr open sem tarefa: commitlint ok, faria o push" run bash -c 'FSD_DRY=1 FSD_AGENT=stuart FSD_STATE="$2" "$0" open "chore: sim" --docs -C "$1" 2>&1 | tee /dev/stderr | grep -q "\[dry\] git -C .* push"' "$T/fsd-pr" "$W" "$REAL_STATE"
+  # conflito com a develop (#154): origem local, o branch e a develop mudam a mesma linha; nada pode ir ao push
+  local CF="$BASE/cf-$n" gc="git -c user.email=sim@sim -c user.name=sim"; mkdir -p "$CF"
+  git init -q -b develop "$CF/seed" && echo base > "$CF/seed/f" && git -C "$CF/seed" add f && $gc -C "$CF/seed" commit -qm "chore: seed"
+  git clone -q --bare "$CF/seed" "$CF/origin.git" && git clone -q "$CF/origin.git" "$CF/w" && git clone -q "$CF/origin.git" "$CF/other"
+  git -C "$CF/w" checkout -qb chore/sim-conflict && echo mine > "$CF/w/f" && $gc -C "$CF/w" commit -qam "chore: sim mine"
+  echo theirs > "$CF/other/f" && $gc -C "$CF/other" commit -qam "chore: sim theirs" && git -C "$CF/other" push -q origin develop
+  chk "fsd-pr open com conflito: exit 1, lista o arquivo, dica do sync, nada no push" run bash -c 'o=$(FSD_DRY=1 FSD_AGENT=stuart FSD_STATE="$2" "$0" open "chore: sim" --docs -C "$1" 2>&1); rc=$?; [ "$rc" = 1 ] && grep -qx "  f" <<<"$o" && grep -q "fsd-dev sync -C" <<<"$o" && ! grep -q "\[dry\] git .* push" <<<"$o"' "$T/fsd-pr" "$CF/w" "$REAL_STATE"
   git -C "$W" commit -q --allow-empty -m "wip"
   chk "fsd-pr open recusa 'wip'" run bash -c 'FSD_DRY=1 FSD_AGENT=stuart "$0" open "chore: sim" --docs -C "$1" 2>&1 | grep -q "commit fora da regra"' "$T/fsd-pr" "$W"
   # 3. trabalho com tarefa (marca gravada como o fsd-dev start <n> faz)
@@ -65,6 +91,13 @@ mkenv() { # nome repo home FSD_REPO(set|unset) links(container|host) node_module
   grep -q -- "--model $model " <<<"$o" && ok "fsd-agent: modelo $model (agents.json)" || bad "fsd-agent modelo (esperado $model): $(tail -1 <<<"$o")"
   grep -q "DISABLE_1M=<unset> | WINDOW=250000" <<<"$o" && ok "fsd-agent: 1M ligada, teto 250000" || bad "fsd-agent janela: $(grep -o 'DISABLE.*' <<<"$o")"
   [ "$(readlink "$st/agents/mel/claude/CLAUDE.md")" = "$repo/team/agents/mel/claude/CLAUDE.md" ] && ok "perfil mel (link de outra máquina) religado" || bad "perfil mel: $(readlink "$st/agents/mel/claude/CLAUDE.md")"
+  # O import do team.md em cada CLAUDE.md (@~/…) tem que cair no team/common/team.md deste repo, pelo link common/.
+  local a imp want miss=""; want="$(readlink -f "$repo/team/common/team.md")"
+  for a in kevin mel stuart bob; do
+    imp=$(grep -o '^@~/[^ ]*team\.md' "$repo/team/agents/$a/claude/CLAUDE.md"); imp="${imp#@\~/}"
+    [ -n "$imp" ] && [ "$(readlink -f "$home/$imp")" = "$want" ] || miss+=" $a"
+  done
+  [ -z "$miss" ] && ok "team.md: o import do CLAUDE.md cai em team/common/team.md (4 agentes)" || bad "team.md: import não resolve para:$miss ($(readlink "$st/common"))"
   run "$T/fsd-agent" kevin claude >/dev/null 2>&1
   [ "$(readlink "$st/agents/kevin/claude/CLAUDE.md")" = "$repo/team/agents/kevin/claude/CLAUDE.md" ] && [ -f "$st/agents/kevin/claude/CLAUDE.md.pre-team" ] && ok "perfil kevin: cópia → .pre-team, link novo" || bad "perfil kevin"
   # 5. CLI

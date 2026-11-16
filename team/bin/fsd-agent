@@ -53,6 +53,10 @@ claude_wrap() {
     if [ -e "$CLAUDE_CONFIG_DIR/$f" ] && [ ! -L "$CLAUDE_CONFIG_DIR/$f" ]; then mv -n "$CLAUDE_CONFIG_DIR/$f" "$CLAUDE_CONFIG_DIR/$f.pre-team"; fi
     ln -sfn "$src" "$CLAUDE_CONFIG_DIR/$f"
   done
+  # Regras do time: o CLAUDE.md de cada agente importa @~/.config/fsd-agents/common/team.md. common/ liga em team/common
+  # do repo, a cada subida, como o perfil acima; uma pasta de verdade que já exista vai para common.pre-team, uma vez só.
+  if [ -e "$STATE/common" ] && [ ! -L "$STATE/common" ]; then mv -n "$STATE/common" "$STATE/common.pre-team"; fi
+  ln -sfn "$ROOT/common" "$STATE/common"
   local tok="$STATE/claude-oauth-token"
   if [ -s "$tok" ]; then export CLAUDE_CODE_OAUTH_TOKEN="$(cat "$tok")"
   else echo "[fsd-agent] sem $tok: rode 'claude setup-token' e salve o token nesse arquivo (chmod 600)" >&2; exit 2; fi
@@ -101,6 +105,9 @@ claude_wrap() {
   else echo "[fsd-agent] sem $aim: o ai-memory recusa este agente" >&2; export AI_MEMORY_AUTH_TOKEN="missing"; fi
   # hash da configuração com que esta sessão sobe: o vigia reinicia a sessão que ficou com uma configuração velha (fsd-reload.mjs)
   hf="${TMPDIR:-/tmp}/fsd-live-hash/$name"; mkdir -p "$(dirname "$hf")" && node "$HERE/fsd-reload.mjs" hash "$ROOT" > "$hf" 2>/dev/null || rm -f "$hf"
+  # Um prompt interativo na ferramenta Bash nunca volta até o timeout: aqui ele falha rápido, com erro legível. Só na sessão do claude
+  # (o shell interativo do autor não muda). GIT_SSH_COMMAND já é "false" acima (nenhum ssh). Sem CI=1: muda o commitlint do fsd-pr (simulate-envs).
+  export GIT_EDITOR=true GIT_TERMINAL_PROMPT=0 GIT_PAGER=cat PAGER=cat npm_config_yes=true
   exec claude --settings "$FSD_CLAUDE_SETTINGS" "${extra[@]}" "$@"
 }
 if [ $# -eq 0 ]; then

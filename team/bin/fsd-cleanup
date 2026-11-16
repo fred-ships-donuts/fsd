@@ -111,11 +111,13 @@ else {
   for (const [sig, n] of [['SIGTERM', 15], ['SIGINT', 2], ['SIGHUP', 1]]) process.on(sig, () => process.exit(128 + n));
   log(`limpeza ligada (a cada ${LOOP}s)`);
   // Código velho: o que este laço carregou na partida. Mudou e compila → o processo sai e um filho assume (o exit libera o cleanup.pid).
-  const SRC = ['fsd-watch', 'fsd-cleanup', 'fsd-lib.mjs', 'fsd-redirects.mjs', 'fsd-timing.mjs', 'fsd-context.mjs', 'fsd-reload.mjs'].map((f) => join(BIN, f)).concat(join(ROOT, 'agents.json'), join(ROOT, 'redirects.json'));
-  const startFp = fingerprint(SRC);
+  // O agents.local.json entra só quando existe (ausente contaria como "não compila"): mudar o timing local reexecuta.
+  const LOCAL = join(STATE, 'agents.local.json');
+  const SRC = () => ['fsd-watch', 'fsd-cleanup', 'fsd-lib.mjs', 'fsd-redirects.mjs', 'fsd-timing.mjs', 'fsd-context.mjs', 'fsd-local.mjs', 'fsd-reload.mjs', 'fsd-alert.mjs', 'fsd-alert'].map((f) => join(BIN, f)).concat(join(ROOT, 'agents.json'), join(ROOT, 'redirects.json'), existsSync(LOCAL) ? [LOCAL] : []);
+  const startFp = fingerprint(SRC());
   for (;;) {
     try { round(); } catch (e) { log(`rodada falhou: ${String(e.message || e).split('\n')[0]}`); }
-    reexecIfChanged({ files: SRC, startFp, script: join(BIN, 'fsd-cleanup'), args: process.argv.slice(2), beforeExit: () => { try { if (Number(readFileSync(PIDFILE, 'utf8').trim()) === process.pid) unlinkSync(PIDFILE); } catch {} }, log: (m) => log(`fsd-cleanup: ${m}`) });
+    reexecIfChanged({ files: SRC(), startFp, script: join(BIN, 'fsd-cleanup'), args: process.argv.slice(2), beforeExit: () => { try { if (Number(readFileSync(PIDFILE, 'utf8').trim()) === process.pid) unlinkSync(PIDFILE); } catch {} }, log: (m) => log(`fsd-cleanup: ${m}`) });
     await new Promise((r) => setTimeout(r, LOOP * 1000));
   }
 }

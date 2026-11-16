@@ -4,6 +4,8 @@
 // ~/.config/fsd-agents/watch.log (fora do git). Tempos: agents.json → timing.watch (fsd-timing.mjs).
 //   sem sessão  → sobe o agente          estourou  → reinicia limpo        travado → reinicia
 //   ocioso sem Monitor → empurrão curto (acima de restartAbove, reinicia)  permissão / limite de uso → só avisa o autor
+//   diálogo da interface que não é permissão (fsd-dialogs.mjs, ex.: onboarding do auto mode) → manda a tecla "nunca mais" só àquele painel, uma vez por cooldownMin
+//   alerta (permissão, limite de uso): fsd-alert, uma vez por estado até ele sair da tela; o limite de uso nunca reinicia (act 'alert').
 //   pediu ao autor (parado, e o fim do painel pede uma ação a ele: redirects.json → authorAsks) → fsd-notify kevin + empurrão
 //   "não espere o autor"; o mesmo pedido na tela não repete (nem dentro do cooldownMin, nem sob PAUSE).
 //   configuração antiga (a sessão subiu com outro claude-settings.json/redirects.json, hash em settingsHashFile) → reinicia, só no ponto
@@ -24,8 +26,10 @@ import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { spawnSync, spawn } from 'node:child_process';
 import { context } from './fsd-context.mjs';
-import { timing, liveDir, settingsHashFile } from './fsd-timing.mjs';
-import { paneState } from './fsd-pane.mjs';
+import { timing, timingLocalError, liveDir, settingsHashFile } from './fsd-timing.mjs';
+import { paneState, SHELLS } from './fsd-pane.mjs';
+import { uiDialog } from './fsd-dialogs.mjs';
+import { resetTime, shouldAlert, clearAlert } from './fsd-alert.mjs';
 import { fingerprint, reexecIfChanged, settingsHash, safeToRestart } from './fsd-reload.mjs';
 import { load as loadRedirects } from './fsd-redirects.mjs';
 
@@ -105,8 +109,10 @@ function classify(agent, mem = {}) {
   const t = transcript(agent) || { idle: 0, ctx: 0 };
   const base = { idle: t.idle, ctx: t.ctx };
   if (/Context limit reached|Prompt is too long/.test(pane)) return { ...base, state: 'estourou', act: 'restart' };
+  const ui = uiDialog(pane);   // diálogo da interface (não é permissão): dispensa sozinho, sem alertar o autor
+  if (ui) return { ...base, state: 'diálogo da interface', act: 'dismiss', dialog: ui };
   if (/Do you want|❯ 1\. Yes/.test(pane)) return { ...base, state: 'permissão', act: 'alert' };
-  if (/usage limit|hit your limit|limit will reset|resets? at/i.test(pane)) return { ...base, state: 'limite de uso', act: 'alert' };
+  if (/usage limit|hit your limit|limit will reset|resets? at/i.test(pane)) return { ...base, state: 'limite de uso', act: 'alert', reset: resetTime(pane) };
   const working = /esc to interrupt/.test(pane), monitor = /\d+ monitors?\b/.test(pane);
   if (working) {
     const now = Date.now(), tools = liveTools(agent), quiet = Math.min(t.idle, tokenIdle(agent, pane, mem));
@@ -157,14 +163,25 @@ function safeSend(agent, msg, ok) {
   sh('sleep', ['0.4']); sh('tmux', ['send-keys', '-t', s, 'Enter']); return ok;
 }
 
-function act(agent, r) {
+function act(agent, r, mem = {}) {
   const paused = existsSync(join((process.env.FSD_STATE || join(process.env.HOME, '.config', 'fsd-agents')), 'PAUSE'));
-  if (r.act === 'alert') { sh('notify-send', ['-u', 'critical', `fsd: ${agent}`, `${r.state}: precisa de você no tmux fsd-${agent}`]); return `avisou o autor (${r.state})`; }
+  if (r.act === 'alert') {   // fsd-alert: toast, notify-send, linha em ALERT, comentário do Kevin (#143). Um alerta por estado até o estado sair da tela.
+    if (!shouldAlert(mem, agent, r.state)) return `já avisado (${r.state})`;
+    const text = r.reset ? `reinicia ${r.reset}` : `precisa de você no tmux fsd-${agent}`;
+    const out = (sh(join(BIN, 'fsd-alert'), [agent, r.state, text]).stdout || '').trim().replace(/^fsd-alert:\s*/, '');
+    return `avisou o autor (${out && !/^nenhum/.test(out) ? out : 'nenhum canal'})`;
+  }
   if (paused) return 'PAUSE: nada';
   const s = `fsd-${agent}`;
   if (r.act === 'start' || r.act === 'restart' || r.act === 'reload') { try { rmSync(liveDir(agent), { recursive: true, force: true }); } catch {} }   // registros da sessão morta
   if (r.act === 'start') { const c = sh('tmux', ['new-session', '-d', '-s', s, '-c', REPO, LAUNCH, agent, 'claude', kick(agent, 'sessão não existia')]); return c.status === 0 ? 'subiu' : `falhou: ${c.stderr.trim()}`; }
   if (r.act === 'restart' || r.act === 'reload') { const c = sh('tmux', ['respawn-pane', '-k', '-t', s, '-c', REPO, LAUNCH, agent, 'claude', kick(agent, `${r.state}, ${k(r.ctx)}`)]); return c.status === 0 ? 'reiniciou' : `falhou: ${c.stderr.trim()}`; }
+  if (r.act === 'dismiss') {   // a tecla do diálogo vai só a este painel, e nunca a um shell (#129)
+    const cmd = (sh('tmux', ['display-message', '-p', '-t', s, '#{pane_current_command}']).stdout || '').trim();
+    if (SHELLS.includes(cmd)) return `painel no shell (${cmd}): não digitou`;
+    sh('tmux', ['send-keys', '-t', s, r.dialog.key]);
+    return `dispensou o diálogo "${r.dialog.name}" (tecla ${r.dialog.key})`;
+  }
   if (r.act === 'redirect') {
     sh(join(BIN, 'fsd-notify'), ['kevin', `${agent} pediu ao autor: ${r.ask}`]);
     const msg = '[fsd-aviso do vigia] Do not wait for the author. Take the team command for it (team.md, "Ação negada → comando do time") or move on and tell Kevin with fsd-notify.';
@@ -179,14 +196,26 @@ function act(agent, r) {
 
 function round() {
   let st = {}; try { st = JSON.parse(readFileSync(STATE, 'utf8')); } catch {}
+  // timing do agents.local.json ignorado (inválido): vale o agents.json; uma linha no log por mudança.
+  const tl = timingLocalError();
+  if (tl && st.timingLocal !== tl) log(`agents.local.json (timing) ignorado: ${tl}`);
+  if (tl) st.timingLocal = tl; else delete st.timingLocal;
   const rows = [];
   for (const ag of AGENTS) {
-    const r = classify(ag, st); let done = '-';
+    // Erro numa rodada não derruba o vigia: o agente fica sem ação nesta rodada e o erro vai ao log uma vez por mudança.
+    // "configuração inválida" só quando vem da configuração (agents.json/agents.local.json, via fsd-context); o resto
+    // (tmux, transcript, bug) é "rodada falhou", para não mandar o autor procurar no arquivo errado.
+    let r; try { r = classify(ag, st); delete st[`cfgerr:${ag}`]; } catch (e) {
+      r = { state: /agents(\.local)?\.json/.test(e.message) ? 'configuração inválida' : 'rodada falhou', act: null };
+      if (st[`cfgerr:${ag}`] !== e.message) { st[`cfgerr:${ag}`] = e.message; log(`${ag}: ${r.state} (${e.message})`); }
+    }
+    let done = '-';
+    if (r.state !== 'permissão' && r.state !== 'limite de uso') clearAlert(st, ag);   // o alerta saiu da tela: o próximo vale de novo
     if (r.act) {
       const key = `${ag}:${r.act}`, last = st[key] || 0;
       if (!FIX) done = `faria: ${r.act}`;
       else if (Date.now() - last < T.cooldownMin * MIN) done = `espera (${r.act} há ${min(Date.now() - last)} min)`;
-      else { done = act(ag, r); st[key] = Date.now(); if (r.act === 'redirect' && !done.startsWith('PAUSE')) st[`ask:${ag}`] = r.ask; log(`${ag}: ${r.state}${r.ask ? ` (${r.ask})` : ''} → ${done}`); }
+      else { done = act(ag, r, st); st[key] = Date.now(); if (r.act === 'redirect' && !done.startsWith('PAUSE')) st[`ask:${ag}`] = r.ask; if (!done.startsWith('já avisado')) log(`${ag}: ${r.state}${r.ask ? ` (${r.ask})` : ''} → ${done}`); }
     }
     rows.push([ag[0].toUpperCase() + ag.slice(1), r.state, r.idle != null ? `${min(r.idle)} min` : '-', r.ctx ? k(r.ctx) : '-', done]);
   }
@@ -219,7 +248,7 @@ function table(rows) {
   out.push(line('└', '┴', '┘')); return out.join('\n');
 }
 
-if (!LOOP) { console.log(table(round())); console.log(cleanupCheck()); }
+if (!LOOP) { console.log(table(round())); console.log(cleanupCheck()); if (timingLocalError()) console.log(`agents.local.json (timing) ignorado: ${timingLocalError()}`); }
 else {
   // Um só vigia por vez ($FSD_STATE/watch.pid, criado com wx; pid morto é assumido), como o fsd-cleanup. Um segundo laço sai 0 sem fazer nada:
   // é o que deixa o supervisor (systemd/supervisord) chamar sempre. Cada rodada grava $FSD_STATE/watch.beat (hora ISO) para quem confere se vive.
@@ -242,7 +271,10 @@ else {
   const beat = () => { try { writeFileSync(`${BEAT}.${process.pid}`, new Date().toISOString() + '\n'); renameSync(`${BEAT}.${process.pid}`, BEAT); } catch {} };
   log(`vigia ligado (a cada ${LOOP}s${FIX ? ', com --fix' : ''})`);
   // Código velho: o que este laço carregou na partida. Mudou e compila → o processo sai e um filho assume. Sem --loop, nunca.
-  const SRC = ['fsd-watch', 'fsd-cleanup', 'fsd-lib.mjs', 'fsd-redirects.mjs', 'fsd-timing.mjs', 'fsd-context.mjs', 'fsd-reload.mjs'].map((f) => join(BIN, f)).concat(join(ROOT, 'agents.json'), join(ROOT, 'redirects.json'));
-  const startFp = fingerprint(SRC);
-  for (;;) { round(); cleanupCheck(); beat(); reexecIfChanged({ files: SRC, startFp, script: join(BIN, 'fsd-watch'), args: process.argv.slice(2), log, beforeExit: freePid }); await new Promise((r) => setTimeout(r, LOOP * 1000)); }
+  // O agents.local.json entra só quando existe (ausente contaria como "não compila" e travaria a reexecução): criar,
+  // mudar ou apagar o arquivo local também reexecuta, e os tempos (lidos uma vez na partida) passam a valer.
+  const LOCAL = join(process.env.FSD_STATE || join(process.env.HOME, '.config', 'fsd-agents'), 'agents.local.json');
+  const SRC = () => ['fsd-watch', 'fsd-cleanup', 'fsd-lib.mjs', 'fsd-redirects.mjs', 'fsd-timing.mjs', 'fsd-context.mjs', 'fsd-local.mjs', 'fsd-reload.mjs', 'fsd-alert.mjs', 'fsd-alert'].map((f) => join(BIN, f)).concat(join(ROOT, 'agents.json'), join(ROOT, 'redirects.json'), existsSync(LOCAL) ? [LOCAL] : []);
+  const startFp = fingerprint(SRC());
+  for (;;) { round(); cleanupCheck(); beat(); reexecIfChanged({ files: SRC(), startFp, script: join(BIN, 'fsd-watch'), args: process.argv.slice(2), log, beforeExit: freePid }); await new Promise((r) => setTimeout(r, LOOP * 1000)); }
 }
