@@ -2,6 +2,10 @@
 // fsd-profile.mjs <perfil/.claude.json> <repo> — primeira subida sem humano (#161): grava, de forma idempotente, o estado de
 // onboarding e de confiança no .claude.json do perfil do agente: hasCompletedOnboarding e, por projeto, hasTrustDialogAccepted
 // (o repo e .claude/worktrees/*). Só acrescenta: nunca desfaz uma chave que já existe. Sem mudança, não reescreve o arquivo.
+// Prova ao vivo (QA, perfil descartável, nunca o do time):
+//   P=$(mktemp -d); node team/bin/fsd-profile.mjs $P/.claude.json "$PWD" && cd "$PWD" \
+//     && tmux new-session -d -s probe -x 120 -y 40 "CLAUDE_CONFIG_DIR=$P claude" && sleep 8 && tmux capture-pane -p -t probe
+// O pane deve mostrar o prompt de entrada (caixa "> "), sem a tela de onboarding/tema/login e sem "Quick safety check ... trust".
 import { readFileSync, writeFileSync, renameSync, readdirSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
