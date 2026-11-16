@@ -21,16 +21,18 @@ export function withFirstRun(json, paths, version) {
   j.projects = projects;
   return { json: j, changed };
 }
+// → 'written' | 'current' | 'unreadable'. Roda só na subida do wrapper, antes de o claude abrir: o rename não disputa com ele reescrevendo
+// o .claude.json. Worktrees criados depois ficam sem confiança até a próxima subida (o fsd-dev start não passa por aqui).
 export function ensureFirstRun(file, repo, version) {
   let cur = {};
-  if (existsSync(file)) { try { cur = JSON.parse(readFileSync(file, 'utf8')); } catch { return false; } }   // arquivo ilegível: não mexe
+  if (existsSync(file)) { try { cur = JSON.parse(readFileSync(file, 'utf8')); } catch { return 'unreadable'; } }   // arquivo ilegível: não mexe
   const { json, changed } = withFirstRun(cur, trustedPaths(repo), version);
-  if (!changed) return false;
+  if (!changed) return 'current';
   const t = `${file}.${process.pid}.tmp`; writeFileSync(t, JSON.stringify(json, null, 2) + '\n', { mode: 0o600 }); renameSync(t, file);
-  return true;
+  return 'written';
 }
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const [file, repo, version] = process.argv.slice(2);
   if (!file || !repo) { console.error('uso: fsd-profile.mjs <.claude.json> <repo> [versão]'); process.exit(2); }
-  console.log(ensureFirstRun(file, repo, version) ? 'gravado' : 'em dia');
+  const r = ensureFirstRun(file, repo, version); console.log(r); process.exit(r === 'unreadable' ? 1 : 0);
 }
