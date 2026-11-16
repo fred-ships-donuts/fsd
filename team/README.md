@@ -57,6 +57,12 @@ Para mudar um agente só, sem passar por cima do valor de agente do `agents.json
 
     { "claude_common": { "context": { "restartAbove": 100000 } } }
 
+O teto de contexto é um só: `min(limit − outputReserve, restartAbove)`; as faixas 🟡/🔴 avisam antes dele e, acima de
+`restartAbove`, o guard nega tudo, menos o fechamento. Configuração local inválida nunca derruba o guard: ele cai para o
+`agents.json` e avisa uma vez. Uso da conta: `claude_common.usage` (`refreshSeconds` 300, `stopPct` 90); `bin/fsd-usage.mjs`
+mantém `$FSD_STATE/usage.json` (token em `claude-oauth-token`), o vigia o chama a cada rodada e, a partir de `stopPct`, cria
+`PAUSE` + `PAUSE.usage` e comenta uma vez na #147. Testes: `FSD_USAGE_FIXTURE`, `FSD_USAGE_NOW`.
+
 Os tempos do time (`timing`, ver "Tempos do time") também: o `timing` do arquivo local passa por cima do `agents.json`,
 campo a campo, e as variáveis de ambiente (`FSD_READY_GRACE` etc.) por cima de tudo. Quem lê é o `bin/fsd-timing.mjs`;
 o vigia e o `fsd-cleanup` reexecutam quando o arquivo local muda. Local inválido no `timing` é ignorado com aviso (stderr,
