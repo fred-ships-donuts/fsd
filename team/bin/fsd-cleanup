@@ -111,7 +111,7 @@ else {
   for (const [sig, n] of [['SIGTERM', 15], ['SIGINT', 2], ['SIGHUP', 1]]) process.on(sig, () => process.exit(128 + n));
   log(`limpeza ligada (a cada ${LOOP}s)`);
   // Código velho: o que este laço carregou na partida. Mudou e compila → o processo sai e um filho assume (o exit libera o cleanup.pid).
-  const SRC = ['fsd-watch', 'fsd-cleanup', 'fsd-lib.mjs', 'fsd-redirects.mjs', 'fsd-timing.mjs', 'fsd-context.mjs', 'fsd-reload.mjs'].map((f) => join(BIN, f)).concat(join(ROOT, 'agents.json'), join(ROOT, 'redirects.json'));
+  const SRC = ['fsd-watch', 'fsd-cleanup', 'fsd-lib.mjs', 'fsd-redirects.mjs', 'fsd-timing.mjs', 'fsd-context.mjs', 'fsd-reload.mjs', 'fsd-alert.mjs', 'fsd-alert'].map((f) => join(BIN, f)).concat(join(ROOT, 'agents.json'), join(ROOT, 'redirects.json'));
   const startFp = fingerprint(SRC);
   for (;;) {
     try { round(); } catch (e) { log(`rodada falhou: ${String(e.message || e).split('\n')[0]}`); }
