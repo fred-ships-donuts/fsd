@@ -23,13 +23,20 @@ const MSG = {
 };
 const SCREEN = { urgent: '🔴 contexto {used}/{limit}: handoff urgente (~{calls} chamadas)', medium: '🟡 contexto {used}/{limit}: finalizar e handoff (~{calls} chamadas)' };
 
-const C = context();
-const LIMIT = C.limit, RESERVE = C.outputReserve, MARGIN = LIMIT * C.marginPct / 100, FACTOR = C.heavyFactor;
+// Configuração inválida (ex.: agents.local.json com outputReserve 0) nunca derruba o hook: cai para o agents.json e avisa uma vez (#193).
+let C, cfgWarn = '';
+try { C = context(); } catch (e) {
+  const keep = process.env.FSD_STATE; process.env.FSD_STATE = join(tmpdir(), 'fsd-no-local');
+  try { C = context(); cfgWarn = `⚠️ fsd-context-guard: ${String(e.message).slice(0, 160)}; usando só o agents.json`; } catch { process.exit(0); } finally { if (keep === undefined) delete process.env.FSD_STATE; else process.env.FSD_STATE = keep; }
+}
+// Um teto só (#193): o menor entre a janela útil e o restartAbove. As faixas avisam antes dele.
+const LIMIT = Math.min(C.limit - C.outputReserve, C.restartAbove) + C.outputReserve, RESERVE = C.outputReserve, MARGIN = C.limit * C.marginPct / 100, FACTOR = C.heavyFactor;
 const BANDS = { normal: [C.bands.normal.urgentAt, C.bands.normal.mediumAt], heavy: [C.bands.heavy.urgentAt, C.bands.heavy.mediumAt] };
 const FREE = { urgent: C.urgentFree, medium: C.mediumFree };
 const WINDOW = 20, RECENT = 3, MIN_COST = 1000;
 
 let input = {}; try { input = JSON.parse(readStdin() || '{}'); } catch { process.exit(0); }
+if (cfgWarn) console.error(cfgWarn);
 const ev = input.hook_event_name, PRINT = process.argv.includes('--print');
 if (!PRINT) {
   if (ev !== 'PreToolUse') live();   // a ferramenta só é registrada se não for negada, abaixo
