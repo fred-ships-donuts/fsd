@@ -57,6 +57,13 @@ Para mudar um agente só, sem passar por cima do valor de agente do `agents.json
 
     { "claude_common": { "context": { "restartAbove": 100000 } } }
 
+Os tempos do time (`timing`, ver "Tempos do time") também: o `timing` do arquivo local passa por cima do `agents.json`,
+campo a campo, e as variáveis de ambiente (`FSD_READY_GRACE` etc.) por cima de tudo. Quem lê é o `bin/fsd-timing.mjs`;
+o vigia e o `fsd-cleanup` reexecutam quando o arquivo local muda. Local inválido no `timing` é ignorado com aviso (stderr,
+tabela e `watch.log` do vigia) e vale o `agents.json`: um erro de digitação não derruba vigia, limpeza nem Monitor.
+
+    { "timing": { "readyGraceMin": 3 } }
+
 Comuns a todos (`claude_common` no `agents.json`): NotebookEdit, Artifact*, DesignSync,
 RemoteTrigger, Cron*, ScheduleWakeup, PushNotification. `--model` e `--effort` passados no
 comando passam por cima do padrão.

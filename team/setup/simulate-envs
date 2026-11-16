@@ -47,6 +47,8 @@ mkenv() { # nome repo home FSD_REPO(set|unset) links(container|host) node_module
   chk "fsd-context: agents.local.json por cima (comum e por agente)" run bash -c '[ "$(node "$0" mel restartAbove)" = 100000 ] && [ "$(node "$0" bob restartAbove)" = 90000 ]' "$T/fsd-context.mjs"
   printf '%s' '{"claude_common":{"context":{"bands":{"normal":{"urgentAt":3}}}}}' > "$st/agents.local.json"
   chk "fsd-context: objeto aninhado local muda só o campo dado" run bash -c '[ "$(node "$0" mel bands.normal.urgentAt bands.normal.mediumAt bands.heavy.urgentAt | tr "\n" " ")" = "3 4 3 " ]' "$T/fsd-context.mjs"
+  printf '%s' '{"timing":{"readyGraceMin":3,"watch":{"idleMin":42}}}' > "$st/agents.local.json"
+  chk "fsd-timing: agents.local.json por cima, campo a campo" run bash -c '[ "$(node "$0" readyGraceMin watch.idleMin | tr "\n" " ")" = "3 42 " ] && [ "$(node "$0" watch.loopSeconds)" = "$(FSD_STATE=/nonexistent node "$0" watch.loopSeconds)" ]' "$T/fsd-timing.mjs"
   # agents.local.json quebrado não derruba o vigia: mel ocioso sem Monitor (sessão num tmux isolado, transcript de 1 h
   # atrás) obriga o fsd-watch a ler o contexto; ele deve mostrar "configuração inválida" e sair 0.
   printf '{x' > "$st/agents.local.json"
