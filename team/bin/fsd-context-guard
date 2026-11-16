@@ -2,9 +2,9 @@
 // fsd-context-guard — hook dos agentes (PreToolUse, PostToolUse, PostToolUseFailure, UserPromptSubmit, Stop).
 //   Sinal de vida (para o fsd-watch, zero tokens): PreToolUse grava um arquivo por ferramenta em andamento em liveDir(agente)
 //   (ferramenta, início e, no Bash, o timeout pedido); PostToolUse/PostToolUseFailure apagam; Stop e UserPromptSubmit limpam tudo.
-//   Monitor com contexto > restartAbove → negado: fim de entrega é fsd-restart, e a sessão nova arma o Monitor.
+//   Contexto > restartAbove → toda ferramenta é negada, menos o conjunto de fechamento (wrapUpAllowed em fsd-context.mjs). Monitor → negado: fim de entrega é fsd-restart, e a sessão nova arma o Monitor.
 // Julga sem gastar token:
-//   livre = limit − outputReserve − atual − marginPct% (a API recusa o prompt antes do limit: reserva a saída) · custo = crescimento médio por chamada (últimas 20) · restam = livre ÷ custo
+//   livre = limit − outputReserve − atual − marginTokens (a API recusa o prompt antes do limit: reserva a saída) · custo = crescimento médio por chamada (últimas 20) · restam = livre ÷ custo
 //   pesada = alguma das 3 últimas chamadas custou ≥ heavyFactor × a média → valem as faixas heavy
 //   restam ≤ urgentAt ou livre ≤ urgentFree → 🔴 urgente · restam < mediumAt ou livre < mediumFree → 🟡 médio · senão nada.
 //   (o piso de livre cobre a leitura grande, ex. um diff de revisão, que a média por chamada não prevê)   --print: mostra a conta (teste)
@@ -12,8 +12,9 @@
 import { openSync, readSync, fstatSync, closeSync, existsSync, readFileSync, writeFileSync, mkdirSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { context } from './fsd-context.mjs';
+import { context, wrapUpAllowed, wrapUpReason } from './fsd-context.mjs';
 import { liveDir } from './fsd-timing.mjs';
+import { usageConfig, readCache, over, kick } from './fsd-usage.mjs';
 import { reviveWatcher } from './fsd-revive.mjs';
 
 // ── Mensagens (editar aqui). {used} {limit} {calls} {cost} {heavy} ──
@@ -24,18 +25,29 @@ const MSG = {
 };
 const SCREEN = { urgent: '🔴 contexto {used}/{limit}: handoff urgente (~{calls} chamadas)', medium: '🟡 contexto {used}/{limit}: finalizar e handoff (~{calls} chamadas)' };
 
-const C = context();
-const LIMIT = C.limit, RESERVE = C.outputReserve, MARGIN = LIMIT * C.marginPct / 100, FACTOR = C.heavyFactor;
+// Configuração inválida (ex.: agents.local.json com outputReserve 0) nunca derruba o hook: cai para o agents.json e avisa uma vez (#193).
+let C, cfgWarn = '';
+try { C = context(); } catch (e) {
+  const keep = process.env.FSD_STATE; process.env.FSD_STATE = join(tmpdir(), 'fsd-no-local');
+  try { C = context(); cfgWarn = `⚠️ fsd-context-guard: ${String(e.message).slice(0, 160)}; usando só o agents.json`; } catch { process.exit(0); } finally { if (keep === undefined) delete process.env.FSD_STATE; else process.env.FSD_STATE = keep; }
+}
+// Um teto só (#193): o menor entre a janela útil e o restartAbove. As faixas avisam antes dele.
+const LIMIT = Math.min(C.limit - C.outputReserve, C.restartAbove) + C.outputReserve, RESERVE = C.outputReserve, MARGIN = C.marginTokens, FACTOR = C.heavyFactor;
 const BANDS = { normal: [C.bands.normal.urgentAt, C.bands.normal.mediumAt], heavy: [C.bands.heavy.urgentAt, C.bands.heavy.mediumAt] };
 const FREE = { urgent: C.urgentFree, medium: C.mediumFree };
+// Uso da conta (#193): lê o cache; se velho, um refresh destacado (sem token). Config ou cache ruins nunca derrubam o hook.
+let USAGE = null;
+try { const uc = usageConfig(), cache = readCache(); kick(cache, uc); USAGE = over(cache, uc.stopPct); } catch {}
+const USAGE_MSG = () => `**🚨🚨 USO DA CONTA DO TIME EM ${Math.round(USAGE.pct)}% (janela ${USAGE.window === 'five_hour' ? '5h' : 'semanal'}). PARE DE ENROLAR. Termine AGORA o que está em mãos até o fim: commit, push, PR sem conflito, revisão publicada. NÃO comece trabalho novo (nada de fsd-dev start, fsd-review start, fsd-qa prep, Monitor). Depois: memory_handoff_begin e fsd-restart. Sem desculpa, sem pergunta, SEM DEMORA.**`;
 const WINDOW = 20, RECENT = 3, MIN_COST = 1000;
 
 let input = {}; try { input = JSON.parse(readStdin() || '{}'); } catch { process.exit(0); }
+if (cfgWarn) console.error(cfgWarn);
 const ev = input.hook_event_name, PRINT = process.argv.includes('--print');
 if (!PRINT && (ev === 'UserPromptSubmit' || ev === 'PostToolUse')) reviveWatcher();   // #197: o vigia morto sobe de novo (só checa arquivos)
 if (!PRINT) {
-  if (!(ev === 'PreToolUse' && input.tool_name === 'Monitor')) live();   // o Monitor só é registrado se não for negado, abaixo
-  if (ev === 'PostToolUseFailure' || (ev === 'PreToolUse' && input.tool_name !== 'Monitor')) process.exit(0);
+  if (ev !== 'PreToolUse') live();   // a ferramenta só é registrada se não for negada, abaixo
+  if (ev === 'PostToolUseFailure') process.exit(0);
 }
 const { used, cost: raw, n, peak } = sample(input.transcript_path);
 const cost = Math.max(MIN_COST, raw), free = LIMIT - RESERVE - used - MARGIN, left = Math.max(0, free / cost);
@@ -50,11 +62,19 @@ if (PRINT) {
 }
 if (input.hook_event_name === 'PreToolUse') {
   const above = C.restartAbove;
-  if (input.tool_name === 'Monitor' && used > above) console.log(JSON.stringify({ hookSpecificOutput: { hookEventName: 'PreToolUse', permissionDecision: 'deny',
+  if (USAGE && !wrapUpAllowed(input.tool_name, input.tool_input) && (input.tool_name === 'Monitor' || (input.tool_name === 'Bash' && /(^|[\s;&|])(fsd-dev\s+start|fsd-review\s+start|fsd-qa\s+prep)(\s|$)/.test(String(input.tool_input?.command || ''))))) {
+    console.log(JSON.stringify({ hookSpecificOutput: { hookEventName: 'PreToolUse', permissionDecision: 'deny', permissionDecisionReason: `Uso da conta em ${Math.round(USAGE.pct)}%: nada de trabalho novo. Termine o que está aberto (commit, push, PR, revisão), memory_handoff_begin e fsd-restart.` } }));
+    process.exit(0);
+  }
+  // Acima de restartAbove só passa o conjunto de fechamento (#193); o Monitor tem a razão própria, abaixo.
+  if (used > above && input.tool_name !== 'Monitor' && !wrapUpAllowed(input.tool_name, input.tool_input)) console.log(JSON.stringify({ hookSpecificOutput: { hookEventName: 'PreToolUse', permissionDecision: 'deny', permissionDecisionReason: wrapUpReason(used, above) } }));
+  else if (input.tool_name === 'Monitor' && used > above) console.log(JSON.stringify({ hookSpecificOutput: { hookEventName: 'PreToolUse', permissionDecision: 'deny',
     permissionDecisionReason: `Contexto ${k(used)} > ${k(above)}: não espere nesta sessão. Fim de entrega é fsd-restart (handoff antes só se houver contexto que o GitHub e a fsd-queue não têm); a sessão nova vê a fila e, sem trabalho, avisa o Kevin e arma o Monitor.` } }));
   else live();
   process.exit(0);
 }
+if (USAGE && ev === 'Stop' && !input.stop_hook_active) { console.log(JSON.stringify({ decision: 'block', reason: USAGE_MSG() })); process.exit(0); }
+if (USAGE && (ev === 'PostToolUse' || ev === 'UserPromptSubmit')) { console.log(JSON.stringify({ hookSpecificOutput: { hookEventName: ev, additionalContext: USAGE_MSG() }, systemMessage: `🚨 uso da conta ${Math.round(USAGE.pct)}%: terminar e parar` })); process.exit(0); }
 if (!level) process.exit(0);
 
 const state = join(tmpdir(), `fsd-ctx-${input.session_id || 'x'}.json`);
