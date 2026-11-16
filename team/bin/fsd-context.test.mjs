@@ -45,8 +45,8 @@ test('precedência: json comum < local comum < local do agente (o agents.json n�
   assert.equal(stuart.limit, 111111, 'local comum vence o json');
   assert.equal(stuart.restartAbove, 77777, 'local do agente vence o local comum');
   assert.equal(context('agente-inexistente').restartAbove, 55555, 'sem entrada do agente, vale o local comum');
-  assert.equal(stuart.marginPct, nivel2.marginPct, 'o que o local não toca fica como no json');
-  assert.equal(base.marginPct, nivel2.marginPct);
+  assert.equal(stuart.marginTokens, nivel2.marginTokens, 'o que o local não toca fica como no json');
+  assert.equal(base.marginTokens, nivel2.marginTokens);
 });
 
 test('o local do agente vale só para aquele agente', () => {

@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url';
 import { localConfig, merge } from './fsd-local.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const REQUIRED = ['limit', 'outputReserve', 'urgentFree', 'mediumFree', 'restartAbove', 'hardMarginTokens', 'marginPct', 'heavyFactor',
+const REQUIRED = ['limit', 'outputReserve', 'urgentFree', 'mediumFree', 'restartAbove', 'hardMarginTokens', 'marginTokens', 'heavyFactor',
   'bands.normal.urgentAt', 'bands.normal.mediumAt', 'bands.heavy.urgentAt', 'bands.heavy.mediumAt'];
 const get = (o, path) => path.split('.').reduce((v, k) => v?.[k], o);
 export function context(agent = process.env.FSD_AGENT) {
