@@ -103,7 +103,9 @@ comando passam por cima do padrão.
 │
 ├── sessions/              🤖     registro comum das sessões abertas (cada perfil tem um link para cá)
 ├── common/                ⚙️     link para team/common do repo, refeito pelo fsd-agent a cada subida: é de onde o
-│                                  CLAUDE.md de cada agente importa o team.md (@~/.config/fsd-agents/common/team.md)
+│                                  CLAUDE.md de cada agente importa o team.md (@~/.config/fsd-agents/common/team.md).
+│                                  Verificação (decisão na #156): o QA confere o link e o simulate-envs; que uma sessão
+│                                  real carrega o team.md (/memory) se confere depois do merge, no restart seguinte.
 ├── claude-oauth-token      🔒     login do Claude (o mesmo para os quatro)
 ├── ai-memory-tokens/<nome> 🔒     credencial aim_ do agente no ai-memory
 ├── keys/fsd-<nome>.pem     🔒     chave privada do GitHub App
