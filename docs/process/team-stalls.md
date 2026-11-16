@@ -88,7 +88,7 @@ Finding numbers F1–F10 are the ones in #124; M1–M11 are the extra modes it a
 ### F10. First run is manual
 - **Evidence:** three agents sat on "Press Enter to continue" and "Do you trust this folder" at 02:41; nobody but the author could pass them.
 - **Detect:** the dialog text in the pane (and the safe nudge refusing to type, F8).
-- **Resolve:** prevent it. Each agent's `CLAUDE_CONFIG_DIR` profile gets the onboarding and trust state written by setup (`hasCompletedOnboarding` and the per-project `hasTrustDialogAccepted` in the profile's `.claude.json`, for the repo and its `.claude/worktrees/*`) **(verify the exact keys with a fresh profile; they are not a public contract)**. Setup writes them idempotently and `check-paths`-style test checks they exist. Keystrokes stay only as a last resort and only for an exact known dialog.
+- **Resolve:** prevent it. Each agent's `CLAUDE_CONFIG_DIR` profile gets the onboarding and trust state written by setup (`hasCompletedOnboarding` and the per-project `hasTrustDialogAccepted` in the profile's `.claude.json`, for the repo and its `.claude/worktrees/*`) **(the keys are not a public contract: `team/bin/fsd-profile.mjs` writes them at wrapper launch, only adds, and reports an unreadable file; worktrees created after a launch stay untrusted until the next one; the live fresh-profile start is recorded by the QA verification)**. Setup writes them idempotently and `check-paths`-style test checks they exist. Keystrokes stay only as a last resort and only for an exact known dialog.
 - **Tokens:** 0.
 - **Slice:** S6.
 
