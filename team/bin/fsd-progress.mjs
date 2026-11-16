@@ -7,6 +7,8 @@ const ms = (x) => (typeof x === 'number' ? x : Date.parse(x));
 const base = (col) => col.replace(/\s*\([^)]*\)\s*$/, '');
 
 // Trabalho aberto = coluna com dono, menos Backlog e Done.
+// Campos do `gh pr list`: sem `commits` (100 PRs × 100 commits × 100 autores = 1.000.000 nós > limite de 500.000 do GitHub). O push mais recente já está no updatedAt.
+export const PR_FIELDS = 'number,body,updatedAt';
 export const isOpenColumn = (col) => { const c = stageName(col); return c !== STAGE.backlog && c !== STAGE.done && !!WHO[c]; };
 
 // Quando o card se mexeu: o mais recente entre o item do quadro, o issue e o PR que o fecha (updatedAt e último commit).
