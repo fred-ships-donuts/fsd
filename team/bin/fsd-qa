@@ -30,6 +30,7 @@ function need() {
 }
 function clean(s) {
   tmux('kill-server');
+  L.run('node', [`${L.BIN}/fsd-loops.mjs`, 'kill', '--under', Q], { allowFail: true });   // laços fsd-watch/fsd-cleanup --loop com estado em Q (#198)
   let ds = []; try { ds = readdirSync(Q).filter((x) => /^pr-\d+$/.test(x)); } catch {}
   for (const d of ds) L.run('git', ['-C', L.REPO_DIR, 'worktree', 'remove', '--force', `${Q}/${d}`], { allowFail: true });
   L.run('git', ['-C', L.REPO_DIR, 'worktree', 'prune'], { allowFail: true });
