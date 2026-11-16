@@ -6,6 +6,9 @@
 //   ocioso sem Monitor → empurrão curto (acima de restartAbove, reinicia)  permissão / limite de uso → só avisa o autor
 //   pediu ao autor (parado, e o fim do painel pede uma ação a ele: redirects.json → authorAsks) → fsd-notify kevin + empurrão
 //   "não espere o autor"; o mesmo pedido na tela não repete (nem dentro do cooldownMin, nem sob PAUSE).
+//   configuração antiga (a sessão subiu com outro claude-settings.json/redirects.json, hash em settingsHashFile) → reinicia, só no ponto
+//   seguro (parada no prompt, sem ferramenta, sem diálogo nem limite: fsd-reload.mjs). Sem hash gravado, nada.
+//   código velho: com --loop, mudou algum arquivo de fsd-reload.mjs/SRC e todos compilam → o laço se reexecuta (exit 0); não compila → avisa uma vez.
 //   limpeza (fsd-cleanup --loop): sem cleanup.pid ou com o pid morto, e sem PAUSE → sobe o laço destacado (com --fix; sem ele, "faria").
 // Sinal de vida de quem está trabalhando (o mais recente vale):
 //   1. gravação no transcript da sessão ou de um subagente;
@@ -21,7 +24,8 @@ import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { spawnSync, spawn } from 'node:child_process';
 import { context } from './fsd-context.mjs';
-import { timing, liveDir } from './fsd-timing.mjs';
+import { timing, liveDir, settingsHashFile } from './fsd-timing.mjs';
+import { fingerprint, reexecIfChanged, settingsHash, safeToRestart } from './fsd-reload.mjs';
 import { load as loadRedirects } from './fsd-redirects.mjs';
 
 const BIN = dirname(fileURLToPath(import.meta.url)); const ROOT = dirname(BIN);
@@ -114,6 +118,13 @@ function classify(agent, mem = {}) {
     return { ...w, state: tools.length ? `trabalhando (${names})` : 'trabalhando', act: null };
   }
   delete mem[`sig:${agent}`];
+  // Configuração velha: a sessão subiu com outro claude-settings.json/redirects.json. Reinicia só no ponto seguro; sem hash gravado (sessão
+  // anterior a esta função), nunca reinicia.
+  let stored = ''; try { stored = readFileSync(settingsHashFile(agent), 'utf8').trim(); } catch {}
+  if (stored && stored !== settingsHash(ROOT)) {
+    const paneCommand = (sh('tmux', ['display-message', '-p', '-t', s, '#{pane_current_command}']).stdout || '').trim();
+    if (safeToRestart({ pane, paneCommand, tools: liveTools(agent) })) return { ...base, state: 'configuração antiga', act: 'reload' };
+  }
   const ask = NO_ASK.includes(agent) ? '' : authorAsk(sh('tmux', ['capture-pane', '-p', '-J', '-t', s]).stdout || '');
   if (!ask) delete mem[`ask:${agent}`];   // o pedido saiu da tela: o mesmo texto, mais tarde, vale de novo
   if (ask && mem[`ask:${agent}`] !== ask) return { ...base, state: 'pediu ao autor', act: 'redirect', ask };
@@ -132,9 +143,9 @@ function act(agent, r) {
   if (r.act === 'alert') { sh('notify-send', ['-u', 'critical', `fsd: ${agent}`, `${r.state}: precisa de você no tmux fsd-${agent}`]); return `avisou o autor (${r.state})`; }
   if (paused) return 'PAUSE: nada';
   const s = `fsd-${agent}`;
-  if (r.act === 'start' || r.act === 'restart') { try { rmSync(liveDir(agent), { recursive: true, force: true }); } catch {} }   // registros da sessão morta
+  if (r.act === 'start' || r.act === 'restart' || r.act === 'reload') { try { rmSync(liveDir(agent), { recursive: true, force: true }); } catch {} }   // registros da sessão morta
   if (r.act === 'start') { const c = sh('tmux', ['new-session', '-d', '-s', s, '-c', REPO, LAUNCH, agent, 'claude', kick(agent, 'sessão não existia')]); return c.status === 0 ? 'subiu' : `falhou: ${c.stderr.trim()}`; }
-  if (r.act === 'restart') { const c = sh('tmux', ['respawn-pane', '-k', '-t', s, '-c', REPO, LAUNCH, agent, 'claude', kick(agent, `${r.state}, ${k(r.ctx)}`)]); return c.status === 0 ? 'reiniciou' : `falhou: ${c.stderr.trim()}`; }
+  if (r.act === 'restart' || r.act === 'reload') { const c = sh('tmux', ['respawn-pane', '-k', '-t', s, '-c', REPO, LAUNCH, agent, 'claude', kick(agent, `${r.state}, ${k(r.ctx)}`)]); return c.status === 0 ? 'reiniciou' : `falhou: ${c.stderr.trim()}`; }
   if (r.act === 'redirect') {
     sh(join(BIN, 'fsd-notify'), ['kevin', `${agent} pediu ao autor: ${r.ask}`]);
     const msg = '[fsd-aviso do vigia] Do not wait for the author. Take the team command for it (team.md, "Ação negada → comando do time") or move on and tell Kevin with fsd-notify.';
@@ -192,4 +203,10 @@ function table(rows) {
 }
 
 if (!LOOP) { console.log(table(round())); console.log(cleanupCheck()); }
-else { log(`vigia ligado (a cada ${LOOP}s${FIX ? ', com --fix' : ''})`); for (;;) { round(); cleanupCheck(); sh('sleep', [String(LOOP)]); } }
+else {
+  log(`vigia ligado (a cada ${LOOP}s${FIX ? ', com --fix' : ''})`);
+  // Código velho: o que este laço carregou na partida. Mudou e compila → o processo sai e um filho assume. Sem --loop, nunca.
+  const SRC = ['fsd-watch', 'fsd-cleanup', 'fsd-lib.mjs', 'fsd-redirects.mjs', 'fsd-timing.mjs', 'fsd-context.mjs', 'fsd-reload.mjs'].map((f) => join(BIN, f)).concat(join(ROOT, 'agents.json'), join(ROOT, 'redirects.json'));
+  const startFp = fingerprint(SRC);
+  for (;;) { round(); cleanupCheck(); reexecIfChanged({ files: SRC, startFp, script: join(BIN, 'fsd-watch'), args: process.argv.slice(2), log }); sh('sleep', [String(LOOP)]); }
+}
