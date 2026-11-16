@@ -19,7 +19,7 @@ BASE="$(mktemp -d "${TMPDIR:-/tmp}/fsd-sim.XXXX")"; RES="$BASE/results"; : > "$R
 # Na saída, mesmo abortando no meio: derruba os servidores tmux da simulação (sockets em $BASE) e apaga $BASE.
 # Hermético: nenhuma FSD_* da sessão de quem roda (FSD_DRY, FSD_STATE, FSD_TMUX_SOCKET…) entra nos ambientes simulados.
 for v in $(compgen -e | grep '^FSD_'); do unset "$v"; done
-trap 'for d in "$BASE"/tmux-*; do [ -d "$d" ] && TMUX_TMPDIR="$d" tmux -L fsd-sim kill-server 2>/dev/null; done; TMUX_TMPDIR="$BASE/tmux-watch" tmux -L "fsdsim$$" kill-server 2>/dev/null; [ "$KEEP" = 1 ] || rm -rf "$BASE"' EXIT
+trap 'node "$SRC/team/bin/fsd-loops.mjs" kill --under "$BASE" >/dev/null 2>&1; for d in "$BASE"/tmux-*; do [ -d "$d" ] && TMUX_TMPDIR="$d" tmux -L fsd-sim kill-server 2>/dev/null; done; TMUX_TMPDIR="$BASE/tmux-watch" tmux -L "fsdsim$$" kill-server 2>/dev/null; [ "$KEEP" = 1 ] || rm -rf "$BASE"' EXIT
 ok()  { echo "  PASS $*"; echo P >> "$RES"; }
 bad() { echo "  FAIL $*"; echo F >> "$RES"; }
 chk() { local d="$1"; shift; local o; if o=$("$@" 2>&1); then ok "$d"; else bad "$d :: $(tail -3 <<<"$o" | tr '\n' ' ' | cut -c1-300)"; fi; }
