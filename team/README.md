@@ -183,6 +183,10 @@ no código. **Ping** é de quanto em quanto tempo algo confere; **prazo** é dep
 | `watch.cooldownMin` | prazo (min) | intervalo mínimo entre duas ações do vigia no mesmo agente |
 | `cleanup.loopSeconds` | ping (s) | intervalo das rodadas do `fsd-cleanup --loop` (o `fsd-watch` o reinicia se morrer) |
 | `cleanup.mergedMin` | prazo (min) | idade mínima do merge para o `fsd-cleanup` apagar o branch e o worktree |
+| `progress.everyMin` | ping (min) | no máximo uma conferência do `fsd-progress` por esse tempo (o vigia o chama a cada rodada) |
+| `progress.stallMin` | prazo (min) | card aberto (fora Backlog, Done e `blocked`) sem movimento (coluna, issue, PR, commit) há tanto tempo: `fsd-notify kevin "parado: #n em <coluna> há N min, dono: <agente>"`, o mais antigo só |
+| `progress.pauseMin` | prazo (min) | `PAUSE` ligado há tanto tempo: um aviso ao Kevin; o arquivo fica |
+| `progress.inboxMin` | prazo (min) | aviso parado na caixa de um agente há tanto tempo: um aviso ao Kevin por agente |
 | `stop.pollSeconds` | ping (s) | `fsd-stop` confere se o agente confirmou o handoff |
 | `stop.waitSeconds` | prazo (s) | `fsd-stop` desiste de esperar (a sessão fica aberta) |
 

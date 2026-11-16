@@ -5,6 +5,7 @@
 //   sem sessão  → sobe o agente          estourou  → reinicia limpo        travado → reinicia
 //   ocioso sem Monitor → empurrão curto (acima de restartAbove, reinicia)  permissão / limite de uso → só avisa o autor
 //   diálogo da interface que não é permissão (fsd-dialogs.mjs, ex.: onboarding do auto mode) → manda a tecla "nunca mais" só àquele painel, uma vez por cooldownMin
+//   fsd-progress (progressCheck, a cada timing.progress.everyMin): card aberto parado, PAUSE velho, aviso velho → fsd-notify kevin (de "vigia")
 //   alerta (permissão, limite de uso): fsd-alert, uma vez por estado até ele sair da tela; o limite de uso nunca reinicia (act 'alert').
 //   pediu ao autor (parado, e o fim do painel pede uma ação a ele: redirects.json → authorAsks) → fsd-notify kevin + empurrão
 //   "não espere o autor"; o mesmo pedido na tela não repete (nem dentro do cooldownMin, nem sob PAUSE).
@@ -228,6 +229,17 @@ function round() {
   return rows;
 }
 
+// fsd-progress: avisa o Kevin do que parou (card sem movimento, PAUSE velho, aviso velho). Sem --fix só mostra (--dry). O fsd-progress lê o
+// GitHub como Kevin (o vigia não tem FSD_AGENT) e se limita a timing.progress.everyMin. Erro nunca para a rodada.
+function progressCheck() {
+  try {
+    const r = spawnSync(join(BIN, 'fsd-progress'), FIX ? [] : ['--dry'], { env: { ...process.env, FSD_AGENT: 'kevin' }, encoding: 'utf8', timeout: 60000 });
+    const lines = String(r.stdout || '').split('\n').map((l) => l.trim()).filter(Boolean);
+    for (const l of lines) log(`progresso: ${l}`);
+    return lines.map((l) => `progresso: ${l}`).join('\n');
+  } catch { return ''; }
+}
+
 // fsd-cleanup --loop tem de estar sempre de pé: $FSD_STATE/cleanup.pid ausente ou com pid morto (e sem PAUSE) → sobe de novo (--fix).
 // Sem token: só confere o pid. O próprio fsd-cleanup recusa um segundo laço, então subir duas vezes não duplica.
 function cleanupCheck() {
@@ -261,7 +273,7 @@ function table(rows) {
   out.push(line('└', '┴', '┘')); return out.join('\n');
 }
 
-if (!LOOP) { console.log(table(round())); console.log(cleanupCheck()); { const cl = checkoutLine(); if (cl) console.log(cl); } if (timingLocalError()) console.log(`agents.local.json (timing) ignorado: ${timingLocalError()}`); }
+if (!LOOP) { console.log(table(round())); console.log(cleanupCheck()); { const pg = progressCheck(); if (pg) console.log(pg); } { const cl = checkoutLine(); if (cl) console.log(cl); } if (timingLocalError()) console.log(`agents.local.json (timing) ignorado: ${timingLocalError()}`); }
 else {
   // Um só vigia por vez ($FSD_STATE/watch.pid, criado com wx; pid morto é assumido), como o fsd-cleanup. Um segundo laço sai 0 sem fazer nada:
   // é o que deixa o supervisor (systemd/supervisord) chamar sempre. Cada rodada grava $FSD_STATE/watch.beat (hora ISO) para quem confere se vive.
@@ -287,7 +299,7 @@ else {
   // O agents.local.json entra só quando existe (ausente contaria como "não compila" e travaria a reexecução): criar,
   // mudar ou apagar o arquivo local também reexecuta, e os tempos (lidos uma vez na partida) passam a valer.
   const LOCAL = join(process.env.FSD_STATE || join(process.env.HOME, '.config', 'fsd-agents'), 'agents.local.json');
-  const SRC = () => ['fsd-watch', 'fsd-cleanup', 'fsd-lib.mjs', 'fsd-redirects.mjs', 'fsd-timing.mjs', 'fsd-context.mjs', 'fsd-local.mjs', 'fsd-reload.mjs', 'fsd-follow.mjs', 'fsd-alert.mjs', 'fsd-alert'].map((f) => join(BIN, f)).concat(join(ROOT, 'agents.json'), join(ROOT, 'redirects.json'), existsSync(LOCAL) ? [LOCAL] : []);
+  const SRC = () => ['fsd-watch', 'fsd-cleanup', 'fsd-lib.mjs', 'fsd-redirects.mjs', 'fsd-timing.mjs', 'fsd-context.mjs', 'fsd-local.mjs', 'fsd-reload.mjs', 'fsd-follow.mjs', 'fsd-alert.mjs', 'fsd-alert', 'fsd-progress', 'fsd-progress.mjs'].map((f) => join(BIN, f)).concat(join(ROOT, 'agents.json'), join(ROOT, 'redirects.json'), existsSync(LOCAL) ? [LOCAL] : []);
   const startFp = fingerprint(SRC());
-  for (;;) { round(); cleanupCheck(); checkoutLine(); beat(); reexecIfChanged({ files: SRC(), startFp, script: join(BIN, 'fsd-watch'), args: process.argv.slice(2), log, beforeExit: freePid }); await new Promise((r) => setTimeout(r, LOOP * 1000)); }
+  for (;;) { round(); cleanupCheck(); progressCheck(); checkoutLine(); beat(); reexecIfChanged({ files: SRC(), startFp, script: join(BIN, 'fsd-watch'), args: process.argv.slice(2), log, beforeExit: freePid }); await new Promise((r) => setTimeout(r, LOOP * 1000)); }
 }
