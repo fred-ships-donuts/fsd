@@ -146,7 +146,7 @@ EOF
 # ── fsd-svc: os 3 serviços, chamados pelo supervisord ──────────────────────────────────────────────────
 COPY <<'EOF' /usr/local/bin/fsd-svc
 #!/usr/bin/env bash
-# fsd-svc tailscaled|syncthing|tunnel — serviços do container fsd, chamados pelo supervisord.
+# fsd-svc tailscaled|syncthing|tunnel|watch|cleanup — serviços do container fsd, chamados pelo supervisord.
 set -uo pipefail
 H=/home/fsd; MODE="$(cat /run/fsd-net-mode 2>/dev/null || echo tun)"
 STATE=(--state="$H/.local/share/tailscale/tailscaled.state" --socket=/run/tailscale/tailscaled.sock)
@@ -169,7 +169,13 @@ case "${1:-}" in
       fi
       sleep 5
     done ;;
-  *) echo "uso: fsd-svc tailscaled|syncthing|tunnel"; exit 2 ;;
+  watch|cleanup)
+    # Laço do time (fsd-watch --loop --fix | fsd-cleanup --loop). O pid file recusa um segundo laço (sai 0); o laço que se reexecuta
+    # (código novo) também sai 0 e o filho segue. Por isso: roda, espera 5 s e confere de novo; laço morto volta em até 5 s.
+    # PAUSE nunca é apagado aqui: o próprio fsd-watch respeita.
+    B="$H/.local/bin/fsd-$1"; A=(--loop); [ "$1" = watch ] && A+=(--fix)
+    while true; do "$B" "${A[@]}"; sleep 5; done ;;
+  *) echo "uso: fsd-svc tailscaled|syncthing|tunnel|watch|cleanup"; exit 2 ;;
 esac
 EOF
 
@@ -386,6 +392,24 @@ environment=HOME="/home/fsd",USER="fsd"
 priority=30
 autorestart=true
 stdout_logfile=/var/log/fsd/tunnel.log
+redirect_stderr=true
+
+[program:fsd-watch]
+command=/usr/local/bin/fsd-svc watch
+user=fsd
+environment=HOME="/home/fsd",USER="fsd"
+priority=40
+autorestart=true
+stdout_logfile=/var/log/fsd/watch.log
+redirect_stderr=true
+
+[program:fsd-cleanup]
+command=/usr/local/bin/fsd-svc cleanup
+user=fsd
+environment=HOME="/home/fsd",USER="fsd"
+priority=50
+autorestart=true
+stdout_logfile=/var/log/fsd/cleanup.log
 redirect_stderr=true
 EOF
 

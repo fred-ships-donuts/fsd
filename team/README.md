@@ -47,6 +47,23 @@ do `agents.json`, campo a campo. Vale na próxima vez que o agente abrir.
 
     { "agents": { "mel": { "claude": { "model": "claude-sonnet-5-5", "effort": "medium" } } } }
 
+O mesmo arquivo ajusta o contexto (`claude_common.context` do `agents.json`) só nesta instalação: `claude_common.context`
+vale para todos e `agents.<nome>.context` para um agente. Ordem: `agents.json` (comum, depois o agente) e, por cima de
+tudo, o arquivo local (comum, depois o agente); um valor local comum vence até o valor por agente do `agents.json`. O merge
+é campo a campo também dentro de objetos: `bands.normal.urgentAt` sozinho não apaga o resto de `bands`. Quem lê é o
+`bin/fsd-context.mjs` (guard, vigia, `fsd-restart`, `fsd-stats`), a cada chamada, sem reabrir o agente. Arquivo local
+inválido: o vigia mostra `configuração inválida` no agente, sem ação, e segue no ar (uma linha no `watch.log` por erro).
+Para mudar um agente só, sem passar por cima do valor de agente do `agents.json` de todos, use `agents.<nome>.context`.
+
+    { "claude_common": { "context": { "restartAbove": 100000 } } }
+
+Os tempos do time (`timing`, ver "Tempos do time") também: o `timing` do arquivo local passa por cima do `agents.json`,
+campo a campo, e as variáveis de ambiente (`FSD_READY_GRACE` etc.) por cima de tudo. Quem lê é o `bin/fsd-timing.mjs`;
+o vigia e o `fsd-cleanup` reexecutam quando o arquivo local muda. Local inválido no `timing` é ignorado com aviso (stderr,
+tabela e `watch.log` do vigia) e vale o `agents.json`: um erro de digitação não derruba vigia, limpeza nem Monitor.
+
+    { "timing": { "readyGraceMin": 3 } }
+
 Comuns a todos (`claude_common` no `agents.json`): NotebookEdit, Artifact*, DesignSync,
 RemoteTrigger, Cron*, ScheduleWakeup, PushNotification. `--model` e `--effort` passados no
 comando passam por cima do padrão.
@@ -131,7 +148,7 @@ AGENTS.md                   ⚙️     como achar código com o fsd-map (lido ta
 ```
 
 **Para mudar algo, o arquivo é:**
-- modelo, esforço ou ferramentas de um agente: `agents.json` (padrão do time) ou `~/.config/fsd-agents/agents.local.json` (só esta instalação, fora do git);
+- modelo, esforço, ferramentas ou contexto de um agente: `agents.json` (padrão do time) ou `~/.config/fsd-agents/agents.local.json` (só esta instalação, fora do git);
 - o que um agente pode escrever: `agents/<nome>/claude/settings.json`;
 - o que vale para todos: `claude-settings.json` e `common/team.md`;
 - um tempo de espera (ping ou prazo): `agents.json` → `timing`;
@@ -145,6 +162,8 @@ no código. **Ping** é de quanto em quanto tempo algo confere; **prazo** é dep
 | campo | tipo | o que é |
 |---|---|---|
 | `wait.ready` | ping (s) | Kevin confere se há PR aprovado e parado |
+| `wait.backlog` | ping (s) | Kevin confere se entrou card no Backlog (Kevin) |
+| `wait.decision` | ping (s) | Kevin confere se surgiu issue com a label `decision` |
 | `wait.todo` | ping (s) | Kevin, Mel e Bob conferem se há PR para revisar ou verificar |
 | `wait.mine` | ping (s) | Stuart confere revisão, merge ou fechamento dos PRs dele |
 | `wait.column` | ping (s) | Mel e Stuart conferem se chegou card na coluna deles |
@@ -191,6 +210,7 @@ O nome de cada coluna do Status leva o responsável entre parênteses (`Ready fo
 `redirects.json` é a fonte única de "ação bloqueada → comando do time". Quem lê: o hook `fsd-redirect-hook`, a regra "pediu ao autor" do `fsd-watch` (`authorAsks`) e a tabela de `common/team.md` (entre `<!-- redirects:start -->` e `<!-- redirects:end -->`).
 
 - **Hook** (`PreToolUse`, Bash): casa o comando por token (separa `&&`, `||`, `;`, `|`, ignora `rtk`/`sudo`/`VAR=x`/`cd`/caminho do programa, não olha dentro de aspas nem de heredoc) e nega com `Blocked: <por quê>. Use: <comando>. Do not ask the author.`, com `<worktree>` e `<n>` preenchidos quando dá para saber. Só nega: nunca `allow`; erro de qualquer tipo sai 0 calado. As regras de `deny` e o classificador seguem de guarda.
+- **Vigia e limpeza sempre de pé:** `fsd-watch --loop` guarda `$FSD_STATE/watch.pid` (um só laço; o segundo sai 0 com "already running", pid morto é assumido) e grava `$FSD_STATE/watch.beat` (hora ISO) a cada rodada. No host, os timers de usuário `fsd-watch.timer` e `fsd-cleanup.timer` (`setup/systemd/`, `systemctl --user enable --now …`) chamam `fsd-watch --loop --fix` e `fsd-cleanup --loop` a cada minuto; no container, o supervisord roda `fsd-svc watch|cleanup` (confere de novo a cada 5 s). Laço morto volta sozinho; o supervisor nunca apaga o `PAUSE`.
 - **Vigia, código e configuração velhos:** com `--loop`, o `fsd-watch` e o `fsd-cleanup` se reexecutam (`fsd-reload.mjs`, exit 0, mesmo pid file) quando muda um arquivo da fonte e todos compilam; se algum não compila, o código antigo segue e o log avisa uma vez. A sessão que subiu com outro `claude-settings.json`/`redirects.json` (hash em `$TMPDIR/fsd-live-hash/<agente>`, gravado pelo `fsd-agent`) é reiniciada só no ponto seguro (parada no prompt, sem ferramenta, sem diálogo); sem hash gravado, nada.
 - **Vigia:** agente parado cujo fim de painel pede uma ação ao autor (`authorAsks`) → `fsd-notify kevin "<agente> pediu ao autor: …"` e um empurrão "não espere o autor". Respeita `PAUSE` e `watch.cooldownMin`; o mesmo pedido na tela não repete; `[fsd-aviso …]` não conta. Toda tecla vai por `safeSend`: painel caído num shell (`bash`/`zsh`/`sh`) é reiniciado e nada é digitado; diálogo na tela (`❯ 1.`, `Do you want`, `Press Enter to continue`, `trust`) → não digita e loga `dialog on screen, not typing`; linha de entrada com texto → `C-u` antes (logado). `FSD_TMUX_SOCKET=<nome>` põe `-L <nome>` em todo `tmux` do `fsd-watch` e do `fsd-notify` (teste em servidor isolado).
 - **Alerta ao autor (`fsd-alert`):** permissão que nenhum comando do time resolve e limite de uso (com a hora de reinício) viram um alerta por estado, até o estado sair da tela. Canais: toast do Windows (`powershell.exe`, WSL) e depois `notify-send` (o primeiro desktop que entrega vale), a linha em `$FSD_STATE/ALERT` (sempre) e um comentário do Kevin na issue fixa `agents.json → alert.issue` (só se nenhum desktop entregou). Sai 0 sempre; `FSD_DRY=1` não mostra toast nem comenta. O limite de uso nunca reinicia a sessão.

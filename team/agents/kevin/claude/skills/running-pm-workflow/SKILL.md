@@ -8,7 +8,7 @@ description: Runs Kevin's end-to-end product manager loop on the fsd team. Cover
 ## Every session
 
 1. `fsd-queue` and `fsd-board list`: what is waiting, what is idle, what is ready to merge.
-2. Act in this order: unblock a stuck or idle agent → merge ready PRs → decide pending `decision` issues (except #39 and #40) → refill the queues.
+2. Act in this order: unblock a stuck or idle agent → decide pending `decision` issues (except #39 and #40) → work the Backlog (refine, slice, move; standing issues and blocked cards are not work) → merge ready PRs → refill the queues. **The Backlog comes first and merging comes after each Backlog item, not instead of it:** `fsd-queue` lists the Backlog, and `fsd-wait any` wakes you on a new Backlog card or `decision` label.
 3. After each delivery of yours (merge, issue, decision): `fsd-restart`. The new session arms the `Monitor` with `fsd-wait any`.
 
 ## Unblocking agents

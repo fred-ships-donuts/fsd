@@ -1,0 +1,9 @@
+[Unit]
+Description=fsd: watcher (fsd-watch --loop --fix), restarted by the timer
+
+# Type=simple: o laço fica de pé dentro da unidade. Um segundo laço sai 0 ("already running", pid file); o timer tenta de novo a cada
+# minuto, então um laço morto volta em até 1 min. KillMode=process: o laço que se reexecuta (código novo) deixa o filho vivo.
+[Service]
+Type=simple
+KillMode=process
+ExecStart=%h/.local/bin/fsd-watch --loop --fix
