@@ -112,9 +112,11 @@
   "timing": {
     "_comment": "Tempos do time, lidos pelo fsd-timing.mjs (a unidade está no nome). Ping = de quanto em quanto tempo algo confere; prazo = depois de quanto tempo algo age. FSD_WAIT_SECONDS, FSD_READY_GRACE e FSD_STOP_WAIT passam por cima numa sessão só.",
     "wait": {
-      "_comment": "fsd-wait (ping, s): de quanto em quanto tempo cada espera confere o GitHub. ready: PR pronto parado (Kevin) · todo: PR para revisar/verificar (Kevin, Mel, Bob) · mine: revisão ou merge nos PRs do Stuart · column: card na coluna (Mel, Stuart) · pr: um PR específico (fsd-wait pr). Sem valor, vale default. retries: falhas de rede seguidas antes de desistir.",
+      "_comment": "fsd-wait (ping, s): de quanto em quanto tempo cada espera confere o GitHub. ready: PR pronto parado (Kevin) · backlog: card novo no Backlog (Kevin) · decision: label decision nova (Kevin) · todo: PR para revisar/verificar (Kevin, Mel, Bob) · mine: revisão ou merge nos PRs do Stuart · column: card na coluna (Mel, Stuart) · pr: um PR específico (fsd-wait pr). Sem valor, vale default. retries: falhas de rede seguidas antes de desistir.",
       "default": 10,
       "ready": 60,
+      "backlog": 60,
+      "decision": 60,
       "todo": 10,
       "mine": 10,
       "column": 30,

@@ -145,6 +145,8 @@ no código. **Ping** é de quanto em quanto tempo algo confere; **prazo** é dep
 | campo | tipo | o que é |
 |---|---|---|
 | `wait.ready` | ping (s) | Kevin confere se há PR aprovado e parado |
+| `wait.backlog` | ping (s) | Kevin confere se entrou card no Backlog (Kevin) |
+| `wait.decision` | ping (s) | Kevin confere se surgiu issue com a label `decision` |
 | `wait.todo` | ping (s) | Kevin, Mel e Bob conferem se há PR para revisar ou verificar |
 | `wait.mine` | ping (s) | Stuart confere revisão, merge ou fechamento dos PRs dele |
 | `wait.column` | ping (s) | Mel e Stuart conferem se chegou card na coluna deles |

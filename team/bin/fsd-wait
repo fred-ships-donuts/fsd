@@ -59,6 +59,7 @@ const W = {
   deadlock: () => { const t = timing().deadlock; const f = L.findDeadlocks(L.waitsList(), { now: L.clock(), activityOf: L.activityOf, cycleMin: Number(t.cycleMin), stallMin: Number(t.stallMin) }); return L.deadlocksNew(f, NOW).map((x) => x.line).join(' | '); },
   // Kevin: card novo no Backlog ou label decision nova acorda o Monitor, para ele não dormir sobre um Backlog cheio (#159).
   backlog: () => fresh('col:backlog', colItems(L.STAGE.backlog), (n) => `Backlog (Kevin): ${n.join(' ')} (fsd-queue)`),
+  // "Novo" = fora da linha de base da primeira leitura: uma label posta depois dela acorda; uma que já estava lá, não.
   decision: () => fresh('decision', (L.ghJson(['issue', 'list', '--label', 'decision', '--state', 'open', '--json', 'number', '--limit', '100']) || []).map((x) => '#' + x.number), (n) => `decision: ${n.join(' ')} (fsd-issue decide)`),
   blocked: () => L.unblockedNew(L.unblocked(), NOW).map((x) => x.line).join(' | '),
   column: (c) => (c = L.stageName(c), fresh('col:' + c, colItems(c), (n) => `${c}: ${n.join(' ')}`)),
