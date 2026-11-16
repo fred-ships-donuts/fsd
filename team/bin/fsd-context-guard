@@ -2,7 +2,7 @@
 // fsd-context-guard — hook dos agentes (PreToolUse, PostToolUse, PostToolUseFailure, UserPromptSubmit, Stop).
 //   Sinal de vida (para o fsd-watch, zero tokens): PreToolUse grava um arquivo por ferramenta em andamento em liveDir(agente)
 //   (ferramenta, início e, no Bash, o timeout pedido); PostToolUse/PostToolUseFailure apagam; Stop e UserPromptSubmit limpam tudo.
-//   Monitor com contexto > restartAbove → negado: fim de entrega é fsd-restart, e a sessão nova arma o Monitor.
+//   Contexto > restartAbove → toda ferramenta é negada, menos o conjunto de fechamento (wrapUpAllowed em fsd-context.mjs). Monitor → negado: fim de entrega é fsd-restart, e a sessão nova arma o Monitor.
 // Julga sem gastar token:
 //   livre = limit − outputReserve − atual − marginPct% (a API recusa o prompt antes do limit: reserva a saída) · custo = crescimento médio por chamada (últimas 20) · restam = livre ÷ custo
 //   pesada = alguma das 3 últimas chamadas custou ≥ heavyFactor × a média → valem as faixas heavy
@@ -12,7 +12,7 @@
 import { openSync, readSync, fstatSync, closeSync, existsSync, readFileSync, writeFileSync, mkdirSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { context } from './fsd-context.mjs';
+import { context, wrapUpAllowed, wrapUpReason } from './fsd-context.mjs';
 import { liveDir } from './fsd-timing.mjs';
 
 // ── Mensagens (editar aqui). {used} {limit} {calls} {cost} {heavy} ──
@@ -32,8 +32,8 @@ const WINDOW = 20, RECENT = 3, MIN_COST = 1000;
 let input = {}; try { input = JSON.parse(readStdin() || '{}'); } catch { process.exit(0); }
 const ev = input.hook_event_name, PRINT = process.argv.includes('--print');
 if (!PRINT) {
-  if (!(ev === 'PreToolUse' && input.tool_name === 'Monitor')) live();   // o Monitor só é registrado se não for negado, abaixo
-  if (ev === 'PostToolUseFailure' || (ev === 'PreToolUse' && input.tool_name !== 'Monitor')) process.exit(0);
+  if (ev !== 'PreToolUse') live();   // a ferramenta só é registrada se não for negada, abaixo
+  if (ev === 'PostToolUseFailure') process.exit(0);
 }
 const { used, cost: raw, n, peak } = sample(input.transcript_path);
 const cost = Math.max(MIN_COST, raw), free = LIMIT - RESERVE - used - MARGIN, left = Math.max(0, free / cost);
@@ -48,7 +48,9 @@ if (PRINT) {
 }
 if (input.hook_event_name === 'PreToolUse') {
   const above = C.restartAbove;
-  if (input.tool_name === 'Monitor' && used > above) console.log(JSON.stringify({ hookSpecificOutput: { hookEventName: 'PreToolUse', permissionDecision: 'deny',
+  // Acima de restartAbove só passa o conjunto de fechamento (#193); o Monitor tem a razão própria, abaixo.
+  if (used > above && input.tool_name !== 'Monitor' && !wrapUpAllowed(input.tool_name, input.tool_input)) console.log(JSON.stringify({ hookSpecificOutput: { hookEventName: 'PreToolUse', permissionDecision: 'deny', permissionDecisionReason: wrapUpReason(used, above) } }));
+  else if (input.tool_name === 'Monitor' && used > above) console.log(JSON.stringify({ hookSpecificOutput: { hookEventName: 'PreToolUse', permissionDecision: 'deny',
     permissionDecisionReason: `Contexto ${k(used)} > ${k(above)}: não espere nesta sessão. Fim de entrega é fsd-restart (handoff antes só se houver contexto que o GitHub e a fsd-queue não têm); a sessão nova vê a fila e, sem trabalho, avisa o Kevin e arma o Monitor.` } }));
   else live();
   process.exit(0);

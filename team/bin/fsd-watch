@@ -26,7 +26,7 @@ import { join, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { spawnSync, spawn } from 'node:child_process';
-import { context } from './fsd-context.mjs';
+import { context, contextAction } from './fsd-context.mjs';
 import { timing, timingLocalError, liveDir, settingsHashFile } from './fsd-timing.mjs';
 import { paneState, SHELLS } from './fsd-pane.mjs';
 import { uiDialog } from './fsd-dialogs.mjs';
@@ -116,6 +116,10 @@ function classify(agent, mem = {}) {
   if (/Do you want|❯ 1\. Yes/.test(pane)) return { ...base, state: 'permissão', act: 'alert' };
   if (/usage limit|hit your limit|limit will reset|resets? at/i.test(pane)) return { ...base, state: 'limite de uso', act: 'alert', reset: resetTime(pane) };
   const working = /esc to interrupt/.test(pane), monitor = /\d+ monitors?\b/.test(pane);
+  // Teto de contexto (#193): trabalhando acima de restartAbove + hardMarginTokens, reinicia entre duas ferramentas; no Monitor acima de restartAbove, na hora.
+  const cc = context(agent), paneCommand = (sh('tmux', ['display-message', '-p', '-t', s, '#{pane_current_command}']).stdout || '').trim();
+  if (contextAction({ ctx: t.ctx, above: cc.restartAbove, hardMargin: cc.hardMarginTokens, working, monitor, tools: working ? liveTools(agent) : [], pane, paneCommand }) === 'restart')
+    return { ...base, state: `contexto ${k(t.ctx)} acima do teto de ${k(cc.restartAbove + (working ? cc.hardMarginTokens : 0))}`, act: 'restart' };
   if (working) {
     const now = Date.now(), tools = liveTools(agent), quiet = Math.min(t.idle, tokenIdle(agent, pane, mem));
     const bash = tools.filter((x) => x.tool === 'Bash'), other = tools.filter((x) => x.tool !== 'Bash');

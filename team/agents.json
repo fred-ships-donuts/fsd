@@ -31,7 +31,9 @@
       "mediumFree": 30000,
       "_free": "Piso de espaço livre (tokens): a média por chamada (~1k) não prevê uma leitura grande, como um diff de revisão. Livre ≤ urgentFree → urgente; < mediumFree → médio.",
       "restartAbove": 150000,
-      "_restartAbove": "Acima disto (tokens) o guard nega o Monitor e o fsd-restart reinicia; abaixo, a sessão segue. Por agente: agents.<nome>.context.restartAbove.",
+      "_restartAbove": "Acima disto (tokens) o guard nega toda ferramenta fora do conjunto de fechamento (commit, push, fsd-pr open, fsd-restart…) e o fsd-restart reinicia; abaixo, a sessão segue. Por agente: agents.<nome>.context.restartAbove.",
+      "hardMarginTokens": 10000,
+      "_hardMarginTokens": "Teto duro do vigia: restartAbove + isto (tokens). Acima dele o vigia reinicia o agente mesmo trabalhando, entre duas ferramentas (#193).",
       "marginPct": 5,
       "heavyFactor": 1.5,
       "bands": {
