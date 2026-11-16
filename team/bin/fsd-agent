@@ -53,6 +53,10 @@ claude_wrap() {
     if [ -e "$CLAUDE_CONFIG_DIR/$f" ] && [ ! -L "$CLAUDE_CONFIG_DIR/$f" ]; then mv -n "$CLAUDE_CONFIG_DIR/$f" "$CLAUDE_CONFIG_DIR/$f.pre-team"; fi
     ln -sfn "$src" "$CLAUDE_CONFIG_DIR/$f"
   done
+  # Regras do time: o CLAUDE.md de cada agente importa @~/.config/fsd-agents/common/team.md. common/ liga em team/common
+  # do repo, a cada subida, como o perfil acima; uma pasta de verdade que já exista vai para common.pre-team, uma vez só.
+  if [ -e "$STATE/common" ] && [ ! -L "$STATE/common" ]; then mv -n "$STATE/common" "$STATE/common.pre-team"; fi
+  ln -sfn "$ROOT/common" "$STATE/common"
   local tok="$STATE/claude-oauth-token"
   if [ -s "$tok" ]; then export CLAUDE_CODE_OAUTH_TOKEN="$(cat "$tok")"
   else echo "[fsd-agent] sem $tok: rode 'claude setup-token' e salve o token nesse arquivo (chmod 600)" >&2; exit 2; fi
