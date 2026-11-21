@@ -292,6 +292,18 @@
         ]
       }
     ],
+    "StopFailure": [
+      {
+        "matcher": "rate_limit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node $FSD_TEAM/bin/fsd-usage.mjs stop-failure",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
     "SessionEnd": [
       {
         "hooks": [

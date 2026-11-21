@@ -2,9 +2,12 @@
 // fsd-usage — uso da conta do time (5h e semanal) sem gastar token do modelo (#193).
 //   fsd-usage.mjs refresh   busca se o cache velho (usage.refreshSeconds) e o retry-after permitem; aplica o PAUSE por uso
 //   fsd-usage.mjs status    mostra o cache
+//   fsd-usage.mjs stop-failure   hook StopFailure (matcher rate_limit): a conta bateu no limite → PAUSE por uso, sem esperar o
+//                                endpoint (freio reativo; #214: o endpoint recusa o token do time). Sai por usage.reactiveHoldMin.
 // Cache: $FSD_STATE/usage.json · token: $FSD_STATE/claude-oauth-token · lock: usage.lock (O_EXCL).
 // Testes: FSD_USAGE_FIXTURE=<json {status, body, retryAfter}> (sem rede) e FSD_USAGE_NOW=<ms> (relógio).
-// PAUSE criado aqui leva o PAUSE.usage; só esse é removido quando a janela volta (nunca um PAUSE feito à mão).
+// PAUSE.usage marca a pausa por uso; o PAUSE só é apagado quando foi este script que o criou (own: true). Um PAUSE feito à mão
+// antes do limite continua depois que a janela volta.
 import { readFileSync, writeFileSync, existsSync, openSync, closeSync, rmSync, statSync, renameSync, realpathSync } from 'node:fs';
 import { spawn } from 'node:child_process';
 import { join, dirname } from 'node:path';
@@ -70,20 +73,34 @@ export async function refresh(cfg = usageConfig()) {
 export function apply(cache, cfg) {
   const hit = over(cache, cfg.stopPct), pause = P('PAUSE'), mark = P('PAUSE.usage');
   if (hit) {
-    if (!existsSync(mark)) {
-      if (!existsSync(pause)) writeFileSync(pause, `usage ${hit.window} ${hit.pct}%\n`);
-      writeFileSync(mark, JSON.stringify({ window: hit.window, resets_at: cache[hit.window].resets_at || null, pct: hit.pct, at: now() }));
-      ghw(['issue', 'comment', '147', '--body', `Team account usage at ${hit.pct}% on the ${hit.window === 'five_hour' ? '5h' : 'weekly'} window (limit ${cfg.stopPct}%): PAUSE created, agents wrap up and stop. It is removed when the window resets.`], { allowFail: true });
-    }
+    if (!existsSync(mark)) pauseFor({ window: hit.window, resets_at: cache[hit.window].resets_at || null, pct: hit.pct },
+      `Team account usage at ${hit.pct}% on the ${hit.window === 'five_hour' ? '5h' : 'weekly'} window (limit ${cfg.stopPct}%)`);
     return;
   }
   const m = read(mark); if (!m) return;
-  const w = cache?.[m.window], later = w?.resets_at && (!m.resets_at || Date.parse(w.resets_at) > Date.parse(m.resets_at));
-  if (later && Number(w.utilization) < cfg.stopPct) { rmSync(pause, { force: true }); rmSync(mark, { force: true }); }
+  let back;
+  if (m.window === 'reactive') back = now() - m.at > (Number(cfg.reactiveHoldMin) || 60) * 60000;
+  else { const w = cache?.[m.window]; back = w?.resets_at && (!m.resets_at || Date.parse(w.resets_at) > Date.parse(m.resets_at)) && Number(w.utilization) < cfg.stopPct; }
+  if (back) { if (m.own) rmSync(pause, { force: true }); rmSync(mark, { force: true }); }
+}
+// Pausa por uso: cria o PAUSE só se não havia um (own diz se foi este script), grava o PAUSE.usage e comenta na #147.
+function pauseFor(info, why) {
+  const pause = P('PAUSE'), mark = P('PAUSE.usage'); const own = !existsSync(pause);
+  if (own) writeFileSync(pause, `usage ${info.window} ${info.pct ?? ''}%\n`);
+  writeFileSync(mark, JSON.stringify({ ...info, own, at: now() }));
+  ghw(['issue', 'comment', '147', '--body', `${why}: ${own ? 'PAUSE created' : 'PAUSE was already on (kept as is)'}, agents wrap up and stop. ${own ? 'It is removed when the window resets.' : 'The manual PAUSE stays after the window resets.'}`], { allowFail: true });
+}
+// Freio reativo (hook StopFailure com matcher rate_limit): a conta já bateu no limite. Sem resets_at, a pausa sai depois de
+// usage.reactiveHoldMin minutos; se a conta ainda estiver no limite, a próxima sessão bate de novo e pausa outra vez.
+export function stopFailure(cfg = usageConfig()) {
+  if (existsSync(P('PAUSE.usage'))) return false;
+  pauseFor({ window: 'reactive', resets_at: null, pct: null }, 'The team account hit its usage limit (StopFailure rate_limit)');
+  return true;
 }
 if (process.argv[1] && realpathSync(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const cmd = process.argv[2];
   if (cmd === 'refresh') { try { await refresh(); } catch (e) { console.error(`fsd-usage: ${e.message}`); process.exit(2); } }
   else if (cmd === 'status') console.log(JSON.stringify(readCache()));
-  else { console.error('uso: fsd-usage.mjs refresh|status'); process.exit(2); }
+  else if (cmd === 'stop-failure') { try { stopFailure(); } catch {} process.exit(0); }   // hook: nunca falha o turno
+  else { console.error('uso: fsd-usage.mjs refresh|status|stop-failure'); process.exit(2); }
 }
