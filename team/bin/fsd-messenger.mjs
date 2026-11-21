@@ -4,13 +4,15 @@
 //                                 sem usuário Unix por papel (antes da E2), cai no nome da pasta e marca trusted: false
 //   deliver(m)                    põe na caixa do destino ($FSD_STATE/inbox/<to>, a mesma do fsd-inbox) e tira do outbox
 //   hook(event, input)            hook da sessão nova (FSD_RUNNER=session): PostToolUse e UserPromptSubmit entregam a caixa
-//                                 como additionalContext e marcam "working"; Stop marca "idle" ($FSD_STATE/session-state/<agente>.json)
+//                                 como additionalContext e marcam "working"; Stop marca "idle"; SessionStart e UserPromptSubmit
+//                                 reinjetam o cartão da tarefa (fsd-task.mjs) ($FSD_STATE/session-state/<agente>.json)
 import { readdirSync, readFileSync, writeFileSync, mkdirSync, renameSync, statSync, unlinkSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { randomBytes } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { AGENTS, CFG, stateDir, inboxAppend, inboxDrain, noticeLine } from './fsd-lib.mjs';
 import { checkDelivery } from './fsd-contract.mjs';
+import { loadCard } from './fsd-task.mjs';
 
 export const outboxDir = (role) => join(stateDir(), 'outbox', ...(role ? [role] : []));
 const atomic = (f, data) => { const tmp = `${f}.${process.pid}.tmp`; writeFileSync(tmp, data, { mode: 0o600 }); renameSync(tmp, f); };
@@ -64,9 +66,12 @@ export function hook(event, input = {}, agent = process.env.FSD_AGENT) {
   if (!AGENTS.includes(agent)) return null;
   const mark = (state) => { mkdirSync(join(stateDir(), 'session-state'), { recursive: true }); atomic(stateFile(agent), JSON.stringify({ state, at: new Date().toISOString(), session_id: input.session_id || null }) + '\n'); };
   if (event === 'Stop') { mark('idle'); return null; }
-  if (event !== 'PostToolUse' && event !== 'UserPromptSubmit') return null;
-  mark('working');
-  const n = inboxDrain(agent); if (!n.length) return null;
-  return { hookSpecificOutput: { hookEventName: event, additionalContext: `[fsd-mensagens: ${n.length}]\n${n.map(noticeLine).join('\n')}` } };
+  if (!['PostToolUse', 'UserPromptSubmit', 'SessionStart'].includes(event)) return null;
+  if (event !== 'SessionStart') mark('working');
+  // T3.4.5: o cartão da tarefa volta ao abrir a sessão e a cada mensagem nova (não a cada ferramenta).
+  const card = event === 'PostToolUse' ? '' : loadCard(agent);
+  const n = event === 'SessionStart' ? [] : inboxDrain(agent);   // no SessionStart a caixa já sai pelo fsd-inbox drain
+  const parts = [card, n.length ? `[fsd-mensagens: ${n.length}]\n${n.map(noticeLine).join('\n')}` : ''].filter(Boolean);
+  return parts.length ? { hookSpecificOutput: { hookEventName: event, additionalContext: parts.join('\n\n') } } : null;
 }
 export const _test = { stateFile, existsSync };
