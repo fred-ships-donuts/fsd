@@ -9,7 +9,7 @@
 // arquivo em vez de chamar o claude e imprime o comando que chamaria.
 // Saída: linha 1 = o JSON do veredito (ou "fsd-judge: author decision needed (<motivo>)"). Exit 0 nos dois caminhos · 1 recusa · 2 uso · 4 GitHub.
 const L = await import('./fsd-lib.mjs');
-import { spawnSync } from 'node:child_process';
+import { judgeArgs, answerOf, runSession } from './fsd-judge.mjs';
 import { openSync, writeSync, closeSync, readFileSync, writeFileSync, unlinkSync, mkdirSync, existsSync, mkdtempSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
@@ -63,11 +63,8 @@ function authorPath(reason, detail, answer) {
 }
 if (existsSync(join(stateDir, 'judged', `${n}.json`))) authorPath('second deadlock', 'the judge already gave a verdict for this ref and the deadlock came back.');
 
-// --- A sessão.
-const TOOLS = ['Read', 'Grep', 'Glob', 'Bash(gh pr view:*)', 'Bash(gh pr diff:*)', 'Bash(gh issue view:*)', 'Bash(git log:*)', 'Bash(git show:*)', 'Bash(git diff:*)'];
-const DENY = ['Edit', 'Write', 'NotebookEdit', 'Agent', 'WebFetch', 'WebSearch'];
-const claudeArgs = ['-p', '--model', 'sonnet', '--effort', 'medium', '--no-session-persistence', '--permission-mode', 'dontAsk', '--tools', 'Read,Grep,Glob,Bash',
-  '--allowedTools', ...TOOLS, '--disallowedTools', ...DENY];
+// --- A sessão (argv em fsd-judge.mjs: só leitura, sem git, deny de segredos, --json-schema).
+const claudeArgs = judgeArgs({ stateDir: L.stateDir() });
 const prompt = `${readFileSync(join(L.ROOT, 'judge-prompt.md'), 'utf8')}\n\n## Inputs\n\n${JSON.stringify({ ref, kind, title: meta.title, state: meta.state, labels, url: meta.url, author_env: author, waits }, null, 1)}\n`;
 
 let text = ''; let failure = '';
@@ -77,8 +74,10 @@ if (FIXTURE) {
 } else {
   // O hook de SessionStart do agente real não pode esvaziar a caixa do Kevin: o juiz roda como "judge" (fora do agents.json), com um FSD_STATE só dele.
   const env = { ...process.env, FSD_AGENT: 'judge', FSD_STATE: mkdtempSync(join(tmpdir(), 'fsd-judge-')) };
-  const r = spawnSync('claude', claudeArgs, { input: prompt, cwd: L.REPO_DIR, env, encoding: 'utf8', maxBuffer: 64 << 20, timeout: Number(timing().judge.timeoutMin) * 60000, killSignal: 'SIGKILL' });
-  if (r.error?.code === 'ETIMEDOUT' || r.signal === 'SIGKILL') failure = 'timeout';
+  // Prazo: FSD_JUDGE_TIMEOUT_MS (testes) ou timing.judge.timeoutMin. No prazo, SIGINT; depois SIGTERM (runSession).
+  const timeoutMs = Number(process.env.FSD_JUDGE_TIMEOUT_MS) || Number(timing().judge.timeoutMin) * 60000;
+  const r = await runSession({ bin: process.env.FSD_JUDGE_CLAUDE || 'claude', args: claudeArgs, input: prompt, cwd: L.REPO_DIR, env, timeoutMs, graceMs: Number(process.env.FSD_JUDGE_GRACE_MS) || 10000 });
+  if (r.timedOut) failure = 'timeout';
   else if (r.error || r.status !== 0) failure = 'judge error';
   else text = r.stdout || '';
 }
@@ -89,7 +88,8 @@ const str = (v) => typeof v === 'string' && v.trim() !== '';
 const isAgent = (v) => str(v) && L.AGENTS.includes(v);
 function parse(raw) {
   try {
-    const j = JSON.parse(String(raw).trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, ''));
+    const a = answerOf(raw); if (a === null) return null;
+    const j = typeof a === 'object' ? a : JSON.parse(String(a).trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, ''));
     const c = j.verdict?.continue; const w = j.verdict?.wait;
     const ok = Array.isArray(j.facts) && j.facts.every((f) => f && ['agent', 'asks', 'why', 'evidence'].every((k) => str(f[k])))
       && j.rule && ['owner', 'source', 'text'].every((k) => str(j.rule[k])) && ['mel', 'kevin', 'author'].includes(j.rule.owner)
