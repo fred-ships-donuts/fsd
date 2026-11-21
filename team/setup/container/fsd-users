@@ -37,6 +37,15 @@ install -d -o root -g root -m 0755 /var/lib/fsd-tokens
 for r in "${ROLES[@]}"; do install -d -o fsd-broker -g "fsd-$r" -m 2750 "/var/lib/fsd-tokens/$r"; done
 install -d -o fsd-broker -g fsd-dispatch -m 2750 /var/lib/fsd-tokens/dispatch
 install -d -o fsd-broker -g fsd-broker -m 0700 /var/lib/fsd-broker /var/lib/fsd-broker/keys
+# QA (F2.4): o código do PR roda como fsd-run, numa área só dele; o Bob chama só o fsd-run-exec, por um sudoers estreito.
+install -d -o fsd-run -g fsd-run -m 0700 /var/lib/fsd-run /var/lib/fsd-run/qa
+src=$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/fsd-run-exec
+[ -f "$src" ] && install -o root -g root -m 0755 "$src" /usr/local/sbin/fsd-run-exec
+if [ -d /etc/sudoers.d ]; then
+  printf 'Defaults:fsd-bob env_reset\nfsd-bob ALL=(fsd-run) NOPASSWD: /usr/local/sbin/fsd-run-exec\n' > /etc/sudoers.d/fsd-run.tmp
+  chmod 0440 /etc/sudoers.d/fsd-run.tmp
+  if command -v visudo >/dev/null && visudo -cf /etc/sudoers.d/fsd-run.tmp >/dev/null; then mv /etc/sudoers.d/fsd-run.tmp /etc/sudoers.d/fsd-run; else rm -f /etc/sudoers.d/fsd-run.tmp; echo "fsd-users: sudoers do fsd-run inválido" >&2; exit 1; fi
+fi
 echo 'umask 077' > /etc/profile.d/fsd-umask.sh; chmod 0644 /etc/profile.d/fsd-umask.sh
 grep -q '^UMASK[[:space:]]\+077' /etc/login.defs 2>/dev/null || sed -i 's/^UMASK.*/UMASK\t\t077/' /etc/login.defs
 echo "fsd-users: ${ROLES[*]/#/fsd-} fsd-run fsd-dispatch fsd-broker prontos"

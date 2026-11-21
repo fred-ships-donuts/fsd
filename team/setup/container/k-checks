@@ -65,5 +65,19 @@ if [ -n "${FSD_SIM_TEAM:-}" ]; then
   check K8 "gh (wrapper) na sessão nova usa o token do usuário, com FSD_AGENT de outro" bash -c "su -s /bin/bash fsd-stuart -c 'FSD_RUNNER=session FSD_AGENT=mel FSD_REAL_GH=/usr/local/bin/fake-gh $T/gh pr list' 2>/dev/null | grep -q '^fake-stuart-repo-'"
   check K8 "git-credential-fsd na sessão nova dá o token do usuário" bash -c "printf 'protocol=https\nhost=github.com\n\n' | su -s /bin/bash fsd-stuart -c 'FSD_RUNNER=session FSD_AGENT=mel $T/git-credential-fsd get' 2>/dev/null | grep -q '^password=fake-stuart-repo-'"
 fi
+# K9 (F2.4, A2): o código do PR roda como fsd-run, sem o ambiente de quem chamou, e o exit vem de arquivo do Bob, não da tela.
+if [ -x /usr/local/sbin/fsd-run-exec ]; then
+  RX="sudo -n -u fsd-run /usr/local/sbin/fsd-run-exec"
+  install -d -o fsd-run -g fsd-run -m 0700 /var/lib/fsd-run/qa/k9 /var/lib/fsd-run/qa/k9/work /var/lib/fsd-run/qa/k9/home
+  check K9 "o Bob roda um comando como fsd-run" bash -c "su -s /bin/bash fsd-bob -c '$RX run k9 -- id -un' 2>/dev/null | grep -qx fsd-run"
+  check K9 "o Stuart não usa o fsd-run" cannot fsd-stuart "$RX run k9 -- id -un"
+  check K9 "o Bob não vira fsd-run para outra coisa" cannot fsd-bob "sudo -n -u fsd-run id"
+  check K9 "A2: postinstall/código do PR não vê o ambiente do Bob (token, FSD_*)" bash -c "out=\$(su -s /bin/bash fsd-bob -c 'GH_TOKEN=s3cr3t FSD_AGENT=bob FSD_TOKEN_DIR=/x $RX run k9 -- env' 2>/dev/null); [ -n \"\$out\" ] && ! grep -qE 's3cr3t|^FSD_|^GH_TOKEN' <<<\"\$out\""
+  check K9 "o código do PR não lê o token do Bob" bash -c "! su -s /bin/bash fsd-bob -c '$RX run k9 -- cat /var/lib/fsd-tokens/bob/token' >/dev/null 2>&1"
+  su -s /bin/bash fsd-bob -c "mkdir -p ~/qa && chmod 700 ~/qa; $RX run k9 -- 'echo __EXIT=0; exit 3'; echo \$? > ~/qa/exit.k9" >/dev/null 2>&1
+  check K9 "o exit vem do arquivo do Bob: __EXIT=0 impresso não vira 0" bash -c "[ \"\$(cat /home/fsd-bob/qa/exit.k9)\" = 3 ]"
+  check K9 "o fsd-run não escreve o arquivo de exit do Bob" cannot fsd-run "echo 0 > /home/fsd-bob/qa/exit.k9"
+  check K9 "prep recusa url fora do GitHub e sha inválido" bash -c "! su -s /bin/bash fsd-bob -c '$RX prep k9 file:///srv/origin.git 0123' >/dev/null 2>&1"
+fi
 [ $fail = 0 ] && echo "k-checks: tudo ok" || echo "k-checks: há falhas"
 exit $fail

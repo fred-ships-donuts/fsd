@@ -15,9 +15,16 @@
 import * as L from './fsd-lib.mjs';
 const C = await import('./fsd-contract.mjs'); const { loadTask } = await import('./fsd-task.mjs');
 const ENTREGA = (() => { const i = process.argv.indexOf('--entrega'); return i >= 0 ? process.argv[i + 1] : undefined; })();
-import { rmSync, readdirSync } from 'node:fs';
+import { rmSync, readdirSync, readFileSync } from 'node:fs';
 import { refuseConflicting } from './fsd-conflict.mjs';
-const Q = `/tmp/fsd-qa-${L.ME || 'x'}`, SF = `${Q}/state.json`, T = `fsd-qa-${L.ME || 'x'}`;
+// Sessão nova (F2.4): o código do PR roda como fsd-run (fsd-run-exec, por sudo estreito, ambiente limpo; A2) e o exit de cada item vem
+// de um arquivo em ~/qa (0700, do Bob), gravado pelo shell do Bob depois que o fsd-run termina: o que o programa imprime não forja o PASS.
+const SESSION = process.env.FSD_RUNNER === 'session';
+const RX = process.env.FSD_RUN_EXEC || 'sudo -n -u fsd-run /usr/local/sbin/fsd-run-exec';
+const Q = SESSION ? `${process.env.HOME}/qa` : `/tmp/fsd-qa-${L.ME || 'x'}`, SF = `${Q}/state.json`, T = `fsd-qa-${L.ME || 'x'}`;
+const runName = (n) => `qa-${L.ME || 'x'}-${n}`;
+const sq = (x) => `'${String(x).replace(/'/g, `'\\''`)}'`;   // aspas simples para o shell
+const exitFile = (k, nonce) => `${Q}/exit.${k}.${nonce}`;
 const [cmd, ...a] = process.argv.slice(2);
 // Terminal de teste no socket próprio (-L fsd-qa-<agente>): um kill-server lá dentro não derruba o tmux do time.
 const tmux = (...x) => L.run('tmux', ['-L', T, ...x], { allowFail: true });
@@ -37,6 +44,7 @@ function clean(s) {
   for (const d of ds) L.run('git', ['-C', L.REPO_DIR, 'worktree', 'remove', '--force', `${Q}/${d}`], { allowFail: true });
   L.run('git', ['-C', L.REPO_DIR, 'worktree', 'prune'], { allowFail: true });
   if (s?.n) L.run('git', ['-C', L.REPO_DIR, 'branch', '-D', '-q', `qa-${L.ME}-${s.n}`], { allowFail: true });
+  if (SESSION && s?.n) { const [c0, ...pre] = RX.split(' '); L.run(c0, [...pre, 'clean', runName(s.n)], { allowFail: true }); }   // a área do fsd-run
 }
 const row = (s, k) => (s.rows[k] ||= { cmd: '', screen: '', exit: null, verdict: null, expected: '' });
 
@@ -58,16 +66,23 @@ if (cmd === 'prep') {
   if (!i) L.die(`PR #${n} sem "Closes #<issue>": avise o autor (fsd-notify ${L.agentOf(p.author?.login)} "PR #${n} sem Closes #<issue>")`, 1);
   const ac = L.acceptance(L.issue(i).body);
   if (!ac.items.length) L.die(`issue #${i} sem itens de aceite: fsd-notify kevin "#${i} sem Acceptance"`, 1);
-  clean(L.state(SF)); rmSync(Q, { recursive: true, force: true }); L.run('mkdir', ['-p', `${Q}/home`, `${Q}/work`]);
-  L.run('git', ['-C', L.REPO_DIR, 'fetch', '-q', '--force', 'origin', `pull/${n}/head:qa-${L.ME}-${n}`]);
-  L.run('git', ['-C', L.REPO_DIR, 'worktree', 'add', '-q', `${Q}/pr-${n}`, `qa-${L.ME}-${n}`]);
-  const sha = L.run('git', ['-C', `${Q}/pr-${n}`, 'rev-parse', 'HEAD']);
-  const b1 = L.run('npm', ['ci', '--silent', '--no-audit', '--no-fund'], { cwd: `${Q}/pr-${n}`, allowFail: true });
-  const b2 = b1.ok ? L.run('npm', ['run', '-s', 'build'], { cwd: `${Q}/pr-${n}`, allowFail: true }) : b1;
+  clean(L.state(SF)); rmSync(Q, { recursive: true, force: true }); L.run('mkdir', ['-p', `${Q}/home`, `${Q}/work`]); if (SESSION) L.run('chmod', ['700', Q]);
+  let sha, b2;
+  if (SESSION) {   // clone, npm ci e build como fsd-run, na área dele (postinstall sem token nem ambiente do Bob)
+    sha = p.headRefOid;
+    const [cmd0, ...pre] = RX.split(' ');
+    b2 = L.run(cmd0, [...pre, 'prep', runName(n), `https://github.com/${L.REPO}.git`, sha], { allowFail: true });
+  } else {
+    L.run('git', ['-C', L.REPO_DIR, 'fetch', '-q', '--force', 'origin', `pull/${n}/head:qa-${L.ME}-${n}`]);
+    L.run('git', ['-C', L.REPO_DIR, 'worktree', 'add', '-q', `${Q}/pr-${n}`, `qa-${L.ME}-${n}`]);
+    sha = L.run('git', ['-C', `${Q}/pr-${n}`, 'rev-parse', 'HEAD']);
+    const b1 = L.run('npm', ['ci', '--silent', '--no-audit', '--no-fund'], { cwd: `${Q}/pr-${n}`, allowFail: true });
+    b2 = b1.ok ? L.run('npm', ['run', '-s', 'build'], { cwd: `${Q}/pr-${n}`, allowFail: true }) : b1;
+  }
   L.saveState(SF, { n: Number(n), i, sha, items: ac.items, rows: [], build: b2.ok, buildErr: b2.ok ? '' : b2.err });
   if (!b2.ok) L.die(`BUILD FALHOU no ${sha.slice(0, 7)}: ${b2.err.slice(0, 300)}\n→ fsd-qa finish`, 1);
   tmux('new-session', '-d', '-s', T, '-x', '80', '-y', '24', '-c', `${Q}/work`);
-  tmux('send-keys', '-t', T, `export HOME=${Q}/home PS1='$ '; alias fsd='node ${Q}/pr-${n}/dist/cli/fsd.js'; clear`, 'Enter');
+  tmux('send-keys', '-t', T, SESSION ? `PS1='$ '; clear` : `export HOME=${Q}/home PS1='$ '; alias fsd='node ${Q}/pr-${n}/dist/cli/fsd.js'; clear`, 'Enter');
   const bd = L.boardPr(p);
   console.log(`PR #${n} | issue #${i} | ${sha.slice(0, 7)} | build ok | ${ac.items.length} itens${bd ? ' | ' + bd : ''}`);
   console.log(ac.items.map((x, k) => `${k + 1}. ${x.slice(0, 200)}`).join('\n'));
@@ -76,17 +91,22 @@ if (cmd === 'prep') {
   if (!(k >= 1 && k <= s.items.length) || !c) L.die(`uso: fsd-qa run <k> "<comando>" (itens 1..${s.items.length})`, 2);
   if (c.includes('$?')) L.die(`comando com $? recusado: o fsd-qa já mostra o EXIT=n do comando no fim da saída (e da tela interativa, depois do fsd-qa key que a fecha). Rode só: fsd-qa run ${k} "${c.replace(/\s*;?\s*echo[^;]*\$\?[^;]*/g, '').trim()}"`, 2);
   let note = ''; if (s.cur && s.rows[s.cur - 1]?.exit === null) { tmux('send-keys', '-t', T, 'C-c'); sleep(300); note = '(item anterior encerrado com C-c)\n'; }
-  tmux('send-keys', '-t', T, `clear; echo __BEGIN; ${c}; echo __EXIT=$?`, 'Enter');
+  const nonce = Math.random().toString(36).slice(2, 10); const ef = exitFile(k, nonce);
+  if (SESSION) tmux('send-keys', '-t', T, `clear; echo __BEGIN; ${RX} run ${runName(s.n)} -- ${sq(c)}; echo $? > ${ef}; echo __END`, 'Enter');
+  else tmux('send-keys', '-t', T, `clear; echo __BEGIN; ${c}; echo __EXIT=$?`, 'Enter');
+  const fileExit = () => { try { const v = (readFileSync(ef, 'utf8') || '').trim(); return /^\d+$/.test(v) ? Number(v) : null; } catch { return null; } };
   let code = null, vis = '';
-  for (let t = 0; t < 50; t++) { sleep(300); vis = after(pane(false)); const m = vis.match(/__EXIT=(\d+)/); if (m) { code = Number(m[1]); break; } }
+  for (let t = 0; t < 50; t++) { sleep(300); vis = after(pane(false)); if (SESSION) { code = fileExit(); if (code !== null) break; } else { const m = vis.match(/__EXIT=(\d+)/); if (m) { code = Number(m[1]); break; } } }
   const all = tidy(code === null ? vis : after(pane(true))); const lines = all.split('\n'); const shown = lines.length > 40 ? `(+${lines.length - 40} linhas acima)\n` + lines.slice(-40).join('\n') : all;
-  const r = row(s, k - 1); r.cmd = r.cmd ? `${r.cmd} ; ${c}` : c; r.screen = all.slice(-3000); r.exit = code; r.verdict = null; s.cur = k; L.saveState(SF, s);
+  const r = row(s, k - 1); r.cmd = r.cmd ? `${r.cmd} ; ${c}` : c; r.screen = all.slice(-3000); r.exit = code; r.verdict = null; r.exitFile = SESSION ? ef : undefined; s.cur = k; L.saveState(SF, s);
   console.log(`${note}[item ${k}] ${shown || '(sem saída)'}\n${code === null ? 'TELA INTERATIVA (sem fim em 15s): fsd-qa key …' : 'EXIT=' + code}`);
 } else if (cmd === 'key') {
   const s = need(); const lit = a[0] === '--text'; const keys = lit ? a.slice(1) : a; if (!keys.length) L.die('uso: fsd-qa key [--text] <tecla…>', 2);
   tmux('send-keys', '-t', T, ...(lit ? ['-l', keys.join(' ')] : keys)); sleep(500);
-  const vis = pane(false); const m = vis.match(/__EXIT=(\d+)/); const sc = tidy(vis);
-  if (s.cur) { const r = row(s, s.cur - 1); r.screen = sc.slice(-3000); r.cmd += ` ⟶ ${keys.join(' ')}`; if (m) r.exit = Number(m[1]); L.saveState(SF, s); }
+  const vis = pane(false); const sc = tidy(vis);
+  // Sessão nova: o exit da tela interativa também vem do arquivo do Bob; no time antigo, do marcador na tela.
+  const m = SESSION ? null : vis.match(/__EXIT=(\d+)/);
+  if (s.cur) { const r = row(s, s.cur - 1); r.screen = sc.slice(-3000); r.cmd += ` ⟶ ${keys.join(' ')}`; if (SESSION && r.exitFile) { try { const v = readFileSync(r.exitFile, 'utf8').trim(); if (/^\d+$/.test(v)) r.exit = Number(v); } catch {} } else if (m) r.exit = Number(m[1]); L.saveState(SF, s); }
   console.log((sc || '(tela vazia)') + (m ? `\nEXIT=${m[1]}` : ''));
 } else if (cmd === 'verdict') {
   const s = need();
