@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+# fsd-session-hook — hooks PostToolUse, UserPromptSubmit e Stop da sessão nova do papel (F3.3: T3.3.2 e T3.3.5).
+# Só com FSD_RUNNER=session (o time antigo, no tmux, não muda): entrega a caixa no meio do turno e grava ocioso/trabalhando.
+# Nunca derruba o turno: qualquer erro sai 0 sem saída.
+[ "${FSD_RUNNER:-}" = session ] || exit 0
+HERE="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"
+exec node -e '
+let s = ""; process.stdin.on("data", (b) => (s += b)).on("end", async () => {
+  try { const i = JSON.parse(s || "{}"); const { hook } = await import(process.argv[1]); const o = hook(i.hook_event_name, i); if (o) process.stdout.write(JSON.stringify(o)); } catch {}
+  process.exit(0);
+});' "$HERE/fsd-messenger.mjs"

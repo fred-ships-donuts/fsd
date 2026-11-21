@@ -1,0 +1,17 @@
+#!/usr/bin/env node
+// fsd-diga <papel> "<texto>" [--urgente] [--ref #N] — mensagem para um colega (F3.3, T3.3.1). Grava no seu outbox; o supervisor
+// entrega conforme o estado do destino (trabalhando: na próxima ferramenta; ocioso: turno novo; desligado: D11). O remetente é
+// você ($FSD_AGENT escolhe a pasta; o supervisor confere pelo dono do arquivo). Saída 0 gravada · 1 inválida · 2 uso.
+const { say } = await import('./fsd-messenger.mjs');
+const pos = []; let urgent = false, ref, bad = false;
+for (const args = process.argv.slice(2), it = args[Symbol.iterator](); ;) {
+  const { value: x, done } = it.next(); if (done) break;
+  if (x === '--urgente') urgent = true;
+  else if (x === '--ref') { ref = it.next().value; if (!ref) bad = true; }
+  else pos.push(x);
+}
+const [to, text] = pos;
+if (!to || text === undefined || pos.length > 2 || bad) { console.log('uso: fsd-diga <papel> "<texto>" [--urgente] [--ref #N]'); process.exit(2); }
+const r = say({ to, text, urgent, ref }, { from: process.env.FSD_AGENT || '' });
+if (!r.ok) { console.log(`fsd-diga: mensagem não gravada:\n${r.errors.map((e) => `- ${e}`).join('\n')}`); process.exit(1); }
+console.log(`fsd-diga: para ${to}${urgent ? ' (urgente)' : ''} no outbox (${r.id}); o supervisor entrega`);
