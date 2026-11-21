@@ -20,6 +20,8 @@
 //   { type: 'hold', to, ids, why }                   fica na caixa até o próximo turno do destino
 //   { type: 'merge', n }                             card em Ready to Merge: o supervisor mescla (D2; o portão é o mergeGate)
 //   { type: 'judge', ref }                           impasse: chama o juiz uma vez por ref
+//   { type: 'endofday', to } · { type: 'retire', to } fim do dia: pede o fechamento; depois, aposenta a conversa (state.endOfDayAt,
+//                                                    sessions[r].ctx e sessions[r].eod)
 // Regras: PAUSE ou orçamento estourado → nenhum turno novo (a caixa de quem trabalha ainda recebe; o merge espera também).
 // maxConcurrent conta quem já trabalha mais os turnos abertos nesta rodada. Prioridade dos turnos: correção primeiro
 // (Changes Requested do Stuart), depois revisão, depois Ready for Development, depois arquitetura, depois mensagens soltas.
@@ -44,6 +46,13 @@ export function decide(state) {
   const turned = new Set();
   const pendingFor = (r) => s.messages.filter((m) => m.to === r);
 
+  // 0. Fim do dia (T3.4.2, D12): sessão ociosa com contexto ≥ endOfDayAt recebe o pedido de fechamento (vale até sob PAUSE: é
+  //    fechar, não começar); depois de pedido (eod) e com a sessão ociosa de novo, o supervisor a aposenta (retire, 0 token).
+  if (s.endOfDayAt) for (const r of Object.keys(s.sessions).sort()) {
+    const se = s.sessions[r];
+    if (se.state === 'idle' && se.eod) { out.push({ type: 'retire', to: r, ...(se.id ? { id: se.id } : {}) }); turned.add(r); continue; }
+    if (se.state === 'idle' && !se.eod && (se.ctx || 0) >= s.endOfDayAt) { out.push({ type: 'endofday', to: r, ...(se.id ? { id: se.id } : {}) }); turned.add(r); busy++; }
+  }
   // 1. Mensagens para quem está trabalhando: caixa, a qualquer hora (até sob PAUSE: o agente está fechando o trabalho).
   for (const r of [...new Set(s.messages.map((m) => m.to))].sort()) {
     if (sess(r).state === 'working') out.push({ type: 'inbox', to: r, ids: pendingFor(r).map((m) => m.id) });
