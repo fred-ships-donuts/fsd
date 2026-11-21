@@ -1,0 +1,140 @@
+{
+ "$schema": "https://json-schema.org/draft/2020-12/schema",
+ "title": "entrega revisao (mel)",
+ "type": "object",
+ "additionalProperties": false,
+ "required": [
+  "kind",
+  "card",
+  "role",
+  "summary",
+  "pr",
+  "head",
+  "verdict",
+  "findings",
+  "acceptance",
+  "dod"
+ ],
+ "properties": {
+  "kind": {
+   "type": "string",
+   "const": "revisao"
+  },
+  "card": {
+   "type": "integer",
+   "minimum": 1
+  },
+  "role": {
+   "type": "string",
+   "const": "mel"
+  },
+  "summary": {
+   "type": "string",
+   "minLength": 10
+  },
+  "pr": {
+   "type": "integer",
+   "minimum": 1
+  },
+  "head": {
+   "type": "string",
+   "pattern": "^[0-9a-f]{7,40}$"
+  },
+  "verdict": {
+   "type": "string",
+   "enum": [
+    "approve",
+    "changes"
+   ]
+  },
+  "findings": {
+   "type": "array",
+   "items": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+     "file",
+     "severity",
+     "text"
+    ],
+    "properties": {
+     "file": {
+      "type": "string",
+      "minLength": 1
+     },
+     "line": {
+      "type": "integer",
+      "minimum": 1
+     },
+     "severity": {
+      "type": "string",
+      "enum": [
+       "bloqueia",
+       "sugestao"
+      ]
+     },
+     "text": {
+      "type": "string",
+      "minLength": 10
+     }
+    }
+   }
+  },
+  "acceptance": {
+   "type": "array",
+   "minItems": 1,
+   "items": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+     "item",
+     "status"
+    ],
+    "properties": {
+     "item": {
+      "type": "integer",
+      "minimum": 1
+     },
+     "status": {
+      "type": "string",
+      "enum": [
+       "ok",
+       "falha",
+       "nao-se-aplica"
+      ]
+     },
+     "note": {
+      "type": "string",
+      "minLength": 1
+     }
+    }
+   }
+  },
+  "dod": {
+   "type": "object",
+   "additionalProperties": false,
+   "required": [
+    "diff-lido",
+    "aceite-conferido",
+    "ci-conferido"
+   ],
+   "properties": {
+    "diff-lido": {
+     "type": "boolean"
+    },
+    "aceite-conferido": {
+     "type": "boolean"
+    },
+    "ci-conferido": {
+     "type": "boolean"
+    }
+   }
+  }
+ },
+ "x-dod": [
+  "diff-lido",
+  "aceite-conferido",
+  "ci-conferido"
+ ],
+ "x-trace": true
+}

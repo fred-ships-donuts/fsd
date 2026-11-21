@@ -1,0 +1,115 @@
+{
+ "$schema": "https://json-schema.org/draft/2020-12/schema",
+ "title": "entrega qa (bob)",
+ "type": "object",
+ "additionalProperties": false,
+ "required": [
+  "kind",
+  "card",
+  "role",
+  "summary",
+  "pr",
+  "head",
+  "verdict",
+  "acceptance",
+  "evidence",
+  "dod"
+ ],
+ "properties": {
+  "kind": {
+   "type": "string",
+   "const": "qa"
+  },
+  "card": {
+   "type": "integer",
+   "minimum": 1
+  },
+  "role": {
+   "type": "string",
+   "const": "bob"
+  },
+  "summary": {
+   "type": "string",
+   "minLength": 10
+  },
+  "pr": {
+   "type": "integer",
+   "minimum": 1
+  },
+  "head": {
+   "type": "string",
+   "pattern": "^[0-9a-f]{7,40}$"
+  },
+  "verdict": {
+   "type": "string",
+   "enum": [
+    "pass",
+    "fail"
+   ]
+  },
+  "acceptance": {
+   "type": "array",
+   "minItems": 1,
+   "items": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+     "item",
+     "command",
+     "exit",
+     "result"
+    ],
+    "properties": {
+     "item": {
+      "type": "integer",
+      "minimum": 1
+     },
+     "command": {
+      "type": "string",
+      "minLength": 3
+     },
+     "exit": {
+      "type": "integer"
+     },
+     "result": {
+      "type": "string",
+      "enum": [
+       "pass",
+       "fail"
+      ]
+     }
+    }
+   }
+  },
+  "evidence": {
+   "type": "string",
+   "minLength": 3
+  },
+  "dod": {
+   "type": "object",
+   "additionalProperties": false,
+   "required": [
+    "rodou-no-head",
+    "aceite-coberto",
+    "evidencia-gravada"
+   ],
+   "properties": {
+    "rodou-no-head": {
+     "type": "boolean"
+    },
+    "aceite-coberto": {
+     "type": "boolean"
+    },
+    "evidencia-gravada": {
+     "type": "boolean"
+    }
+   }
+  }
+ },
+ "x-dod": [
+  "rodou-no-head",
+  "aceite-coberto",
+  "evidencia-gravada"
+ ],
+ "x-trace": true
+}

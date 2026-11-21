@@ -12,6 +12,7 @@
 !/common/
 !/setup/
 !/docs/
+!/contracts/
 !/secrets.tar.age
 !/agents/
 /agents/*/*

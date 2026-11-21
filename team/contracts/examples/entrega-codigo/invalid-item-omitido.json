@@ -1,0 +1,34 @@
+{
+ "_why": "falta o item 1",
+ "data": {
+  "kind": "entrega-codigo",
+  "card": 12,
+  "role": "stuart",
+  "summary": "mergeGate com CI e teste negativo.",
+  "pr": 220,
+  "head": "a1b2c3d",
+  "branch": "fix/merge-ci",
+  "acceptance": [
+   {
+    "item": 2,
+    "commit": "a1b2c3d",
+    "test": "fsd-merge.test.mjs: red refuses",
+    "result": "pass"
+   }
+  ],
+  "tests": {
+   "command": "npm test",
+   "passed": true
+  },
+  "files": [
+   "team/bin/fsd-merge"
+  ],
+  "dod": {
+   "testes-passam": true,
+   "aceite-coberto": true,
+   "pr-no-formato": true,
+   "sem-segredos": true,
+   "verificado-apos-editar": true
+  }
+ }
+}

@@ -1,0 +1,157 @@
+{
+ "$schema": "https://json-schema.org/draft/2020-12/schema",
+ "title": "veredito (juiz)",
+ "type": "object",
+ "additionalProperties": false,
+ "required": [
+  "kind",
+  "facts",
+  "rule",
+  "verdict",
+  "confidence",
+  "overrides_author",
+  "reserved"
+ ],
+ "properties": {
+  "kind": {
+   "type": "string",
+   "const": "veredito"
+  },
+  "facts": {
+   "type": "array",
+   "items": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+     "agent",
+     "asks",
+     "why",
+     "evidence"
+    ],
+    "properties": {
+     "agent": {
+      "type": "string",
+      "enum": [
+       "mel",
+       "kevin",
+       "stuart",
+       "bob"
+      ]
+     },
+     "asks": {
+      "type": "string",
+      "minLength": 1
+     },
+     "why": {
+      "type": "string",
+      "minLength": 1
+     },
+     "evidence": {
+      "type": "string",
+      "minLength": 1
+     }
+    }
+   }
+  },
+  "rule": {
+   "type": "object",
+   "additionalProperties": false,
+   "required": [
+    "owner",
+    "source",
+    "text"
+   ],
+   "properties": {
+    "owner": {
+     "type": "string",
+     "enum": [
+      "mel",
+      "kevin",
+      "author"
+     ]
+    },
+    "source": {
+     "type": "string",
+     "minLength": 1
+    },
+    "text": {
+     "type": "string",
+     "minLength": 1
+    }
+   }
+  },
+  "verdict": {
+   "type": "object",
+   "additionalProperties": false,
+   "required": [
+    "continue",
+    "wait"
+   ],
+   "properties": {
+    "continue": {
+     "type": "object",
+     "additionalProperties": false,
+     "required": [
+      "agent",
+      "instruction"
+     ],
+     "properties": {
+      "agent": {
+       "type": "string",
+       "enum": [
+        "mel",
+        "kevin",
+        "stuart",
+        "bob"
+       ]
+      },
+      "instruction": {
+       "type": "string",
+       "minLength": 1
+      }
+     }
+    },
+    "wait": {
+     "type": "array",
+     "items": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+       "agent",
+       "reason"
+      ],
+      "properties": {
+       "agent": {
+        "type": "string",
+        "enum": [
+         "mel",
+         "kevin",
+         "stuart",
+         "bob"
+        ]
+       },
+       "reason": {
+        "type": "string",
+        "minLength": 1
+       }
+      }
+     }
+    }
+   }
+  },
+  "confidence": {
+   "type": "string",
+   "enum": [
+    "high",
+    "low"
+   ]
+  },
+  "overrides_author": {
+   "type": "boolean"
+  },
+  "reserved": {
+   "type": "boolean"
+  }
+ },
+ "x-dod": []
+}

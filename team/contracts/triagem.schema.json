@@ -1,0 +1,97 @@
+{
+ "$schema": "https://json-schema.org/draft/2020-12/schema",
+ "title": "entrega triagem (kevin)",
+ "type": "object",
+ "additionalProperties": false,
+ "required": [
+  "kind",
+  "card",
+  "role",
+  "summary",
+  "decision",
+  "column",
+  "size",
+  "reason",
+  "dod"
+ ],
+ "properties": {
+  "kind": {
+   "type": "string",
+   "const": "triagem"
+  },
+  "card": {
+   "type": "integer",
+   "minimum": 1
+  },
+  "role": {
+   "type": "string",
+   "const": "kevin"
+  },
+  "summary": {
+   "type": "string",
+   "minLength": 10
+  },
+  "decision": {
+   "type": "string",
+   "enum": [
+    "aceitar",
+    "recusar",
+    "duplicado",
+    "decisao-do-autor"
+   ]
+  },
+  "column": {
+   "type": "string",
+   "enum": [
+    "backlog",
+    "archReady",
+    "devReady"
+   ]
+  },
+  "size": {
+   "type": "string",
+   "enum": [
+    "S",
+    "M",
+    "L"
+   ]
+  },
+  "acceptance": {
+   "type": "array",
+   "minItems": 1,
+   "items": {
+    "type": "string",
+    "minLength": 5
+   }
+  },
+  "reason": {
+   "type": "string",
+   "minLength": 10
+  },
+  "dod": {
+   "type": "object",
+   "additionalProperties": false,
+   "required": [
+    "aceite-numerado",
+    "tamanho-definido",
+    "coluna-definida"
+   ],
+   "properties": {
+    "aceite-numerado": {
+     "type": "boolean"
+    },
+    "tamanho-definido": {
+     "type": "boolean"
+    },
+    "coluna-definida": {
+     "type": "boolean"
+    }
+   }
+  }
+ },
+ "x-dod": [
+  "aceite-numerado",
+  "tamanho-definido",
+  "coluna-definida"
+ ]
+}
