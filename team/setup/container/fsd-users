@@ -4,7 +4,7 @@
 #   fsd-dispatch (supervisor) · fsd-broker (chaves dos Apps). O humano (fsd, uid 1000) fica à parte. Nenhuma sessão roda como root.
 #   Cada home é 0700 do dono. O grupo fsd é o do repositório (papéis e supervisor). O perfil de cada papel (settings.json,
 #   CLAUDE.md, skills/) fica em /etc/fsd/profiles/<papel>, com dono root: o papel lê e não edita a própria config.
-#   umask 077 para todos (arquivos novos, também no /tmp, só do dono).
+#   umask 077 para os usuários fsd-* (arquivos novos, também no /tmp, só do dono); o humano não muda.
 # FSD_PROFILES_SRC=<pasta team/agents> copia os perfis de lá (padrão: sem cópia, só a estrutura).
 set -euo pipefail
 [ "$(id -u)" = 0 ] || { echo "fsd-users: rode como root"; exit 2; }
@@ -56,6 +56,6 @@ if [ -d /etc/sudoers.d ]; then
   chmod 0440 /etc/sudoers.d/fsd-session.tmp
   if command -v visudo >/dev/null && visudo -cf /etc/sudoers.d/fsd-session.tmp >/dev/null; then mv /etc/sudoers.d/fsd-session.tmp /etc/sudoers.d/fsd-session; else rm -f /etc/sudoers.d/fsd-session.tmp; echo "fsd-users: sudoers do fsd-session inválido" >&2; exit 1; fi
 fi
-echo 'umask 077' > /etc/profile.d/fsd-umask.sh; chmod 0644 /etc/profile.d/fsd-umask.sh
-grep -q '^UMASK[[:space:]]\+077' /etc/login.defs 2>/dev/null || sed -i 's/^UMASK.*/UMASK\t\t077/' /etc/login.defs
+# umask 077 só para os usuários do time nativo (fsd-*): o humano (fsd) e o time antigo no tmux não mudam.
+printf '%s\n' 'case "$(id -un)" in fsd-*) umask 077 ;; esac' > /etc/profile.d/fsd-umask.sh; chmod 0644 /etc/profile.d/fsd-umask.sh
 echo "fsd-users: ${ROLES[*]/#/fsd-} fsd-run fsd-dispatch fsd-broker prontos"

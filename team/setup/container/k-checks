@@ -25,6 +25,7 @@ for r in "${ROLES[@]}"; do
 done
 check K5 "fsd-run fora do grupo do repositório" bash -c "! id -nG fsd-run | tr ' ' '\n' | grep -qx fsd"
 for r in "${ROLES[@]}"; do check K5 "fsd-$r no grupo fsd" bash -c "id -nG fsd-$r | tr ' ' '\n' | grep -qx fsd"; done
+check K6 "o humano (root aqui) não ganha o umask do time" bash -c "[ \"\$(bash -lc umask)\" != 0077 ]"
 check K6 "umask 077 numa sessão de login do papel" bash -c "[ \"\$(su -l -s /bin/bash fsd-mel -c umask)\" = 0077 ]"
 su -l -s /bin/bash fsd-mel -c 'echo s > /tmp/k6-mel'
 check K6 "arquivo novo da Mel no /tmp não é lido pelo Stuart" cannot fsd-stuart 'cat /tmp/k6-mel'
