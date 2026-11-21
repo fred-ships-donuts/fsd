@@ -19,6 +19,7 @@ import { fingerprint, reexecIfChanged } from './fsd-reload.mjs';
 import { followDevelop, checkoutState } from './fsd-follow.mjs';
 import { killLoops } from './fsd-loops.mjs';
 import { refuseIfQa } from './fsd-qa-guard.mjs';
+import { takePidFile, freePidFile } from './fsd-pid.mjs';
 
 const BIN = dirname(fileURLToPath(import.meta.url)); const ROOT = dirname(BIN);
 const REPO = resolve(process.env.FSD_REPO || dirname(ROOT));
@@ -103,19 +104,12 @@ function round() {
 
 if (!LOOP) { try { round(); } catch (e) { log(`rodada falhou: ${String(e.message || e).split('\n')[0]}`); process.exit(4); } }
 else {
-  const alive = (pid) => { try { process.kill(pid, 0); return true; } catch (e) { return e.code === 'EPERM'; } };
+  // Pid file com identidade (fsd-pid.mjs: pid + starttime + boot_id): um pid reaproveitado não segura o lugar.
   mkdirSync(STATE, { recursive: true });
-  for (let i = 0; ; i++) {
-    try { const fd = openSync(PIDFILE, 'wx'); writeSync(fd, String(process.pid)); closeSync(fd); break; }
-    catch (e) {
-      if (e.code !== 'EEXIST') throw e;
-      const pid = Number(readFileSync(PIDFILE, 'utf8').trim());
-      if (Number.isInteger(pid) && pid > 0 && alive(pid)) { console.log(`fsd-cleanup: already running (pid ${pid})`); process.exit(0); }
-      if (i >= 2) { console.log('fsd-cleanup: could not take the pidfile; try again'); process.exit(3); }
-      try { unlinkSync(PIDFILE); } catch {}   // pid morto: assume
-    }
-  }
-  process.on('exit', () => { try { if (Number(readFileSync(PIDFILE, 'utf8').trim()) === process.pid) unlinkSync(PIDFILE); } catch {} });
+  { const t = takePidFile(PIDFILE);
+    if (!t.ok && t.pid) { console.log(`fsd-cleanup: already running (pid ${t.pid})`); process.exit(0); }
+    if (!t.ok) { console.log('fsd-cleanup: could not take the pidfile; try again'); process.exit(3); } }
+  process.on('exit', () => freePidFile(PIDFILE));
   for (const [sig, n] of [['SIGTERM', 15], ['SIGINT', 2], ['SIGHUP', 1]]) process.on(sig, () => process.exit(128 + n));
   log(`limpeza ligada (a cada ${LOOP}s)`);
   // Código velho: o que este laço carregou na partida. Mudou e compila → o processo sai e um filho assume (o exit libera o cleanup.pid).
@@ -125,7 +119,7 @@ else {
   const startFp = fingerprint(SRC());
   for (;;) {
     try { round(); } catch (e) { log(`rodada falhou: ${String(e.message || e).split('\n')[0]}`); }
-    reexecIfChanged({ files: SRC(), startFp, script: join(BIN, 'fsd-cleanup'), args: process.argv.slice(2), beforeExit: () => { try { if (Number(readFileSync(PIDFILE, 'utf8').trim()) === process.pid) unlinkSync(PIDFILE); } catch {} }, log: (m) => log(`fsd-cleanup: ${m}`) });
+    reexecIfChanged({ files: SRC(), startFp, script: join(BIN, 'fsd-cleanup'), args: process.argv.slice(2), beforeExit: () => freePidFile(PIDFILE), log: (m) => log(`fsd-cleanup: ${m}`) });
     await new Promise((r) => setTimeout(r, LOOP * 1000));
   }
 }

@@ -25,6 +25,7 @@
 import { readFileSync, readdirSync, statSync, existsSync, appendFileSync, writeFileSync, rmSync, mkdirSync, openSync, writeSync, closeSync, unlinkSync, renameSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
+import { takePidFile, freePidFile, readPidFile, pidFileAlive } from './fsd-pid.mjs';
 import { fileURLToPath } from 'node:url';
 import { spawnSync, spawn } from 'node:child_process';
 import { context, contextAction } from './fsd-context.mjs';
@@ -45,7 +46,8 @@ const RESTART_ABOVE = (a) => context(a).restartAbove;
 const T = timing().watch; const MIN = 60000;
 const RD = loadRedirects(); const ASKS = (RD.authorAsks || []).map((p) => new RegExp(p, 'i')); const NO_ASK = RD.authorAsksSkip || [];
 const AGENTS = ['kevin', 'mel', 'stuart', 'bob'].filter((a) => cfg.agents[a]);
-const STATE = join(tmpdir(), 'fsd-watch-state.json');
+// Estado das rodadas (cooldowns, pedidos já vistos) no $FSD_STATE (#212): um vigia de teste, com outro FSD_STATE, nunca mexe no do real.
+const STATE = join((process.env.FSD_STATE || join(process.env.HOME, '.config', 'fsd-agents')), 'watch-state.json');
 const a = process.argv.slice(2); const FIX = a.includes('--fix');
 if (FIX) refuseIfQa({ repoDir: REPO });   // #169: de um worktree de QA, só com estado e tmux privados
 const LOOP = a.includes('--loop') ? Number(a[a.indexOf('--loop') + 1]) || Number(T.loopSeconds) : 0;
@@ -232,7 +234,7 @@ function round() {
     }
     rows.push([ag[0].toUpperCase() + ag.slice(1), r.state, r.idle != null ? `${min(r.idle)} min` : '-', r.ctx ? k(r.ctx) : '-', done]);
   }
-  try { writeFileSync(STATE, JSON.stringify(st)); } catch {}
+  try { const tmp = `${STATE}.${process.pid}.tmp`; writeFileSync(tmp, JSON.stringify(st)); renameSync(tmp, STATE); } catch {}   // atômico
   return rows;
 }
 
@@ -258,9 +260,8 @@ function usageCheck() {
 // fsd-cleanup --loop tem de estar sempre de pé: $FSD_STATE/cleanup.pid ausente ou com pid morto (e sem PAUSE) → sobe de novo (--fix).
 // Sem token: só confere o pid. O próprio fsd-cleanup recusa um segundo laço, então subir duas vezes não duplica.
 function cleanupCheck() {
-  const dir = process.env.FSD_STATE || join(process.env.HOME, '.config', 'fsd-agents'); let pid = 0;
-  try { pid = Number(readFileSync(join(dir, 'cleanup.pid'), 'utf8').trim()); } catch {}
-  let up = false; if (Number.isInteger(pid) && pid > 0) { try { process.kill(pid, 0); up = true; } catch (e) { up = e.code === 'EPERM'; } }
+  const dir = process.env.FSD_STATE || join(process.env.HOME, '.config', 'fsd-agents');
+  const pid = readPidFile(join(dir, 'cleanup.pid'))?.pid || 0; const up = pidFileAlive(join(dir, 'cleanup.pid'));
   if (up) return `fsd-cleanup: no ar (pid ${pid})`;
   if (existsSync(join(dir, 'PAUSE'))) return 'fsd-cleanup: parado, PAUSE: nada';
   if (!FIX) return 'fsd-cleanup: parado, faria: subir o laço';
@@ -293,19 +294,12 @@ else {
   // Um só vigia por vez ($FSD_STATE/watch.pid, criado com wx; pid morto é assumido), como o fsd-cleanup. Um segundo laço sai 0 sem fazer nada:
   // é o que deixa o supervisor (systemd/supervisord) chamar sempre. Cada rodada grava $FSD_STATE/watch.beat (hora ISO) para quem confere se vive.
   const DIR = process.env.FSD_STATE || join(process.env.HOME, '.config', 'fsd-agents'), PIDFILE = join(DIR, 'watch.pid'), BEAT = join(DIR, 'watch.beat');
-  const alive = (pid) => { try { process.kill(pid, 0); return true; } catch (e) { return e.code === 'EPERM'; } };
-  const freePid = () => { try { if (Number(readFileSync(PIDFILE, 'utf8').trim()) === process.pid) unlinkSync(PIDFILE); } catch {} };
+  // Pid file com identidade (fsd-pid.mjs: pid + starttime + boot_id): um pid reaproveitado não segura o lugar.
+  const freePid = () => freePidFile(PIDFILE);
   mkdirSync(DIR, { recursive: true });
-  for (let i = 0; ; i++) {
-    try { const fd = openSync(PIDFILE, 'wx'); writeSync(fd, String(process.pid)); closeSync(fd); break; }
-    catch (e) {
-      if (e.code !== 'EEXIST') throw e;
-      const pid = Number(readFileSync(PIDFILE, 'utf8').trim());
-      if (Number.isInteger(pid) && pid > 0 && alive(pid)) { console.log(`fsd-watch: already running (pid ${pid})`); process.exit(0); }
-      if (i >= 2) { console.log('fsd-watch: could not take the pidfile; try again'); process.exit(3); }
-      try { unlinkSync(PIDFILE); } catch {}   // pid morto: assume
-    }
-  }
+  { const t = takePidFile(PIDFILE);
+    if (!t.ok && t.pid) { console.log(`fsd-watch: already running (pid ${t.pid})`); process.exit(0); }
+    if (!t.ok) { console.log('fsd-watch: could not take the pidfile; try again'); process.exit(3); } }
   process.on('exit', freePid);
   for (const [sig, n] of [['SIGTERM', 15], ['SIGINT', 2], ['SIGHUP', 1]]) process.on(sig, () => process.exit(128 + n));
   const beat = () => { try { writeFileSync(`${BEAT}.${process.pid}`, new Date().toISOString() + '\n'); renameSync(`${BEAT}.${process.pid}`, BEAT); } catch {} };
