@@ -71,7 +71,7 @@ test('stalled network: fails with code 3, well under 15 s', async () => {
     const o = await run(['kevin'], { FSD_STATE: state(), FSD_GITHUB_API: `http://127.0.0.1:${s.address().port}`, FSD_TOKEN_TIMEOUT_MS: '800' });
     assert.equal(o.code, 3); assert.match(o.err, /sem resposta.*timeout/);
     assert.ok(Date.now() - t < 5000);
-    assert.match(readFileSync(join(BIN, 'fsd-token'), 'utf8'), /FSD_TOKEN_TIMEOUT_MS\) \|\| 10000/);   // padrão de 10 s < 15 s
+    assert.match(readFileSync(join(BIN, 'fsd-mint.mjs'), 'utf8'), /FSD_TOKEN_TIMEOUT_MS\) \|\| 10000/);   // padrão de 10 s < 15 s
   } finally { s.closeAllConnections(); s.close(); }
 });
 

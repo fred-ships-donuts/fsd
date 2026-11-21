@@ -1,0 +1,39 @@
+#!/usr/bin/env node
+// fsd-broker once | loop — o broker de tokens do time nativo (F2.3, T2.3.1; C1). Roda como o usuário fsd-broker, o único que lê
+// as chaves dos Apps ($FSD_BROKER_KEYS/<slug>.pem, 0400). Mantém, para cada papel, $FSD_TOKEN_DIR/<papel>/token e token-org
+// (pastas setgid do grupo do papel, criadas pelo fsd-users; arquivo 0440: só o papel lê), e o token de merge e release só para o
+// supervisor em $FSD_TOKEN_DIR/dispatch/token. Renova quando falta menos de FSD_BROKER_REFRESH_MIN (15) para vencer.
+// Corpo de cada token: a tabela agents.json → tokens (F1.6); o do supervisor usa o papel tokens.dispatch (padrão: o do Kevin).
+// FSD_BROKER_FAKE=1 (só a simulação do container): token falso, sem chave nem rede.
+import { readFileSync, writeFileSync, renameSync, chmodSync, existsSync, statSync } from 'node:fs';
+import { join, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
+const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
+const cfg = JSON.parse(readFileSync(join(ROOT, 'agents.json'), 'utf8'));
+const { mint } = await import('./fsd-mint.mjs');
+const KEYS = process.env.FSD_BROKER_KEYS || '/var/lib/fsd-broker/keys', DIR = process.env.FSD_TOKEN_DIR || '/var/lib/fsd-tokens';
+const REFRESH = Number(process.env.FSD_BROKER_REFRESH_MIN || 15) * 60000;
+const meta = (f) => { try { return JSON.parse(readFileSync(`${f}.json`, 'utf8')); } catch { return null; } };
+async function ensure(file, { name, scope }) {
+  const m = meta(file); if (m && Date.parse(m.expires_at) - Date.now() > REFRESH && existsSync(file)) return 'fresco';
+  const t = process.env.FSD_BROKER_FAKE ? { token: `fake-${name}-${scope}-${Date.now()}`, expires_at: new Date(Date.now() + 3600e3).toISOString() }
+    : await mint({ cfg, name, scope, keyFile: join(KEYS, `${cfg.agents[name].slug}.pem`) });
+  const tmp = `${file}.${process.pid}.tmp`;
+  writeFileSync(tmp, t.token + '\n', { mode: 0o440 }); chmodSync(tmp, 0o440); renameSync(tmp, file);   // o grupo vem da pasta (setgid)
+  writeFileSync(`${tmp}.json`, JSON.stringify({ expires_at: t.expires_at, name, scope }) + '\n', { mode: 0o440 }); chmodSync(`${tmp}.json`, 0o440); renameSync(`${tmp}.json`, `${file}.json`);
+  return 'novo';
+}
+export async function once() {
+  const out = [];
+  for (const role of Object.keys(cfg.agents)) {
+    const d = join(DIR, role); if (!existsSync(d) || !statSync(d).isDirectory()) { out.push(`${role}: sem ${d} (rode o fsd-users)`); continue; }
+    for (const scope of ['repo', 'org']) { try { out.push(`${role} ${scope}: ${await ensure(join(d, scope === 'org' ? 'token-org' : 'token'), { name: role, scope })}`); } catch (e) { out.push(`${role} ${scope}: falhou (${e.message})`); } }
+  }
+  const dd = join(DIR, 'dispatch');
+  if (existsSync(dd)) { try { out.push(`dispatch: ${await ensure(join(dd, 'token'), { name: cfg.tokens?.dispatch || 'kevin', scope: 'repo' })}`); } catch (e) { out.push(`dispatch: falhou (${e.message})`); } }
+  return out;
+}
+const cmd = process.argv[2];
+if (cmd === 'once') console.log((await once()).join('\n'));
+else if (cmd === 'loop') { for (;;) { const o = await once(); const bad = o.filter((x) => /falhou|sem /.test(x)); if (bad.length) console.log(bad.join('\n')); await new Promise((r) => setTimeout(r, 60000)); } }
+else { console.log('uso: fsd-broker once | loop'); process.exit(2); }

@@ -31,6 +31,12 @@ for r in "${ROLES[@]}"; do
   fi
   [ -f "$p/settings.json" ] || install -o root -g root -m 0644 /dev/null "$p/settings.json"
 done
+# Tokens (F2.3): a pasta de cada papel é do fsd-broker, com o grupo do papel e setgid (o arquivo herda o grupo); 0750 + arquivo 0440
+# = só o broker escreve e só o papel lê. O token de merge e release fica numa pasta do grupo do supervisor. As chaves: só o broker.
+install -d -o root -g root -m 0755 /var/lib/fsd-tokens
+for r in "${ROLES[@]}"; do install -d -o fsd-broker -g "fsd-$r" -m 2750 "/var/lib/fsd-tokens/$r"; done
+install -d -o fsd-broker -g fsd-dispatch -m 2750 /var/lib/fsd-tokens/dispatch
+install -d -o fsd-broker -g fsd-broker -m 0700 /var/lib/fsd-broker /var/lib/fsd-broker/keys
 echo 'umask 077' > /etc/profile.d/fsd-umask.sh; chmod 0644 /etc/profile.d/fsd-umask.sh
 grep -q '^UMASK[[:space:]]\+077' /etc/login.defs 2>/dev/null || sed -i 's/^UMASK.*/UMASK\t\t077/' /etc/login.defs
 echo "fsd-users: ${ROLES[*]/#/fsd-} fsd-run fsd-dispatch fsd-broker prontos"
