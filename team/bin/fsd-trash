@@ -1,18 +1,36 @@
 #!/usr/bin/env bash
 # fsd-trash <caminho…> — "apagar" sem rm: move para /tmp/fsd-trash/<agente>/<data-hora>-<nome> (volta com mv).
-# Evita a caixa de permissão do Claude Code ("rm perigoso"), que trava a sessão. Esvazia o que tiver mais de 3 dias;
-# o /tmp some ao reiniciar a máquina. Sem --dry: FSD_DRY=1 só mostra.
+# Evita a caixa de permissão do Claude Code ("rm perigoso"), que trava a sessão. Esvazia o que entrou há mais de 3 dias,
+# pela data de entrada no nome (o mv mantém o mtime: um arquivo velho movido agora não pode sumir na próxima limpeza);
+# o /tmp some ao reiniciar a máquina. Sem --dry: FSD_DRY=1 só mostra. FSD_TRASH_DIR troca a pasta (testes).
+# Recusa: /, /home, /home/<usuário>, $HOME, /media, /media/<usuário>, /media/<usuário>/Projects, o repositório e qualquer pasta
+# que contenha o repositório ou o $HOME.
 set -uo pipefail
 [ $# -gt 0 ] || { echo "uso: fsd-trash <caminho…>" >&2; exit 2; }
 HERE="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"
-repo="${FSD_REPO:-$(dirname "$(dirname "$HERE")")}"
-dir="/tmp/fsd-trash/${FSD_AGENT:-autor}"; mkdir -p "$dir" && chmod 700 "$dir"
-find "/tmp/fsd-trash" -mindepth 2 -maxdepth 2 -mtime +3 -exec rm -rf -- {} + 2>/dev/null
+repo="$(realpath -s -- "${FSD_REPO:-$(dirname "$(dirname "$HERE")")}")"
+home="$(realpath -s -- "$HOME")"
+root="${FSD_TRASH_DIR:-/tmp/fsd-trash}"
+dir="$root/${FSD_AGENT:-autor}"; mkdir -p "$dir" && chmod 700 "$dir"
+# Limpeza pela data de entrada (<AAAAmmdd-HHMMSS>-nome). Sem a data no nome, fica (nunca apaga o que não sabe quando entrou).
+if cutoff=$(date -d '3 days ago' +%Y%m%d-%H%M%S 2>/dev/null); then
+  for e in "$root"/*/*; do
+    [ -e "$e" ] || [ -L "$e" ] || continue
+    ts=$(basename -- "$e"); ts=${ts:0:15}
+    [[ $ts =~ ^[0-9]{8}-[0-9]{6}$ ]] && [[ "$ts" < "$cutoff" ]] && rm -rf -- "$e"
+  done
+fi
+protected() {   # $1 = caminho absoluto
+  local a="$1"
+  [[ $a == / || $a == /home || $a == /media || $a =~ ^/home/[^/]+$ || $a =~ ^/media/[^/]+$ || $a =~ ^/media/[^/]+/Projects$ ]] && return 0
+  [[ $a == "$home" || $a == "$repo" || $home == "$a"/* || $repo == "$a"/* ]] && return 0
+  return 1
+}
 ts=$(date +%Y%m%d-%H%M%S); rc=0
 for p in "$@"; do
   [ -e "$p" ] || [ -L "$p" ] || { echo "não existe: $p" >&2; rc=1; continue; }
   abs=$(realpath -s -- "$p")
-  case "$abs" in /|/home|/home/*/|"$HOME"|/media|/media/*/Projects|"$repo") echo "recusado: $abs" >&2; rc=1; continue;; esac
+  if protected "$abs"; then echo "recusado: $abs" >&2; rc=1; continue; fi
   dest="$dir/$ts-$(basename -- "$abs")"; n=1; while [ -e "$dest" ]; do dest="$dir/$ts-$n-$(basename -- "$abs")"; n=$((n+1)); done
   if [ -n "${FSD_DRY:-}" ]; then echo "[dry] $abs → $dest"; continue; fi
   mv -- "$abs" "$dest" && echo "lixeira: $abs → $dest" || rc=1
