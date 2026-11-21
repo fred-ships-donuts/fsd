@@ -1,0 +1,302 @@
+{
+ "_comment": "Casos de loops (F1.9): input → expect. replay = a função pura que já reproduz o caso hoje (null: só o decide() da F3.6 vai reproduzir).",
+ "cases": [
+  {
+   "id": "l-usage-stop",
+   "trigger": "L.usageStop",
+   "evidence": [
+    {
+     "source": "github #193",
+     "at": "2026-11-16",
+     "line": "freio por uso da conta"
+    }
+   ],
+   "input": {
+    "cache": {
+     "five_hour": {
+      "utilization": 91
+     },
+     "seven_day": {
+      "utilization": 5
+     }
+    },
+    "stopPct": 90
+   },
+   "expect": {
+    "over": {
+     "pct": 91,
+     "window": "five_hour"
+    }
+   },
+   "replay": "over"
+  },
+  {
+   "id": "l-usage-under",
+   "trigger": "L.usageStop",
+   "evidence": [],
+   "input": {
+    "cache": {
+     "five_hour": {
+      "utilization": 89
+     },
+     "seven_day": {
+      "utilization": 89.9
+     }
+    },
+    "stopPct": 90
+   },
+   "expect": {
+    "over": null
+   },
+   "replay": "over"
+  },
+  {
+   "id": "l-usage-weekly",
+   "trigger": "L.usageStop",
+   "evidence": [],
+   "input": {
+    "cache": {
+     "five_hour": {
+      "utilization": 50
+     },
+     "seven_day": {
+      "utilization": 95
+     }
+    },
+    "stopPct": 90
+   },
+   "expect": {
+    "over": {
+     "pct": 95,
+     "window": "seven_day"
+    }
+   },
+   "replay": "over"
+  },
+  {
+   "id": "l-usage-back",
+   "trigger": "L.usageBack",
+   "evidence": [
+    {
+     "source": "github PR #222",
+     "at": "2026-11-21",
+     "line": "manual → limite → reset mantém o PAUSE manual"
+    }
+   ],
+   "input": {
+    "mark": {
+     "window": "five_hour",
+     "resets_at": "2026-11-16T10:00:00Z",
+     "own": true
+    },
+    "cache": {
+     "five_hour": {
+      "utilization": 10,
+      "resets_at": "2026-11-16T15:00:00Z"
+     }
+    }
+   },
+   "expect": {
+    "pause": "removido"
+   },
+   "replay": null
+  },
+  {
+   "id": "l-usage-reactive",
+   "trigger": "L.usageReactive",
+   "evidence": [
+    {
+     "source": "github #214",
+     "at": "2026-11-16",
+     "line": "o endpoint de uso recusa o token do time"
+    }
+   ],
+   "input": {
+    "hook": "StopFailure",
+    "matcher": "rate_limit"
+   },
+   "expect": {
+    "pause": "criado",
+    "window": "reactive"
+   },
+   "replay": null
+  },
+  {
+   "id": "l-cleanup-down",
+   "trigger": "L.cleanupDown",
+   "evidence": [],
+   "input": {
+    "cleanupPidAlive": false,
+    "paused": false,
+    "fix": true
+   },
+   "expect": {
+    "result": "subiu o laço"
+   },
+   "replay": null
+  },
+  {
+   "id": "l-cleanup-paused",
+   "trigger": "L.cleanupDown",
+   "evidence": [],
+   "input": {
+    "cleanupPidAlive": false,
+    "paused": true,
+    "fix": true
+   },
+   "expect": {
+    "result": "fsd-cleanup: parado, PAUSE: nada"
+   },
+   "replay": null
+  },
+  {
+   "id": "l-revive",
+   "trigger": "L.revive",
+   "evidence": [
+    {
+     "source": "github #197",
+     "at": "2026-11-16",
+     "line": "sem root, os agentes sobem o vigia"
+    }
+   ],
+   "input": {
+    "beatAgeS": 400,
+    "loopSeconds": 120,
+    "watchPidAlive": false,
+    "stateIsTest": false
+   },
+   "expect": {
+    "revive": true
+   },
+   "replay": null
+  },
+  {
+   "id": "l-revive-test-state",
+   "trigger": "L.revive",
+   "evidence": [
+    {
+     "source": "github #212",
+     "at": "2026-11-16",
+     "line": "7 fsd-watch e 18 fsd-cleanup de teste vivos ao mesmo tempo"
+    }
+   ],
+   "input": {
+    "beatAgeS": 400,
+    "loopSeconds": 120,
+    "watchPidAlive": false,
+    "stateIsTest": true
+   },
+   "expect": {
+    "revive": false
+   },
+   "replay": null
+  },
+  {
+   "id": "l-stall",
+   "trigger": "L.progressStall",
+   "evidence": [],
+   "input": {
+    "cards": [
+     {
+      "n": 7,
+      "column": "Developing (Stuart)",
+      "movedAt": "2026-11-16T10:00:00Z",
+      "blocked": false
+     },
+     {
+      "n": 8,
+      "column": "Developing (Stuart)",
+      "movedAt": "2026-11-16T11:30:00Z",
+      "blocked": false
+     }
+    ],
+    "now": "2026-11-16T12:00:00Z",
+    "stallMin": 60
+   },
+   "expect": {
+    "keys": [
+     "stall:#7"
+    ]
+   },
+   "replay": "findStalls"
+  },
+  {
+   "id": "l-stall-blocked",
+   "trigger": "L.progressStall",
+   "evidence": [],
+   "input": {
+    "cards": [
+     {
+      "n": 7,
+      "column": "Developing (Stuart)",
+      "movedAt": "2026-11-16T10:00:00Z",
+      "blocked": true
+     }
+    ],
+    "now": "2026-11-16T12:00:00Z",
+    "stallMin": 60
+   },
+   "expect": {
+    "keys": []
+   },
+   "replay": "findStalls"
+  },
+  {
+   "id": "l-pause-old",
+   "trigger": "L.progressPause",
+   "evidence": [],
+   "input": {
+    "pauseAt": "2026-11-16T10:00:00Z",
+    "now": "2026-11-16T12:00:00Z",
+    "pauseMin": 60
+   },
+   "expect": {
+    "keys": [
+     "pause"
+    ]
+   },
+   "replay": "findPause"
+  },
+  {
+   "id": "l-pause-new",
+   "trigger": "L.progressPause",
+   "evidence": [],
+   "input": {
+    "pauseAt": "2026-11-16T11:30:00Z",
+    "now": "2026-11-16T12:00:00Z",
+    "pauseMin": 60
+   },
+   "expect": {
+    "keys": []
+   },
+   "replay": "findPause"
+  },
+  {
+   "id": "l-notice-old",
+   "trigger": "L.progressNotice",
+   "evidence": [],
+   "input": {
+    "inboxes": {
+     "bob": [
+      {
+       "t": "2026-11-16T10:00:00Z"
+      }
+     ],
+     "mel": [
+      {
+       "t": "2026-11-16T11:50:00Z"
+      }
+     ]
+    },
+    "now": "2026-11-16T12:00:00Z",
+    "inboxMin": 30
+   },
+   "expect": {
+    "keys": [
+     "inbox:bob"
+    ]
+   },
+   "replay": "findOldNotices"
+  }
+ ]
+}

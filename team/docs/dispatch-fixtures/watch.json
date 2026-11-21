@@ -1,0 +1,517 @@
+{
+ "_comment": "Casos de watch (F1.9): input → expect. replay = a função pura que já reproduz o caso hoje (null: só o decide() da F3.6 vai reproduzir).",
+ "cases": [
+  {
+   "id": "w-start-1",
+   "trigger": "W.start",
+   "evidence": [
+    {
+     "source": "watch.log (host)",
+     "at": "2026-11-09",
+     "line": "sem sessão → subiu"
+    },
+    {
+     "source": "github #212",
+     "at": "2026-11-16T12:58:45Z",
+     "line": "kevin: sem sessão → subiu (depois de 8 min presos em cooldown por vigias de teste)"
+    }
+   ],
+   "input": {
+    "session": false
+   },
+   "expect": {
+    "state": "sem sessão",
+    "act": "start",
+    "result": "subiu"
+   },
+   "replay": null
+  },
+  {
+   "id": "w-overflow-1",
+   "trigger": "W.overflow",
+   "evidence": [],
+   "input": {
+    "session": true,
+    "pane": [
+     "Context limit reached · /compact or /clear to continue"
+    ]
+   },
+   "expect": {
+    "state": "estourou",
+    "act": "restart"
+   },
+   "replay": null
+  },
+  {
+   "id": "w-overflow-2",
+   "trigger": "W.overflow",
+   "evidence": [],
+   "input": {
+    "session": true,
+    "pane": [
+     "API Error: 400 Prompt is too long"
+    ]
+   },
+   "expect": {
+    "state": "estourou",
+    "act": "restart"
+   },
+   "replay": null
+  },
+  {
+   "id": "w-dialog-trust",
+   "trigger": "W.dialog",
+   "evidence": [
+    {
+     "source": "github #161",
+     "at": "2026-11-16",
+     "line": "perfil novo abria no diálogo de confiança da pasta"
+    }
+   ],
+   "input": {
+    "session": true,
+    "pane": [
+     "Quick safety check: Is this a project you created or one you trust?",
+     "❯ 1. Yes, I trust this folder",
+     "2. No, exit"
+    ]
+   },
+   "expect": {
+    "state": "diálogo da interface",
+    "act": "dismiss",
+    "dialog": {
+     "name": "trust folder",
+     "key": "1"
+    }
+   },
+   "replay": "uiDialog"
+  },
+  {
+   "id": "w-dialog-auto",
+   "trigger": "W.dialog",
+   "evidence": [],
+   "input": {
+    "session": true,
+    "pane": [
+     "Teach auto mode about your environment?",
+     "❯ 1. Yes",
+     "2. Not now",
+     "3. Don't show again"
+    ]
+   },
+   "expect": {
+    "state": "diálogo da interface",
+    "act": "dismiss",
+    "dialog": {
+     "name": "auto mode onboarding",
+     "key": "3"
+    }
+   },
+   "replay": "uiDialog"
+  },
+  {
+   "id": "w-dialog-variant",
+   "trigger": "W.dialog",
+   "evidence": [],
+   "input": {
+    "session": true,
+    "pane": [
+     "Quick safety check: something else?",
+     "❯ 1. Yes",
+     "2. No"
+    ]
+   },
+   "expect": {
+    "state": "permissão",
+    "act": "alert",
+    "dialog": null
+   },
+   "replay": "uiDialog"
+  },
+  {
+   "id": "w-permission-1",
+   "trigger": "W.permission",
+   "evidence": [
+    {
+     "source": "watch.log (host)",
+     "at": "2026-11-09T04:12:44.046Z",
+     "line": "mel: permissão → avisou o autor (permissão)"
+    }
+   ],
+   "input": {
+    "session": true,
+    "pane": [
+     "Do you want to proceed?",
+     "❯ 1. Yes",
+     "2. No"
+    ]
+   },
+   "expect": {
+    "state": "permissão",
+    "act": "alert",
+    "result": "avisou o autor (permissão)"
+   },
+   "replay": null
+  },
+  {
+   "id": "w-usage-1",
+   "trigger": "W.usageLimit",
+   "evidence": [
+    {
+     "source": "watch.log (host)",
+     "at": "2026-11-09",
+     "line": "limite de uso → avisou o autor (limite de uso), 4 vezes"
+    }
+   ],
+   "input": {
+    "session": true,
+    "pane": [
+     "You've hit your limit · resets 5pm (America/Sao_Paulo)"
+    ]
+   },
+   "expect": {
+    "state": "limite de uso",
+    "act": "alert",
+    "reset": "5pm (America/Sao_Paulo)"
+   },
+   "replay": "resetTime"
+  },
+  {
+   "id": "w-usage-2",
+   "trigger": "W.usageLimit",
+   "evidence": [],
+   "input": {
+    "session": true,
+    "pane": [
+     "Claude usage limit reached."
+    ]
+   },
+   "expect": {
+    "state": "limite de uso",
+    "act": "alert",
+    "reset": "desconhecido"
+   },
+   "replay": "resetTime"
+  },
+  {
+   "id": "w-alert-once",
+   "trigger": "W.alertOnce",
+   "evidence": [],
+   "input": {
+    "mem": {
+     "alert:mel": "permissão"
+    },
+    "agent": "mel",
+    "state": "permissão"
+   },
+   "expect": {
+    "alert": false
+   },
+   "replay": "shouldAlert"
+  },
+  {
+   "id": "w-alert-new",
+   "trigger": "W.alertOnce",
+   "evidence": [],
+   "input": {
+    "mem": {
+     "alert:mel": "permissão"
+    },
+    "agent": "mel",
+    "state": "limite de uso"
+   },
+   "expect": {
+    "alert": true
+   },
+   "replay": "shouldAlert"
+  },
+  {
+   "id": "w-ctx-working",
+   "trigger": "W.contextCap",
+   "evidence": [
+    {
+     "source": "github #193",
+     "at": "2026-11-16",
+     "line": "teto de contexto absoluto"
+    }
+   ],
+   "input": {
+    "ctx": 110001,
+    "above": 100000,
+    "hardMargin": 10000,
+    "working": true,
+    "monitor": false,
+    "tools": [],
+    "pane": "",
+    "paneCommand": "node"
+   },
+   "expect": {
+    "act": "restart"
+   },
+   "replay": "contextAction"
+  },
+  {
+   "id": "w-ctx-tool-alive",
+   "trigger": "W.contextCap",
+   "evidence": [],
+   "input": {
+    "ctx": 120000,
+    "above": 100000,
+    "hardMargin": 10000,
+    "working": true,
+    "monitor": false,
+    "tools": [
+     {
+      "tool": "Bash"
+     }
+    ],
+    "pane": "",
+    "paneCommand": "node"
+   },
+   "expect": {
+    "act": null
+   },
+   "replay": "contextAction"
+  },
+  {
+   "id": "w-ctx-monitor",
+   "trigger": "W.contextCap",
+   "evidence": [],
+   "input": {
+    "ctx": 100001,
+    "above": 100000,
+    "hardMargin": 10000,
+    "working": false,
+    "monitor": true,
+    "tools": [],
+    "pane": "",
+    "paneCommand": "node"
+   },
+   "expect": {
+    "act": "restart"
+   },
+   "replay": "contextAction"
+  },
+  {
+   "id": "w-stuck-1",
+   "trigger": "W.stuck",
+   "evidence": [],
+   "input": {
+    "session": true,
+    "working": true,
+    "quietMin": 25,
+    "tools": [],
+    "silentMin": 20
+   },
+   "expect": {
+    "state": "travado",
+    "act": "restart"
+   },
+   "replay": null
+  },
+  {
+   "id": "w-working-bash",
+   "trigger": "W.working",
+   "evidence": [],
+   "input": {
+    "session": true,
+    "working": true,
+    "quietMin": 40,
+    "tools": [
+     {
+      "tool": "Bash",
+      "startedMinAgo": 5,
+      "timeoutMin": 10
+     }
+    ]
+   },
+   "expect": {
+    "state": "trabalhando (Bash)",
+    "act": null
+   },
+   "replay": null
+  },
+  {
+   "id": "w-stale-config",
+   "trigger": "W.staleConfig",
+   "evidence": [],
+   "input": {
+    "session": true,
+    "working": false,
+    "settingsHash": "old",
+    "currentHash": "new",
+    "safePoint": true
+   },
+   "expect": {
+    "state": "configuração antiga",
+    "act": "reload"
+   },
+   "replay": null
+  },
+  {
+   "id": "w-ask-author",
+   "trigger": "W.askAuthor",
+   "evidence": [],
+   "input": {
+    "session": true,
+    "working": false,
+    "agent": "stuart",
+    "ask": "Can you approve the push to main?",
+    "lastAsk": null
+   },
+   "expect": {
+    "state": "pediu ao autor",
+    "act": "redirect",
+    "notify": [
+     "kevin"
+    ]
+   },
+   "replay": null
+  },
+  {
+   "id": "w-ask-same",
+   "trigger": "W.askAuthor",
+   "evidence": [],
+   "input": {
+    "session": true,
+    "working": false,
+    "agent": "stuart",
+    "ask": "Can you approve the push to main?",
+    "lastAsk": "Can you approve the push to main?",
+    "monitor": false,
+    "idleMin": 1
+   },
+   "expect": {
+    "state": "acabou de responder",
+    "act": null
+   },
+   "replay": null
+  },
+  {
+   "id": "w-monitor",
+   "trigger": "W.monitor",
+   "evidence": [],
+   "input": {
+    "session": true,
+    "working": false,
+    "pane": [
+     "2 monitors"
+    ],
+    "idleMin": 90
+   },
+   "expect": {
+    "state": "esperando (Monitor)",
+    "act": null
+   },
+   "replay": null
+  },
+  {
+   "id": "w-idle-nudge",
+   "trigger": "W.idle",
+   "evidence": [],
+   "input": {
+    "session": true,
+    "working": false,
+    "monitor": false,
+    "idleMin": 31,
+    "idleLimitMin": 30,
+    "ctx": 40000,
+    "restartAbove": 100000
+   },
+   "expect": {
+    "state": "ocioso sem Monitor",
+    "act": "nudge"
+   },
+   "replay": null
+  },
+  {
+   "id": "w-idle-restart",
+   "trigger": "W.idleHeavy",
+   "evidence": [],
+   "input": {
+    "session": true,
+    "working": false,
+    "monitor": false,
+    "idleMin": 31,
+    "idleLimitMin": 30,
+    "ctx": 120000,
+    "restartAbove": 100000
+   },
+   "expect": {
+    "state": "ocioso sem Monitor",
+    "act": "restart"
+   },
+   "replay": null
+  },
+  {
+   "id": "w-just-answered",
+   "trigger": "W.justAnswered",
+   "evidence": [],
+   "input": {
+    "session": true,
+    "working": false,
+    "monitor": false,
+    "idleMin": 2,
+    "idleLimitMin": 30
+   },
+   "expect": {
+    "state": "acabou de responder",
+    "act": null
+   },
+   "replay": null
+  },
+  {
+   "id": "w-pause-start",
+   "trigger": "W.pause",
+   "evidence": [],
+   "input": {
+    "paused": true,
+    "session": false
+   },
+   "expect": {
+    "act": "start",
+    "result": "PAUSE: nada"
+   },
+   "replay": null
+  },
+  {
+   "id": "w-pause-alert",
+   "trigger": "W.pause",
+   "evidence": [],
+   "input": {
+    "paused": true,
+    "session": true,
+    "pane": [
+     "Do you want to proceed?",
+     "❯ 1. Yes"
+    ]
+   },
+   "expect": {
+    "act": "alert",
+    "result": "avisou o autor"
+   },
+   "replay": null
+  },
+  {
+   "id": "w-cooldown",
+   "trigger": "W.cooldown",
+   "evidence": [
+    {
+     "source": "github #212",
+     "at": "2026-11-16T12:50:00Z",
+     "line": "fsd-watch mostrava 'espera (start há 1 min)' em toda rodada: vigias de teste regravavam kevin:start no estado comum"
+    }
+   ],
+   "input": {
+    "session": false,
+    "lastActMinAgo": 1,
+    "cooldownMin": 5
+   },
+   "expect": {
+    "act": "start",
+    "result": "espera (start há 1 min)"
+   },
+   "replay": null
+  }
+ ]
+}

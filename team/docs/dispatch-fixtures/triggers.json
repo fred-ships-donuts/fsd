@@ -1,0 +1,278 @@
+{
+ "_comment": "Catálogo dos gatilhos conhecidos (F1.9). Cada um tem ao menos um caso em watch/loops/columns/notices.json; o teste team/bin/dispatch-fixtures.test.mjs confere, e confere também que todo estado e toda ação do classify() do fsd-watch estão aqui.",
+ "triggers": [
+  {
+   "id": "W.start",
+   "area": "watch",
+   "trigger": "sem sessão",
+   "action": "start",
+   "code": "team/bin/fsd-watch classify()"
+  },
+  {
+   "id": "W.overflow",
+   "area": "watch",
+   "trigger": "estourou",
+   "action": "restart",
+   "code": "team/bin/fsd-watch classify()"
+  },
+  {
+   "id": "W.dialog",
+   "area": "watch",
+   "trigger": "diálogo da interface",
+   "action": "dismiss",
+   "code": "team/bin/fsd-watch classify() + fsd-dialogs.mjs uiDialog()"
+  },
+  {
+   "id": "W.permission",
+   "area": "watch",
+   "trigger": "permissão",
+   "action": "alert",
+   "code": "team/bin/fsd-watch classify() + fsd-alert"
+  },
+  {
+   "id": "W.usageLimit",
+   "area": "watch",
+   "trigger": "limite de uso",
+   "action": "alert",
+   "code": "team/bin/fsd-watch classify() + fsd-alert.mjs resetTime()"
+  },
+  {
+   "id": "W.alertOnce",
+   "area": "watch",
+   "trigger": "mesmo alerta ainda na tela",
+   "action": "nada (já avisado)",
+   "code": "fsd-alert.mjs shouldAlert()"
+  },
+  {
+   "id": "W.contextCap",
+   "area": "watch",
+   "trigger": "contexto acima do teto",
+   "action": "restart",
+   "code": "team/bin/fsd-watch classify() + fsd-context.mjs contextAction()"
+  },
+  {
+   "id": "W.stuck",
+   "area": "watch",
+   "trigger": "travado",
+   "action": "restart",
+   "code": "team/bin/fsd-watch classify()"
+  },
+  {
+   "id": "W.working",
+   "area": "watch",
+   "trigger": "trabalhando",
+   "action": "nada",
+   "code": "team/bin/fsd-watch classify()"
+  },
+  {
+   "id": "W.staleConfig",
+   "area": "watch",
+   "trigger": "configuração antiga",
+   "action": "reload",
+   "code": "team/bin/fsd-watch classify()"
+  },
+  {
+   "id": "W.askAuthor",
+   "area": "watch",
+   "trigger": "pediu ao autor",
+   "action": "redirect (fsd-notify kevin + empurrão)",
+   "code": "team/bin/fsd-watch classify()"
+  },
+  {
+   "id": "W.monitor",
+   "area": "watch",
+   "trigger": "esperando (Monitor)",
+   "action": "nada",
+   "code": "team/bin/fsd-watch classify()"
+  },
+  {
+   "id": "W.idle",
+   "area": "watch",
+   "trigger": "ocioso sem Monitor",
+   "action": "nudge",
+   "code": "team/bin/fsd-watch classify()"
+  },
+  {
+   "id": "W.idleHeavy",
+   "area": "watch",
+   "trigger": "ocioso sem Monitor e contexto acima do restartAbove",
+   "action": "restart",
+   "code": "team/bin/fsd-watch classify()"
+  },
+  {
+   "id": "W.justAnswered",
+   "area": "watch",
+   "trigger": "acabou de responder",
+   "action": "nada",
+   "code": "team/bin/fsd-watch classify()"
+  },
+  {
+   "id": "W.pause",
+   "area": "watch",
+   "trigger": "PAUSE ligado",
+   "action": "nada (alerta ainda vale)",
+   "code": "team/bin/fsd-watch act()"
+  },
+  {
+   "id": "W.cooldown",
+   "area": "watch",
+   "trigger": "mesma ação dentro do cooldownMin",
+   "action": "espera",
+   "code": "team/bin/fsd-watch round()"
+  },
+  {
+   "id": "L.usageStop",
+   "area": "loops",
+   "trigger": "uso da conta ≥ stopPct",
+   "action": "PAUSE + PAUSE.usage + comentário na #147",
+   "code": "team/bin/fsd-usage.mjs apply()"
+  },
+  {
+   "id": "L.usageBack",
+   "area": "loops",
+   "trigger": "janela resetou e uso abaixo do stopPct",
+   "action": "tira o PAUSE que ele criou (o manual fica)",
+   "code": "team/bin/fsd-usage.mjs apply()"
+  },
+  {
+   "id": "L.usageReactive",
+   "area": "loops",
+   "trigger": "StopFailure rate_limit",
+   "action": "PAUSE reativo por usage.reactiveHoldMin",
+   "code": "team/bin/fsd-usage.mjs stopFailure()"
+  },
+  {
+   "id": "L.cleanupDown",
+   "area": "loops",
+   "trigger": "laço de limpeza morto e sem PAUSE",
+   "action": "sobe fsd-cleanup --loop",
+   "code": "team/bin/fsd-watch cleanupCheck()"
+  },
+  {
+   "id": "L.revive",
+   "area": "loops",
+   "trigger": "vigia morto (beat velho e pid morto)",
+   "action": "um agente sobe o vigia",
+   "code": "team/bin/fsd-revive.mjs"
+  },
+  {
+   "id": "L.progressStall",
+   "area": "loops",
+   "trigger": "card aberto parado há stallMin",
+   "action": "fsd-notify kevin (de \"vigia\")",
+   "code": "team/bin/fsd-progress.mjs findStalls()"
+  },
+  {
+   "id": "L.progressPause",
+   "area": "loops",
+   "trigger": "PAUSE ligado há pauseMin",
+   "action": "fsd-notify kevin; o arquivo fica",
+   "code": "team/bin/fsd-progress.mjs findPause()"
+  },
+  {
+   "id": "L.progressNotice",
+   "area": "loops",
+   "trigger": "aviso parado na caixa há inboxMin",
+   "action": "fsd-notify kevin",
+   "code": "team/bin/fsd-progress.mjs findOldNotices()"
+  },
+  {
+   "id": "C.done",
+   "area": "columns",
+   "trigger": "PR mesclado",
+   "action": "Done",
+   "code": "team/bin/fsd-column.mjs cardColumn()"
+  },
+  {
+   "id": "C.closed",
+   "area": "columns",
+   "trigger": "PR fechado sem merge ou draft",
+   "action": "fica onde está",
+   "code": "team/bin/fsd-column.mjs cardColumn()"
+  },
+  {
+   "id": "C.changes",
+   "area": "columns",
+   "trigger": "mudança pedida no head",
+   "action": "Changes Requested",
+   "code": "team/bin/fsd-column.mjs cardColumn()"
+  },
+  {
+   "id": "C.pulled",
+   "area": "columns",
+   "trigger": "mudança pedida ou conflito, já puxado pelo dev",
+   "action": "Developing",
+   "code": "team/bin/fsd-column.mjs cardColumn()"
+  },
+  {
+   "id": "C.conflict",
+   "area": "columns",
+   "trigger": "conflito com a develop",
+   "action": "Changes Requested (Developing se puxado)",
+   "code": "team/bin/fsd-column.mjs cardColumn()"
+  },
+  {
+   "id": "C.newPush",
+   "area": "columns",
+   "trigger": "push novo depois da revisão",
+   "action": "In Review",
+   "code": "team/bin/fsd-column.mjs cardColumn()"
+  },
+  {
+   "id": "C.reReview",
+   "area": "columns",
+   "trigger": "pedido de nova revisão depois da mudança",
+   "action": "In Review",
+   "code": "team/bin/fsd-column.mjs cardColumn()"
+  },
+  {
+   "id": "C.mergeReady",
+   "area": "columns",
+   "trigger": "2 aprovações do time no head, sem conflito e CI verde",
+   "action": "Ready to Merge",
+   "code": "team/bin/fsd-column.mjs cardColumn()"
+  },
+  {
+   "id": "C.ciNotGreen",
+   "area": "columns",
+   "trigger": "CI da regressão vermelho, pendente ou sem checks",
+   "action": "In Review",
+   "code": "team/bin/fsd-column.mjs cardColumn()"
+  },
+  {
+   "id": "C.thirdParty",
+   "area": "columns",
+   "trigger": "aprovação de quem não é App do time",
+   "action": "não conta (In Review)",
+   "code": "team/bin/fsd-column.mjs cardColumn() + fsd-lib.mjs isTeamBot()"
+  },
+  {
+   "id": "N.queueOwner",
+   "area": "notices",
+   "trigger": "card chega numa fila",
+   "action": "avisa o dono da fila (OWNERS)",
+   "code": "team/bin/fsd-stages.mjs ownersOf()"
+  },
+  {
+   "id": "N.noQueue",
+   "area": "notices",
+   "trigger": "card chega numa coluna que não é fila",
+   "action": "nenhum aviso de fila",
+   "code": "team/bin/fsd-stages.mjs ownersOf()"
+  },
+  {
+   "id": "N.redirectKevin",
+   "area": "notices",
+   "trigger": "agente pediu ao autor",
+   "action": "fsd-notify kevin \"<agente> pediu ao autor: …\"",
+   "code": "team/bin/fsd-watch act() redirect"
+  },
+  {
+   "id": "N.alertAuthor",
+   "area": "notices",
+   "trigger": "permissão ou limite de uso na tela",
+   "action": "fsd-alert: toast, notify-send, ALERT, comentário do Kevin na #147",
+   "code": "team/bin/fsd-alert"
+  }
+ ]
+}
