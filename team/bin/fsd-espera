@@ -1,0 +1,11 @@
+#!/usr/bin/env node
+// fsd-espera <papel> "<o quê>" --ref #N [--min M] | fsd-espera fim — registra que você espera um colega num PR/issue (lease com
+// prazo; F3.4, T3.4.3). O supervisor junta os leases: ciclo no mesmo ref, quieto, vai ao juiz. Saída 0 · 1 erro · 2 uso.
+const { take, release } = await import('./fsd-lease.mjs');
+const me = process.env.FSD_AGENT || ''; const a = process.argv.slice(2);
+if (a[0] === 'fim' && a.length === 1) { console.log(release(me) ? 'fsd-espera: encerrada' : 'fsd-espera: nenhuma espera ativa'); process.exit(0); }
+const opt = (k) => { const i = a.indexOf(k); return i >= 0 ? a[i + 1] : undefined; };
+const pos = a.filter((x, i) => !['--ref', '--min'].includes(x) && !['--ref', '--min'].includes(a[i - 1]));
+if (pos.length !== 2 || !opt('--ref')) { console.log('uso: fsd-espera <papel> "<o quê>" --ref #N [--min M] | fsd-espera fim'); process.exit(2); }
+try { const l = take(me, { for: pos[0], what: pos[1], ref: opt('--ref'), min: opt('--min') }); console.log(`fsd-espera: ${me} espera ${l.for} em ${l.ref} até ${l.until}`); }
+catch (e) { console.log(`fsd-espera: ${e.message}`); process.exit(1); }
