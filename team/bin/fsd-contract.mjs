@@ -54,3 +54,28 @@ export function checkDelivery(data, { acceptance } = {}) {
   }
   return { kind, errors };
 }
+
+// T3.7.3: os comandos do time exigem o JSON do contrato na sessão nova (FSD_RUNNER=session).
+// requireDelivery lê o arquivo, valida (schema + DoD + aceite) e confere com o que o comando sabe (expect: pr, head, verdict).
+// saveDelivery grava como o fsd-entrega ($FSD_STATE/entregas/<kind>/<card>-<hora>.json, 0600, atômico).
+import { writeFileSync as _w, mkdirSync as _m, renameSync as _r, readFileSync as _rd } from 'node:fs';
+export const sessionRunner = () => process.env.FSD_RUNNER === 'session';
+export function requireDelivery({ kind, file, acceptance, expect = {}, fill = {} }) {
+  if (!file) return { ok: false, errors: [`falta --entrega <arquivo.json> (contrato team/contracts/${kind}.schema.json; modelo: fsd-entrega modelo ${kind})`] };
+  let data; try { data = JSON.parse(_rd(file, 'utf8')); } catch (e) { return { ok: false, errors: [`${file}: não é JSON válido (${String(e.message).split('\n')[0]})`] }; }
+  for (const [k, v] of Object.entries(fill)) if (data[k] == null) data[k] = v;   // o que o comando preenche depois (ex.: o número do PR novo)
+  const errors = [];
+  if (data.kind !== kind) errors.push(`$.kind: este comando entrega ${kind} (veio ${JSON.stringify(data.kind)})`);
+  else errors.push(...checkDelivery(data, { acceptance }).errors);
+  for (const [k, v] of Object.entries(expect)) {
+    if (v == null) continue;
+    const ok = k === 'head' ? typeof data.head === 'string' && String(v).startsWith(data.head) : data[k] === v;
+    if (!ok) errors.push(`$.${k}: tem de ser ${JSON.stringify(k === 'head' ? String(v).slice(0, 12) : v)} (o que este comando está entregando), veio ${JSON.stringify(data[k])}`);
+  }
+  return { ok: !errors.length, errors, data };
+}
+export function saveDelivery(data, stateDir = process.env.FSD_STATE || `${process.env.HOME}/.config/fsd-agents`) {
+  const dir = join(stateDir, 'entregas', data.kind); _m(dir, { recursive: true });
+  const out = join(dir, `${data.card ?? data.ref?.slice(1) ?? 'x'}-${new Date().toISOString().replace(/[:.]/g, '-')}.json`), tmp = `${out}.${process.pid}.tmp`;
+  _w(tmp, JSON.stringify(data, null, 1) + '\n', { mode: 0o600 }); _r(tmp, out); return out;
+}

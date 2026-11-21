@@ -11,6 +11,8 @@
 //     Antes do push, os commits do branch que ainda não estão no remoto nem na develop passam pelo commitlint
 //     (commitlint.config.mjs, a mesma regra do CI); com tarefa, o cabeçalho termina com (#n). Branch em conflito com a develop: recusa (exit 1), lista os arquivos e não envia nada (#154).
 import * as L from './fsd-lib.mjs';
+const C = await import('./fsd-contract.mjs'); const { loadTask, acceptanceOf } = await import('./fsd-task.mjs');
+const ENTREGA = (() => { const i = process.argv.indexOf('--entrega'); return i >= 0 ? process.argv[i + 1] : undefined; })();
 import { conflictFiles } from './fsd-conflict.mjs';
 import { existsSync, mkdirSync, rmdirSync, statSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
@@ -88,6 +90,15 @@ else if (a[0] === 'open') {
     if (!files.length) L.die(`não consegui conferir o conflito com a develop (o git merge-tree --write-tree exige git ≥ 2.38): ${L.firstLine(mt.out || mt.err || 'git merge-tree falhou')}`, 3);
     L.die(`o branch tem conflito com a develop; nada foi enviado. Arquivos:\n${files.map((f) => '  ' + f).join('\n')}\nresolva: fsd-dev sync -C ${dir}, corrija, commite e rode fsd-pr open de novo.`, 1);
   }
+  // T3.7.3: na sessão nova o PR sai com o JSON do contrato entrega-codigo (--entrega), conferido com o card, o branch e o HEAD.
+  // O número do PR o comando preenche depois de criar (sem ele no arquivo, a validação usa um provisório).
+  let delivery = null;
+  if (C.sessionRunner()) {
+    const n = loadTask(L.ME)?.acceptance ?? (issue ? acceptanceOf(L.issue(issue).body || '').length || undefined : undefined);
+    const r = C.requireDelivery({ kind: 'entrega-codigo', file: ENTREGA, acceptance: n, expect: { card: issue || null, branch, head: git('rev-parse', 'HEAD') }, fill: { pr: 1 } });
+    if (!r.ok) L.die(`entrega inválida: nada foi enviado.\n${r.errors.map((e) => `- ${e}`).join('\n')}`, 1);
+    delivery = r.data;
+  }
   L.write('git', ['-C', dir, 'push', '-q', '-u', 'origin', branch]);
   const sha = git('rev-parse', '--short', 'HEAD');
   const existing = L.ghJson(['pr', 'list', '--head', branch, '--state', 'open', '--json', 'number,url']);
@@ -103,6 +114,7 @@ else if (a[0] === 'open') {
     const url = L.ghw(['pr', 'create', '--base', 'develop', '--head', branch, '--title', title, '--body-file', '-'], { input: body });
     num = Number(url.split('/').pop()); out = `PR #${num} ${url}`;
   }
+  if (delivery) { delivery.pr = num || delivery.pr; out += ` | entrega ${C.saveDelivery(delivery).split('/').pop()}`; }
   const b = num ? L.boardPr(L.pr(num)) : '';   // em FSD_DRY o PR novo não existe
   const n = L.noticeSummary(L.notify(L.REVIEWERS.includes(L.ME) ? [...L.REVIEWERS, 'kevin'] : L.REVIEWERS, `PR #${num}${issue ? ` (issue #${issue})` : ''} ${existing.length ? 'tem commit novo' : 'pronto para revisão'}: fsd-pr --todo.`));
   console.log([out, b, n].filter(Boolean).join(' | '));
