@@ -1,5 +1,7 @@
 {
   "repo": "fred-ships-donuts/fsd",
+  "author": "fredericojacobi",
+  "_author": "Login do autor no GitHub: só a decisão dele libera um issue com aguardando-autor (fsd-admit, D8).",
   "tokens": {
     "_comment": "fsd-token (F1.6): o body do POST access_tokens. Cada token vale só para o repositório de \"repo\" e só com estas permissões; nenhum papel tem workflows (o CI não muda por agente). repo = o token do gh e do git; org = o do fsd-board (quadro da organização). Uma permissão fora da instalação do App faz o GitHub recusar (422).",
     "repo": {

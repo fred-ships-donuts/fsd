@@ -27,8 +27,12 @@ if (cmd === 'show') {
   }
   const args = ['issue', 'create', '--title', title, '--body-file', '-', '--label', `area:${area},size:${size}`];
   if (opt('--milestone')) args.push('--milestone', opt('--milestone'));
+  // Time nativo (D8, T3.5.2): issue criado por agente numa sessão nova fica com aguardando-autor e fora do quadro até a decisão do autor
+  // (fsd-admit põe no Backlog). O time no tmux segue como antes.
+  const held = process.env.FSD_RUNNER === 'session';
+  if (held) args[args.indexOf('--label') + 1] += ',aguardando-autor';
   const url = L.ghw(args, { input: body }); const num = Number(url.split('/').pop());
-  console.log([`#${num} ${url}`, L.board(opt('--to') || L.STAGE.backlog, [num], { quiet: false })].filter(Boolean).join(' | '));
+  console.log([`#${num} ${url}`, held ? 'aguardando-autor: fora do quadro até a decisão do autor' : L.board(opt('--to') || L.STAGE.backlog, [num], { quiet: false })].filter(Boolean).join(' | '));
 } else if (cmd === 'ask') {
   L.die('fsd-issue ask foi removido: o time não pergunta ao autor. O Kevin decide com fsd-issue decide.', 1);
   const n = a[1]; if (!/^\d+$/.test(n || '')) L.die('uso: fsd-issue ask <n> <arquivo|->', 2);
