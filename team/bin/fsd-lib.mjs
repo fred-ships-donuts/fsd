@@ -64,16 +64,38 @@ const PR_FIELDS = 'number,title,url,state,isDraft,baseRefName,headRefName,headRe
 export function pr(n) {
   const r = run(join(BIN, 'gh'), ['pr', 'view', String(n), '--json', PR_FIELDS], { allowFail: true });
   if (!r.ok) die(/not found|Could not resolve/i.test(r.err) ? `PR #${n} não encontrado` : `gh falhou: ${r.err.slice(0, 200)}`, /not found|Could not resolve/i.test(r.err) ? 1 : 4);
-  return JSON.parse(r.out);
+  return markBots(JSON.parse(r.out));
 }
-export const openPrs = () => ghJson(['pr', 'list', '--state', 'open', '--limit', '100', '--json', PR_FIELDS]);
+export const openPrs = () => markBots(ghJson(['pr', 'list', '--state', 'open', '--limit', '100', '--json', PR_FIELDS]));
+// O gh tira o "[bot]" do login nas revisões: um usuário humano chamado fsd-mel ficaria igual ao App (A10; o repositório é
+// público e esses logins de usuário estão livres). Uma consulta GraphQL só (um alias por PR) traz o __typename de cada revisão
+// e marca author.bot. Revisão sem marca (fora das últimas 100) não conta. Falha do gh derruba o comando, como no pr().
+export function markBots(prs, query = (q) => ghJson(['api', 'graphql', '-f', `query=${q}`])) {
+  const list = (Array.isArray(prs) ? prs : [prs]).filter((p) => p?.number && p.reviews?.length);
+  if (!list.length) return prs;
+  const [owner, name] = REPO.split('/');
+  const q = `query{repository(owner:${JSON.stringify(owner)},name:${JSON.stringify(name)}){${list.map((p) => `p${Number(p.number)}:pullRequest(number:${Number(p.number)}){reviews(last:100){nodes{id author{__typename}}}}`).join(' ')}}}`;
+  const repo = query(q)?.data?.repository || {};
+  const type = new Map();
+  for (const k of Object.keys(repo)) for (const r of repo[k]?.reviews?.nodes || []) type.set(r.id, r.author?.__typename);
+  for (const p of list) for (const r of p.reviews) if (r.author) r.author.bot = type.get(r.id) === 'Bot';
+  return prs;
+}
+// Revisor do time = um dos Apps do time (slug de agents.json). Bot pela marca do GraphQL (markBots) ou pelo login com "[bot]" /
+// "app/", que só App tem (usuário não pode ter esses caracteres). Usuário humano com o mesmo nome não conta.
+export const TEAM_BOTS = new Set(AGENTS.map((a) => CFG.agents[a].slug || `fsd-${a}`));
+export function isTeamBot(author) {
+  const l = String(author?.login || '');
+  return TEAM_BOTS.has(norm(l)) && (author?.bot === true || /\[bot\]$|^app\//.test(l));
+}
 
-// Revisões: a última decisiva de cada pessoa (APPROVED / CHANGES_REQUESTED / DISMISSED), em ordem cronológica.
+// Revisões: a última decisiva de cada bot do time (APPROVED / CHANGES_REQUESTED / DISMISSED), em ordem cronológica.
+// Revisão de quem não é bot do time (isTeamBot) não aprova nem pede mudança (A10).
 export function reviewState(p) {
   const author = norm(p.author?.login);
   const last = new Map();
   for (const r of p.reviews || []) {
-    if (!['APPROVED', 'CHANGES_REQUESTED', 'DISMISSED'].includes(r.state)) continue;
+    if (!['APPROVED', 'CHANGES_REQUESTED', 'DISMISSED'].includes(r.state) || !isTeamBot(r.author)) continue;
     last.set(norm(r.author?.login), r);
   }
   const approvers = [], stale = [], changes = [];
