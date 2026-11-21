@@ -11,6 +11,7 @@
 //     Antes do push, os commits do branch que ainda não estão no remoto nem na develop passam pelo commitlint
 //     (commitlint.config.mjs, a mesma regra do CI); com tarefa, o cabeçalho termina com (#n). Branch em conflito com a develop: recusa (exit 1), lista os arquivos e não envia nada (#154).
 import * as L from './fsd-lib.mjs';
+import { markGet } from './fsd-mark.mjs';
 const C = await import('./fsd-contract.mjs'); const { loadTask, acceptanceOf } = await import('./fsd-task.mjs');
 const ENTREGA = (() => { const i = process.argv.indexOf('--entrega'); return i >= 0 ? process.argv[i + 1] : undefined; })();
 import { conflictFiles } from './fsd-conflict.mjs';
@@ -69,8 +70,8 @@ else if (a[0] === 'open') {
   const git = (...x) => L.run('git', ['-C', dir, ...x]);
   const branch = git('rev-parse', '--abbrev-ref', 'HEAD');
   if (!new RegExp(`^(${L.BRANCH_TYPES.join('|')})/[a-z0-9]`).test(branch)) L.die(`branch "${branch}" fora do padrão <tipo>/<n>-<slug> ou <tipo>/<slug>, tipo em ${L.BRANCH_TYPES.join(', ')} (crie com fsd-dev start)`, 1);
-  const mark = L.run('git', ['-C', dir, 'config', '--get', `branch.${branch}.fsd-issue`], { allowFail: true });
-  const issue = mark.ok && /^\d+$/.test(mark.out) ? Number(mark.out) : 0;
+  const mark = markGet(branch, 'issue', { cwd: dir });   // ~/.fsd/marks.json na sessão nova (F2.2), senão a config do git
+  const issue = /^\d+$/.test(mark) ? Number(mark) : 0;
   if (issue && L.issue(issue).state !== 'OPEN') L.die(`issue #${issue} da tarefa não está aberto`, 1);
   if (opt('--verified') === '-' && opt('--reply') === '-') L.die('só um de --verified/--reply pode usar -', 2);
   git('fetch', '-q', 'origin', 'develop');
@@ -99,7 +100,7 @@ else if (a[0] === 'open') {
     if (!r.ok) L.die(`entrega inválida: nada foi enviado.\n${r.errors.map((e) => `- ${e}`).join('\n')}`, 1);
     delivery = r.data;
   }
-  L.write('git', ['-C', dir, 'push', '-q', '-u', 'origin', branch]);
+  L.write('git', ['-C', dir, 'push', '-q', ...(process.env.FSD_RUNNER === 'session' ? [] : ['-u']), 'origin', branch]);   // -u grava na config, que é do root na sessão nova
   const sha = git('rev-parse', '--short', 'HEAD');
   const existing = L.ghJson(['pr', 'list', '--head', branch, '--state', 'open', '--json', 'number,url']);
   let num, out;

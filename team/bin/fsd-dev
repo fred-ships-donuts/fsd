@@ -7,7 +7,9 @@
 // fsd-dev sync -C <worktree>             git pull da develop no branch (merge comum): "ok" ou "conflito: <arquivos>"
 // Nunca troque de branch na pasta principal: cada trabalho vive no seu worktree em .claude/worktrees/.
 import * as L from './fsd-lib.mjs';
-import { existsSync, readFileSync, appendFileSync } from 'node:fs';
+import { markSet } from './fsd-mark.mjs';
+import { existsSync, readFileSync, appendFileSync, mkdirSync } from 'node:fs';
+import { dirname } from 'node:path';
 const a = process.argv.slice(2); const [cmd, n] = a;
 const opt = (k) => { const i = a.indexOf(k); return i >= 0 ? a[i + 1] : undefined; };
 const slugify = (t) => t.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 40).replace(/^-+|-+$/g, '');
@@ -23,18 +25,21 @@ if (cmd === 'start') {
     if (busy) L.die(`fsd-dev: ${L.ME} already has #${busy.n} in ${busy.col}; finish it or move it back to ${L.STAGE.devReady}`, 1);
   }
   const type = a.includes('--fix') ? 'fix' : a.includes('--docs') ? 'docs' : a.includes('--chore') ? 'chore' : 'feature';
-  const branch = task ? `${type}/${n}-${slug}` : `${type}/${slug}`; const dir = `${L.REPO_DIR}/.claude/worktrees/${branch.replace('/', '-')}`;
-  const ex = `${L.REPO_DIR}/.git/info/exclude`; try { if (!readFileSync(ex, 'utf8').includes('.claude/worktrees/')) appendFileSync(ex, '\n.claude/worktrees/\n'); } catch {}
-  L.run('git', ['-C', L.REPO_DIR, 'fetch', '-q', 'origin', 'develop']);
+  // Sessão nova (F2.2): o worktree fica na home do papel (0700), fora do repositório compartilhado; o fetch não grava o FETCH_HEAD
+  // (é do supervisor), o branch nasce sem upstream e as marcas vão para ~/.fsd/marks.json (o .git/config é do root).
+  const SESSION = process.env.FSD_RUNNER === 'session';
+  const branch = task ? `${type}/${n}-${slug}` : `${type}/${slug}`; const dir = SESSION ? `${process.env.HOME}/wt/${branch.replace('/', '-')}` : `${L.REPO_DIR}/.claude/worktrees/${branch.replace('/', '-')}`;
+  const ex = `${L.REPO_DIR}/.git/info/exclude`; if (!SESSION) { try { if (!readFileSync(ex, 'utf8').includes('.claude/worktrees/')) appendFileSync(ex, '\n.claude/worktrees/\n'); } catch {} }
+  L.run('git', ['-C', L.REPO_DIR, 'fetch', '-q', ...(SESSION ? ['--no-write-fetch-head'] : []), 'origin', 'develop']);
   if (!existsSync(dir)) {
     const have = L.run('git', ['-C', L.REPO_DIR, 'rev-parse', '--verify', '-q', `refs/heads/${branch}`], { allowFail: true }).ok;
-    L.write('git', ['-C', L.REPO_DIR, 'worktree', 'add', '-q', ...(have ? [dir, branch] : [dir, '-b', branch, 'origin/develop'])]);
+    if (SESSION) mkdirSync(dirname(dir), { recursive: true });
+    L.write('git', ['-C', L.REPO_DIR, 'worktree', 'add', '-q', ...(have ? [dir, branch] : [...(SESSION ? ['--no-track'] : []), dir, '-b', branch, 'origin/develop'])]);
   }
   // A tarefa fica gravada no branch: o fsd-pr open só a reconhece por aqui (o número no nome não conta).
   // Dono do worktree (fim do dia, T3.4.2): o supervisor só aposenta a sessão sem nada deste papel só no disco.
-  if (L.ME) L.write('git', ['-C', L.REPO_DIR, 'config', `branch.${branch}.fsd-agent`, L.ME], { allowFail: true });
-  if (task) L.write('git', ['-C', L.REPO_DIR, 'config', `branch.${branch}.fsd-issue`, String(n)]);
-  else L.write('git', ['-C', L.REPO_DIR, 'config', '--unset', `branch.${branch}.fsd-issue`], { allowFail: true });
+  if (L.DRY) console.log(`[dry] marcas de ${branch}: issue=${task ? n : '-'} agent=${L.ME || '-'}${SESSION ? ' (~/.fsd/marks.json)' : ' (git config)'}`);
+  else markSet(branch, { agent: L.ME || null, issue: task ? n : null }, { repo: L.REPO_DIR });
   // Card que já tem PR vai para a coluna calculada (pulled); sem PR é trabalho novo: Developing.
   const open = task ? L.openPrs().find((x) => x.headRefName === branch) : null;
   const b = !task ? '' : open ? L.boardPr(open, { pulled: true }) : L.board(L.STAGE.dev, [Number(n)]);

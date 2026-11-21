@@ -1,10 +1,12 @@
 // fsd-eod.mjs — fim do dia (F3.4, T3.4.2; D12). Perto do limite de contexto o supervisor pede o fechamento (passagem no ai-memory e no
 // GitHub, commit e push, #202); a sessão fecha só sem nada do papel só no disco; a próxima tarefa abre uma sessão nova, que lê a passagem.
 //   EOD_PROMPT · NEW_DAY_NOTE
-//   unsaved(role, { repo })   worktrees do papel (branch.<b>.fsd-agent) com mudança sem commit ou commit sem push
+//   unsaved(role, { repo })   worktrees do papel (na home dele, ou com a marca agent) com mudança sem commit ou commit sem push;
+//                             worktree que não dá para ler entra como unreadable (não aposenta às cegas; o wrapper da F2.6 resolve)
 //   ctxOf(transcript)         contexto da última resposta (entrada + cache lido + cache gravado + saída), como o fsd-stats
 import { spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
+import { markGet } from './fsd-mark.mjs';
 
 export const EOD_PROMPT = [
   '[fsd-fim-do-dia] Seu contexto está perto do limite: feche o dia agora, nesta ordem, e termine o turno.',
@@ -20,7 +22,10 @@ export function unsaved(role, { repo }) {
   const out = [];
   const wt = git(repo, 'worktree', 'list', '--porcelain').stdout.split('\n\n').map((b) => ({ path: /^worktree (.+)$/m.exec(b)?.[1], branch: /^branch refs\/heads\/(.+)$/m.exec(b)?.[1] })).filter((w) => w.path && w.branch);
   for (const w of wt) {
-    if (git(repo, 'config', '--get', `branch.${w.branch}.fsd-agent`).stdout.trim() !== role) continue;
+    // Dono: na sessão nova (F2.2) o worktree está na home do papel; no time antigo, a marca branch.<b>.fsd-agent.
+    const owner = w.path.startsWith(`${process.env.FSD_ROLE_HOME_PREFIX || '/home/fsd-'}${role}/`) ? role : markGet(w.branch, 'agent', { cwd: repo });
+    if (owner !== role) continue;
+    if (spawnSync('test', ['-r', w.path]).status !== 0) { out.push({ path: w.path, branch: w.branch, dirty: null, ahead: null, unreadable: true }); continue; }   // sem acesso: não dá para dizer que está limpo
     const dirty = git(w.path, 'status', '--porcelain').stdout.trim().split('\n').filter(Boolean).length;
     const up = git(w.path, 'rev-parse', '--abbrev-ref', '--symbolic-full-name', '@{u}');
     const ahead = up.status === 0 ? Number(git(w.path, 'rev-list', '--count', '@{u}..HEAD').stdout.trim() || 0) : Number(git(w.path, 'rev-list', '--count', 'HEAD', '--not', '--remotes').stdout.trim() || 0);

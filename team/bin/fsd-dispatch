@@ -78,7 +78,7 @@ async function exec(a, g) {
   if (a.type === 'retire') {
     const E = await import('./fsd-eod.mjs'); const left = E.unsaved(a.to, { repo: process.env.FSD_REPO || join(TEAM, '..') });
     if (left.length) {   // algo só no disco: não aposenta; pede de novo (até 3 vezes) e avisa o Kevin
-      const e = D.loadEod()[a.to] || {}; const list = left.map((x) => `${x.branch} (${x.dirty ? `${x.dirty} mudança(s) sem commit` : ''}${x.dirty && x.ahead ? ', ' : ''}${x.ahead ? `${x.ahead} commit(s) sem push` : ''})`).join('; ');
+      const e = D.loadEod()[a.to] || {}; const list = left.map((x) => `${x.branch} (${x.unreadable ? 'sem acesso para conferir' : `${x.dirty ? `${x.dirty} mudança(s) sem commit` : ''}${x.dirty && x.ahead ? ', ' : ''}${x.ahead ? `${x.ahead} commit(s) sem push` : ''}`})`).join('; ');
       if ((e.asks || 0) < 3) { const r = spawnSync(join(BIN, 'fsd-session'), ['turn', a.to, `${E.EOD_PROMPT}\n\nAinda só no disco: ${list}.`], { encoding: 'utf8', env: process.env }); D.saveEod({ ...D.loadEod(), [a.to]: { ...e, asks: (e.asks || 0) + 1 } }); return `não aposentado: ${list}${r.status ? ' (pedido falhou)' : ''}`; }
       const M = await import('./fsd-messenger.mjs'); if (a.to !== 'kevin') M.say({ to: 'kevin', text: `${a.to} não consegue fechar o dia: ${list}` }, { from: a.to });
       return `não aposentado: ${list}`;
