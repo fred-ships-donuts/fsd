@@ -99,6 +99,8 @@ comando passam por cima do padrão.
 │   ├── fsd-audit                  audita uma sessão (0 token): comando proibido, entrega fora do contrato, card fora da vez, destino inválido, texto de issue como ordem, lista de tarefas (F3.8)
 │   ├── fsd-session                sessão --bg de cada papel numa conversa fixa (--session-id/--resume): start, turn, stop, boot (F3.2)
 │   ├── fsd-dispatch               supervisor do time nativo (0 token): round, loop (só da cópia fixada), pin, status (F3.2)
+│   ├── fsd-broker                 broker de tokens (usuário fsd-broker): um token por papel em /var/lib/fsd-tokens/<papel> (0440, só o papel lê) e o de merge do supervisor (F2.3)
+│   ├── fsd-token-file             o token do papel pelo usuário Unix, nunca pelo FSD_AGENT (C1; gh e git-credential-fsd na sessão nova)
 │   ├── fsd-secrets                pack/unpack dos segredos em secrets.tar.age (age, senha)
 │   ├── fsd-redirect-hook          hook PreToolUse (Bash): comando bloqueado → nega e nomeia o comando do time
 │   ├── fsd-cleanup                apaga worktree, branch local e remoto de PR mesclado há mais de cleanup.mergedMin (sem agente); --once, --loop, --dry

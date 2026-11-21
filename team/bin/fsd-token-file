@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+# fsd-token-file [org] — o token do papel na sessão nova (F2.3, T2.3.2; C1): o papel é o usuário Unix (fsd-<papel>), nunca o
+# FSD_AGENT nem outra variável. Lê o arquivo que o fsd-broker mantém ($FSD_TOKEN_DIR/<papel>/token ou token-org, 0440).
+# Saída: o token em stdout · 2 usuário que não é de papel · 4 arquivo ausente ou ilegível.
+set -euo pipefail
+u=$(id -un); role=${u#fsd-}
+[ "$u" != "$role" ] && [ -n "$role" ] || { echo "fsd-token-file: $u não é um usuário de papel (fsd-<papel>)" >&2; exit 2; }
+f="${FSD_TOKEN_DIR:-/var/lib/fsd-tokens}/$role/token"; [ "${1:-}" = org ] && f="$f-org"
+[ -r "$f" ] || { echo "fsd-token-file: sem $f (o fsd-broker está de pé?)" >&2; exit 4; }
+head -1 "$f"

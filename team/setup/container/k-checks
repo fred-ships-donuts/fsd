@@ -46,5 +46,24 @@ if [ -n "${FSD_SIM_REPO:-}" ]; then
   check K7 "o supervisor busca, compacta as refs e apaga branch" inrepo fsd-dispatch "git fetch -q origin && git pack-refs --all && git worktree prune && git branch -D fix/1-x"
   check K7 ".git/config segue fora do alcance dos papéis" notrepo fsd-bob "git config alias.z '!id'"
 fi
+# K8 (F2.3, C1): o broker. FSD_SIM_TEAM = o team/bin e o agents.json dentro da imagem (tokens falsos, sem chave nem rede).
+if [ -n "${FSD_SIM_TEAM:-}" ]; then
+  T=$FSD_SIM_TEAM/bin; asu() { su -s /bin/bash "$1" -c "$2" 2>/dev/null; }
+  su -s /bin/bash fsd-broker -c "FSD_BROKER_FAKE=1 node $T/fsd-broker once" >/dev/null 2>&1
+  check K8 "o broker gravou o token de cada papel e o do supervisor" bash -c "for r in kevin mel stuart bob dispatch; do [ -s /var/lib/fsd-tokens/\$r/token ] || exit 1; done"
+  perm_is() { [ "$(stat -c '%a %G' "$1")" = "$2" ]; }
+  check K8 "token do papel é 0440 e do grupo do papel" perm_is /var/lib/fsd-tokens/stuart/token '440 fsd-stuart'
+  check K8 "Stuart lê o próprio token pelo usuário Unix" bash -c "asu() { su -s /bin/bash \"\$1\" -c \"\$2\" 2>/dev/null; }; asu fsd-stuart '$T/fsd-token-file' | grep -q '^fake-stuart-repo-'"
+  check K8 "C1: FSD_AGENT=mel não muda a identidade do Stuart" bash -c "su -s /bin/bash fsd-stuart -c 'FSD_AGENT=mel FSD_RUNNER=session $T/fsd-token-file' 2>/dev/null | grep -q '^fake-stuart-repo-'"
+  check K8 "Stuart não lê o token da Mel" cannot fsd-stuart "cat /var/lib/fsd-tokens/mel/token"
+  check K8 "Stuart não lê o token do supervisor" cannot fsd-stuart "cat /var/lib/fsd-tokens/dispatch/token"
+  check K8 "Stuart não lê as chaves dos Apps" cannot fsd-stuart "ls /var/lib/fsd-broker/keys"
+  check K8 "Stuart não reescreve o próprio token" cannot fsd-stuart "echo x > /var/lib/fsd-tokens/stuart/token"
+  check K8 "o supervisor lê o token de merge e não o do Stuart" bash -c "su -s /bin/bash fsd-dispatch -c 'cat /var/lib/fsd-tokens/dispatch/token' >/dev/null 2>&1 && ! su -s /bin/bash fsd-dispatch -c 'cat /var/lib/fsd-tokens/stuart/token' >/dev/null 2>&1"
+  check K8 "fsd-run não lê token nenhum" cannot fsd-run "cat /var/lib/fsd-tokens/bob/token"
+  printf '#!/bin/sh\necho "$GH_TOKEN"\n' > /usr/local/bin/fake-gh; chmod 755 /usr/local/bin/fake-gh
+  check K8 "gh (wrapper) na sessão nova usa o token do usuário, com FSD_AGENT de outro" bash -c "su -s /bin/bash fsd-stuart -c 'FSD_RUNNER=session FSD_AGENT=mel FSD_REAL_GH=/usr/local/bin/fake-gh $T/gh pr list' 2>/dev/null | grep -q '^fake-stuart-repo-'"
+  check K8 "git-credential-fsd na sessão nova dá o token do usuário" bash -c "printf 'protocol=https\nhost=github.com\n\n' | su -s /bin/bash fsd-stuart -c 'FSD_RUNNER=session FSD_AGENT=mel $T/git-credential-fsd get' 2>/dev/null | grep -q '^password=fake-stuart-repo-'"
+fi
 [ $fail = 0 ] && echo "k-checks: tudo ok" || echo "k-checks: há falhas"
 exit $fail
