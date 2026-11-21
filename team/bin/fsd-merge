@@ -1,25 +1,25 @@
 #!/usr/bin/env node
 // fsd-merge <n> [--check]   mescla o PR #n na develop seguindo as regras do time (2 aprovações atuais de outras pessoas,
-//                           sem mudança pedida, não draft, base develop, sem conflito). Squash, sem apagar a branch,
-//                           travado no commit conferido. Depois move os issues para Done e avisa o autor do PR.
+//                           sem mudança pedida, não draft, base develop, sem conflito, CI da regressão verde). Merge commit
+//                           (--merge), sem apagar a branch, travado no commit conferido. Depois move os issues para Done e avisa o autor do PR.
 // fsd-merge --ready [--check] [--now]  mescla os PRs de agentes prontos e parados há 10 min (o que fsd-pr --ready mostra); PR do autor só por número
 // Saída: 0 ok · 1 regra · 3 ainda calculando · 4 GitHub recusou/rede.
+// Testes: FSD_MERGE_FIXTURE=<arquivo JSON do PR> (só com FSD_DRY=1) usa o PR do arquivo no lugar do gh.
+import { readFileSync } from 'node:fs';
 import * as L from './fsd-lib.mjs';
 import { followDevelop } from './fsd-follow.mjs';
 const [n, mode] = process.argv.slice(2);
+const FIXTURE = process.env.FSD_MERGE_FIXTURE;
+if (FIXTURE && !L.DRY) L.die('fsd-merge: FSD_MERGE_FIXTURE só vale com FSD_DRY=1', 2);
+const getPr = (num) => (FIXTURE ? JSON.parse(readFileSync(FIXTURE, 'utf8')) : L.pr(num));
 function one(num, check) {
   let p;
-  for (let t = 0; t < 6; t++) { p = L.pr(num); if (p.state !== 'OPEN' || p.mergeable !== 'UNKNOWN') break; L.run('sleep', ['2']); }
-  const s = L.reviewState(p); const fail = [];
-  if (p.state !== 'OPEN') fail.push(`estado ${p.state}`);
-  if (p.isDraft) fail.push('draft');
-  if (p.baseRefName !== 'develop') fail.push(`base ${p.baseRefName} (só develop; a main é do autor)`);
-  if (p.mergeable === 'CONFLICTING') fail.push('conflito com a develop');
-  if (s.approvers.length < 2) fail.push(`${s.approvers.length}/2 aprovações atuais${s.stale.length ? ` (antigas: ${s.stale.join(',')})` : ''}`);
-  if (s.changes.length) fail.push(`mudanças pedidas por ${s.changes.join(',')}`);
-  if (fail.length) return [1, `#${num} não pode entrar: ${fail.join('; ')}`];
-  if (p.mergeable === 'UNKNOWN') return [3, `#${num} merge ainda calculando; tente de novo`];
-  if (check) return [0, `#${num} pronto para merge (${s.approvers.join(',')})`];
+  for (let t = 0; t < 6; t++) { p = getPr(num); if (FIXTURE || p.state !== 'OPEN' || p.mergeable !== 'UNKNOWN') break; L.run('sleep', ['2']); }
+  const g = L.mergeGate(p);
+  if (g.fail.length) return [1, `#${num} não pode entrar: ${g.fail.join('; ')}`];
+  if (g.calculating) return [3, `#${num} merge ainda calculando; tente de novo`];
+  if (check) return [0, `#${num} pronto para merge (${g.approvers.join(',')})`];
+  if (FIXTURE) return [0, `[dry] #${num} seria mesclado na develop (${g.approvers.join(',')})`];
   const r = L.write(L.BIN + '/gh', ['pr', 'merge', String(num), '--merge', '--match-head-commit', p.headRefOid], { allowFail: true });
   if (!r.ok) { if (L.pr(num).state === 'MERGED') return [0, `#${num} já mesclado`]; return [4, `#${num} merge recusado: ${r.err.slice(0, 200)}`]; }
   const cl = L.closes(p.body);

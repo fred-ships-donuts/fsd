@@ -303,6 +303,21 @@ export function afterReview(n) {
   return `aprovações ${s.approvers.length}/2`;
 }
 
+// Portão de merge, decisão pura: as razões que impedem o merge (vazio = pode entrar) e se o GitHub ainda calcula o conflito.
+// Exige 2 aprovações atuais, nenhum pedido de mudança, base develop, sem conflito e o CI da regressão verde: vermelho ou
+// pendente recusa (o ruleset da develop também exige os jobs, este portão só recusa antes de chamar o GitHub).
+export function mergeGate(p) {
+  const s = reviewState(p); const fail = [];
+  if (p.state !== 'OPEN') fail.push(`estado ${p.state}`);
+  if (p.isDraft) fail.push('draft');
+  if (p.baseRefName !== 'develop') fail.push(`base ${p.baseRefName} (só develop; a main é do autor)`);
+  if (p.mergeable === 'CONFLICTING') fail.push('conflito com a develop');
+  if (s.approvers.length < 2) fail.push(`${s.approvers.length}/2 aprovações atuais${s.stale.length ? ` (antigas: ${s.stale.join(',')})` : ''}`);
+  if (s.changes.length) fail.push(`mudanças pedidas por ${s.changes.join(',')}`);
+  const ci = ciState(p);
+  if (ci !== 'green') fail.push(`CI da regressão ${ci === 'red' ? 'vermelho' : 'pendente'} (${REQUIRED_CI.join(', ')})`);
+  return { fail, approvers: s.approvers, calculating: p.mergeable === 'UNKNOWN' };
+}
 // PRs prontos para entrar: abertos, não draft, base develop, 2+ aprovações atuais, sem pedido de mudança, sem conflito, CI verde.
 export const ready = (p) => { const s = reviewState(p); return p.state === 'OPEN' && !p.isDraft && p.baseRefName === 'develop' && s.approvers.length >= 2 && !s.changes.length && p.mergeable !== 'CONFLICTING' && ciState(p) === 'green'; };
 // Prontos "parados": de agentes (PR do autor só por número), com a 2ª aprovação há mais de agents.json → timing.readyGraceMin
