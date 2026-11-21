@@ -1,0 +1,487 @@
+{
+ "_comment": "Casos de columns (F1.9): input → expect. replay = a função pura que já reproduz o caso hoje (null: só o decide() da F3.6 vai reproduzir).",
+ "cases": [
+  {
+   "id": "c-done",
+   "trigger": "C.done",
+   "evidence": [
+    {
+     "source": "github board",
+     "at": "2026-11-09T04:02:57Z",
+     "line": "#6 Ready to Merge → Done (fsd-stuart), 12 vezes"
+    }
+   ],
+   "input": {
+    "pr": {
+     "state": "MERGED",
+     "isDraft": false,
+     "headRefOid": "abc",
+     "mergeable": "MERGEABLE",
+     "author": "fsd-stuart[bot]",
+     "reviews": [],
+     "reviewRequests": [],
+     "checks": "SUCCESS",
+     "ci": "green"
+    }
+   },
+   "expect": {
+    "column": "done"
+   },
+   "replay": "cardColumn"
+  },
+  {
+   "id": "c-closed",
+   "trigger": "C.closed",
+   "evidence": [],
+   "input": {
+    "pr": {
+     "state": "CLOSED",
+     "isDraft": false,
+     "headRefOid": "abc",
+     "mergeable": "MERGEABLE",
+     "author": "fsd-stuart[bot]",
+     "reviews": [],
+     "reviewRequests": [],
+     "checks": "SUCCESS",
+     "ci": "green"
+    }
+   },
+   "expect": {
+    "column": null
+   },
+   "replay": "cardColumn"
+  },
+  {
+   "id": "c-draft",
+   "trigger": "C.closed",
+   "evidence": [],
+   "input": {
+    "pr": {
+     "state": "OPEN",
+     "isDraft": true,
+     "headRefOid": "abc",
+     "mergeable": "MERGEABLE",
+     "author": "fsd-stuart[bot]",
+     "reviews": [],
+     "reviewRequests": [],
+     "checks": "SUCCESS",
+     "ci": "green"
+    }
+   },
+   "expect": {
+    "column": null
+   },
+   "replay": "cardColumn"
+  },
+  {
+   "id": "c-changes",
+   "trigger": "C.changes",
+   "evidence": [
+    {
+     "source": "github board #193",
+     "at": "2026-11-16T12:32:10Z",
+     "line": "In Review → Changes Requested (fsd-bob)"
+    }
+   ],
+   "input": {
+    "pr": {
+     "state": "OPEN",
+     "isDraft": false,
+     "headRefOid": "abc",
+     "mergeable": "MERGEABLE",
+     "author": "fsd-stuart[bot]",
+     "reviews": [
+      {
+       "author": "fsd-bob",
+       "bot": true,
+       "state": "CHANGES_REQUESTED",
+       "commit": "abc"
+      }
+     ],
+     "reviewRequests": [],
+     "checks": "SUCCESS",
+     "ci": "green"
+    }
+   },
+   "expect": {
+    "column": "changes"
+   },
+   "replay": "cardColumn"
+  },
+  {
+   "id": "c-pulled",
+   "trigger": "C.pulled",
+   "evidence": [],
+   "input": {
+    "pr": {
+     "state": "OPEN",
+     "isDraft": false,
+     "headRefOid": "abc",
+     "mergeable": "MERGEABLE",
+     "author": "fsd-stuart[bot]",
+     "reviews": [
+      {
+       "author": "fsd-bob",
+       "bot": true,
+       "state": "CHANGES_REQUESTED",
+       "commit": "abc"
+      }
+     ],
+     "reviewRequests": [],
+     "checks": "SUCCESS",
+     "ci": "green"
+    },
+    "pulled": true
+   },
+   "expect": {
+    "column": "dev"
+   },
+   "replay": "cardColumn"
+  },
+  {
+   "id": "c-conflict",
+   "trigger": "C.conflict",
+   "evidence": [],
+   "input": {
+    "pr": {
+     "state": "OPEN",
+     "isDraft": false,
+     "headRefOid": "abc",
+     "mergeable": "CONFLICTING",
+     "author": "fsd-stuart[bot]",
+     "reviews": [],
+     "reviewRequests": [],
+     "checks": "SUCCESS",
+     "ci": "green"
+    }
+   },
+   "expect": {
+    "column": "changes"
+   },
+   "replay": "cardColumn"
+  },
+  {
+   "id": "c-conflict-pulled",
+   "trigger": "C.conflict",
+   "evidence": [
+    {
+     "source": "github board #175",
+     "at": "2026-11-16T05:16:25Z",
+     "line": "Ready to Merge → Developing (fsd-stuart): conflito, puxado de volta"
+    }
+   ],
+   "input": {
+    "pr": {
+     "state": "OPEN",
+     "isDraft": false,
+     "headRefOid": "abc",
+     "mergeable": "CONFLICTING",
+     "author": "fsd-stuart[bot]",
+     "reviews": [],
+     "reviewRequests": [],
+     "checks": "SUCCESS",
+     "ci": "green"
+    },
+    "pulled": true
+   },
+   "expect": {
+    "column": "dev"
+   },
+   "replay": "cardColumn"
+  },
+  {
+   "id": "c-new-push",
+   "trigger": "C.newPush",
+   "evidence": [],
+   "input": {
+    "pr": {
+     "state": "OPEN",
+     "isDraft": false,
+     "headRefOid": "abc",
+     "mergeable": "MERGEABLE",
+     "author": "fsd-stuart[bot]",
+     "reviews": [
+      {
+       "author": "fsd-bob",
+       "bot": true,
+       "state": "CHANGES_REQUESTED",
+       "commit": "old"
+      }
+     ],
+     "reviewRequests": [],
+     "checks": "SUCCESS",
+     "ci": "green"
+    }
+   },
+   "expect": {
+    "column": "review"
+   },
+   "replay": "cardColumn"
+  },
+  {
+   "id": "c-new-push-approved",
+   "trigger": "C.newPush",
+   "evidence": [
+    {
+     "source": "github board #7",
+     "at": "2026-11-09T04:23:28Z",
+     "line": "Ready to Merge → In Review (fsd-stuart)"
+    }
+   ],
+   "input": {
+    "pr": {
+     "state": "OPEN",
+     "isDraft": false,
+     "headRefOid": "abc",
+     "mergeable": "MERGEABLE",
+     "author": "fsd-stuart[bot]",
+     "reviews": [
+      {
+       "author": "fsd-bob",
+       "bot": true,
+       "state": "APPROVED",
+       "commit": "old"
+      },
+      {
+       "author": "fsd-mel",
+       "bot": true,
+       "state": "APPROVED",
+       "commit": "old"
+      }
+     ],
+     "reviewRequests": [],
+     "checks": "SUCCESS",
+     "ci": "green"
+    }
+   },
+   "expect": {
+    "column": "review"
+   },
+   "replay": "cardColumn"
+  },
+  {
+   "id": "c-re-review",
+   "trigger": "C.reReview",
+   "evidence": [
+    {
+     "source": "github board #193",
+     "at": "2026-11-16T12:35:25Z",
+     "line": "Changes Requested → In Review (fsd-stuart)"
+    }
+   ],
+   "input": {
+    "pr": {
+     "state": "OPEN",
+     "isDraft": false,
+     "headRefOid": "abc",
+     "mergeable": "MERGEABLE",
+     "author": "fsd-stuart[bot]",
+     "reviews": [
+      {
+       "author": "fsd-bob",
+       "bot": true,
+       "state": "CHANGES_REQUESTED",
+       "commit": "abc"
+      }
+     ],
+     "reviewRequests": [
+      "fsd-bob"
+     ],
+     "checks": "SUCCESS",
+     "ci": "green"
+    }
+   },
+   "expect": {
+    "column": "review"
+   },
+   "replay": "cardColumn"
+  },
+  {
+   "id": "c-merge-ready",
+   "trigger": "C.mergeReady",
+   "evidence": [
+    {
+     "source": "github board #18",
+     "at": "2026-11-09T04:55:41Z",
+     "line": "In Review → Ready to Merge (fsd-bob), 10 vezes"
+    }
+   ],
+   "input": {
+    "pr": {
+     "state": "OPEN",
+     "isDraft": false,
+     "headRefOid": "abc",
+     "mergeable": "MERGEABLE",
+     "author": "fsd-stuart[bot]",
+     "reviews": [
+      {
+       "author": "fsd-bob",
+       "bot": true,
+       "state": "APPROVED",
+       "commit": "abc"
+      },
+      {
+       "author": "fsd-mel",
+       "bot": true,
+       "state": "APPROVED",
+       "commit": "abc"
+      }
+     ],
+     "reviewRequests": [],
+     "checks": "SUCCESS",
+     "ci": "green"
+    }
+   },
+   "expect": {
+    "column": "mergeReady"
+   },
+   "replay": "cardColumn"
+  },
+  {
+   "id": "c-one-approval",
+   "trigger": "C.mergeReady",
+   "evidence": [],
+   "input": {
+    "pr": {
+     "state": "OPEN",
+     "isDraft": false,
+     "headRefOid": "abc",
+     "mergeable": "MERGEABLE",
+     "author": "fsd-stuart[bot]",
+     "reviews": [
+      {
+       "author": "fsd-bob",
+       "bot": true,
+       "state": "APPROVED",
+       "commit": "abc"
+      }
+     ],
+     "reviewRequests": [],
+     "checks": "SUCCESS",
+     "ci": "green"
+    }
+   },
+   "expect": {
+    "column": "review"
+   },
+   "replay": "cardColumn"
+  },
+  {
+   "id": "c-no-checks",
+   "trigger": "C.ciNotGreen",
+   "evidence": [
+    {
+     "source": "github #188",
+     "at": "2026-11-16",
+     "line": "PR sem checks chegava a Ready to Merge"
+    }
+   ],
+   "input": {
+    "pr": {
+     "state": "OPEN",
+     "isDraft": false,
+     "headRefOid": "abc",
+     "mergeable": "MERGEABLE",
+     "author": "fsd-stuart[bot]",
+     "reviews": [
+      {
+       "author": "fsd-bob",
+       "bot": true,
+       "state": "APPROVED",
+       "commit": "abc"
+      },
+      {
+       "author": "fsd-mel",
+       "bot": true,
+       "state": "APPROVED",
+       "commit": "abc"
+      }
+     ],
+     "reviewRequests": [],
+     "checks": "NONE",
+     "ci": "pending"
+    }
+   },
+   "expect": {
+    "column": "review"
+   },
+   "replay": "cardColumn"
+  },
+  {
+   "id": "c-ci-red",
+   "trigger": "C.ciNotGreen",
+   "evidence": [],
+   "input": {
+    "pr": {
+     "state": "OPEN",
+     "isDraft": false,
+     "headRefOid": "abc",
+     "mergeable": "MERGEABLE",
+     "author": "fsd-stuart[bot]",
+     "reviews": [
+      {
+       "author": "fsd-bob",
+       "bot": true,
+       "state": "APPROVED",
+       "commit": "abc"
+      },
+      {
+       "author": "fsd-mel",
+       "bot": true,
+       "state": "APPROVED",
+       "commit": "abc"
+      }
+     ],
+     "reviewRequests": [],
+     "checks": "FAILURE",
+     "ci": "red"
+    }
+   },
+   "expect": {
+    "column": "review"
+   },
+   "replay": "cardColumn"
+  },
+  {
+   "id": "c-third-party",
+   "trigger": "C.thirdParty",
+   "evidence": [
+    {
+     "source": "github PR #223",
+     "at": "2026-11-21",
+     "line": "A10: usuário humano com o nome do bot"
+    }
+   ],
+   "input": {
+    "pr": {
+     "state": "OPEN",
+     "isDraft": false,
+     "headRefOid": "abc",
+     "mergeable": "MERGEABLE",
+     "author": "fsd-stuart[bot]",
+     "reviews": [
+      {
+       "author": "fsd-bob",
+       "bot": false,
+       "state": "APPROVED",
+       "commit": "abc"
+      },
+      {
+       "author": "fsd-mel",
+       "bot": false,
+       "state": "APPROVED",
+       "commit": "abc"
+      }
+     ],
+     "reviewRequests": [],
+     "checks": "SUCCESS",
+     "ci": "green"
+    }
+   },
+   "expect": {
+    "column": "review"
+   },
+   "replay": "cardColumn"
+  }
+ ]
+}

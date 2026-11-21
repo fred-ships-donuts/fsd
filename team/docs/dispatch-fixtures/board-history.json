@@ -1,0 +1,538 @@
+{
+ "_comment": "Histórico real das colunas do quadro (F1.9), gerado por collect-board-history.mjs (só leitura). transitions: um tipo por (de, para, quem), com contagem e exemplos. divergences: as transições fora de TRANSITIONS (fsd-stages.mjs), com categoria (legado = fluxo ou colunas antigas; manual = decisão do Kevin, da Mel ou do autor, que o decide() não toma; cardColumn = regra automática que o decide() reproduz; fsd-issue = entrada direta numa fila; anomalia = comportamento errado registrado) e motivo.",
+ "collectedAt": "2026-11-21T21:59:20.420Z",
+ "events": 299,
+ "transitions": [
+  {
+   "kind": "issue",
+   "from": "Developing",
+   "to": "In Review",
+   "by": "fsd-stuart",
+   "count": 37,
+   "first": "#6 2026-11-09T03:44:18Z",
+   "last": "#197 2026-11-16T12:18:28Z"
+  },
+  {
+   "kind": "issue",
+   "from": "Ready for Development",
+   "to": "Developing",
+   "by": "fsd-stuart",
+   "count": 25,
+   "first": "#6 2026-11-09T03:40:43Z",
+   "last": "#197 2026-11-16T12:15:31Z"
+  },
+  {
+   "kind": "issue",
+   "from": "Ready for Architecture",
+   "to": "Architecting",
+   "by": "fsd-mel",
+   "count": 19,
+   "first": "#9 2026-11-09T03:49:48Z",
+   "last": "#196 2026-11-16T05:33:46Z"
+  },
+  {
+   "kind": "issue",
+   "from": "",
+   "to": "Backlog",
+   "by": "fredericojacobi",
+   "count": 18,
+   "first": "#12 2026-11-08T22:41:10Z",
+   "last": "#174 2026-11-16T04:36:40Z"
+  },
+  {
+   "kind": "issue",
+   "from": "Architecting",
+   "to": "Ready for Development",
+   "by": "fsd-mel",
+   "count": 17,
+   "first": "#9 2026-11-09T03:50:19Z",
+   "last": "#196 2026-11-16T05:35:10Z"
+  },
+  {
+   "kind": "issue",
+   "from": "",
+   "to": "Backlog",
+   "by": "fsd-kevin",
+   "count": 17,
+   "first": "#37 2026-11-09T00:05:08Z",
+   "last": "#201 2026-11-16T05:35:46Z"
+  },
+  {
+   "kind": "issue",
+   "from": "In Review",
+   "to": "Developing",
+   "by": "fsd-mel",
+   "count": 17,
+   "first": "#30 2026-11-09T03:41:11Z",
+   "last": "#19 2026-11-10T18:01:40Z"
+  },
+  {
+   "kind": "issue",
+   "from": "In Review",
+   "to": "Developing",
+   "by": "fsd-bob",
+   "count": 15,
+   "first": "#6 2026-11-09T03:45:18Z",
+   "last": "#53 2026-11-09T05:03:08Z"
+  },
+  {
+   "kind": "issue",
+   "from": "",
+   "to": "Ready for Development",
+   "by": "fsd-kevin",
+   "count": 13,
+   "first": "#175 2026-11-16T04:40:30Z",
+   "last": "#216 2026-11-16T13:06:50Z"
+  },
+  {
+   "kind": "issue",
+   "from": "Ready to Merge",
+   "to": "Done",
+   "by": "fsd-stuart",
+   "count": 12,
+   "first": "#9 2026-11-09T03:57:39Z",
+   "last": "#175 2026-11-16T05:17:56Z"
+  },
+  {
+   "kind": "issue",
+   "from": "Backlog",
+   "to": "Ready for Architecture",
+   "by": "fsd-kevin",
+   "count": 10,
+   "first": "#51 2026-11-09T04:18:43Z",
+   "last": "#21 2026-11-09T05:05:30Z"
+  },
+  {
+   "kind": "issue",
+   "from": "In Review",
+   "to": "Ready to Merge",
+   "by": "fsd-bob",
+   "count": 10,
+   "first": "#52 2026-11-09T04:44:41Z",
+   "last": "#197 2026-11-16T12:34:47Z"
+  },
+  {
+   "kind": "issue",
+   "from": "Developing",
+   "to": "In Review",
+   "by": "fsd-bob",
+   "count": 6,
+   "first": "#30 2026-11-09T03:52:08Z",
+   "last": "#18 2026-11-09T04:54:51Z"
+  },
+  {
+   "kind": "issue",
+   "from": "Developing",
+   "to": "Ready to Merge",
+   "by": "fsd-bob",
+   "count": 6,
+   "first": "#6 2026-11-09T04:00:43Z",
+   "last": "#50 2026-11-09T04:28:50Z"
+  },
+  {
+   "kind": "issue",
+   "from": "",
+   "to": "Waiting for Release",
+   "by": "fredericojacobi",
+   "count": 6,
+   "first": "#2 2026-11-08T22:40:50Z",
+   "last": "#34 2026-11-08T22:41:50Z"
+  },
+  {
+   "kind": "issue",
+   "from": "",
+   "to": "Ready for Architecture",
+   "by": "fsd-kevin",
+   "count": 5,
+   "first": "#45 2026-11-09T03:53:27Z",
+   "last": "#196 2026-11-16T05:33:38Z"
+  },
+  {
+   "kind": "issue",
+   "from": "Ready for Development",
+   "to": "Developing",
+   "by": "fsd-mel",
+   "count": 5,
+   "first": "#194 2026-11-16T05:39:49Z",
+   "last": "#183 2026-11-16T12:27:28Z"
+  },
+  {
+   "kind": "issue",
+   "from": "Ready to Merge",
+   "to": "Done",
+   "by": "fsd-kevin",
+   "count": 5,
+   "first": "#30 2026-11-09T03:57:25Z",
+   "last": "#187 2026-11-16T14:05:30Z"
+  },
+  {
+   "kind": "issue",
+   "from": "Waiting for Release",
+   "to": "Done",
+   "by": "fsd-kevin",
+   "count": 5,
+   "first": "#2 2026-11-08T22:42:28Z",
+   "last": "#34 2026-11-08T22:42:35Z"
+  },
+  {
+   "kind": "issue",
+   "from": "Backlog",
+   "to": "Ready for Development",
+   "by": "fsd-kevin",
+   "count": 4,
+   "first": "#58 2026-11-09T04:20:52Z",
+   "last": "#173 2026-11-16T04:37:25Z"
+  },
+  {
+   "kind": "issue",
+   "from": "Developing",
+   "to": "In Review",
+   "by": "fsd-mel",
+   "count": 4,
+   "first": "#30 2026-11-09T03:56:58Z",
+   "last": "#187 2026-11-16T12:19:23Z"
+  },
+  {
+   "kind": "issue",
+   "from": "Developing",
+   "to": "Ready for Development",
+   "by": "fsd-stuart",
+   "count": 4,
+   "first": "#7 2026-11-09T04:13:31Z",
+   "last": "#183 2026-11-16T12:35:59Z"
+  },
+  {
+   "kind": "issue",
+   "from": "",
+   "to": "Waiting for Architecture",
+   "by": "fredericojacobi",
+   "count": 4,
+   "first": "#7 2026-11-08T22:40:57Z",
+   "last": "#10 2026-11-08T22:41:04Z"
+  },
+  {
+   "kind": "issue",
+   "from": "Developing",
+   "to": "In Review",
+   "by": "fsd-kevin",
+   "count": 3,
+   "first": "#30 2026-11-09T03:53:07Z",
+   "last": "#59 2026-11-09T04:46:05Z"
+  },
+  {
+   "kind": "issue",
+   "from": "",
+   "to": "Done",
+   "by": "fredericojacobi",
+   "count": 3,
+   "first": "#24 2026-11-08T22:41:37Z",
+   "last": "#29 2026-11-08T22:41:42Z"
+  },
+  {
+   "kind": "issue",
+   "from": "Architecting",
+   "to": "Ready for Architecture",
+   "by": "fsd-mel",
+   "count": 2,
+   "first": "#20 2026-11-09T05:05:49Z",
+   "last": "#20 2026-11-10T18:02:05Z"
+  },
+  {
+   "kind": "issue",
+   "from": "In Review",
+   "to": "Ready to Merge",
+   "by": "fsd-kevin",
+   "count": 2,
+   "first": "#51 2026-11-09T04:41:17Z",
+   "last": "#187 2026-11-16T14:05:18Z"
+  },
+  {
+   "kind": "issue",
+   "from": "In Review",
+   "to": "Ready to Merge",
+   "by": "fsd-mel",
+   "count": 2,
+   "first": "#30 2026-11-09T03:57:09Z",
+   "last": "#9 2026-11-09T03:57:28Z"
+  },
+  {
+   "kind": "issue",
+   "from": "Ready for Development",
+   "to": "Done",
+   "by": "fsd-kevin",
+   "count": 2,
+   "first": "#177 2026-11-16T05:11:46Z",
+   "last": "#196 2026-11-16T12:27:30Z"
+  },
+  {
+   "kind": "issue",
+   "from": "Ready to Merge",
+   "to": "Done",
+   "by": "fsd-mel",
+   "count": 2,
+   "first": "#194 2026-11-16T12:10:47Z",
+   "last": "#198 2026-11-16T12:26:20Z"
+  },
+  {
+   "kind": "issue",
+   "from": "Architecting",
+   "to": "Ready for Development",
+   "by": "fsd-kevin",
+   "count": 1,
+   "first": "#50 2026-11-09T04:22:01Z",
+   "last": "#50 2026-11-09T04:22:01Z"
+  },
+  {
+   "kind": "issue",
+   "from": "Backlog",
+   "to": "Done",
+   "by": "fsd-kevin",
+   "count": 1,
+   "first": "#37 2026-11-09T00:06:10Z",
+   "last": "#37 2026-11-09T00:06:10Z"
+  },
+  {
+   "kind": "issue",
+   "from": "",
+   "to": "Backlog",
+   "by": "fsd-bob",
+   "count": 1,
+   "first": "#58 2026-11-09T04:20:17Z",
+   "last": "#58 2026-11-09T04:20:17Z"
+  },
+  {
+   "kind": "issue",
+   "from": "",
+   "to": "Backlog",
+   "by": "fsd-stuart",
+   "count": 1,
+   "first": "#59 2026-11-09T04:20:21Z",
+   "last": "#59 2026-11-09T04:20:21Z"
+  },
+  {
+   "kind": "issue",
+   "from": "Changes Requested",
+   "to": "In Review",
+   "by": "fsd-stuart",
+   "count": 1,
+   "first": "#193 2026-11-16T12:35:25Z",
+   "last": "#193 2026-11-16T12:35:25Z"
+  },
+  {
+   "kind": "issue",
+   "from": "Changes Requested",
+   "to": "Ready to Merge",
+   "by": "fsd-bob",
+   "count": 1,
+   "first": "#193 2026-11-16T12:39:34Z",
+   "last": "#193 2026-11-16T12:39:34Z"
+  },
+  {
+   "kind": "issue",
+   "from": "Developing",
+   "to": "Done",
+   "by": "fsd-kevin",
+   "count": 1,
+   "first": "#36 2026-11-08T22:42:45Z",
+   "last": "#36 2026-11-08T22:42:45Z"
+  },
+  {
+   "kind": "issue",
+   "from": "",
+   "to": "Developing",
+   "by": "fredericojacobi",
+   "count": 1,
+   "first": "#36 2026-11-08T22:41:52Z",
+   "last": "#36 2026-11-08T22:41:52Z"
+  },
+  {
+   "kind": "issue",
+   "from": "Developing",
+   "to": "Ready for Development",
+   "by": "fsd-kevin",
+   "count": 1,
+   "first": "#52 2026-11-09T04:38:17Z",
+   "last": "#52 2026-11-09T04:38:17Z"
+  },
+  {
+   "kind": "issue",
+   "from": "Developing",
+   "to": "Ready for Development",
+   "by": "fsd-mel",
+   "count": 1,
+   "first": "#196 2026-11-16T12:27:08Z",
+   "last": "#196 2026-11-16T12:27:08Z"
+  },
+  {
+   "kind": "issue",
+   "from": "In Review",
+   "to": "Changes Requested",
+   "by": "fsd-bob",
+   "count": 1,
+   "first": "#193 2026-11-16T12:32:10Z",
+   "last": "#193 2026-11-16T12:32:10Z"
+  },
+  {
+   "kind": "issue",
+   "from": "In Review",
+   "to": "Changes Requested",
+   "by": "fsd-mel",
+   "count": 1,
+   "first": "#193 2026-11-16T12:37:33Z",
+   "last": "#193 2026-11-16T12:37:33Z"
+  },
+  {
+   "kind": "issue",
+   "from": "In Review",
+   "to": "Done",
+   "by": "fsd-stuart",
+   "count": 1,
+   "first": "#7 2026-11-09T04:23:47Z",
+   "last": "#7 2026-11-09T04:23:47Z"
+  },
+  {
+   "kind": "issue",
+   "from": "Ready for Architecture",
+   "to": "Backlog",
+   "by": "fsd-mel",
+   "count": 1,
+   "first": "#21 2026-11-09T05:05:52Z",
+   "last": "#21 2026-11-09T05:05:52Z"
+  },
+  {
+   "kind": "issue",
+   "from": "Ready for Development",
+   "to": "Architecting",
+   "by": "fsd-mel",
+   "count": 1,
+   "first": "#50 2026-11-09T04:16:52Z",
+   "last": "#50 2026-11-09T04:16:52Z"
+  },
+  {
+   "kind": "issue",
+   "from": "Ready to Merge",
+   "to": "Developing",
+   "by": "fsd-stuart",
+   "count": 1,
+   "first": "#175 2026-11-16T05:16:25Z",
+   "last": "#175 2026-11-16T05:16:25Z"
+  },
+  {
+   "kind": "issue",
+   "from": "Ready to Merge",
+   "to": "In Review",
+   "by": "fsd-mel",
+   "count": 1,
+   "first": "#30 2026-11-09T03:40:48Z",
+   "last": "#30 2026-11-09T03:40:48Z"
+  },
+  {
+   "kind": "issue",
+   "from": "Ready to Merge",
+   "to": "In Review",
+   "by": "fsd-stuart",
+   "count": 1,
+   "first": "#7 2026-11-09T04:23:28Z",
+   "last": "#7 2026-11-09T04:23:28Z"
+  },
+  {
+   "kind": "issue",
+   "from": "",
+   "to": "Waiting for Development",
+   "by": "fredericojacobi",
+   "count": 1,
+   "first": "#6 2026-11-08T22:40:55Z",
+   "last": "#6 2026-11-08T22:40:55Z"
+  }
+ ],
+ "divergences": {
+  "issue|In Review|Developing|fsd-mel": {
+   "category": "legado",
+   "reason": "Fluxo antigo (2026-11-09): a mudança pedida devolvia o card para Developing; desde a coluna Changes Requested, a revisão manda para lá (TRANSITIONS review → changes)."
+  },
+  "issue|In Review|Developing|fsd-bob": {
+   "category": "legado",
+   "reason": "Idem: QA pedia mudança devolvendo para Developing, antes de existir Changes Requested."
+  },
+  "issue||Ready for Development|fsd-kevin": {
+   "category": "fsd-issue",
+   "reason": "fsd-issue new --to <coluna>: o issue entra no quadro direto na fila (TRANSITIONS só tem a entrada em Backlog)."
+  },
+  "issue||Ready for Architecture|fsd-kevin": {
+   "category": "fsd-issue",
+   "reason": "fsd-issue new --to <coluna>, como acima."
+  },
+  "issue|Developing|Ready to Merge|fsd-bob": {
+   "category": "legado",
+   "reason": "Fluxo antigo: o QA aprovava com o card ainda em Developing (o PR aberto não movia o card para In Review)."
+  },
+  "issue||Waiting for Release|fredericojacobi": {
+   "category": "legado",
+   "reason": "Montagem do quadro em 2026-11-08 com as colunas antigas (Waiting for …), pelo autor."
+  },
+  "issue|Waiting for Release|Done|fsd-kevin": {
+   "category": "legado",
+   "reason": "Coluna antiga esvaziada pelo Kevin na migração para as colunas de hoje."
+  },
+  "issue||Waiting for Architecture|fredericojacobi": {
+   "category": "legado",
+   "reason": "Montagem do quadro com as colunas antigas."
+  },
+  "issue||Waiting for Development|fredericojacobi": {
+   "category": "legado",
+   "reason": "Montagem do quadro com as colunas antigas."
+  },
+  "issue||Done|fredericojacobi": {
+   "category": "legado",
+   "reason": "Montagem do quadro: issues já feitos entraram em Done."
+  },
+  "issue||Developing|fredericojacobi": {
+   "category": "legado",
+   "reason": "Montagem do quadro em 2026-11-08: o autor pôs em Developing um item que já estava em andamento."
+  },
+  "issue|Developing|Done|fsd-kevin": {
+   "category": "manual",
+   "reason": "Kevin fechou sem merge (feito fora do fluxo ou descartado). O decide() não move para Done sem merge."
+  },
+  "issue|Backlog|Done|fsd-kevin": {
+   "category": "manual",
+   "reason": "Kevin fechou um item do Backlog (duplicado ou descartado)."
+  },
+  "issue|Ready for Development|Done|fsd-kevin": {
+   "category": "manual",
+   "reason": "Kevin fechou um item da fila (resolvido por outro PR)."
+  },
+  "issue|Backlog|Ready for Development|fsd-kevin": {
+   "category": "manual",
+   "reason": "Kevin pulou a arquitetura de um item pequeno (movimento manual; TRANSITIONS só tem backlog → archReady)."
+  },
+  "issue|Architecting|Ready for Architecture|fsd-mel": {
+   "category": "manual",
+   "reason": "Mel devolveu o item à própria fila (pausa)."
+  },
+  "issue|Ready for Development|Architecting|fsd-mel": {
+   "category": "manual",
+   "reason": "Mel puxou de volta um item que precisava de arquitetura."
+  },
+  "issue|Changes Requested|Ready to Merge|fsd-bob": {
+   "category": "anomalia",
+   "reason": "#193 12:39: o QA aprovou com o card ainda em Changes Requested; o fsd-pr não reabriu a revisão antes. O cardColumn de hoje (#187) põe o card em In Review e depois em Ready to Merge."
+  },
+  "issue|In Review|Done|fsd-stuart": {
+   "category": "legado",
+   "reason": "#7 em 2026-11-09: merge feito pelo dev antes do fsd-merge do Kevin."
+  },
+  "issue|Ready to Merge|Developing|fsd-stuart": {
+   "category": "cardColumn",
+   "reason": "Conflito com a develop e o dev puxou o card: cardColumn com pulled → Developing (caso c-conflict-pulled)."
+  },
+  "issue|Ready to Merge|In Review|fsd-mel": {
+   "category": "cardColumn",
+   "reason": "Push novo depois das aprovações: elas caem e o card volta para In Review (caso c-new-push-approved)."
+  },
+  "issue|Ready to Merge|In Review|fsd-stuart": {
+   "category": "cardColumn",
+   "reason": "Idem, push novo depois das aprovações."
+  }
+ }
+}

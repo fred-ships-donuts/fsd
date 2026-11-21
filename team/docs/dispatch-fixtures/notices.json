@@ -1,0 +1,178 @@
+{
+ "_comment": "Casos de notices (F1.9): input → expect. replay = a função pura que já reproduz o caso hoje (null: só o decide() da F3.6 vai reproduzir).",
+ "cases": [
+  {
+   "id": "n-arch-ready",
+   "trigger": "N.queueOwner",
+   "evidence": [
+    {
+     "source": "github board #18",
+     "at": "2026-11-09T04:52:22Z",
+     "line": "Backlog → Ready for Architecture (fsd-kevin), 10 vezes"
+    }
+   ],
+   "input": {
+    "column": "Ready for Architecture"
+   },
+   "expect": {
+    "owners": [
+     "mel"
+    ]
+   },
+   "replay": "ownersOf"
+  },
+  {
+   "id": "n-dev-ready",
+   "trigger": "N.queueOwner",
+   "evidence": [
+    {
+     "source": "github board #7",
+     "at": "2026-11-09T04:08:03Z",
+     "line": "Architecting → Ready for Development (fsd-mel), 17 vezes"
+    }
+   ],
+   "input": {
+    "column": "Ready for Development"
+   },
+   "expect": {
+    "owners": [
+     "stuart"
+    ]
+   },
+   "replay": "ownersOf"
+  },
+  {
+   "id": "n-review",
+   "trigger": "N.queueOwner",
+   "evidence": [
+    {
+     "source": "github board #6",
+     "at": "2026-11-09T03:44:18Z",
+     "line": "Developing → In Review (fsd-stuart), 37 vezes"
+    }
+   ],
+   "input": {
+    "column": "In Review"
+   },
+   "expect": {
+    "owners": [
+     "mel",
+     "bob"
+    ]
+   },
+   "replay": "ownersOf"
+  },
+  {
+   "id": "n-noqueue-developing",
+   "trigger": "N.noQueue",
+   "evidence": [],
+   "input": {
+    "column": "Developing"
+   },
+   "expect": {
+    "owners": null
+   },
+   "replay": "ownersOf"
+  },
+  {
+   "id": "n-noqueue-architecting",
+   "trigger": "N.noQueue",
+   "evidence": [],
+   "input": {
+    "column": "Architecting"
+   },
+   "expect": {
+    "owners": null
+   },
+   "replay": "ownersOf"
+  },
+  {
+   "id": "n-noqueue-changes-requested",
+   "trigger": "N.noQueue",
+   "evidence": [],
+   "input": {
+    "column": "Changes Requested"
+   },
+   "expect": {
+    "owners": null
+   },
+   "replay": "ownersOf"
+  },
+  {
+   "id": "n-noqueue-ready-to-merge",
+   "trigger": "N.noQueue",
+   "evidence": [],
+   "input": {
+    "column": "Ready to Merge"
+   },
+   "expect": {
+    "owners": null
+   },
+   "replay": "ownersOf"
+  },
+  {
+   "id": "n-noqueue-done",
+   "trigger": "N.noQueue",
+   "evidence": [],
+   "input": {
+    "column": "Done"
+   },
+   "expect": {
+    "owners": null
+   },
+   "replay": "ownersOf"
+  },
+  {
+   "id": "n-noqueue-backlog",
+   "trigger": "N.noQueue",
+   "evidence": [],
+   "input": {
+    "column": "Backlog"
+   },
+   "expect": {
+    "owners": null
+   },
+   "replay": "ownersOf"
+  },
+  {
+   "id": "n-redirect",
+   "trigger": "N.redirectKevin",
+   "evidence": [],
+   "input": {
+    "agent": "stuart",
+    "ask": "Can you approve the push to main?"
+   },
+   "expect": {
+    "notify": {
+     "to": "kevin",
+     "text": "stuart pediu ao autor: Can you approve the push to main?"
+    }
+   },
+   "replay": null
+  },
+  {
+   "id": "n-alert",
+   "trigger": "N.alertAuthor",
+   "evidence": [
+    {
+     "source": "watch.log (host)",
+     "at": "2026-11-09T04:12:44.046Z",
+     "line": "mel: permissão → avisou o autor (permissão)"
+    }
+   ],
+   "input": {
+    "agent": "mel",
+    "state": "permissão"
+   },
+   "expect": {
+    "channels": [
+     "toast",
+     "notify-send",
+     "ALERT",
+     "issue #147"
+    ]
+   },
+   "replay": null
+  }
+ ]
+}
