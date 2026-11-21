@@ -79,5 +79,18 @@ if [ -x /usr/local/sbin/fsd-run-exec ]; then
   check K9 "o fsd-run não escreve o arquivo de exit do Bob" cannot fsd-run "echo 0 > /home/fsd-bob/qa/exit.k9"
   check K9 "prep recusa url fora do GitHub e sha inválido" bash -c "! su -s /bin/bash fsd-bob -c '$RX prep k9 file:///srv/origin.git 0123' >/dev/null 2>&1"
 fi
+# K10 (F2.6): o supervisor controla só as sessões dos papéis, só pelo wrapper e como cada papel (stub-claude no lugar do claude).
+if [ -x /usr/local/sbin/fsd-session-exec ]; then
+  SX="sudo -n -u fsd-stuart /usr/local/sbin/fsd-session-exec"; U=11111111-2222-3333-4444-555555555555
+  echo "tarefa" > /tmp/k10-prompt; chmod 644 /tmp/k10-prompt
+  check K10 "o supervisor lista as sessões do Stuart como o Stuart" bash -c "su -s /bin/bash fsd-dispatch -c '$SX agents' 2>/dev/null | grep -q '^\['"
+  check K10 "o supervisor sobe a sessão do Stuart (como fsd-stuart, FSD_RUNNER=session)" bash -c "su -s /bin/bash fsd-dispatch -c '$SX start $U /tmp/k10-prompt' >/dev/null 2>&1 && su -s /bin/bash fsd-dispatch -c '$SX agents' | grep -q '\"sessionId\": \"$U\"'"
+  check K10 "a sessão subiu como o Stuart" bash -c "grep -q '\"agent\": \"stuart\"' /tmp/stub-claude/state.json 2>/dev/null || grep -rq '\"agent\": \"stuart\"' /tmp/stub-claude* 2>/dev/null"
+  check K10 "o supervisor não roda outra coisa como o Stuart" cannot fsd-dispatch "sudo -n -u fsd-stuart id"
+  check K10 "o supervisor não usa o wrapper como root nem como fsd-run" bash -c "! su -s /bin/bash fsd-dispatch -c 'sudo -n -u root /usr/local/sbin/fsd-session-exec agents' >/dev/null 2>&1 && ! su -s /bin/bash fsd-dispatch -c 'sudo -n -u fsd-run /usr/local/sbin/fsd-session-exec agents' >/dev/null 2>&1"
+  check K10 "um papel não usa o wrapper para outro papel" cannot fsd-mel "sudo -n -u fsd-stuart /usr/local/sbin/fsd-session-exec agents"
+  check K10 "fsd-session (como fsd-dispatch, FSD_SESSION_VIA=sudo) sobe a Mel e vê o estado dela" bash -c "su -s /bin/bash fsd-dispatch -c 'cd ~ && FSD_SESSION_VIA=sudo FSD_STATE=\$HOME/st node $FSD_SIM_TEAM/bin/fsd-session start mel \"tarefa #3\" >/dev/null && FSD_SESSION_VIA=sudo FSD_STATE=\$HOME/st node $FSD_SIM_TEAM/bin/fsd-session status --json' 2>/dev/null | grep -q '\"mel\":{\"state\":\"idle\"'"
+  check K10 "o wrapper recusa id e uuid inválidos" bash -c "! su -s /bin/bash fsd-dispatch -c '$SX stop \"x;id\"' >/dev/null 2>&1 && ! su -s /bin/bash fsd-dispatch -c '$SX start not-a-uuid /tmp/k10-prompt' >/dev/null 2>&1"
+fi
 [ $fail = 0 ] && echo "k-checks: tudo ok" || echo "k-checks: há falhas"
 exit $fail

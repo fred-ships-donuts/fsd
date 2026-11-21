@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+# fsd-session-exec — o que o supervisor pode fazer com a sessão de um papel, como o próprio papel (F2.6, T2.6.1). Instalado pelo
+# fsd-users em /usr/local/sbin (dono root); o sudoers só deixa o fsd-dispatch chamar este arquivo, e só como fsd-kevin, fsd-mel,
+# fsd-stuart ou fsd-bob. Cada papel tem o próprio supervisor nativo do claude (o socket é por uid), daí a troca de usuário.
+#   agents                                  claude agents --json (as sessões deste papel)
+#   stop <id>                               claude stop <id>
+#   start <sessionId> <arquivo-prompt>      claude --bg --name <papel> --session-id <uuid> … (prompt lido do arquivo)
+#   resume <sessionId> <arquivo-prompt>     claude --bg --name <papel> --resume <uuid> …
+#   state                                   o estado do hook (session-state/<papel>.json) · unsaved: o que está só no disco
+# Valida tudo: id hex curto, uuid, arquivo de prompt legível. As flags da sessão são fixas aqui, não vêm de quem chama.
+set -uo pipefail
+u=$(id -un); role=${u#fsd-}
+case "$role" in kevin|mel|stuart|bob) ;; *) echo "fsd-session-exec: só como usuário de papel" >&2; exit 2 ;; esac
+# Configuração só do root (/etc/fsd/session.env, escrita pelo fsd-users): o ambiente de quem chama não entra (sudo env_reset).
+REPO=/srv/fsd/repo; TEAM=/srv/fsd/repo/team; CLAUDE=/usr/local/bin/claude
+# shellcheck disable=SC1091
+[ -r /etc/fsd/session.env ] && [ "$(stat -c %U /etc/fsd/session.env)" = root ] && . /etc/fsd/session.env
+UUID='^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+prompt() { [ -f "$1" ] && [ -r "$1" ] || { echo "fsd-session-exec: prompt ilegível" >&2; exit 2; }; cat -- "$1"; }
+run_bg() {   # run_bg <flag> <uuid> <arquivo>
+  local p; p=$(prompt "$3")
+  cd "$REPO" && exec env FSD_AGENT="$role" FSD_RUNNER=session FSD_TEAM="$TEAM" "$CLAUDE" --bg --name "$role" --permission-mode bypassPermissions \
+    --settings "/etc/fsd/profiles/$role/settings.json" "$1" "$2" "$p"
+}
+case "${1:-}" in
+  agents) exec "$CLAUDE" agents --json ;;
+  stop) [[ ${2:-} =~ ^[0-9a-f]{6,16}$ ]] || { echo "fsd-session-exec: id inválido" >&2; exit 2; }; exec "$CLAUDE" stop "$2" ;;
+  start) [[ ${2:-} =~ $UUID ]] || { echo "fsd-session-exec: uuid inválido" >&2; exit 2; }; run_bg --session-id "$2" "${3:-}" ;;
+  resume) [[ ${2:-} =~ $UUID ]] || { echo "fsd-session-exec: uuid inválido" >&2; exit 2; }; run_bg --resume "$2" "${3:-}" ;;
+  state) cat "$HOME/.config/fsd-agents/session-state/$role.json" 2>/dev/null || echo '{}' ;;
+  unsaved) exec node -e 'import(process.argv[1]).then((m) => console.log(JSON.stringify(m.unsaved(process.argv[2], { repo: process.argv[3] }))))' "$TEAM/bin/fsd-eod.mjs" "$role" "$REPO" ;;
+  *) echo "uso: fsd-session-exec agents | stop <id> | start|resume <uuid> <arquivo-prompt> | state | unsaved" >&2; exit 2 ;;
+esac

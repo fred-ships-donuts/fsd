@@ -46,6 +46,16 @@ if [ -d /etc/sudoers.d ]; then
   chmod 0440 /etc/sudoers.d/fsd-run.tmp
   if command -v visudo >/dev/null && visudo -cf /etc/sudoers.d/fsd-run.tmp >/dev/null; then mv /etc/sudoers.d/fsd-run.tmp /etc/sudoers.d/fsd-run; else rm -f /etc/sudoers.d/fsd-run.tmp; echo "fsd-users: sudoers do fsd-run inválido" >&2; exit 1; fi
 fi
+# Supervisor (F2.6): o fsd-dispatch controla as sessões dos papéis só pelo fsd-session-exec, como cada papel.
+printf 'REPO=%q\nTEAM=%q\nCLAUDE=%q\n' "${FSD_REPO_DIR:-/srv/fsd/repo}" "${FSD_TEAM_DIR:-${FSD_REPO_DIR:-/srv/fsd/repo}/team}" "${FSD_CLAUDE_BIN:-/usr/local/bin/claude}" > /etc/fsd/session.env
+chown root:root /etc/fsd/session.env; chmod 0644 /etc/fsd/session.env
+src=$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/fsd-session-exec
+[ -f "$src" ] && install -o root -g root -m 0755 "$src" /usr/local/sbin/fsd-session-exec
+if [ -d /etc/sudoers.d ]; then
+  printf 'Defaults:fsd-dispatch env_reset\nfsd-dispatch ALL=(fsd-kevin,fsd-mel,fsd-stuart,fsd-bob) NOPASSWD: /usr/local/sbin/fsd-session-exec\n' > /etc/sudoers.d/fsd-session.tmp
+  chmod 0440 /etc/sudoers.d/fsd-session.tmp
+  if command -v visudo >/dev/null && visudo -cf /etc/sudoers.d/fsd-session.tmp >/dev/null; then mv /etc/sudoers.d/fsd-session.tmp /etc/sudoers.d/fsd-session; else rm -f /etc/sudoers.d/fsd-session.tmp; echo "fsd-users: sudoers do fsd-session inválido" >&2; exit 1; fi
+fi
 echo 'umask 077' > /etc/profile.d/fsd-umask.sh; chmod 0644 /etc/profile.d/fsd-umask.sh
 grep -q '^UMASK[[:space:]]\+077' /etc/login.defs 2>/dev/null || sed -i 's/^UMASK.*/UMASK\t\t077/' /etc/login.defs
 echo "fsd-users: ${ROLES[*]/#/fsd-} fsd-run fsd-dispatch fsd-broker prontos"
