@@ -17,6 +17,9 @@ const read = (f, d) => { try { return JSON.parse(readFileSync(join(dispatchDir()
 const write = (f, v) => { mkdirSync(dispatchDir(), { recursive: true }); const p = join(dispatchDir(), f), tmp = `${p}.${process.pid}.tmp`; writeFileSync(tmp, JSON.stringify(v, null, 1) + '\n'); renameSync(tmp, p); };
 export const loadTasks = () => read('tasks.json', {});
 export const loadJudged = () => read('judged.json', []);
+export const loadEod = () => read('eod.json', {});
+export const saveEod = (v) => write('eod.json', v);
+export const saveTasks = (v) => write('tasks.json', v);
 const journal = (e) => { mkdirSync(dispatchDir(), { recursive: true }); appendFileSync(join(dispatchDir(), 'journal.jsonl'), JSON.stringify(e) + '\n'); };
 export function readJournal() { try { return readFileSync(join(dispatchDir(), 'journal.jsonl'), 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l)); } catch { return []; } }
 const actionId = (a) => createHash('sha256').update(JSON.stringify(a)).digest('hex').slice(0, 12);

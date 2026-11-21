@@ -31,6 +31,8 @@ if (cmd === 'start') {
     L.write('git', ['-C', L.REPO_DIR, 'worktree', 'add', '-q', ...(have ? [dir, branch] : [dir, '-b', branch, 'origin/develop'])]);
   }
   // A tarefa fica gravada no branch: o fsd-pr open só a reconhece por aqui (o número no nome não conta).
+  // Dono do worktree (fim do dia, T3.4.2): o supervisor só aposenta a sessão sem nada deste papel só no disco.
+  if (L.ME) L.write('git', ['-C', L.REPO_DIR, 'config', `branch.${branch}.fsd-agent`, L.ME], { allowFail: true });
   if (task) L.write('git', ['-C', L.REPO_DIR, 'config', `branch.${branch}.fsd-issue`, String(n)]);
   else L.write('git', ['-C', L.REPO_DIR, 'config', '--unset', `branch.${branch}.fsd-issue`], { allowFail: true });
   // Card que já tem PR vai para a coluna calculada (pulled); sem PR é trabalho novo: Developing.
