@@ -1,0 +1,33 @@
+#!/usr/bin/env node
+// fsd-session status [--json] | start <papel> "<texto>" | turn <papel> "<texto>" | stop <papel> | boot — a sessão --bg de cada
+// papel (F3.2, T3.2.1). FSD_CLAUDE troca o claude (o stub-claude nos testes). As sessões sobem com FSD_RUNNER=session e
+// FSD_AGENT=<papel>, na raiz do repositório. Saída: 0 ok · 1 recusado · 2 uso · 4 o claude falhou.
+import { spawnSync } from 'node:child_process';
+import { join, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
+const S = await import('./fsd-session.mjs');
+const { sessionState } = await import('./fsd-messenger.mjs');
+const BIN = dirname(fileURLToPath(import.meta.url)), REPO = process.env.FSD_REPO || join(BIN, '..', '..');
+const CLAUDE = process.env.FSD_CLAUDE || 'claude';
+const call = (argv, role) => spawnSync(CLAUDE, argv, { cwd: REPO, encoding: 'utf8', env: { ...process.env, ...(role ? { FSD_AGENT: role, FSD_RUNNER: 'session', FSD_TEAM: join(BIN, '..') } : {}) } });
+const agents = () => { const r = call(['agents', '--json']); try { return JSON.parse(r.stdout || '[]'); } catch { return []; } };
+const die = (m, c) => { console.log(m); process.exit(c); };
+const [cmd, role, text] = process.argv.slice(2);
+const stored = S.loadStored();
+const st = () => S.status({ agents: agents(), stored, hookState: sessionState });
+function run(steps, r) {
+  for (const s of steps) {
+    let argv = s.argv;
+    if (s.sessionId === '$NEW') { const id = S.newSessionId(); argv = argv.map((x) => (x === '$NEW' ? id : x)); stored[r] = { ...(stored[r] || {}), sessionId: id }; }
+    const out = call(argv, argv[0] === 'stop' ? null : r);
+    if (out.status !== 0) die(`fsd-session: claude ${argv[0]} falhou (${(out.stderr || out.stdout || '').trim().split('\n')[0].slice(0, 160)})`, 4);
+  }
+  stored[r] = { ...(stored[r] || {}), active: true }; S.saveStored(stored);
+}
+if (cmd === 'status') { const s = st(); console.log(process.argv.includes('--json') ? JSON.stringify(s) : Object.entries(s).map(([r, x]) => `${r}: ${x.state}${x.sessionId ? ` (${x.sessionId.slice(0, 8)})` : ''}`).join('\n')); }
+else if ((cmd === 'start' || cmd === 'turn') && S.ROLES.includes(role) && text) {
+  const p = S.planTurn(role, text, { st: st()[role], stored }); if (p.refused) die(`fsd-session: ${p.refused}`, 1);
+  run(p.steps, role); console.log(`fsd-session: ${role} com turno novo na conversa ${stored[role].sessionId.slice(0, 8)}`);
+} else if (cmd === 'stop' && S.ROLES.includes(role)) { for (const s of S.planStop(role, { st: st()[role] })) call(s.argv); stored[role] = { ...(stored[role] || {}), active: false }; S.saveStored(stored); console.log(`fsd-session: ${role} parado`); }
+else if (cmd === 'boot') { const b = S.planBoot({ stored, st: st() }); for (const x of b) run(x.steps, x.role); console.log(`fsd-session: boot religou ${b.map((x) => x.role).join(', ') || 'ninguém'}`); }
+else die('uso: fsd-session status [--json] | start|turn <papel> "<texto>" | stop <papel> | boot', 2);
