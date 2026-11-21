@@ -1,0 +1,86 @@
+#!/usr/bin/env node
+// fsd-dispatch round [--dry] | loop | pin | status — o supervisor de sessões e mensageiro do time nativo (F3.2, T3.2.2). 0 token.
+//   round   uma rodada: junta o estado (sessões, quadro, PRs, caixas, leases, PAUSE, cota), decide() e executa
+//           (--dry: só imprime as ações). FSD_DISPATCH_FIXTURE=<json do estado> troca a coleta (testes).
+//   loop    rodadas a cada dispatch.loopSeconds, com pid file (um só). Só roda da cópia fixada (fsd-dispatch pin), nunca do
+//           checkout vivo: um PR mesclado não muda o supervisor sem fixar a cópia nova. FSD_DISPATCH_LIVE=1 libera (testes).
+//   pin     copia o código do commit atual para $FSD_STATE/dispatch/code/<sha>/team e marca como a cópia em uso
+// Ações: turn → cartão salvo + fsd-session turn; inbox/hold → caixa do destino; merge → fsd-merge (como Kevin, até o broker da E2);
+// judge → fsd-judge (como Kevin). Saída: 0 ok · 1 recusado · 2 uso.
+import { readFileSync, existsSync } from 'node:fs';
+import { spawnSync, spawn } from 'node:child_process';
+import { join, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
+const BIN = dirname(fileURLToPath(import.meta.url)), TEAM = join(BIN, '..');
+const D = await import('./fsd-dispatch-loop.mjs');
+const L = await import('./fsd-lib.mjs');
+const cfg = { ...(L.CFG.dispatch || {}) };
+const now = () => L.clock();
+const [cmd, ...rest] = process.argv.slice(2); const DRY = rest.includes('--dry') || L.DRY;
+
+async function gather() {
+  if (process.env.FSD_DISPATCH_FIXTURE) return JSON.parse(readFileSync(process.env.FSD_DISPATCH_FIXTURE, 'utf8'));
+  const S = await import('./fsd-session.mjs'); const M = await import('./fsd-messenger.mjs'); const Le = await import('./fsd-lease.mjs');
+  const U = await import('./fsd-usage.mjs'); const { stageName, STAGE } = await import('./fsd-stages.mjs');
+  const claude = process.env.FSD_CLAUDE || 'claude';
+  let agents = []; try { agents = JSON.parse(spawnSync(claude, ['agents', '--json'], { encoding: 'utf8' }).stdout || '[]'); } catch {}
+  const sessions = S.status({ agents, stored: S.loadStored(), hookState: M.sessionState });
+  const key = Object.fromEntries(Object.entries(STAGE).map(([k, v]) => [v, k]));
+  let board = []; try { board = JSON.parse(spawnSync(join(BIN, 'fsd-board'), ['list', '--json'], { encoding: 'utf8' }).stdout || '[]'); } catch {}
+  const blocked = new Set((L.ghJson(['issue', 'list', '--label', 'blocked', '--state', 'open', '--json', 'number']) || []).map((i) => i.number));
+  const prs = L.openPrs(); const roleOf = (login) => L.agentOf(login);
+  const cards = board.filter((b) => b.type !== 'PullRequest').map((b) => {
+    const column = key[stageName(b.column)] || null; const pr = prs.find((p) => L.closes(p.body).includes(b.number));
+    const st = pr ? L.reviewState(pr) : null;
+    const reviewedBy = pr ? [...st.last].filter(([, r]) => r.commit?.oid === pr.headRefOid && r.state !== 'DISMISSED').map(([w]) => roleOf(w)) : [];
+    return { n: b.number, column, blocked: blocked.has(b.number), ...(pr ? { pr: pr.number, head: pr.headRefOid, reviewedBy } : {}) };
+  }).filter((c) => c.column);
+  const { messages, rejected } = M.collect();
+  for (const r of rejected) console.log(`mensagem recusada (${r.from || '?'}): ${r.errors.join('; ')}`);
+  const { deadlocks } = Le.impasses(Le.list(now()), { now: now(), activityOf: L.activityOf });
+  let budgetOk = true; try { budgetOk = !U.over(U.readCache(), U.usageConfig().stopPct); } catch {}
+  return { sessions, cards, messages, deadlocks, paused: existsSync(join(L.stateDir(), 'PAUSE')), budgetOk };
+}
+
+async function exec(a, g) {
+  if (DRY) { console.log(`[dry] ${JSON.stringify(a)}`); return 'dry'; }
+  const M = await import('./fsd-messenger.mjs');
+  const msgs = (ids) => (g.messages || []).filter((m) => (ids || []).includes(m.id));
+  if (a.type === 'inbox' || a.type === 'hold') { for (const m of msgs(a.ids)) M.deliver(m); return `${a.ids.length} na caixa de ${a.to}`; }
+  if (a.type === 'turn') {
+    for (const m of msgs(a.ids)) M.deliver(m);   // o hook UserPromptSubmit entrega junto com o turno
+    const T = await import('./fsd-task.mjs');
+    let prompt = T.turnPrompt({ action: { ...a, ids: [] }, issue: null });
+    if (a.task) {
+      const issue = L.issue(a.task.n); const n = T.acceptanceOf(issue.body).length;
+      const card = T.taskCard({ task: a.task, issue }); T.saveCard(a.to, card, { kind: a.task.kind, n: a.task.n, acceptance: n || null });
+      prompt = T.turnPrompt({ action: { ...a, ids: [] }, issue });
+    }
+    const r = spawnSync(join(BIN, 'fsd-session'), ['turn', a.to, prompt], { encoding: 'utf8', env: process.env });
+    if (r.status !== 0) throw new Error((r.stdout || r.stderr).trim().split('\n')[0]);
+    return r.stdout.trim();
+  }
+  if (a.type === 'merge') { const r = spawnSync(join(BIN, 'fsd-merge'), [String(a.n)], { encoding: 'utf8', env: { ...process.env, FSD_AGENT: 'kevin' } }); if (![0, 1, 3].includes(r.status)) throw new Error(r.stdout.trim()); return r.stdout.trim(); }
+  if (a.type === 'judge') { spawn(join(BIN, 'fsd-judge'), [String(a.ref).replace(/^#/, '')], { detached: true, stdio: 'ignore', env: { ...process.env, FSD_AGENT: 'kevin' } }).unref(); return 'juiz chamado'; }
+  throw new Error(`ação desconhecida: ${a.type}`);
+}
+
+if (cmd === 'round') {
+  const r = await D.round({ gather, exec, now: now(), cfg });
+  console.log(`fsd-dispatch: ${r.actions.length} ação(ões), ${r.done.length} feita(s)${r.skipped.length ? `, ${r.skipped.length} falharam` : ''}`);
+} else if (cmd === 'pin') {
+  const repo = process.env.FSD_REPO || join(TEAM, '..');
+  const sha = spawnSync('git', ['-C', repo, 'rev-parse', 'HEAD'], { encoding: 'utf8' }).stdout.trim();
+  const dst = D.pinCode(sha, TEAM); console.log(`fsd-dispatch: cópia fixada ${sha.slice(0, 7)} em ${dst}\nrode: ${join(dst, 'bin', 'fsd-dispatch')} loop`);
+} else if (cmd === 'loop') {
+  if (!D.runningPinned(process.argv[1]) && !process.env.FSD_DISPATCH_LIVE) L.die(`fsd-dispatch: o laço só roda da cópia fixada (fsd-dispatch pin; em uso: ${D.currentPin()?.path || 'nenhuma'}), não do checkout vivo`, 1);
+  const { takePidFile, freePidFile } = await import('./fsd-pid.mjs');
+  const pid = join(D.dispatchDir(), 'dispatch.pid'); (await import('node:fs')).mkdirSync(D.dispatchDir(), { recursive: true });
+  const t = takePidFile(pid); if (!t.ok) L.die(t.pid ? `fsd-dispatch: já rodando (pid ${t.pid})` : 'fsd-dispatch: não consegui o pid file', 0);
+  process.on('exit', () => freePidFile(pid)); for (const [s, n] of [['SIGTERM', 15], ['SIGINT', 2], ['SIGHUP', 1]]) process.on(s, () => process.exit(128 + n));
+  const lost = D.reconcile(now()); if (lost.length) console.log(`fsd-dispatch: ${lost.length} ação(ões) do laço anterior ficaram sem fim (abandoned)`);
+  const rounds = Number(process.env.FSD_DISPATCH_ROUNDS) || Infinity;   // testes: um número fixo de rodadas
+  for (let i = 0; i < rounds; i++) { try { await D.round({ gather, exec, now: now(), cfg }); } catch (e) { console.log(`fsd-dispatch: rodada falhou: ${String(e.message).split('\n')[0]}`); } if (i + 1 < rounds) await new Promise((r) => setTimeout(r, Number(cfg.loopSeconds || 60) * 1000)); }
+} else if (cmd === 'status') {
+  const tasks = D.loadTasks(); console.log(JSON.stringify({ pin: D.currentPin(), tasks, judged: D.loadJudged() }, null, 1));
+} else L.die('uso: fsd-dispatch round [--dry] | loop | pin | status', 2);

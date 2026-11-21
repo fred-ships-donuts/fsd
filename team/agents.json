@@ -2,6 +2,7 @@
   "repo": "fred-ships-donuts/fsd",
   "author": "fredericojacobi",
   "_author": "Login do autor no GitHub: só a decisão dele libera um issue com aguardando-autor (fsd-admit, D8).",
+  "dispatch": { "_comment": "fsd-dispatch (time nativo, F3.2): maxConcurrent = agentes trabalhando ao mesmo tempo (D4: 1 até o freio de cota, depois 2); offline = mensagem para agente desligado (D11: byUrgency | wait | wake); loopSeconds = uma rodada a cada; taskLeaseMin = tarefa atribuída sem entrega e com o papel parado volta a ser enviada depois disso.", "maxConcurrent": 1, "offline": "byUrgency", "loopSeconds": 60, "taskLeaseMin": 120 },
   "tokens": {
     "_comment": "fsd-token (F1.6): o body do POST access_tokens. Cada token vale só para o repositório de \"repo\" e só com estas permissões; nenhum papel tem workflows (o CI não muda por agente). repo = o token do gh e do git; org = o do fsd-board (quadro da organização). Uma permissão fora da instalação do App faz o GitHub recusar (422).",
     "repo": {
