@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# fsd-session-hook — hooks PostToolUse, UserPromptSubmit e Stop da sessão nova do papel (F3.3: T3.3.2 e T3.3.5).
+# fsd-session-hook — hooks PostToolUse, UserPromptSubmit, SessionStart e Stop da sessão nova do papel (F3.3: T3.3.2 e T3.3.5).
 # Só com FSD_RUNNER=session (o time antigo, no tmux, não muda): entrega a caixa no meio do turno e grava ocioso/trabalhando.
 # Nunca derruba o turno: qualquer erro sai 0 sem saída.
 [ "${FSD_RUNNER:-}" = session ] || exit 0
