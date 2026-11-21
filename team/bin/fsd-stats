@@ -89,4 +89,8 @@ const center = (s, n) => { const p = n - s.length; return ' '.repeat(Math.floor(
 const out = [line('┌', '┬', '┐'), '│' + head.map((h, i) => ` ${center(h, w[i])} `).join('│') + '│'];
 rows.forEach((r) => { out.push(line('├', '┼', '┤')); out.push('│' + r.map((c, i) => ` ${c.padEnd(w[i])} `).join('│') + '│'); });
 out.push(line('└', '┴', '┘'));
+// Auditoria (F3.8): os relatórios do fsd-audit em $FSD_STATE/audit/, somados por papel. Sem relatório, nada.
+{ const dir = join(process.env.FSD_STATE || join(process.env.HOME, '.config', 'fsd-agents'), 'audit'); const by = {};
+  try { for (const f of readdirSync(dir).filter((x) => x.endsWith('.json'))) { try { const r = JSON.parse(readFileSync(join(dir, f), 'utf8')); const b = (by[r.role] ||= {}); for (const [k, v] of Object.entries(r.byRule || {})) b[k] = (b[k] || 0) + v; } catch {} } } catch {}
+  const roles = Object.keys(by).sort(); if (roles.length) out.push('', `desvios (fsd-audit): ${roles.map((r) => `${r} ${Object.entries(by[r]).map(([k, v]) => `${k} ${v}`).join(', ') || '0'}`).join(' · ')}`); }
 console.log(out.join('\n'));

@@ -1,0 +1,59 @@
+{
+ "_comment": "Transcrições de fixture da F3.8 (formato JSONL do Claude Code): a limpa passa; cada outra tem exatamente o desvio do nome. role e card são os do fsd-audit --role/--card.",
+ "cases": {
+  "limpa": {
+   "role": "stuart",
+   "card": 12,
+   "expect": []
+  },
+  "comando-proibido": {
+   "role": "stuart",
+   "card": 12,
+   "expect": [
+    "comando-proibido"
+   ]
+  },
+  "entrega-invalida": {
+   "role": "bob",
+   "card": 12,
+   "expect": [
+    "entrega-invalida"
+   ]
+  },
+  "card-fora-da-vez": {
+   "role": "stuart",
+   "card": 12,
+   "expect": [
+    "card-fora-da-vez"
+   ]
+  },
+  "destino-invalido": {
+   "role": "mel",
+   "card": 7,
+   "expect": [
+    "destino-invalido"
+   ]
+  },
+  "texto-como-ordem": {
+   "role": "stuart",
+   "card": 12,
+   "expect": [
+    "texto-como-ordem"
+   ]
+  },
+  "sem-lista-de-tarefas": {
+   "role": "stuart",
+   "card": 12,
+   "expect": [
+    "sem-lista-de-tarefas"
+   ]
+  },
+  "passo-aberto": {
+   "role": "stuart",
+   "card": 12,
+   "expect": [
+    "passo-aberto"
+   ]
+  }
+ }
+}

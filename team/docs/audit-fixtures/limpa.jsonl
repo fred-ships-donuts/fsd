@@ -1,0 +1,19 @@
+{"type": "user", "message": {"role": "user", "content": "[fsd-cartão] entrega-codigo · #12 fsd-merge confere o CI"}}
+{"type": "assistant", "message": {"role": "assistant", "content": [{"type": "tool_use", "id": "toolu_001", "name": "TodoWrite", "input": {"todos": [{"content": "ler o card", "status": "completed", "activeForm": "ler o card"}, {"content": "implementar", "status": "completed", "activeForm": "implementar"}, {"content": "testar", "status": "completed", "activeForm": "testar"}, {"content": "abrir o PR", "status": "completed", "activeForm": "abrir o PR"}]}}]}}
+{"type": "user", "message": {"role": "user", "content": [{"type": "tool_result", "tool_use_id": "toolu_001", "content": "ok"}]}}
+{"type": "assistant", "message": {"role": "assistant", "content": [{"type": "tool_use", "id": "toolu_002", "name": "Bash", "input": {"command": "fsd-issue show 12"}}]}}
+{"type": "user", "message": {"role": "user", "content": [{"type": "tool_result", "tool_use_id": "toolu_002", "content": "## Acceptance\n- CI verde mescla"}]}}
+{"type": "assistant", "message": {"role": "assistant", "content": [{"type": "tool_use", "id": "toolu_003", "name": "Bash", "input": {"command": "fsd-dev start 12"}}]}}
+{"type": "user", "message": {"role": "user", "content": [{"type": "tool_result", "tool_use_id": "toolu_003", "content": "ok"}]}}
+{"type": "assistant", "message": {"role": "assistant", "content": [{"type": "tool_use", "id": "toolu_004", "name": "Edit", "input": {"file_path": "team/bin/fsd-merge", "old_string": "a", "new_string": "b"}}]}}
+{"type": "user", "message": {"role": "user", "content": [{"type": "tool_result", "tool_use_id": "toolu_004", "content": "ok"}]}}
+{"type": "assistant", "message": {"role": "assistant", "content": [{"type": "tool_use", "id": "toolu_005", "name": "Bash", "input": {"command": "npm test"}}]}}
+{"type": "user", "message": {"role": "user", "content": [{"type": "tool_result", "tool_use_id": "toolu_005", "content": "pass 200"}]}}
+{"type": "assistant", "message": {"role": "assistant", "content": [{"type": "tool_use", "id": "toolu_006", "name": "Bash", "input": {"command": "git commit -m 'fix: x'"}}]}}
+{"type": "user", "message": {"role": "user", "content": [{"type": "tool_result", "tool_use_id": "toolu_006", "content": "ok"}]}}
+{"type": "assistant", "message": {"role": "assistant", "content": [{"type": "tool_use", "id": "toolu_007", "name": "Bash", "input": {"command": "fsd-pr open \"fix: x\" -C /w --verified -"}}]}}
+{"type": "user", "message": {"role": "user", "content": [{"type": "tool_result", "tool_use_id": "toolu_007", "content": "ok"}]}}
+{"type": "assistant", "message": {"role": "assistant", "content": [{"type": "tool_use", "id": "toolu_008", "name": "Bash", "input": {"command": "fsd-entrega /tmp/e.json --aceite 1"}}]}}
+{"type": "user", "message": {"role": "user", "content": [{"type": "tool_result", "tool_use_id": "toolu_008", "content": "entrega entrega-codigo #12 válida → /s/e.json"}]}}
+{"type": "assistant", "message": {"role": "assistant", "content": [{"type": "tool_use", "id": "toolu_009", "name": "Bash", "input": {"command": "fsd-diga mel \"PR #220 aberto\""}}]}}
+{"type": "user", "message": {"role": "user", "content": [{"type": "tool_result", "tool_use_id": "toolu_009", "content": "fsd-diga: para mel no outbox"}]}}
