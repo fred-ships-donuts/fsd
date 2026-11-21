@@ -97,6 +97,7 @@ comando passam por cima do padrão.
 │   ├── fsd-espera                 espera um colega num PR/issue (lease com prazo); ciclo quieto no mesmo ref vai ao juiz (F3.4)
 │   ├── fsd-admit                  issue de agente (aguardando-autor) entra no Backlog só com "Decision (author, …)"; recusa fecha (D8)
 │   ├── fsd-audit                  audita uma sessão (0 token): comando proibido, entrega fora do contrato, card fora da vez, destino inválido, texto de issue como ordem, lista de tarefas (F3.8)
+│   ├── fsd-session                sessão --bg de cada papel numa conversa fixa (--session-id/--resume): start, turn, stop, boot (F3.2)
 │   ├── fsd-secrets                pack/unpack dos segredos em secrets.tar.age (age, senha)
 │   ├── fsd-redirect-hook          hook PreToolUse (Bash): comando bloqueado → nega e nomeia o comando do time
 │   ├── fsd-cleanup                apaga worktree, branch local e remoto de PR mesclado há mais de cleanup.mergedMin (sem agente); --once, --loop, --dry

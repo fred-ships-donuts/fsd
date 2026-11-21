@@ -1,0 +1,44 @@
+#!/usr/bin/env node
+// stub-claude — um claude falso para os testes D do time nativo (0 token). Estado em $STUB_CLAUDE_DIR/state.json.
+// Emula o que o supervisor usa, no formato visto na T0.1.5 (claude agents --json do 2.1.322):
+//   --help                       as flags e subcomandos que o check-claude-cli confere
+//   --bg [--name n] [--session-id u | --resume u] ... "<prompt>"   imprime o id curto. --resume de uma sessão ligada cria uma
+//                                cópia (nova conversa; E-cópia). Grava prompts, cwd, FSD_AGENT e FSD_RUNNER de cada sessão.
+//                                STUB_RUN_HOOKS=1: roda $FSD_TEAM/bin/fsd-session-hook com SessionStart, UserPromptSubmit e Stop (o
+//                                turno começa e acaba). STUB_WORKING=1: o turno não acaba (sem Stop).
+//   agents --json [--all]        as sessões background ligadas (com --all, também as paradas)
+//   stop <id>                    desliga (a conversa fica) · reboot (só do stub): desliga todas, como um docker restart
+import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+import { join } from 'node:path';
+import { randomUUID, randomBytes } from 'node:crypto';
+import { spawnSync } from 'node:child_process';
+const DIR = process.env.STUB_CLAUDE_DIR || '/tmp/stub-claude'; mkdirSync(DIR, { recursive: true });
+const F = join(DIR, 'state.json');
+const load = () => { try { return JSON.parse(readFileSync(F, 'utf8')); } catch { return { sessions: [], calls: [] }; } };
+const st = load(); const a = process.argv.slice(2); st.calls.push(a); const save = () => writeFileSync(F, JSON.stringify(st, null, 1));
+const opt = (k) => { const i = a.indexOf(k); return i >= 0 ? a[i + 1] : undefined; };
+const hooks = (s, prompt) => {
+  if (!process.env.STUB_RUN_HOOKS || !process.env.FSD_TEAM) return;
+  const h = join(process.env.FSD_TEAM, 'bin', 'fsd-session-hook');
+  const evs = ['SessionStart', 'UserPromptSubmit', ...(process.env.STUB_WORKING ? [] : ['Stop'])];
+  for (const ev of evs) { const r = spawnSync(h, { input: JSON.stringify({ hook_event_name: ev, session_id: s.sessionId, prompt }), encoding: 'utf8', env: process.env }); if (r.stdout) s.context.push({ ev, out: r.stdout }); }
+};
+if (a[0] === '--help') { console.log('Usage: claude [options]\n  --bg, --background\n  --bare\n  --permission-prompts\n  --settings <file-or-json>\n  --json-schema <schema>\n  --setting-sources <sources>\n  --resume [value]\n  --session-id <uuid>\n  -n, --name <name>'); process.exit(0); }
+if (['agents', 'respawn', 'stop', 'daemon'].includes(a[0]) && a[1] === '--help') { console.log(`Usage: claude ${a[0]} [options]${a[0] === 'agents' ? '\n  --json  Print active sessions' : ''}`); process.exit(0); }
+if (a[0] === 'agents') {
+  const list = st.sessions.filter((s) => a.includes('--all') || s.alive).map((s) => ({ id: s.id, cwd: s.cwd, kind: 'background', startedAt: s.startedAt, sessionId: s.sessionId, name: s.name, state: s.alive ? 'idle' : 'completed' }));
+  save(); console.log(JSON.stringify(list, null, 2)); process.exit(0);
+}
+if (a[0] === 'stop') { const s = st.sessions.find((x) => x.id === a[1]); if (!s) { save(); console.error(`no session ${a[1]}`); process.exit(1); } s.alive = false; save(); process.exit(0); }
+if (a[0] === 'reboot') { for (const s of st.sessions) s.alive = false; save(); process.exit(0); }
+if (a.includes('--bg')) {
+  const prompt = a[a.length - 1]; const resume = opt('--resume');
+  const env = { agent: process.env.FSD_AGENT || null, runner: process.env.FSD_RUNNER || null };
+  let s = resume ? st.sessions.find((x) => x.sessionId === resume) : null;
+  if (resume && !s) { save(); console.error(`no conversation ${resume}`); process.exit(1); }
+  if (s && s.alive) { const copy = { ...s, id: randomBytes(4).toString('hex'), sessionId: randomUUID(), copyOf: s.sessionId, prompts: [prompt], context: [], startedAt: Date.now() }; st.sessions.push(copy); s = copy; }
+  else if (s) { s.alive = true; s.id = randomBytes(4).toString('hex'); s.prompts.push(prompt); Object.assign(s, env, { cwd: process.cwd() }); }
+  else { s = { id: randomBytes(4).toString('hex'), sessionId: opt('--session-id') || randomUUID(), name: opt('--name') || null, alive: true, prompts: [prompt], context: [], startedAt: Date.now(), cwd: process.cwd(), args: a.slice(0, -1), ...env }; st.sessions.push(s); }
+  hooks(s, prompt); save(); console.log(s.id); process.exit(0);
+}
+save(); console.error(`stub-claude: não emulado: ${a.join(' ')}`); process.exit(2);
