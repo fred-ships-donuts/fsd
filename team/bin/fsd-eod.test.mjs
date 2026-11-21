@@ -49,7 +49,7 @@ test('ctxOf: input + cache read + cache written + output of the last answer', ()
 });
 
 test('retire (stub-claude): stops and forgets the conversation; the next task opens a new one that starts by reading the handoff', () => {
-  const w = { FSD_STATE: mkdtempSync(join(tmpdir(), 'ses-')), STUB_CLAUDE_DIR: mkdtempSync(join(tmpdir(), 'stub-')), FSD_REPO: mkdtempSync(join(tmpdir(), 'repo-')), FSD_CLAUDE: STUB, STUB_RUN_HOOKS: '1' };
+  const w = { FSD_STATE: mkdtempSync(join(tmpdir(), 'ses-')), STUB_CLAUDE_DIR: mkdtempSync(join(tmpdir(), 'stub-')), FSD_REPO: mkdtempSync(join(tmpdir(), 'repo-')), FSD_CLAUDE: STUB, STUB_RUN_HOOKS: '1', FSD_SESSION_ALLOW_UNISOLATED: '1' };
   const ses = (args) => spawnSync(join(BIN, 'fsd-session'), args, { encoding: 'utf8', env: { ...process.env, FSD_AGENT: '', FSD_RUNNER: '', ...w } });
   assert.equal(ses(['start', 'stuart', 'dia 1']).status, 0);
   const day1 = JSON.parse(readFileSync(join(w.STUB_CLAUDE_DIR, 'state.json'), 'utf8')).sessions[0].sessionId;

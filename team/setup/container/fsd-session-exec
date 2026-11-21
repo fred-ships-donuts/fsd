@@ -7,20 +7,23 @@
 #   start <sessionId> <arquivo-prompt>      claude --bg --name <papel> --session-id <uuid> … (prompt lido do arquivo)
 #   resume <sessionId> <arquivo-prompt>     claude --bg --name <papel> --resume <uuid> …
 #   state                                   o estado do hook (session-state/<papel>.json) · unsaved: o que está só no disco
-# Valida tudo: id hex curto, uuid, arquivo de prompt legível. As flags da sessão são fixas aqui, não vêm de quem chama.
+# Valida tudo: id hex curto, uuid, arquivo de prompt legível. As flags da sessão são fixas aqui, não vêm de quem chama: só os settings
+# do perfil (do root; hooks do time + o papel) e nenhuma outra fonte (--setting-sources local).
 set -uo pipefail
 u=$(id -un); role=${u#fsd-}
 case "$role" in kevin|mel|stuart|bob) ;; *) echo "fsd-session-exec: só como usuário de papel" >&2; exit 2 ;; esac
 # Configuração só do root (/etc/fsd/session.env, escrita pelo fsd-users): o ambiente de quem chama não entra (sudo env_reset).
-REPO=/srv/fsd/repo; TEAM=/srv/fsd/repo/team; CLAUDE=/usr/local/bin/claude
+REPO=/srv/fsd/repo; TEAM=/srv/fsd/repo/team; CLAUDE=/usr/local/bin/claude; PREFLIGHT=1
 # shellcheck disable=SC1091
 [ -r /etc/fsd/session.env ] && [ "$(stat -c %U /etc/fsd/session.env)" = root ] && . /etc/fsd/session.env
 UUID='^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
 prompt() { [ -f "$1" ] && [ -r "$1" ] || { echo "fsd-session-exec: prompt ilegível" >&2; exit 2; }; cat -- "$1"; }
 run_bg() {   # run_bg <flag> <uuid> <arquivo>
   local p; p=$(prompt "$3")
+  # F4.1 (T4.1.3): recusa subir sem os hooks do time, sem o ai-memory, sem login ou com o túnel fechado.
+  if [ "$PREFLIGHT" != 0 ]; then FSD_PREFLIGHT_CLAUDE="$CLAUDE" node "$TEAM/bin/fsd-session-preflight.mjs" "/etc/fsd/profiles/$role/settings.json" || exit 3; fi
   cd "$REPO" && exec env FSD_AGENT="$role" FSD_RUNNER=session FSD_TEAM="$TEAM" "$CLAUDE" --bg --name "$role" --permission-mode bypassPermissions \
-    --settings "/etc/fsd/profiles/$role/settings.json" "$1" "$2" "$p"
+    --setting-sources local --settings "/etc/fsd/profiles/$role/settings.json" "$1" "$2" "$p"
 }
 case "${1:-}" in
   agents) exec "$CLAUDE" agents --json ;;
