@@ -1,0 +1,7 @@
+{
+  // Checagem de tipos dos testes (F1.11): o tsconfig.json os exclui do build; aqui entram, sem emitir nada.
+  "extends": "./tsconfig.json",
+  "compilerOptions": { "noEmit": true, "rootDir": ".", "sourceMap": false, "declaration": false, "declarationMap": false },
+  "include": ["src/**/*.ts", "src/**/*.tsx"],
+  "exclude": []
+}

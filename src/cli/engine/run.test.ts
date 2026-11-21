@@ -18,7 +18,7 @@ afterEach(() => t.cleanup());
 
 const name = listSkills()[0]!.name;
 const root = () => join(t.env.cwd, '.fsd');
-const registry = () => JSON.parse(readFileSync(join(root(), 'installed.json'), 'utf8')) as { skills: Record<string, { path: string; linked?: boolean }> };
+const registry = () => JSON.parse(readFileSync(join(root(), 'installed.json'), 'utf8')) as { skills: Record<string, { path: string; linked?: boolean; version?: string }> };
 const link = () => join(t.env.cwd, '.claude/skills', name);
 const install = () => planInstall('project', [{ name, lang: 'en', onConflict: 'keep' }], t.env, { ensureBase: true, config: { theme: 'x', autoUpdate: false, updateSkills: false } as never });
 const leftovers = () => (existsSync(t.cache) ? readdirSync(t.cache) : []);
