@@ -1,0 +1,27 @@
+{
+ "_why": "plan: vazio ou curto",
+ "data": {
+  "kind": "arquitetura",
+  "card": 12,
+  "role": "mel",
+  "summary": "Plano para o portão de merge com CI.",
+  "plan": "faz",
+  "acceptance": [
+   "CI verde mescla",
+   "CI vermelho recusa"
+  ],
+  "files": [
+   "team/bin/fsd-lib.mjs",
+   "team/bin/fsd-merge"
+  ],
+  "risks": [
+   "Fixture sem rede pode divergir do gh real"
+  ],
+  "dod": {
+   "plano-no-card": true,
+   "aceite-numerado": true,
+   "arquivos-listados": true,
+   "riscos-avaliados": true
+  }
+ }
+}

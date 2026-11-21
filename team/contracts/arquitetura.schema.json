@@ -1,0 +1,92 @@
+{
+ "$schema": "https://json-schema.org/draft/2020-12/schema",
+ "title": "entrega arquitetura (mel)",
+ "type": "object",
+ "additionalProperties": false,
+ "required": [
+  "kind",
+  "card",
+  "role",
+  "summary",
+  "plan",
+  "acceptance",
+  "files",
+  "risks",
+  "dod"
+ ],
+ "properties": {
+  "kind": {
+   "type": "string",
+   "const": "arquitetura"
+  },
+  "card": {
+   "type": "integer",
+   "minimum": 1
+  },
+  "role": {
+   "type": "string",
+   "const": "mel"
+  },
+  "summary": {
+   "type": "string",
+   "minLength": 10
+  },
+  "plan": {
+   "type": "string",
+   "minLength": 30
+  },
+  "acceptance": {
+   "type": "array",
+   "minItems": 1,
+   "items": {
+    "type": "string",
+    "minLength": 5
+   }
+  },
+  "files": {
+   "type": "array",
+   "minItems": 1,
+   "items": {
+    "type": "string",
+    "minLength": 1
+   }
+  },
+  "risks": {
+   "type": "array",
+   "items": {
+    "type": "string",
+    "minLength": 5
+   }
+  },
+  "dod": {
+   "type": "object",
+   "additionalProperties": false,
+   "required": [
+    "plano-no-card",
+    "aceite-numerado",
+    "arquivos-listados",
+    "riscos-avaliados"
+   ],
+   "properties": {
+    "plano-no-card": {
+     "type": "boolean"
+    },
+    "aceite-numerado": {
+     "type": "boolean"
+    },
+    "arquivos-listados": {
+     "type": "boolean"
+    },
+    "riscos-avaliados": {
+     "type": "boolean"
+    }
+   }
+  }
+ },
+ "x-dod": [
+  "plano-no-card",
+  "aceite-numerado",
+  "arquivos-listados",
+  "riscos-avaliados"
+ ]
+}

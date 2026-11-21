@@ -1,0 +1,11 @@
+{
+ "_why": "to: um de",
+ "data": {
+  "kind": "mensagem",
+  "from": "stuart",
+  "to": "eve",
+  "text": "O plano do #12 cita fsd-lib, mas o portão já existe lá. Sigo pelo fsd-merge?",
+  "urgent": false,
+  "ref": "#12"
+ }
+}

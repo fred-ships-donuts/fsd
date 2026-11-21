@@ -1,0 +1,32 @@
+{
+ "kind": "revisao",
+ "card": 12,
+ "role": "mel",
+ "summary": "Código correto, um teste a mais pedido.",
+ "pr": 220,
+ "head": "a1b2c3d",
+ "verdict": "approve",
+ "findings": [
+  {
+   "file": "team/bin/fsd-merge",
+   "line": 14,
+   "severity": "sugestao",
+   "text": "Nome da variável poderia ser mais claro."
+  }
+ ],
+ "acceptance": [
+  {
+   "item": 1,
+   "status": "ok"
+  },
+  {
+   "item": 2,
+   "status": "ok"
+  }
+ ],
+ "dod": {
+  "diff-lido": true,
+  "aceite-conferido": true,
+  "ci-conferido": true
+ }
+}

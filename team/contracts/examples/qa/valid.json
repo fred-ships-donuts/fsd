@@ -1,0 +1,29 @@
+{
+ "kind": "qa",
+ "card": 12,
+ "role": "bob",
+ "summary": "Os dois itens do aceite passam no head.",
+ "pr": 220,
+ "head": "a1b2c3d",
+ "verdict": "pass",
+ "acceptance": [
+  {
+   "item": 1,
+   "command": "FSD_DRY=1 fsd-merge 7",
+   "exit": 0,
+   "result": "pass"
+  },
+  {
+   "item": 2,
+   "command": "FSD_DRY=1 fsd-merge 8",
+   "exit": 1,
+   "result": "pass"
+  }
+ ],
+ "evidence": "qa/pr-220.log",
+ "dod": {
+  "rodou-no-head": true,
+  "aceite-coberto": true,
+  "evidencia-gravada": true
+ }
+}

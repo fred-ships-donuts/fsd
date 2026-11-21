@@ -1,0 +1,16 @@
+{
+ "_why": "dod: obrigatório",
+ "data": {
+  "kind": "triagem",
+  "card": 12,
+  "role": "kevin",
+  "summary": "Pedido claro e pequeno, vai direto ao Stuart.",
+  "decision": "aceitar",
+  "column": "devReady",
+  "size": "S",
+  "acceptance": [
+   "fsd-trash recusa /home/<usuário>"
+  ],
+  "reason": "Bug com reprodução e correção pequena."
+ }
+}

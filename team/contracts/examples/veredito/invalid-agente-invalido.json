@@ -1,0 +1,34 @@
+{
+ "_why": "agent: um de",
+ "data": {
+  "kind": "veredito",
+  "facts": [
+   {
+    "agent": "stuart",
+    "asks": "merge",
+    "why": "CI green",
+    "evidence": "checks"
+   }
+  ],
+  "rule": {
+   "owner": "mel",
+   "source": "team/common/team.md",
+   "text": "CI decides"
+  },
+  "verdict": {
+   "continue": {
+    "agent": "judge",
+    "instruction": "go on"
+   },
+   "wait": [
+    {
+     "agent": "bob",
+     "reason": "nothing to test"
+    }
+   ]
+  },
+  "confidence": "high",
+  "overrides_author": false,
+  "reserved": false
+ }
+}

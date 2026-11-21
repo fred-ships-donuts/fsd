@@ -1,0 +1,11 @@
+{
+ "_why": "text: vazio",
+ "data": {
+  "kind": "mensagem",
+  "from": "stuart",
+  "to": "mel",
+  "text": "",
+  "urgent": false,
+  "ref": "#12"
+ }
+}

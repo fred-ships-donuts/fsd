@@ -1,0 +1,49 @@
+{
+ "$schema": "https://json-schema.org/draft/2020-12/schema",
+ "title": "mensagem (fsd-diga)",
+ "type": "object",
+ "additionalProperties": false,
+ "required": [
+  "kind",
+  "from",
+  "to",
+  "text"
+ ],
+ "properties": {
+  "kind": {
+   "type": "string",
+   "const": "mensagem"
+  },
+  "from": {
+   "type": "string",
+   "enum": [
+    "kevin",
+    "mel",
+    "stuart",
+    "bob"
+   ]
+  },
+  "to": {
+   "type": "string",
+   "enum": [
+    "kevin",
+    "mel",
+    "stuart",
+    "bob"
+   ]
+  },
+  "text": {
+   "type": "string",
+   "minLength": 1,
+   "maxLength": 4000
+  },
+  "urgent": {
+   "type": "boolean"
+  },
+  "ref": {
+   "type": "string",
+   "pattern": "^#[0-9]+$"
+  }
+ },
+ "x-dod": []
+}
