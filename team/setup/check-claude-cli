@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+# check-claude-cli — confere se o claude instalado ainda tem o que o time nativo usa (T0.1.4, X10). Sem token: só --help.
+# Flags do claude: --bg, --bare, --permission-prompts, --settings, --json-schema, --setting-sources.
+# Subcomandos (claude <sub> --help sai 0 e mostra "Usage: claude <sub>"): agents (com --json), respawn, stop, daemon.
+# Saída: uma linha por item ("ok"/"FALTA") e exit 0 só se tudo existir; 1 se algo mudou; 2 sem claude. FSD_CLAUDE troca o binário (testes).
+set -uo pipefail
+claude="${FSD_CLAUDE:-claude}"
+command -v "$claude" >/dev/null 2>&1 || { echo "check-claude-cli: $claude não encontrado"; exit 2; }
+rc=0
+help=$(timeout 30 "$claude" --help 2>&1) || { echo "check-claude-cli: $claude --help falhou"; exit 1; }
+for f in --bg --bare --permission-prompts --settings --json-schema --setting-sources; do
+  if grep -qE -- "(^|[ ,])$f([ ,=<]|$)" <<<"$help"; then echo "ok    flag $f"; else echo "FALTA flag $f"; rc=1; fi
+done
+for s in agents respawn stop daemon; do
+  out=$(timeout 30 "$claude" "$s" --help 2>&1); st=$?
+  if [ $st -eq 0 ] && grep -q "Usage: claude $s" <<<"$out"; then echo "ok    subcomando $s"; else echo "FALTA subcomando $s"; rc=1; continue; fi
+  if [ "$s" = agents ] && ! grep -qE -- "(^|[ ,])--json([ ,]|$)" <<<"$out"; then echo "FALTA agents --json"; rc=1; fi
+done
+exit $rc
