@@ -18,6 +18,7 @@ momentos:
 | `loops.json` | Os laços: uso da conta, limpeza, revive e os achados do `fsd-progress` |
 | `columns.json` | A coluna de um card com PR (`cardColumn`) |
 | `notices.json` | Os avisos: dono da fila, pedido ao autor, alerta |
+| `decide-replay.json` | F3.6: cada gatilho reproduzido no `decide()` (22, executados no teste) ou com a divergência explicada (17: substituído, fim do dia, lease ou permanece no laço) |
 | `board-history.json` | As transições reais do quadro (299 eventos, 49 tipos), com as divergências explicadas |
 | `collect-board-history.mjs` | Regera o `board-history.json` pelo GitHub, só leitura, sem perder as divergências |
 

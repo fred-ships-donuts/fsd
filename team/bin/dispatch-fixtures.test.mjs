@@ -73,3 +73,19 @@ const REPLAY = {
 for (const c of cases.filter((x) => x.replay)) {
   test(`replay ${c.id} (${c.trigger}) with ${c.replay}`, () => { assert.ok(REPLAY[c.replay], c.replay); REPLAY[c.replay](c.input, c.expect); });
 }
+
+// F3.6 (T3.6.1): cada gatilho gravado gera no decide() a ação equivalente à do vigia, ou a divergência fica explicada.
+import { decide } from './fsd-dispatch.mjs';
+const { replay } = load('decide-replay.json');
+test('F3.6: every trigger has exactly one decide() replay or an explained divergence', () => {
+  assert.deepEqual(replay.map((r) => r.trigger).sort(), triggers.map((t) => t.id).sort());
+  for (const r of replay) {
+    assert.ok(!!r.decide !== !!r.divergence, r.trigger);
+    if (r.divergence) assert.ok(['substituido', 'fim-do-dia', 'lease', 'permanece'].includes(r.divergence.category) && r.divergence.where && r.divergence.reason.length > 20, r.trigger);
+    else assert.ok(r.note.length > 20, r.trigger);
+  }
+});
+const strip = (acts) => acts.map((a) => (a.task ? { ...a, task: { kind: a.task.kind, n: a.task.n } } : a));
+for (const r of replay.filter((x) => x.decide)) {
+  test(`F3.6 replay ${r.trigger} in decide()`, () => assert.deepEqual(strip(decide(r.decide.state)), r.decide.expect));
+}
