@@ -12,7 +12,7 @@ import { randomBytes } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { AGENTS, CFG, stateDir, inboxAppend, inboxDrain, noticeLine } from './fsd-lib.mjs';
 import { checkDelivery } from './fsd-contract.mjs';
-import { loadCard } from './fsd-task.mjs';
+import { loadCard, loadTask, saveTask } from './fsd-task.mjs';
 
 export const outboxDir = (role) => join(stateDir(), 'outbox', ...(role ? [role] : []));
 const atomic = (f, data) => { const tmp = `${f}.${process.pid}.tmp`; writeFileSync(tmp, data, { mode: 0o600 }); renameSync(tmp, f); };
@@ -65,7 +65,7 @@ export const sessionState = (agent) => { try { return JSON.parse(readFileSync(st
 export function hook(event, input = {}, agent = process.env.FSD_AGENT) {
   if (!AGENTS.includes(agent)) return null;
   const mark = (state) => { mkdirSync(join(stateDir(), 'session-state'), { recursive: true }); atomic(stateFile(agent), JSON.stringify({ state, at: new Date().toISOString(), session_id: input.session_id || null }) + '\n'); };
-  if (event === 'Stop') { mark('idle'); return null; }
+  if (event === 'Stop') { const g = stopGate(agent); if (g) return g; mark('idle'); return null; }
   if (!['PostToolUse', 'UserPromptSubmit', 'SessionStart'].includes(event)) return null;
   if (event !== 'SessionStart') mark('working');
   // T3.4.5: o cartão da tarefa volta ao abrir a sessão e a cada mensagem nova (não a cada ferramenta).
@@ -73,5 +73,22 @@ export function hook(event, input = {}, agent = process.env.FSD_AGENT) {
   const n = event === 'SessionStart' ? [] : inboxDrain(agent);   // no SessionStart a caixa já sai pelo fsd-inbox drain
   const parts = [card, n.length ? `[fsd-mensagens: ${n.length}]\n${n.map(noticeLine).join('\n')}` : ''].filter(Boolean);
   return parts.length ? { hookSpecificOutput: { hookEventName: event, additionalContext: parts.join('\n\n') } } : null;
+}
+// T3.7.6: com tarefa ativa, o turno só termina com a entrega válida do card (fsd-entrega grava em entregas/<contrato>/<card>-*.json)
+// feita depois do início da tarefa. Sem ela: bloqueia com "continue: falta …", no máximo MAX_BLOCKS vezes por tarefa (contador
+// próprio: stop_hook_active fica true depois de qualquer bloqueio); na última, deixa parar e avisa o Kevin.
+export const MAX_BLOCKS = 3;
+export function hasDelivery(task) {
+  const d = join(stateDir(), 'entregas', task.contract);
+  try { return readdirSync(d).some((f) => f.startsWith(`${task.n}-`) && f.endsWith('.json') && statSync(join(d, f)).mtimeMs >= task.at); } catch { return false; }
+}
+function stopGate(agent) {
+  const t = loadTask(agent); if (!t || hasDelivery(t)) return null;
+  if ((t.blocks || 0) >= MAX_BLOCKS) {
+    if (agent !== 'kevin') say({ to: 'kevin', text: `${agent} terminou o turno sem a entrega válida de ${t.kind} #${t.n} depois de ${MAX_BLOCKS} avisos.`, ref: `#${t.n}` }, { from: agent });
+    return null;
+  }
+  saveTask(agent, { ...t, blocks: (t.blocks || 0) + 1 });
+  return { decision: 'block', reason: `continue: falta a entrega válida de ${t.kind} #${t.n}. Escreva o JSON do contrato team/contracts/${t.contract}.schema.json com a Definition of Done e rode fsd-entrega <arquivo.json>${t.acceptance ? ` --aceite ${t.acceptance}` : ''}. Sem entrega válida o card não anda.` };
 }
 export const _test = { stateFile, existsSync };
