@@ -94,6 +94,7 @@ comando passam por cima do padrão.
 │   ├── fsd-session-hook           hooks da sessão nova (FSD_RUNNER=session): caixa no meio do turno, ocioso/trabalhando
 │   ├── fsd-entrega                valida e grava a entrega JSON contra team/contracts (F3.7)
 │   ├── fsd-duvida                 encaminha dúvida: técnica → Mel, fluxo → Kevin, autor → "Deadlock: author decision needed" no ref (F3.4)
+│   ├── fsd-espera                 espera um colega num PR/issue (lease com prazo); ciclo quieto no mesmo ref vai ao juiz (F3.4)
 │   ├── fsd-secrets                pack/unpack dos segredos em secrets.tar.age (age, senha)
 │   ├── fsd-redirect-hook          hook PreToolUse (Bash): comando bloqueado → nega e nomeia o comando do time
 │   ├── fsd-cleanup                apaga worktree, branch local e remoto de PR mesclado há mais de cleanup.mergedMin (sem agente); --once, --loop, --dry
