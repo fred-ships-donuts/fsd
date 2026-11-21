@@ -1,12 +1,14 @@
 // fsd-column.mjs — a coluna de um card com PR, calculada em um só lugar (#187, S3 de #181). Puro: sem E/S ao importar.
 //   cardColumn(p, { pulled })   nome de STAGE, ou null se o card fica onde está (fechado sem merge, draft)
 //   prFromGraphQL(node) · prFromGh(json)   a mesma forma normalizada:
-//     { state, isDraft, headRefOid, mergeable, author, reviews: [{ author, state, commit }], reviewRequests: [login], checks, body }
+//     { state, isDraft, headRefOid, mergeable, author, reviews: [{ author, state, commit }], reviewRequests: [login], checks, ci, body }
+//     checks = rollup de todos os checks (SUCCESS|FAILURE|PENDING|NONE) · ci = os jobs obrigatórios da regressão (ciState: green|red|pending)
 //   PR_GRAPHQL   a consulta de todos os PRs abertos (o S4 #188 a reutiliza)
-import { STAGE, reviewState, norm } from './fsd-lib.mjs';
+import { STAGE, reviewState, norm, ciState } from './fsd-lib.mjs';
 
 // Regras, nesta ordem: MERGED → Done · CLOSED/draft → null · mudança pendente ou conflito → Developing (pulled) ou Changes Requested ·
-// 2 aprovações no head + MERGEABLE + checks verdes (ou sem checks) → Ready to Merge · senão In Review.
+// 2 aprovações no head + MERGEABLE + CI da regressão verde (os jobs de REQUIRED_CI; sem checks não conta como verde) → Ready to Merge ·
+// senão In Review.
 // Mudança pendente = CHANGES_REQUESTED decisivo no head cujo revisor não foi pedido de novo (o pedido de nova revisão limpa; um push novo também).
 export function cardColumn(p, { pulled = false } = {}) {
   if (p.state === 'MERGED') return STAGE.done;
@@ -16,7 +18,7 @@ export function cardColumn(p, { pulled = false } = {}) {
   const asked = new Set((p.reviewRequests || []).map(norm));
   const pending = s.changes.some((who) => s.last.get(who)?.commit?.oid === p.headRefOid && !asked.has(who));
   if (pending || p.mergeable === 'CONFLICTING') return pulled ? STAGE.dev : STAGE.changes;
-  if (s.approvers.length >= 2 && p.mergeable === 'MERGEABLE' && ['SUCCESS', 'NONE'].includes(p.checks)) return STAGE.mergeReady;
+  if (s.approvers.length >= 2 && p.mergeable === 'MERGEABLE' && p.ci === 'green') return STAGE.mergeReady;
   return STAGE.review;
 }
 
@@ -45,6 +47,7 @@ export function prFromGraphQL(n) {
     reviews: (n.reviews?.nodes || []).map((r) => ({ author: r.author?.login, state: r.state, commit: r.commit?.oid })),
     reviewRequests: (n.reviewRequests?.nodes || []).map((x) => x.requestedReviewer?.login).filter(Boolean),
     checks: rollupOfState(n.commits?.nodes?.[0]?.commit?.statusCheckRollup?.state),
+    ci: ciState({ statusCheckRollup: (n.commits?.nodes?.[0]?.commit?.statusCheckRollup?.contexts?.nodes || []).map((c) => ({ name: c.name, status: c.status, conclusion: c.conclusion, workflowName: c.checkSuite?.workflowRun?.workflow?.name })) }),
   };
 }
 export function prFromGh(j) {
@@ -53,7 +56,8 @@ export function prFromGh(j) {
     reviews: (j.reviews || []).map((r) => ({ author: r.author?.login, state: r.state, commit: r.commit?.oid })),
     reviewRequests: (j.reviewRequests || []).map((x) => x.login).filter(Boolean),
     checks: rollupOfList(j.statusCheckRollup),
+    ci: ciState({ statusCheckRollup: j.statusCheckRollup }),
   };
 }
 
-export const PR_GRAPHQL = `query($owner:String!,$name:String!){repository(owner:$owner,name:$name){pullRequests(states:OPEN,first:100){nodes{number state isDraft headRefOid mergeable body author{login} reviews(last:50){nodes{author{login} state commit{oid}}} reviewRequests(first:20){nodes{requestedReviewer{... on User{login}}}} commits(last:1){nodes{commit{statusCheckRollup{state}}}} projectItems(first:5){nodes{fieldValueByName(name:"Status"){... on ProjectV2ItemFieldSingleSelectValue{name}}}}}}}}`;
+export const PR_GRAPHQL = `query($owner:String!,$name:String!){repository(owner:$owner,name:$name){pullRequests(states:OPEN,first:100){nodes{number state isDraft headRefOid mergeable body author{login} reviews(last:50){nodes{author{login} state commit{oid}}} reviewRequests(first:20){nodes{requestedReviewer{... on User{login}}}} commits(last:1){nodes{commit{statusCheckRollup{state contexts(first:100){nodes{... on CheckRun{name status conclusion checkSuite{workflowRun{workflow{name}}}}}}}}}} projectItems(first:5){nodes{fieldValueByName(name:"Status"){... on ProjectV2ItemFieldSingleSelectValue{name}}}}}}}}`;
