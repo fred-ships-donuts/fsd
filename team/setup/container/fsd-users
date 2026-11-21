@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+# fsd-users — usuários do time nativo no container (F2.1, T2.1.1/T2.1.2; D3). Rode como root; idempotente.
+#   papéis: fsd-kevin, fsd-mel, fsd-stuart, fsd-bob · fsd-run (roda o código do PR, sem repositório nem token) ·
+#   fsd-dispatch (supervisor) · fsd-broker (chaves dos Apps). O humano (fsd, uid 1000) fica à parte. Nenhuma sessão roda como root.
+#   Cada home é 0700 do dono. O grupo fsd é o do repositório (papéis e supervisor). O perfil de cada papel (settings.json,
+#   CLAUDE.md, skills/) fica em /etc/fsd/profiles/<papel>, com dono root: o papel lê e não edita a própria config.
+#   umask 077 para todos (arquivos novos, também no /tmp, só do dono).
+# FSD_PROFILES_SRC=<pasta team/agents> copia os perfis de lá (padrão: sem cópia, só a estrutura).
+set -euo pipefail
+[ "$(id -u)" = 0 ] || { echo "fsd-users: rode como root"; exit 2; }
+ROLES=(kevin mel stuart bob)
+getent group fsd >/dev/null || groupadd fsd
+mk() {   # mk <usuário> [grupos extras]
+  local u=$1; shift
+  id "$u" >/dev/null 2>&1 || useradd -m -s /bin/bash -U "$u"
+  [ $# -gt 0 ] && usermod -aG "$(IFS=,; echo "$*")" "$u"
+  chmod 0700 "/home/$u"; chown "$u:$u" "/home/$u"
+}
+for r in "${ROLES[@]}"; do mk "fsd-$r" fsd; done
+mk fsd-dispatch fsd
+mk fsd-run
+mk fsd-broker
+install -d -o root -g root -m 0755 /etc/fsd /etc/fsd/profiles
+for r in "${ROLES[@]}"; do
+  p=/etc/fsd/profiles/$r; install -d -o root -g root -m 0755 "$p" "$p/skills"
+  src=${FSD_PROFILES_SRC:-}/$r/claude
+  if [ -n "${FSD_PROFILES_SRC:-}" ] && [ -d "$src" ]; then
+    [ -f "$src/settings.json" ] && install -o root -g root -m 0644 "$src/settings.json" "$p/settings.json"
+    [ -f "$src/CLAUDE.md" ] && install -o root -g root -m 0644 "$src/CLAUDE.md" "$p/CLAUDE.md"
+    [ -d "$src/skills" ] && cp -r "$src/skills/." "$p/skills/" && chown -R root:root "$p/skills" && chmod -R u=rwX,go=rX "$p/skills"
+  fi
+  [ -f "$p/settings.json" ] || install -o root -g root -m 0644 /dev/null "$p/settings.json"
+done
+echo 'umask 077' > /etc/profile.d/fsd-umask.sh; chmod 0644 /etc/profile.d/fsd-umask.sh
+grep -q '^UMASK[[:space:]]\+077' /etc/login.defs 2>/dev/null || sed -i 's/^UMASK.*/UMASK\t\t077/' /etc/login.defs
+echo "fsd-users: ${ROLES[*]/#/fsd-} fsd-run fsd-dispatch fsd-broker prontos"

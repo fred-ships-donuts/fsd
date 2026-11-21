@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+# simulate-container — constrói uma imagem local com os usuários do time nativo e roda as verificações K (F2.0, T2.0.1).
+# Sai 0 só sem falhas. 0 token, sem rede depois do build, sem segredo. Precisa do Docker. FSD_SIM_TAG troca a tag da imagem.
+set -euo pipefail
+HERE="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"; REPO="$(dirname "$(dirname "$HERE")")"
+tag=${FSD_SIM_TAG:-fsd-sim:local}
+command -v docker >/dev/null || { echo "simulate-container: precisa do docker"; exit 2; }
+docker build -q -f "$REPO/team/setup/container/Dockerfile.sim" -t "$tag" "$REPO" >/dev/null
+docker run --rm "$tag"

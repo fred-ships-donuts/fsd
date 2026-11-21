@@ -66,3 +66,10 @@ jobs:
           [ -n "$files" ] || { echo "no bash scripts found"; exit 1; }
           # shellcheck disable=SC2086  # a lista é de caminhos sem espaço, um por linha
           shellcheck -x --severity=warning $files
+
+  # Opcional (fora dos checks obrigatórios): o isolamento do time nativo num container local (F2.0). 0 token, sem segredo.
+  container:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: team/setup/simulate-container

@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+# k-checks — verificações K do isolamento do time nativo (F2.0). Rode como root dentro do container; sai 0 só sem falha.
+# Cada linha: ok/FALHA <id> <o que>. Cresce com a E2 (repositório, broker, fsd-run, token oculto).
+set -uo pipefail
+ROLES=(kevin mel stuart bob); fail=0
+ok() { echo "ok    $1 $2"; }; bad() { echo "FALHA $1 $2"; fail=1; }
+# shellcheck disable=SC2329  # as funções são chamadas por check "$@"
+can() { su -s /bin/bash "$1" -c "$2" >/dev/null 2>&1; }   # can <usuário> <comando>: 0 se o usuário consegue
+cannot() { ! can "$@"; }   # cannot <usuário> <comando>: 0 se o usuário NÃO consegue (no mesmo processo, nunca num bash -c)
+check() { local id=$1 what=$2; shift 2; if "$@"; then ok "$id" "$what"; else bad "$id" "$what"; fi; }
+no_edit() { cannot "$1" "echo x >> $2/settings.json" && cannot "$1" "touch $2/novo"; }
+for u in "${ROLES[@]/#/fsd-}" fsd-run fsd-dispatch fsd-broker; do
+  check K1 "$u existe e não é root" bash -c "id $u >/dev/null && [ \$(id -u $u) != 0 ]"
+  check K2 "home de $u é 0700 e do dono" bash -c "[ \$(stat -c %a /home/$u) = 700 ] && [ \$(stat -c %U /home/$u) = $u ]"
+done
+echo s > /home/fsd-stuart/segredo; chown fsd-stuart: /home/fsd-stuart/segredo; chmod 600 /home/fsd-stuart/segredo
+check K3 "fsd-stuart lê a própria home" can fsd-stuart "cat /home/fsd-stuart/segredo"
+for u in fsd-mel fsd-bob fsd-kevin fsd-run fsd-dispatch; do check K3 "$u não lê a home do fsd-stuart" cannot "$u" 'ls /home/fsd-stuart'; done
+check K3 "fsd-stuart não lê a home do broker" cannot fsd-stuart 'ls /home/fsd-broker'
+for r in "${ROLES[@]}"; do
+  p=/etc/fsd/profiles/$r
+  check K4 "perfil do $r é do root" bash -c "[ \$(stat -c %U $p) = root ] && [ \$(stat -c %U $p/settings.json) = root ]"
+  check K4 "fsd-$r lê o próprio perfil" can "fsd-$r" "cat $p/settings.json"
+  check K4 "fsd-$r não edita o próprio perfil" no_edit "fsd-$r" "$p"
+done
+check K5 "fsd-run fora do grupo do repositório" bash -c "! id -nG fsd-run | tr ' ' '\n' | grep -qx fsd"
+for r in "${ROLES[@]}"; do check K5 "fsd-$r no grupo fsd" bash -c "id -nG fsd-$r | tr ' ' '\n' | grep -qx fsd"; done
+check K6 "umask 077 numa sessão de login do papel" bash -c "[ \"\$(su -l -s /bin/bash fsd-mel -c umask)\" = 0077 ]"
+su -l -s /bin/bash fsd-mel -c 'echo s > /tmp/k6-mel'
+check K6 "arquivo novo da Mel no /tmp não é lido pelo Stuart" cannot fsd-stuart 'cat /tmp/k6-mel'
+[ $fail = 0 ] && echo "k-checks: tudo ok" || echo "k-checks: há falhas"
+exit $fail
