@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+# fsd-repo <repo> — o repositório do time entre uids (F2.2, T2.2.1; A6). Rode como root depois do fsd-users; idempotente.
+# O que vale (provado num container, ver team/setup/container/k-checks, K7):
+#   - grupo fsd, setgid nas pastas, core.sharedRepository=group, safe.directory só para este repositório;
+#   - .git do fsd-dispatch com sticky bit: um papel não troca arquivo de outro dono, então não reescreve o .git/config (do root,
+#     0644): `git config alias.x` e `core.hooksPath` falham. O supervisor (dono da pasta) faz fetch, pack-refs e apaga branch;
+#   - sem extensions.worktreeConfig: o config.worktree, que qualquer papel do grupo grava, é ignorado pelo git;
+#   - .git/hooks e .git/info do root, sem escrita do grupo: ninguém planta um hook que outro papel roda;
+#   - o worktree de cada papel fica na home dele (0700), não dentro do repositório: os arquivos de trabalho são só dele.
+#   Os papéis buscam com `git fetch --no-write-fetch-head` (o FETCH_HEAD é do supervisor) e criam branch com --no-track.
+set -euo pipefail
+[ "$(id -u)" = 0 ] || { echo "fsd-repo: rode como root"; exit 2; }
+R=${1:?uso: fsd-repo <repo>}; G=$R/.git
+[ -d "$G" ] || { echo "fsd-repo: $R não é um clone (sem .git)"; exit 2; }
+git -C "$R" config core.sharedRepository group
+git -C "$R" config --unset-all extensions.worktreeConfig 2>/dev/null || true
+grep -qxF "$R" <(git config --system --get-all safe.directory 2>/dev/null) || git config --system --add safe.directory "$R"
+chgrp -R fsd "$R"; chmod -R g+rwX "$R"; find "$R" -type d -exec chmod g+s {} +
+chown fsd-dispatch "$G"; chmod 3775 "$G"                      # setgid + sticky
+chown root:root "$G/config"; chmod 0644 "$G/config"
+for d in hooks info; do mkdir -p "$G/$d"; chown -R root:root "$G/$d"; chmod 0755 "$G/$d"; find "$G/$d" -type f -exec chmod 0644 {} +; done
+rm -f "$G/config.worktree"
+echo "fsd-repo: $R pronto (config e hooks do root; .git do fsd-dispatch com sticky)"

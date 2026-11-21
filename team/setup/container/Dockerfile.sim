@@ -1,7 +1,13 @@
 # Imagem local de teste do isolamento (F2.0): os usuários do time nativo e as verificações K, sem rede nem segredo.
 FROM ubuntu:24.04
 RUN apt-get update -qq && apt-get install -y -qq --no-install-recommends git ca-certificates >/dev/null && rm -rf /var/lib/apt/lists/*
-COPY team/setup/container/fsd-users team/setup/container/k-checks /opt/fsd-sim/
+COPY team/setup/container/fsd-users team/setup/container/fsd-repo team/setup/container/k-checks /opt/fsd-sim/
 COPY team/agents /opt/fsd-sim/agents
-RUN chmod 0755 /opt/fsd-sim/fsd-users /opt/fsd-sim/k-checks && FSD_PROFILES_SRC=/opt/fsd-sim/agents /opt/fsd-sim/fsd-users
+RUN chmod 0755 /opt/fsd-sim/fsd-users /opt/fsd-sim/fsd-repo /opt/fsd-sim/k-checks && FSD_PROFILES_SRC=/opt/fsd-sim/agents /opt/fsd-sim/fsd-users
+# Um remoto bare local (o grupo grava, como o GitHub para quem tem token) e o clone do time preparado pelo fsd-repo (K7).
+RUN git config --global user.email sim@sim && git config --global user.name sim \
+ && git init -q --bare /srv/origin.git && git clone -q /srv/origin.git /tmp/seed && cd /tmp/seed && echo a > a && git add a && git commit -qm init && git push -q origin HEAD:develop \
+ && chgrp -R fsd /srv/origin.git && chmod -R g+rwX /srv/origin.git && find /srv/origin.git -type d -exec chmod g+s {} + && git -C /srv/origin.git config core.sharedRepository group \
+ && git config --system --add safe.directory /srv/origin.git && git clone -q -b develop /srv/origin.git /srv/repo && /opt/fsd-sim/fsd-repo /srv/repo
+ENV FSD_SIM_REPO=/srv/repo
 CMD ["/opt/fsd-sim/k-checks"]
