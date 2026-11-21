@@ -26,6 +26,7 @@ for r in "${ROLES[@]}"; do
   src=${FSD_PROFILES_SRC:-}/$r/claude
   if [ -n "${FSD_PROFILES_SRC:-}" ] && [ -d "$src" ]; then
     [ -f "$src/settings.json" ] && install -o root -g root -m 0644 "$src/settings.json" "$p/settings.json"
+    [ -f "$src/settings.session.json" ] && install -o root -g root -m 0644 "$src/settings.session.json" "$p/settings.session.json"
     [ -f "$src/CLAUDE.md" ] && install -o root -g root -m 0644 "$src/CLAUDE.md" "$p/CLAUDE.md"
     [ -d "$src/skills" ] && cp -r "$src/skills/." "$p/skills/" && chown -R root:root "$p/skills" && chmod -R u=rwX,go=rX "$p/skills"
   fi
@@ -35,9 +36,10 @@ for r in "${ROLES[@]}"; do
   team=${FSD_TEAM_DIR:-}/claude-settings.json
   if [ -n "${FSD_TEAM_DIR:-}" ] && [ -f "$team" ] && command -v jq >/dev/null; then
     role=$p/settings.json; [ -s "$role" ] || role=/dev/null
+    sess=$p/settings.session.json; [ -s "$sess" ] || sess=/dev/null   # F4.2: o deny e o guard só da sessão nova
     jq -s 'def m($a; $b): if ($a|type) == "object" and ($b|type) == "object" then reduce (($a|keys) + ($b|keys) | unique)[] as $k ({}; .[$k] = m($a[$k]; $b[$k]))
            elif ($a|type) == "array" and ($b|type) == "array" then ($a + $b | unique) elif $b == null then $a else $b end;
-           m(.[0]; (.[1] // {}))' "$team" "$role" > "$p/settings.json.tmp" && install -o root -g root -m 0644 "$p/settings.json.tmp" "$p/settings.json"; rm -f "$p/settings.json.tmp"
+           m(m(.[0]; (.[1] // {})); (.[2] // {}))' "$team" "$role" "$sess" > "$p/settings.json.tmp" && install -o root -g root -m 0644 "$p/settings.json.tmp" "$p/settings.json"; rm -f "$p/settings.json.tmp"
   fi
 done
 # Tokens (F2.3): a pasta de cada papel é do fsd-broker, com o grupo do papel e setgid (o arquivo herda o grupo); 0750 + arquivo 0440
