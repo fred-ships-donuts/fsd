@@ -89,7 +89,7 @@ comando passam por cima do padrão.
 ~/.config/fsd-agents/              ── TUDO DOS AGENTES ──
 ├── bin/
 │   ├── fsd-agent           ⚙️     launcher: identidade, flags (modelo, esforço, ferramentas, MCP), tokens
-│   ├── fsd-token                  gera o token do GitHub App do agente
+│   ├── fsd-token                  gera o token do GitHub App do agente: só o repositório do time e as permissões do papel (agents.json → tokens), sem workflows
 │   ├── fsd-secrets                pack/unpack dos segredos em secrets.tar.age (age, senha)
 │   ├── fsd-redirect-hook          hook PreToolUse (Bash): comando bloqueado → nega e nomeia o comando do time
 │   ├── fsd-cleanup                apaga worktree, branch local e remoto de PR mesclado há mais de cleanup.mergedMin (sem agente); --once, --loop, --dry

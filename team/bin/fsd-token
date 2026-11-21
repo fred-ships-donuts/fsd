@@ -1,41 +1,63 @@
 #!/usr/bin/env node
 // fsd-token [agent] [org] — prints a valid GitHub App installation token for the agent
 // ("org": the installation on the organization that owns the board, for fsd-board).
-// (arg or $FSD_AGENT). Tokens last 1h; a cached one is reused until 10 min before expiry.
-import { createSign } from 'node:crypto';
-import { readFileSync, writeFileSync, mkdirSync, renameSync } from 'node:fs';
+// (arg or $FSD_AGENT). Tokens last 1h; a cached one is reused until 10 min before expiry, and only if it was minted with
+// the same body.
+// Body (F1.6): repositories = [the repo of agents.json "repo"] and permissions = agents.json "tokens" (repo: per agent; org: shared).
+// Sem linha na tabela → recusa (nunca um token com todas as permissões da instalação).
+// Rede: FSD_GITHUB_API troca a URL (testes); a chamada desiste em FSD_TOKEN_TIMEOUT_MS (10 s). O cache vai por um .tmp de nome único.
+import { createSign, randomBytes } from 'node:crypto';
+import { readFileSync, writeFileSync, mkdirSync, renameSync, rmSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const name = process.argv[2] || process.env.FSD_AGENT;
-const { agents } = JSON.parse(readFileSync(join(ROOT, 'agents.json'), 'utf8'));
+const cfg = JSON.parse(readFileSync(join(ROOT, 'agents.json'), 'utf8'));
+const { agents } = cfg;
 const agent = agents[name];
 const scope = process.argv[3] === 'org' ? 'org' : 'repo';
 if (!agent) { console.error(`fsd-token: agente desconhecido "${name ?? ''}" (use: ${Object.keys(agents).join(', ')})`); process.exit(2); }
 
-const cacheDir = join((process.env.FSD_STATE || join(process.env.HOME, '.config', 'fsd-agents')), 'cache');
+const permissions = scope === 'org' ? cfg.tokens?.org : cfg.tokens?.repo?.[name];
+const repoName = String(process.env.FSD_REPO_SLUG || cfg.repo || '').split('/')[1];
+if (!permissions || !Object.keys(permissions).length || permissions.workflows) { console.error(`fsd-token: ${name} sem permissões ${scope} válidas em agents.json → tokens (workflows nunca)`); process.exit(2); }
+if (!repoName) { console.error('fsd-token: agents.json sem "repo" (dono/nome)'); process.exit(2); }
+const reqBody = JSON.stringify({ repositories: [repoName], permissions });
+
+const STATE = process.env.FSD_STATE || join(process.env.HOME, '.config', 'fsd-agents');
+const cacheDir = join(STATE, 'cache');
 const instId = scope === 'org' ? agent.org_installation_id : agent.installation_id;
 if (!instId) { console.error(`fsd-token: ${name} sem ${scope === 'org' ? 'org_installation_id' : 'installation_id'} no agents.json`); process.exit(2); }
 const cacheFile = join(cacheDir, scope === 'org' ? `${name}-org.json` : `${name}.json`);
 try {
   const c = JSON.parse(readFileSync(cacheFile, 'utf8'));
-  if (Date.parse(c.expires_at) - Date.now() > 10 * 60 * 1000) { process.stdout.write(c.token + '\n'); process.exit(0); }
+  if (c.body === reqBody && Date.parse(c.expires_at) - Date.now() > 10 * 60 * 1000) { process.stdout.write(c.token + '\n'); process.exit(0); }
 } catch {}
 
 const b64 = (s) => Buffer.from(s).toString('base64url');
 const now = Math.floor(Date.now() / 1000);
 const body = `${b64(JSON.stringify({ alg: 'RS256', typ: 'JWT' }))}.${b64(JSON.stringify({ iat: now - 60, exp: now + 540, iss: String(agent.app_id) }))}`;
-const key = readFileSync(join((process.env.FSD_STATE || join(process.env.HOME, '.config', 'fsd-agents')), 'keys', `${agent.slug}.pem`));
+const key = readFileSync(join(STATE, 'keys', `${agent.slug}.pem`));
 const jwt = `${body}.${createSign('RSA-SHA256').update(body).sign(key).toString('base64url')}`;
 
-const r = await fetch(`https://api.github.com/app/installations/${instId}/access_tokens`, {
-  method: 'POST',
-  headers: { Authorization: `Bearer ${jwt}`, Accept: 'application/vnd.github+json', 'User-Agent': 'fsd-token' },
-});
-const data = await r.json();
-if (!r.ok) { console.error(`fsd-token: GitHub ${r.status}: ${data.message}`); process.exit(1); }
+const api = (process.env.FSD_GITHUB_API || 'https://api.github.com').replace(/\/+$/, '');
+const timeoutMs = Number(process.env.FSD_TOKEN_TIMEOUT_MS) || 10000;
+let r, data;
+try {
+  r = await fetch(`${api}/app/installations/${instId}/access_tokens`, {
+    method: 'POST', body: reqBody, signal: AbortSignal.timeout(timeoutMs),
+    headers: { Authorization: `Bearer ${jwt}`, Accept: 'application/vnd.github+json', 'Content-Type': 'application/json', 'User-Agent': 'fsd-token' },
+  });
+  data = await r.json();
+} catch (e) {
+  console.error(`fsd-token: GitHub sem resposta em ${timeoutMs / 1000}s (${e.name === 'TimeoutError' ? 'timeout' : e.message})`); process.exit(3);
+}
+if (!r.ok) { console.error(`fsd-token: GitHub ${r.status}: ${data?.message}`); process.exit(1); }
 mkdirSync(cacheDir, { recursive: true, mode: 0o700 });
-writeFileSync(cacheFile + '.tmp', JSON.stringify({ token: data.token, expires_at: data.expires_at }), { mode: 0o600 });
-renameSync(cacheFile + '.tmp', cacheFile);
+const tmp = `${cacheFile}.${process.pid}.${randomBytes(4).toString('hex')}.tmp`;   // dois fsd-token juntos não se atropelam
+try {
+  writeFileSync(tmp, JSON.stringify({ token: data.token, expires_at: data.expires_at, body: reqBody }), { mode: 0o600 });
+  renameSync(tmp, cacheFile);
+} catch { rmSync(tmp, { force: true }); }   // sem cache, o token ainda serve
 process.stdout.write(data.token + '\n');

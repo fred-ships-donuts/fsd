@@ -1,5 +1,15 @@
 {
   "repo": "fred-ships-donuts/fsd",
+  "tokens": {
+    "_comment": "fsd-token (F1.6): o body do POST access_tokens. Cada token vale só para o repositório de \"repo\" e só com estas permissões; nenhum papel tem workflows (o CI não muda por agente). repo = o token do gh e do git; org = o do fsd-board (quadro da organização). Uma permissão fora da instalação do App faz o GitHub recusar (422).",
+    "repo": {
+      "kevin": { "contents": "write", "pull_requests": "write", "issues": "write", "organization_projects": "write", "metadata": "read" },
+      "mel": { "contents": "write", "pull_requests": "write", "issues": "write", "organization_projects": "write", "metadata": "read" },
+      "stuart": { "contents": "write", "pull_requests": "write", "issues": "write", "organization_projects": "write", "metadata": "read" },
+      "bob": { "contents": "read", "pull_requests": "write", "issues": "write", "organization_projects": "write", "metadata": "read" }
+    },
+    "org": { "organization_projects": "write", "issues": "read", "pull_requests": "read", "metadata": "read" }
+  },
   "alert": { "_comment": "fsd-alert (#143): issue fixa onde o Kevin comenta o alerta quando nenhum canal de desktop entrega. Nunca é fechada.", "issue": 147 },
   "claude_common": {
     "_comment": "Ferramentas que nenhum agente usa; o launcher corta com --disallowedTools. AskUserQuestion: agente autônomo não para à espera de humano.",
