@@ -12,7 +12,7 @@ import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { randomUUID, randomBytes } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
-const DIR = process.env.STUB_CLAUDE_DIR || '/tmp/stub-claude'; mkdirSync(DIR, { recursive: true });
+const DIR = process.env.STUB_CLAUDE_DIR || `/tmp/stub-claude-${process.getuid?.() ?? 'x'}`; mkdirSync(DIR, { recursive: true });   // um por uid (cada papel tem o seu supervisor)
 const F = join(DIR, 'state.json');
 const load = () => { try { return JSON.parse(readFileSync(F, 'utf8')); } catch { return { sessions: [], calls: [] }; } };
 const st = load(); const a = process.argv.slice(2); st.calls.push(a); const save = () => writeFileSync(F, JSON.stringify(st, null, 1));
