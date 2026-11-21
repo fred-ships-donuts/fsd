@@ -6,21 +6,25 @@
 set -euo pipefail
 name="${FSD_AGENT:?fsd-restart: rode dentro de uma sessão aberta pelo fsd-agent}"
 pane="${TMUX_PANE:?fsd-restart: esta sessão não está num tmux}"
-# Pasta real do script (vale também por um link): fsd-queue, PAUSE e agents.json vêm dela.
+# Pasta real do script (vale também por um link): fsd-queue e agents.json vêm dela. O PAUSE é o do estado do time
+# ($FSD_STATE/PAUSE, o mesmo do vigia, do fsd-usage e do fsd-cleanup), não um arquivo dentro de team/.
 HERE="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"
+pause="${FSD_STATE:-$HOME/.config/fsd-agents}/PAUSE"
 # Raiz do repositório: FSD_REPO, ou o clone em que este script mora (team/bin/ → ../..).
 repo="${FSD_REPO:-$(dirname "$(dirname "$HERE")")}"
 bin="${FSD_AGENT_BIN:-$HOME/.local/bin/fsd-agent}"
-q=$(FSD_AGENT=$name "$HERE/fsd-queue" "$name" 2>/dev/null | tr '\n' ';' | cut -c1-600)
+# Fila que falha (gh fora do ar) não pode derrubar o restart: com pipefail o script sairia calado, sem reabrir nem encerrar.
+q=$(FSD_AGENT=$name "$HERE/fsd-queue" "$name" 2>/dev/null | tr '\n' ';' | cut -c1-600 || true)
+[ -n "$q" ] || q="(indisponível agora; rode fsd-queue)"
 kick="Sessão nova de $name (contexto limpo). A fila abaixo é o estado atual; não releia o GitHub. Siga o team.md e o handoff; rearme o Monitor (fsd-wait). Fila: $q"
 cmd="$bin $name claude $(printf %q "$kick")"
 # Termina na raiz: o handoff automático do ai-memory fica guardado pelo diretório em que a sessão acaba, e a sessão
 # nova abre na raiz. Num worktree ele ficaria preso lá até expirar (aconteceu com o Stuart em 2026-11-09).
 [ "$(pwd -P)" = "$(cd "$repo" && pwd -P)" ] || { echo "fsd-restart: rode da raiz do repositório: cd $repo && fsd-restart (num worktree o handoff do ai-memory não chega à sessão nova)"; exit 1; }
 tmux display -p -t "$pane" >/dev/null 2>&1 || { echo "fsd-restart: painel $pane não existe"; exit 1; }
-if [ "${1:-}" = --dry-run ] || [ -n "${FSD_DRY:-}" ]; then [ -e "$HERE/../PAUSE" ] && echo "PAUSE ativo: encerraria $name sem reabrir" || echo "reiniciaria $name em $repo"; exit 0; fi
+if [ "${1:-}" = --dry-run ] || [ -n "${FSD_DRY:-}" ]; then [ -e "$pause" ] && echo "PAUSE ativo: encerraria $name sem reabrir" || echo "reiniciaria $name em $repo"; exit 0; fi
 # Pausa do time: com o arquivo PAUSE, o fim de tarefa encerra a sessão em vez de reabrir.
-if [ -e "$HERE/../PAUSE" ]; then
+if [ -e "$pause" ]; then
   setsid -f bash -c "sleep 2; tmux kill-pane -t $(printf %q "$pane")" >/dev/null 2>&1 < /dev/null
   echo "fsd-restart: time em pausa (PAUSE). A sessão de $name encerra em 2s e não reabre."; exit 0
 fi

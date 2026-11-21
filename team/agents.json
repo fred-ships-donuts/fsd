@@ -22,7 +22,7 @@
     ],
     "settingSources": "user,local",
     "_settingSources": "user,local pula o .claude/settings.json do projeto: só valem as configurações do fsd (claude-settings.json e o settings.json do agente).",
-    "usage": { "_comment": "Uso da conta do time (#193): fsd-usage busca a cada refreshSeconds; a partir de stopPct (%) em qualquer janela (5h ou semanal) o guard manda terminar e parar, e o PAUSE é criado.", "refreshSeconds": 300, "stopPct": 90 },
+    "usage": { "_comment": "Uso da conta do time (#193): fsd-usage busca a cada refreshSeconds; a partir de stopPct (%) em qualquer janela (5h ou semanal) o guard manda terminar e parar, e o PAUSE é criado.", "refreshSeconds": 300, "stopPct": 90, "reactiveHoldMin": 60, "_reactiveHoldMin": "Minutos que a pausa reativa (hook StopFailure rate_limit, sem resets_at) dura; depois o PAUSE criado por ela sai." },
     "context": {
       "_comment": "Contexto por sessão: teto em limit (tokens, sem compactação automática; até 200k o fsd-agent desliga a janela de 1M do modelo; acima, ela fica ligada e o teto é o limit). O fsd-context-guard julga sozinho: livre = limit − atual − marginTokens (tokens); custo = crescimento médio por chamada (últimas 20); restam = livre ÷ custo. Sessão pesada = alguma das 3 últimas chamadas custou ≥ heavyFactor × a média; aí valem as faixas heavy. Restam ≤ urgentAt → urgente (🔴, em negrito); < mediumAt → médio (🟡); senão nada. Mensagens no topo de bin/fsd-context-guard.",
       "limit": 250000,

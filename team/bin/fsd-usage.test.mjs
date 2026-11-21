@@ -44,3 +44,54 @@ test('429 stores retry-after and nobody fetches before it', () => {
   refresh(t, 1e12 + 601000);
   assert.ok(existsSync(join(t.d, 'PAUSE')));
 });
+
+test('manual PAUSE → limit → reset: the manual PAUSE stays, only PAUSE.usage goes', () => {
+  const t = mk(); writeFileSync(join(t.d, 'PAUSE'), 'by hand');
+  fixture(t, ok(91)); const r = refresh(t, 1e12);
+  assert.ok(existsSync(join(t.d, 'PAUSE.usage')));
+  assert.equal(JSON.parse(readFileSync(join(t.d, 'PAUSE.usage'), 'utf8')).own, false);
+  assert.match(r.stdout, /already on/);
+  fixture(t, ok(10, '2026-11-16T15:00:00Z')); refresh(t, 1e12 + 700000);
+  assert.ok(!existsSync(join(t.d, 'PAUSE.usage')));
+  assert.equal(readFileSync(join(t.d, 'PAUSE'), 'utf8'), 'by hand');
+});
+
+const stopFailure = (t, now) => spawnSync(process.execPath, [join(BIN, 'fsd-usage.mjs'), 'stop-failure'], { env: { ...t.env, FSD_USAGE_NOW: String(now) }, input: JSON.stringify({ hook_event_name: 'StopFailure', error: 'rate_limit' }), encoding: 'utf8' });
+
+test('StopFailure rate_limit: PAUSE + PAUSE.usage (reactive), one comment; lifts after reactiveHoldMin', () => {
+  const t = mk(); const r = stopFailure(t, 1e12);
+  assert.equal(r.status, 0);
+  assert.ok(existsSync(join(t.d, 'PAUSE')));
+  const m = JSON.parse(readFileSync(join(t.d, 'PAUSE.usage'), 'utf8'));
+  assert.equal(m.window, 'reactive'); assert.equal(m.own, true);
+  assert.equal((r.stdout.match(/issue comment 147/g) || []).length, 1);
+  assert.equal((stopFailure(t, 1e12 + 1).stdout.match(/comment/g) || []).length, 0);   // already paused
+  fixture(t, { status: 401 });                                                         // #214: endpoint refuses the token
+  refresh(t, 1e12 + 30 * 60000);
+  assert.ok(existsSync(join(t.d, 'PAUSE')));                                           // inside the hold
+  refresh(t, 1e12 + 61 * 60000);
+  assert.ok(!existsSync(join(t.d, 'PAUSE')) && !existsSync(join(t.d, 'PAUSE.usage')));
+});
+
+test('StopFailure rate_limit over a manual PAUSE keeps it after the hold', () => {
+  const t = mk(); writeFileSync(join(t.d, 'PAUSE'), 'by hand');
+  stopFailure(t, 1e12); fixture(t, { status: 401 }); refresh(t, 1e12 + 61 * 60000);
+  assert.ok(!existsSync(join(t.d, 'PAUSE.usage')));
+  assert.equal(readFileSync(join(t.d, 'PAUSE'), 'utf8'), 'by hand');
+});
+
+test('claude-settings.json wires StopFailure rate_limit to fsd-usage stop-failure', () => {
+  const s = JSON.parse(readFileSync(join(BIN, '..', 'claude-settings.json'), 'utf8'));
+  const h = s.hooks.StopFailure.find((x) => x.matcher === 'rate_limit');
+  assert.match(h.hooks[0].command, /fsd-usage\.mjs stop-failure/);
+});
+
+test('fsd-restart reads $FSD_STATE/PAUSE, not team/PAUSE', () => {
+  const t = mk(); const fake = mkdtempSync(join(tmpdir(), 'bin-'));
+  writeFileSync(join(fake, 'tmux'), '#!/bin/sh\nexit 0\n', { mode: 0o755 });
+  const run = () => spawnSync(join(BIN, 'fsd-restart'), ['--dry-run'], { cwd: t.d, encoding: 'utf8',
+    env: { ...t.env, FSD_AGENT: 'stuart', TMUX_PANE: '%1', FSD_REPO: t.d, PATH: `${fake}:${process.env.PATH}` } }).stdout;
+  assert.match(run(), /reiniciaria stuart/);
+  writeFileSync(join(t.d, 'PAUSE'), '');
+  assert.match(run(), /PAUSE ativo/);
+});

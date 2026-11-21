@@ -61,7 +61,11 @@ O teto de contexto é um só: `min(limit − outputReserve, restartAbove)`; as f
 `restartAbove`, o guard nega tudo, menos o fechamento. Configuração local inválida nunca derruba o guard: ele cai para o
 `agents.json` e avisa uma vez. Uso da conta: `claude_common.usage` (`refreshSeconds` 300, `stopPct` 90); `bin/fsd-usage.mjs`
 mantém `$FSD_STATE/usage.json` (token em `claude-oauth-token`), o vigia o chama a cada rodada e, a partir de `stopPct`, cria
-`PAUSE` + `PAUSE.usage` e comenta uma vez na #147. Testes: `FSD_USAGE_FIXTURE`, `FSD_USAGE_NOW`.
+`PAUSE` + `PAUSE.usage` e comenta uma vez na #147. O `PAUSE` só sai quando foi ele que o criou (`own` no `PAUSE.usage`): um
+`PAUSE` feito à mão fica depois do reset. **Freio reativo:** o hook `StopFailure` (matcher `rate_limit`) chama
+`fsd-usage.mjs stop-failure`, que pausa do mesmo jeito sem depender do endpoint (#214); sem `resets_at`, essa pausa sai
+depois de `usage.reactiveHoldMin` (60 min). Todo PAUSE é `$FSD_STATE/PAUSE` (vigia, limpeza, `fsd-usage`, `fsd-restart`).
+Testes: `FSD_USAGE_FIXTURE`, `FSD_USAGE_NOW`.
 
 Os tempos do time (`timing`, ver "Tempos do time") também: o `timing` do arquivo local passa por cima do `agents.json`,
 campo a campo, e as variáveis de ambiente (`FSD_READY_GRACE` etc.) por cima de tudo. Quem lê é o `bin/fsd-timing.mjs`;
