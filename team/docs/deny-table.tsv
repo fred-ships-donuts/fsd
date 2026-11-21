@@ -1,0 +1,44 @@
+# F4.2 (T4.2.1): o deny da sessão nova, caso a caso. papel<TAB>comando (ou ferramenta: tool:<nome>)<TAB>deny|allow<TAB>por quê
+stuart	env	deny	segredo: o ambiente tem o token
+stuart	printenv GH_TOKEN	deny	segredo
+stuart	cat /var/lib/fsd-tokens/mel/token	deny	token de outro papel
+mel	ls /var/lib/fsd-broker/keys	deny	chaves dos Apps
+bob	cat ~/.claude/.credentials.json	deny	credencial da assinatura
+stuart	git config --global core.hooksPath /tmp	deny	config
+stuart	git config alias.x '!id'	deny	config (A6)
+kevin	git config core.fsmonitor x	deny	config
+stuart	git push origin develop	deny	push direto
+mel	git push origin HEAD:main	deny	push direto
+stuart	git push --force origin fix/1-x	deny	force push
+kevin	fsd-merge 7	deny	D2: quem mescla é o supervisor
+stuart	fsd-restart	deny	não existe na sessão nova (fim do dia)
+bob	fsd-wait any	deny	sem Monitor nem espera ativa
+mel	tmux send-keys -t fsd-stuart x Enter	deny	painel de outro agente
+stuart	sudo -u fsd-run id	deny	sudo
+kevin	fsd-dev start 12	deny	comando do Stuart
+kevin	fsd-qa prep 7	deny	comando do Bob
+mel	fsd-qa run 1 x	deny	comando do Bob
+mel	fsd-issue decide 3 x	deny	comando do Kevin
+stuart	fsd-review post 7 approve f	deny	comando dos revisores
+stuart	fsd-arq start 5	deny	comando da Mel
+bob	fsd-pr open t -C /w	deny	comando do Stuart
+bob	fsd-dev start 9	deny	comando do Stuart
+stuart	tool:Monitor	deny	sem Monitor
+mel	tool:ListAgents	deny	sem ListAgents
+kevin	tool:SendMessage	deny	mensagem só por fsd-diga
+stuart	head -50 src/a.ts	allow	leitura
+stuart	grep -rn foo src	allow	leitura
+stuart	npm test	allow	teste
+stuart	node -e 1	allow	rotina do Stuart (X1)
+stuart	python3 x.py	allow	rotina (X1)
+stuart	rm -rf dist	deny	regra do time: apagar é pelo fsd-trash
+stuart	fsd-trash dist	allow	o jeito de apagar
+stuart	fsd-dev start 12	allow	o próprio comando
+stuart	fsd-pr open t -C /w --verified -	allow	o próprio comando
+mel	fsd-review post 7 approve f	allow	o próprio comando
+bob	fsd-qa run 1 x	allow	o próprio comando
+kevin	fsd-issue decide 3 x	allow	o próprio comando
+kevin	gh pr view 7	allow	leitura do GitHub
+mel	fsd-diga stuart oi	allow	mensagem
+bob	fsd-entrega e.json --aceite 2	allow	entrega
+stuart	git status	allow	leitura

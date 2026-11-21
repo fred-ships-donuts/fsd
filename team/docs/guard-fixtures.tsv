@@ -1,0 +1,21 @@
+# F4.2 (T4.2.2): contornos conhecidos do deny. O fsd-native-guard abre o comando e nega se algum pedaço casar. papel<TAB>comando<TAB>deny|allow
+stuart	bash -c "git push --force origin x"	deny
+stuart	sh -c 'fsd-merge 7'	deny
+stuart	zsh -lc 'printenv'	deny
+stuart	env git push origin develop	deny
+stuart	env -i FOO=1 git config alias.x y	deny
+stuart	X=git; $X push -f origin x	deny
+stuart	C=fsd-merge; ${C} 7	deny
+stuart	eval "printenv"	deny
+stuart	echo $(cat /var/lib/fsd-tokens/stuart/token)	deny
+stuart	echo `printenv GH_TOKEN`	deny
+stuart	timeout 5 fsd-qa run 1 x	deny
+stuart	nohup sudo id	deny
+stuart	true && bash -c 'tmux send-keys -t fsd-mel x Enter'	deny
+kevin	FOO=1 fsd-merge 7	deny
+mel	xargs -I{} fsd-qa run 1 {}	deny
+stuart	bash -c 'npm test'	allow
+stuart	X=dist; ls $X	allow
+stuart	X=dist; rm -rf $X	deny
+stuart	timeout 60 npm test	allow
+mel	echo $(git log -1 --format=%h)	allow

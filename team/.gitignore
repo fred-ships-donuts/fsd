@@ -20,5 +20,6 @@
 /agents/*/claude/*
 !/agents/*/claude/CLAUDE.md
 !/agents/*/claude/settings.json
+!/agents/*/claude/settings.session.json
 !/agents/*/claude/skills/
 /agents/fred/

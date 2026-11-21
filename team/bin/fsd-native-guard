@@ -1,0 +1,13 @@
+#!/usr/bin/env node
+// fsd-native-guard — hook PreToolUse (matcher Bash, e Monitor/ListAgents/SendMessage pelo deny) da sessão nova (F4.2). Só com
+// FSD_RUNNER=session. Falha fechado: erro interno também nega.
+if (process.env.FSD_RUNNER !== 'session') process.exit(0);
+let raw = ''; process.stdin.on('data', (b) => (raw += b)).on('end', async () => {
+  const deny = (why) => { process.stdout.write(JSON.stringify({ hookSpecificOutput: { hookEventName: 'PreToolUse', permissionDecision: 'deny', permissionDecisionReason: why } })); process.exit(0); };
+  try {
+    const { decide, rulesFor } = await import('./fsd-native-guard.mjs');
+    const i = JSON.parse(raw || '{}'); const why = decide(i, rulesFor(process.env.FSD_AGENT || ''));
+    if (why) deny(why);
+    process.exit(0);
+  } catch (e) { deny(`fsd-native-guard falhou (${String(e.message || e).slice(0, 80)}): na dúvida, negado.`); }
+});
