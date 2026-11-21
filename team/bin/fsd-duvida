@@ -1,0 +1,13 @@
+#!/usr/bin/env node
+// fsd-duvida <tecnica|fluxo|autor> "<texto>" [--ref #N] — encaminha uma dúvida (F3.4, T3.4.4): técnica para a Mel, de fluxo para
+// o Kevin, decisão do autor vira "Deadlock: author decision needed" no PR ou issue (precisa de --ref). Saída 0 · 1 erro · 2 uso.
+const { route, apply } = await import('./fsd-route.mjs');
+const args = process.argv.slice(2); const ri = args.indexOf('--ref'); const ref = ri >= 0 ? args[ri + 1] : undefined;
+const pos = args.filter((_, i) => ri < 0 || (i !== ri && i !== ri + 1));
+const [topic, text] = pos;
+if (!topic || !text || pos.length > 2 || (ri >= 0 && !/^#\d+$/.test(ref || ''))) { console.log('uso: fsd-duvida <tecnica|fluxo|autor> "<texto>" [--ref #N]'); process.exit(2); }
+const agent = process.env.FSD_AGENT || '';
+const acts = route({ type: 'doubt', agent, topic, text, ref, author: process.env.FSD_AUTHOR || 'FSD_AUTHOR' });
+const out = await apply(acts, { agent });
+console.log(`fsd-duvida: ${out.join('; ')}`);
+process.exit(out.some((x) => x.startsWith('erro') || x.startsWith('não gravada')) ? 1 : 0);

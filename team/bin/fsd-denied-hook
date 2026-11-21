@@ -15,6 +15,8 @@ try {
       const { redirect } = await import('./fsd-redirects.mjs');
       const r = redirect(i.tool_input.command, { agent: process.env.FSD_AGENT || '', cwd: i.cwd, isMain });
       record({ session: i.session_id, toolUseId: i.tool_use_id, id: r ? r.id : UNMATCHED });
+      // Sessão nova (FSD_RUNNER=session): o Kevin fica sabendo e a negação vai para denials.jsonl (T3.4.4). O time no tmux não muda.
+      if (process.env.FSD_RUNNER === 'session') { const { route, apply } = await import('./fsd-route.mjs'); await apply(route({ type: 'denial', agent: process.env.FSD_AGENT || '', command: i.tool_input.command, reason: i.reason || (r ? r.id : null) }), { agent: process.env.FSD_AGENT || '' }); }
     }
   } else if (ev === 'PreToolUse' || ev === 'PostToolUse') {
     const id = consume({ session: i.session_id });
