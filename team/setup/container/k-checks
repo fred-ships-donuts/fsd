@@ -93,5 +93,14 @@ if [ -x /usr/local/sbin/fsd-session-exec ]; then
   check K10 "fsd-session (como fsd-dispatch, FSD_SESSION_VIA=sudo) sobe a Mel e vê o estado dela" bash -c "su -s /bin/bash fsd-dispatch -c 'cd ~ && FSD_SESSION_VIA=sudo FSD_STATE=\$HOME/st node $FSD_SIM_TEAM/bin/fsd-session start mel \"tarefa #3\" >/dev/null && FSD_SESSION_VIA=sudo FSD_STATE=\$HOME/st node $FSD_SIM_TEAM/bin/fsd-session status --json' 2>/dev/null | grep -q '\"mel\":{\"state\":\"idle\"'"
   check K10 "o wrapper recusa id e uuid inválidos" bash -c "! su -s /bin/bash fsd-dispatch -c '$SX stop \"x;id\"' >/dev/null 2>&1 && ! su -s /bin/bash fsd-dispatch -c '$SX start not-a-uuid /tmp/k10-prompt' >/dev/null 2>&1"
 fi
+# K11 (F4.1): o perfil do papel junta os hooks do time e o papel; com a checagem ligada, sem ai-memory nem túnel, a sessão não sobe.
+if [ -x /usr/local/sbin/fsd-session-exec ] && command -v jq >/dev/null; then
+  check K11 "o perfil do Stuart tem os hooks do time e o deny dele" bash -c "jq -e '.hooks.PostToolUse | map(.hooks[].command) | any(test(\"fsd-session-hook\"))' /etc/fsd/profiles/stuart/settings.json >/dev/null && jq -e '.permissions.deny | any(test(\"git push\"))' /etc/fsd/profiles/stuart/settings.json >/dev/null"
+  sed -i 's/^PREFLIGHT=.*/PREFLIGHT=1/' /etc/fsd/session.env
+  echo x > /tmp/k11-prompt; chmod 644 /tmp/k11-prompt
+  out=$(su -s /bin/bash fsd-dispatch -c "sudo -n -u fsd-bob /usr/local/sbin/fsd-session-exec start 22222222-3333-4444-5555-666666666666 /tmp/k11-prompt" 2>&1)
+  check K11 "com a checagem ligada, sem ai-memory e sem túnel, a sessão do Bob não sobe e diz por quê" bash -c "grep -q 'ai-memory não instalado' <<<\"$out\" && grep -q 'túnel do ai-memory fechado' <<<\"$out\""
+  sed -i 's/^PREFLIGHT=.*/PREFLIGHT=0/' /etc/fsd/session.env
+fi
 [ $fail = 0 ] && echo "k-checks: tudo ok" || echo "k-checks: há falhas"
 exit $fail

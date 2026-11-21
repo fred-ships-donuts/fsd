@@ -30,6 +30,15 @@ for r in "${ROLES[@]}"; do
     [ -d "$src/skills" ] && cp -r "$src/skills/." "$p/skills/" && chown -R root:root "$p/skills" && chmod -R u=rwX,go=rX "$p/skills"
   fi
   [ -f "$p/settings.json" ] || install -o root -g root -m 0644 /dev/null "$p/settings.json"
+  # F4.1: a sessão sobe só com este arquivo (--setting-sources local): os hooks do time (claude-settings.json) + o perfil do papel,
+  # juntos aqui, do root. Arrays (hooks de cada evento, allow/deny) somados sem repetição; objetos mesclados.
+  team=${FSD_TEAM_DIR:-}/claude-settings.json
+  if [ -n "${FSD_TEAM_DIR:-}" ] && [ -f "$team" ] && command -v jq >/dev/null; then
+    role=$p/settings.json; [ -s "$role" ] || role=/dev/null
+    jq -s 'def m($a; $b): if ($a|type) == "object" and ($b|type) == "object" then reduce (($a|keys) + ($b|keys) | unique)[] as $k ({}; .[$k] = m($a[$k]; $b[$k]))
+           elif ($a|type) == "array" and ($b|type) == "array" then ($a + $b | unique) elif $b == null then $a else $b end;
+           m(.[0]; (.[1] // {}))' "$team" "$role" > "$p/settings.json.tmp" && install -o root -g root -m 0644 "$p/settings.json.tmp" "$p/settings.json"; rm -f "$p/settings.json.tmp"
+  fi
 done
 # Tokens (F2.3): a pasta de cada papel é do fsd-broker, com o grupo do papel e setgid (o arquivo herda o grupo); 0750 + arquivo 0440
 # = só o broker escreve e só o papel lê. O token de merge e release fica numa pasta do grupo do supervisor. As chaves: só o broker.
@@ -47,7 +56,7 @@ if [ -d /etc/sudoers.d ]; then
   if command -v visudo >/dev/null && visudo -cf /etc/sudoers.d/fsd-run.tmp >/dev/null; then mv /etc/sudoers.d/fsd-run.tmp /etc/sudoers.d/fsd-run; else rm -f /etc/sudoers.d/fsd-run.tmp; echo "fsd-users: sudoers do fsd-run inválido" >&2; exit 1; fi
 fi
 # Supervisor (F2.6): o fsd-dispatch controla as sessões dos papéis só pelo fsd-session-exec, como cada papel.
-printf 'REPO=%q\nTEAM=%q\nCLAUDE=%q\n' "${FSD_REPO_DIR:-/srv/fsd/repo}" "${FSD_TEAM_DIR:-${FSD_REPO_DIR:-/srv/fsd/repo}/team}" "${FSD_CLAUDE_BIN:-/usr/local/bin/claude}" > /etc/fsd/session.env
+printf 'REPO=%q\nTEAM=%q\nCLAUDE=%q\nPREFLIGHT=%q\n' "${FSD_REPO_DIR:-/srv/fsd/repo}" "${FSD_TEAM_DIR:-${FSD_REPO_DIR:-/srv/fsd/repo}/team}" "${FSD_CLAUDE_BIN:-/usr/local/bin/claude}" "${FSD_NATIVE_PREFLIGHT:-1}" > /etc/fsd/session.env
 chown root:root /etc/fsd/session.env; chmod 0644 /etc/fsd/session.env
 src=$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/fsd-session-exec
 [ -f "$src" ] && install -o root -g root -m 0755 "$src" /usr/local/sbin/fsd-session-exec

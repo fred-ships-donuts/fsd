@@ -9,7 +9,7 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const BIN = dirname(fileURLToPath(import.meta.url)); const STUB = join(BIN, '..', 'setup', 'stub-claude');
-const world = () => ({ FSD_STATE: mkdtempSync(join(tmpdir(), 'ses-')), STUB_CLAUDE_DIR: mkdtempSync(join(tmpdir(), 'stub-')), FSD_REPO: mkdtempSync(join(tmpdir(), 'repo-')), FSD_CLAUDE: STUB, STUB_RUN_HOOKS: '1' });
+const world = () => ({ FSD_STATE: mkdtempSync(join(tmpdir(), 'ses-')), STUB_CLAUDE_DIR: mkdtempSync(join(tmpdir(), 'stub-')), FSD_REPO: mkdtempSync(join(tmpdir(), 'repo-')), FSD_CLAUDE: STUB, STUB_RUN_HOOKS: '1', FSD_SESSION_ALLOW_UNISOLATED: '1' });
 const ses = (w, args, extra = {}) => spawnSync(join(BIN, 'fsd-session'), args, { encoding: 'utf8', env: { ...process.env, FSD_AGENT: '', FSD_RUNNER: '', ...w, ...extra } });
 const stub = (w) => JSON.parse(readFileSync(join(w.STUB_CLAUDE_DIR, 'state.json'), 'utf8'));
 const status = (w) => JSON.parse(ses(w, ['status', '--json']).stdout);

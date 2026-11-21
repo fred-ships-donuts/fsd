@@ -37,7 +37,12 @@ export function wrapUpAllowed(tool, input = {}) {
   const parts = text.split(/&&|\|\||;|\||\n/).map((x) => x.replace(/<<.*$/, '').replace(/^\s*(\w+=\S*\s+)*/, '').trim()).filter(Boolean);
   return parts.length > 0 && parts.every((p) => /^cd\s+\S+$/.test(p) || WRAP_BASH.some((r) => r.test(p)));
 }
-export function wrapUpReason(used, above) { const k = (x) => `${Math.round(x / 1000)}k`; return `Contexto ${k(used)} > ${k(above)}. Pare: commit e push do que está pronto (WIP no branch, se for preciso) e rode fsd-restart AGORA. A sessão nova retoma do worktree.`; }
+// session = a sessão nova do time nativo (FSD_RUNNER=session): em vez do fsd-restart, o fim do dia (D12, T4.1.4).
+export function wrapUpReason(used, above, { session = process.env.FSD_RUNNER === 'session' } = {}) {
+  const k = (x) => `${Math.round(x / 1000)}k`;
+  return session ? `Contexto ${k(used)} > ${k(above)}. Feche o dia agora: passagem de bastão no ai-memory (memory_handoff_begin), commit e push de tudo o que está no disco, e termine o turno. A próxima tarefa abre uma sessão nova, que lê a passagem.`
+    : `Contexto ${k(used)} > ${k(above)}. Pare: commit e push do que está pronto (WIP no branch, se for preciso) e rode fsd-restart AGORA. A sessão nova retoma do worktree.`;
+}
 
 // Ação do vigia pelo contexto (#193). `ctx` do transcript. Devolve 'restart' ou null.
 //   Monitor armado acima de restartAbove (sem trabalho): reinicia já. Trabalhando acima de restartAbove + hardMarginTokens: reinicia

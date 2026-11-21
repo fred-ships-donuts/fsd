@@ -8,6 +8,7 @@
 //                                turno começa e acaba). STUB_WORKING=1: o turno não acaba (sem Stop).
 //   agents --json [--all]        as sessões background ligadas (com --all, também as paradas)
 //   stop <id>                    desliga (a conversa fica) · reboot (só do stub): desliga todas, como um docker restart
+//   auth status                  {loggedIn}; STUB_NOT_LOGGED_IN=1: false, e o --bg falha com "Not logged in"
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { randomUUID, randomBytes } from 'node:crypto';
@@ -25,6 +26,8 @@ const hooks = (s, prompt) => {
 };
 if (a[0] === '--help') { console.log('Usage: claude [options]\n  --bg, --background\n  --bare\n  --permission-prompts\n  --settings <file-or-json>\n  --json-schema <schema>\n  --setting-sources <sources>\n  --resume [value]\n  --session-id <uuid>\n  -n, --name <name>'); process.exit(0); }
 if (['agents', 'respawn', 'stop', 'daemon'].includes(a[0]) && a[1] === '--help') { console.log(`Usage: claude ${a[0]} [options]${a[0] === 'agents' ? '\n  --json  Print active sessions' : ''}`); process.exit(0); }
+if (a[0] === 'auth' && a[1] === 'status') { save(); console.log(JSON.stringify({ loggedIn: !process.env.STUB_NOT_LOGGED_IN, authMethod: process.env.STUB_NOT_LOGGED_IN ? 'none' : 'claude.ai' })); process.exit(process.env.STUB_NOT_LOGGED_IN ? 1 : 0); }
+if (a.includes('--bg') && process.env.STUB_NOT_LOGGED_IN) { save(); console.error('Not logged in · Please run /login'); process.exit(1); }   // a variante "Not logged in"
 if (a[0] === 'agents') {
   const list = st.sessions.filter((s) => a.includes('--all') || s.alive).map((s) => ({ id: s.id, cwd: s.cwd, kind: 'background', startedAt: s.startedAt, sessionId: s.sessionId, name: s.name, state: s.alive ? 'idle' : 'completed' }));
   save(); console.log(JSON.stringify(list, null, 2)); process.exit(0);

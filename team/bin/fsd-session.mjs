@@ -26,8 +26,11 @@ export function status({ agents = [], stored = {}, hookState = () => null }) {
   return out;
 }
 // Flags fixas da sessão do papel (estudo §4, peça 3). O modo e os settings do perfil entram na E4 (F4.1); aqui ficam configuráveis.
-export function baseArgs(role, { permissionMode = CFG.claude_common?.session?.permissionMode || 'auto', settings } = {}) {
-  return ['--bg', '--name', role, '--permission-mode', permissionMode, ...(settings ? ['--settings', settings] : [])];
+// Flags da sessão do papel (T4.1.2; iguais às do fsd-session-exec): bypass (D6), só os settings do perfil, do root (hooks do time + o
+// papel, com worktree.bgIsolation "none" e o bloco env), nenhuma outra fonte de settings.
+export const profileSettings = (role) => `/etc/fsd/profiles/${role}/settings.json`;
+export function baseArgs(role, { settings = profileSettings(role) } = {}) {
+  return ['--bg', '--name', role, '--permission-mode', 'bypassPermissions', '--setting-sources', 'local', '--settings', settings];
 }
 export function planStart(role, prompt, { stored = {}, opts } = {}) {
   const sid = stored[role]?.sessionId;

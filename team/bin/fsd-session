@@ -28,6 +28,10 @@ const agents = () => {
 };
 const die = (m, c) => { console.log(m); process.exit(c); };
 const [cmd, role, text] = process.argv.slice(2);
+// D6: bypass só no ambiente isolado. No container o supervisor usa o wrapper (FSD_SESSION_VIA=sudo); chamar o claude direto, como o
+// usuário atual, só nos testes (FSD_SESSION_ALLOW_UNISOLATED=1, com o stub-claude).
+if (!VIA && ['start', 'turn', 'boot'].includes(cmd) && !process.env.FSD_SESSION_ALLOW_UNISOLATED)
+  die('fsd-session: sem isolamento (FSD_SESSION_VIA=sudo no container): a sessão do papel roda em bypass e só sobe isolada (D6)', 1);
 const stored = S.loadStored();
 const st = () => S.status({ agents: agents(), stored, hookState: sessionState });
 function run(steps, r) {

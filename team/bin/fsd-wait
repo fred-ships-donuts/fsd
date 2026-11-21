@@ -66,7 +66,7 @@ const W = {
 const lastOffline = new Map();
 const offline = () => {
   const out = [];
-  for (const a of L.AGENTS.filter((x) => x !== 'kevin')) {
+  for (const a of L.AGENTS.filter((x) => x !== 'kevin' && L.CFG.agents[x]?.runner !== 'session')) {   // papel em session: o supervisor cuida (T4.1.5)
     const n = spawnSync('tmux', ['has-session', '-t', 'fsd-' + a]).status !== 0 ? L.inboxCount(a) : 0;
     if (n > (lastOffline.get(a) || 0)) out.push(`${a} offline, ${n} pending`);
     if (n > 0) lastOffline.set(a, n); else lastOffline.delete(a);
