@@ -1,0 +1,1002 @@
+{
+ "_comment": "F3.6: cada gatilho de triggers.json reproduzido no decide() (decide.state → decide.expect, conferido em dispatch-fixtures.test.mjs) ou com a divergência explicada (category: substituido | fim-do-dia | lease | permanece; where = a parte do plano que cuida dele).",
+ "replay": [
+  {
+   "trigger": "W.start",
+   "decide": {
+    "state": {
+     "sessions": {
+      "kevin": {
+       "state": "off"
+      },
+      "mel": {
+       "state": "off"
+      },
+      "stuart": {
+       "state": "off"
+      },
+      "bob": {
+       "state": "off"
+      }
+     },
+     "cards": [
+      {
+       "n": 5,
+       "column": "devReady"
+      }
+     ]
+    },
+    "expect": [
+     {
+      "type": "turn",
+      "to": "stuart",
+      "how": "wake",
+      "task": {
+       "kind": "entrega-codigo",
+       "n": 5
+      },
+      "ids": []
+     }
+    ]
+   },
+   "note": "O vigia subia toda sessão faltando; o decide() liga o papel só quando há trabalho para ele (sessão desligada é o estado normal, D1)."
+  },
+  {
+   "trigger": "W.overflow",
+   "divergence": {
+    "category": "fim-do-dia",
+    "where": "T3.4.2",
+    "reason": "Contexto estourado vira o fim do dia (D12): passagem, commit, push e sessão nova na próxima tarefa. Não há painel para ler."
+   }
+  },
+  {
+   "trigger": "W.dialog",
+   "divergence": {
+    "category": "substituido",
+    "where": "F4.1, #161",
+    "reason": "Sessão --bg não tem diálogo de interface; o perfil sai confiável (fsd-profile) e o --bg não mostra onboarding."
+   }
+  },
+  {
+   "trigger": "W.permission",
+   "divergence": {
+    "category": "substituido",
+    "where": "D6, T3.4.4",
+    "reason": "Em bypassPermissions não há caixa de permissão; comando negado pelo deny/guard vira aviso ao Kevin e registro (T3.4.4)."
+   }
+  },
+  {
+   "trigger": "W.usageLimit",
+   "decide": {
+    "state": {
+     "paused": true,
+     "sessions": {
+      "kevin": {
+       "state": "off"
+      },
+      "mel": {
+       "state": "off"
+      },
+      "stuart": {
+       "state": "off"
+      },
+      "bob": {
+       "state": "off"
+      }
+     },
+     "cards": [
+      {
+       "n": 5,
+       "column": "devReady"
+      }
+     ]
+    },
+    "expect": []
+   },
+   "note": "O limite de uso agora entra pelo StopFailure rate_limit (PAUSE reativo, F1.4); com PAUSE o decide() não abre turno."
+  },
+  {
+   "trigger": "W.alertOnce",
+   "divergence": {
+    "category": "permanece",
+    "where": "fsd-alert",
+    "reason": "A deduplicação do alerta ao autor continua no fsd-alert, chamado pelo supervisor."
+   }
+  },
+  {
+   "trigger": "W.contextCap",
+   "divergence": {
+    "category": "fim-do-dia",
+    "where": "T3.4.2",
+    "reason": "O teto de contexto continua no guard (fsd-context-guard); acima dele o agente fecha o dia em vez de ser reiniciado pelo vigia."
+   }
+  },
+  {
+   "trigger": "W.stuck",
+   "divergence": {
+    "category": "lease",
+    "where": "T3.2.2",
+    "reason": "Sessão travada vira lease vencido: o laço da F3.2 para a sessão e reabre a tarefa, sem ler o painel."
+   }
+  },
+  {
+   "trigger": "W.working",
+   "decide": {
+    "state": {
+     "sessions": {
+      "kevin": {
+       "state": "off"
+      },
+      "mel": {
+       "state": "off"
+      },
+      "stuart": {
+       "state": "working",
+       "id": "s"
+      },
+      "bob": {
+       "state": "off"
+      }
+     },
+     "cards": [
+      {
+       "n": 5,
+       "column": "devReady"
+      }
+     ],
+     "messages": [
+      {
+       "id": "m1",
+       "from": "mel",
+       "to": "stuart",
+       "text": "x"
+      }
+     ]
+    },
+    "expect": [
+     {
+      "type": "inbox",
+      "to": "stuart",
+      "ids": [
+       "m1"
+      ]
+     }
+    ]
+   },
+   "note": "Trabalhando: nada novo; mensagem vai para a caixa e chega na próxima ferramenta (F3.3)."
+  },
+  {
+   "trigger": "W.staleConfig",
+   "divergence": {
+    "category": "fim-do-dia",
+    "where": "F4.1",
+    "reason": "Mudança de config do papel força o fim do dia (estudo §4, peça 3); a próxima tarefa abre sessão nova com a config nova."
+   }
+  },
+  {
+   "trigger": "W.askAuthor",
+   "divergence": {
+    "category": "substituido",
+    "where": "T3.4.4, D8",
+    "reason": "Pedido ao autor vira encaminhamento: dúvida técnica para a Mel, de fluxo para o Kevin, decisão do autor para 'Deadlock: author decision needed'."
+   }
+  },
+  {
+   "trigger": "W.monitor",
+   "divergence": {
+    "category": "substituido",
+    "where": "D1, D6",
+    "reason": "Ninguém dorme num Monitor (negado); o supervisor acorda o papel com a tarefa."
+   }
+  },
+  {
+   "trigger": "W.idle",
+   "decide": {
+    "state": {
+     "sessions": {
+      "kevin": {
+       "state": "off"
+      },
+      "mel": {
+       "state": "off"
+      },
+      "stuart": {
+       "state": "idle",
+       "id": "s1"
+      },
+      "bob": {
+       "state": "off"
+      }
+     },
+     "cards": [
+      {
+       "n": 5,
+       "column": "devReady"
+      }
+     ]
+    },
+    "expect": [
+     {
+      "type": "turn",
+      "to": "stuart",
+      "how": "resume",
+      "task": {
+       "kind": "entrega-codigo",
+       "n": 5
+      },
+      "ids": [],
+      "id": "s1"
+     }
+    ]
+   },
+   "note": "Ocioso com trabalho: turno novo na mesma conversa com a tarefa, no lugar do empurrão 'você está parado'."
+  },
+  {
+   "trigger": "W.idleHeavy",
+   "divergence": {
+    "category": "fim-do-dia",
+    "where": "T3.4.2",
+    "reason": "Ocioso com contexto alto: fecha o dia; a próxima tarefa abre sessão nova."
+   }
+  },
+  {
+   "trigger": "W.justAnswered",
+   "decide": {
+    "state": {
+     "sessions": {
+      "kevin": {
+       "state": "off"
+      },
+      "mel": {
+       "state": "idle",
+       "id": "m"
+      },
+      "stuart": {
+       "state": "off"
+      },
+      "bob": {
+       "state": "off"
+      }
+     }
+    },
+    "expect": []
+   },
+   "note": "Ocioso sem trabalho e sem mensagem: nada (o desligamento por ociosidade é do supervisor nativo)."
+  },
+  {
+   "trigger": "W.pause",
+   "decide": {
+    "state": {
+     "paused": true,
+     "sessions": {
+      "kevin": {
+       "state": "off"
+      },
+      "mel": {
+       "state": "off"
+      },
+      "stuart": {
+       "state": "off"
+      },
+      "bob": {
+       "state": "off"
+      }
+     },
+     "cards": [
+      {
+       "n": 5,
+       "column": "devReady"
+      },
+      {
+       "n": 8,
+       "column": "mergeReady",
+       "pr": 80
+      }
+     ],
+     "messages": [
+      {
+       "id": "m1",
+       "from": "mel",
+       "to": "stuart",
+       "text": "x",
+       "urgent": true
+      }
+     ]
+    },
+    "expect": [
+     {
+      "type": "hold",
+      "to": "stuart",
+      "ids": [
+       "m1"
+      ],
+      "why": "PAUSE ou orçamento"
+     }
+    ]
+   },
+   "note": "PAUSE: nenhum turno novo e nenhum merge; a mensagem espera."
+  },
+  {
+   "trigger": "W.cooldown",
+   "decide": {
+    "state": {
+     "sessions": {
+      "kevin": {
+       "state": "off"
+      },
+      "mel": {
+       "state": "off"
+      },
+      "stuart": {
+       "state": "idle",
+       "id": "s",
+       "task": {
+        "key": "entrega-codigo:#5"
+       }
+      },
+      "bob": {
+       "state": "off"
+      }
+     },
+     "cards": [
+      {
+       "n": 5,
+       "column": "devReady"
+      }
+     ]
+    },
+    "expect": []
+   },
+   "note": "O cooldown do vigia vira idempotência: a mesma tarefa (mesma chave) não é reenviada."
+  },
+  {
+   "trigger": "L.usageStop",
+   "decide": {
+    "state": {
+     "budgetOk": false,
+     "sessions": {
+      "kevin": {
+       "state": "off"
+      },
+      "mel": {
+       "state": "off"
+      },
+      "stuart": {
+       "state": "off"
+      },
+      "bob": {
+       "state": "off"
+      }
+     },
+     "cards": [
+      {
+       "n": 5,
+       "column": "devReady"
+      },
+      {
+       "n": 8,
+       "column": "mergeReady",
+       "pr": 80
+      }
+     ]
+    },
+    "expect": [
+     {
+      "type": "merge",
+      "n": 80
+     }
+    ]
+   },
+   "note": "Uso no limite: o fsd-usage cria o PAUSE; com o orçamento estourado o decide() não abre turno, mas o merge (0 token) sai."
+  },
+  {
+   "trigger": "L.usageBack",
+   "decide": {
+    "state": {
+     "sessions": {
+      "kevin": {
+       "state": "off"
+      },
+      "mel": {
+       "state": "off"
+      },
+      "stuart": {
+       "state": "off"
+      },
+      "bob": {
+       "state": "off"
+      }
+     },
+     "cards": [
+      {
+       "n": 5,
+       "column": "devReady"
+      }
+     ]
+    },
+    "expect": [
+     {
+      "type": "turn",
+      "to": "stuart",
+      "how": "wake",
+      "task": {
+       "kind": "entrega-codigo",
+       "n": 5
+      },
+      "ids": []
+     }
+    ]
+   },
+   "note": "Janela resetou: o PAUSE sai (fsd-usage) e o decide() volta a abrir turnos."
+  },
+  {
+   "trigger": "L.usageReactive",
+   "decide": {
+    "state": {
+     "paused": true,
+     "sessions": {
+      "kevin": {
+       "state": "off"
+      },
+      "mel": {
+       "state": "off"
+      },
+      "stuart": {
+       "state": "off"
+      },
+      "bob": {
+       "state": "off"
+      }
+     },
+     "cards": [
+      {
+       "n": 6,
+       "column": "archReady"
+      }
+     ]
+    },
+    "expect": []
+   },
+   "note": "StopFailure rate_limit cria o PAUSE reativo; nada sai até ele cair."
+  },
+  {
+   "trigger": "L.cleanupDown",
+   "divergence": {
+    "category": "permanece",
+    "where": "F3.2",
+    "reason": "A limpeza continua um laço próprio; o laço do supervisor confere que ele está de pé, como o vigia fazia."
+   }
+  },
+  {
+   "trigger": "L.revive",
+   "divergence": {
+    "category": "permanece",
+    "where": "F3.2",
+    "reason": "O supervisor tem o mesmo pid file com identidade (fsd-pid.mjs) e é religado pelo supervisord/systemd."
+   }
+  },
+  {
+   "trigger": "L.progressStall",
+   "divergence": {
+    "category": "permanece",
+    "where": "fsd-progress",
+    "reason": "Os achados do fsd-progress continuam no laço, com aviso ao Kevin."
+   }
+  },
+  {
+   "trigger": "L.progressPause",
+   "divergence": {
+    "category": "permanece",
+    "where": "fsd-progress",
+    "reason": "O aviso de PAUSE ligado há muito tempo continua no fsd-progress, chamado pelo laço do supervisor."
+   }
+  },
+  {
+   "trigger": "L.progressNotice",
+   "divergence": {
+    "category": "permanece",
+    "where": "fsd-progress",
+    "reason": "Idem: aviso parado na caixa."
+   }
+  },
+  {
+   "trigger": "C.done",
+   "decide": {
+    "state": {
+     "sessions": {
+      "kevin": {
+       "state": "off"
+      },
+      "mel": {
+       "state": "off"
+      },
+      "stuart": {
+       "state": "off"
+      },
+      "bob": {
+       "state": "off"
+      }
+     },
+     "cards": [
+      {
+       "n": 6,
+       "column": "done"
+      }
+     ]
+    },
+    "expect": []
+   },
+   "note": "Card em Done: nenhuma tarefa e nenhum merge; o decide() não faz nada."
+  },
+  {
+   "trigger": "C.closed",
+   "decide": {
+    "state": {
+     "sessions": {
+      "kevin": {
+       "state": "off"
+      },
+      "mel": {
+       "state": "off"
+      },
+      "stuart": {
+       "state": "off"
+      },
+      "bob": {
+       "state": "off"
+      }
+     },
+     "cards": []
+    },
+    "expect": []
+   },
+   "note": "Fechado sem merge ou draft: o card fica onde está e não entra no decide()."
+  },
+  {
+   "trigger": "C.changes",
+   "decide": {
+    "state": {
+     "sessions": {
+      "kevin": {
+       "state": "off"
+      },
+      "mel": {
+       "state": "off"
+      },
+      "stuart": {
+       "state": "off"
+      },
+      "bob": {
+       "state": "off"
+      }
+     },
+     "cards": [
+      {
+       "n": 9,
+       "column": "changes"
+      }
+     ]
+    },
+    "expect": [
+     {
+      "type": "turn",
+      "to": "stuart",
+      "how": "wake",
+      "task": {
+       "kind": "correcao",
+       "n": 9
+      },
+      "ids": []
+     }
+    ]
+   },
+   "note": "Changes Requested: correção primeiro, para o Stuart."
+  },
+  {
+   "trigger": "C.pulled",
+   "decide": {
+    "state": {
+     "sessions": {
+      "kevin": {
+       "state": "off"
+      },
+      "mel": {
+       "state": "off"
+      },
+      "stuart": {
+       "state": "idle",
+       "id": "s"
+      },
+      "bob": {
+       "state": "off"
+      }
+     },
+     "cards": [
+      {
+       "n": 9,
+       "column": "dev"
+      },
+      {
+       "n": 5,
+       "column": "devReady"
+      }
+     ]
+    },
+    "expect": []
+   },
+   "note": "Developing: o Stuart está nele; não pega outro (um card por vez)."
+  },
+  {
+   "trigger": "C.conflict",
+   "decide": {
+    "state": {
+     "sessions": {
+      "kevin": {
+       "state": "off"
+      },
+      "mel": {
+       "state": "off"
+      },
+      "stuart": {
+       "state": "off"
+      },
+      "bob": {
+       "state": "off"
+      }
+     },
+     "cards": [
+      {
+       "n": 9,
+       "column": "changes"
+      }
+     ]
+    },
+    "expect": [
+     {
+      "type": "turn",
+      "to": "stuart",
+      "how": "wake",
+      "task": {
+       "kind": "correcao",
+       "n": 9
+      },
+      "ids": []
+     }
+    ]
+   },
+   "note": "Conflito cai em Changes Requested (cardColumn) e vira correção."
+  },
+  {
+   "trigger": "C.newPush",
+   "decide": {
+    "state": {
+     "sessions": {
+      "kevin": {
+       "state": "off"
+      },
+      "mel": {
+       "state": "off"
+      },
+      "stuart": {
+       "state": "off"
+      },
+      "bob": {
+       "state": "off"
+      }
+     },
+     "maxConcurrent": 2,
+     "cards": [
+      {
+       "n": 7,
+       "column": "review",
+       "head": "h2"
+      }
+     ]
+    },
+    "expect": [
+     {
+      "type": "turn",
+      "to": "mel",
+      "how": "wake",
+      "task": {
+       "kind": "revisao",
+       "n": 7
+      },
+      "ids": []
+     },
+     {
+      "type": "turn",
+      "to": "bob",
+      "how": "wake",
+      "task": {
+       "kind": "qa",
+       "n": 7
+      },
+      "ids": []
+     }
+    ]
+   },
+   "note": "Push novo: o head muda, a chave da tarefa muda e os dois revisam de novo."
+  },
+  {
+   "trigger": "C.reReview",
+   "decide": {
+    "state": {
+     "sessions": {
+      "kevin": {
+       "state": "off"
+      },
+      "mel": {
+       "state": "off"
+      },
+      "stuart": {
+       "state": "off"
+      },
+      "bob": {
+       "state": "off"
+      }
+     },
+     "cards": [
+      {
+       "n": 7,
+       "column": "review",
+       "head": "h2",
+       "reviewedBy": [
+        "mel"
+       ]
+      }
+     ]
+    },
+    "expect": [
+     {
+      "type": "turn",
+      "to": "bob",
+      "how": "wake",
+      "task": {
+       "kind": "qa",
+       "n": 7
+      },
+      "ids": []
+     }
+    ]
+   },
+   "note": "Pedido de nova revisão: In Review; quem já revisou este head não é chamado de novo."
+  },
+  {
+   "trigger": "C.mergeReady",
+   "decide": {
+    "state": {
+     "sessions": {
+      "kevin": {
+       "state": "off"
+      },
+      "mel": {
+       "state": "off"
+      },
+      "stuart": {
+       "state": "off"
+      },
+      "bob": {
+       "state": "off"
+      }
+     },
+     "cards": [
+      {
+       "n": 8,
+       "column": "mergeReady",
+       "pr": 80
+      }
+     ]
+    },
+    "expect": [
+     {
+      "type": "merge",
+      "n": 80
+     }
+    ]
+   },
+   "note": "Ready to Merge: o supervisor mescla (D2); antes era o Kevin."
+  },
+  {
+   "trigger": "C.ciNotGreen",
+   "decide": {
+    "state": {
+     "sessions": {
+      "kevin": {
+       "state": "off"
+      },
+      "mel": {
+       "state": "off"
+      },
+      "stuart": {
+       "state": "off"
+      },
+      "bob": {
+       "state": "off"
+      }
+     },
+     "cards": [
+      {
+       "n": 7,
+       "column": "review",
+       "head": "h1",
+       "reviewedBy": [
+        "mel",
+        "bob"
+       ]
+      }
+     ]
+    },
+    "expect": []
+   },
+   "note": "CI não verde: fica em In Review; com as duas revisões dadas, ninguém é chamado (espera o CI)."
+  },
+  {
+   "trigger": "C.thirdParty",
+   "decide": {
+    "state": {
+     "sessions": {
+      "kevin": {
+       "state": "off"
+      },
+      "mel": {
+       "state": "off"
+      },
+      "stuart": {
+       "state": "off"
+      },
+      "bob": {
+       "state": "off"
+      }
+     },
+     "cards": [
+      {
+       "n": 7,
+       "column": "review",
+       "head": "h1"
+      }
+     ]
+    },
+    "expect": [
+     {
+      "type": "turn",
+      "to": "mel",
+      "how": "wake",
+      "task": {
+       "kind": "revisao",
+       "n": 7
+      },
+      "ids": []
+     }
+    ]
+   },
+   "note": "Aprovação de terceiro não conta: o card segue em In Review e o time revisa."
+  },
+  {
+   "trigger": "N.queueOwner",
+   "decide": {
+    "state": {
+     "sessions": {
+      "kevin": {
+       "state": "off"
+      },
+      "mel": {
+       "state": "off"
+      },
+      "stuart": {
+       "state": "off"
+      },
+      "bob": {
+       "state": "off"
+      }
+     },
+     "maxConcurrent": 3,
+     "cards": [
+      {
+       "n": 6,
+       "column": "archReady"
+      },
+      {
+       "n": 5,
+       "column": "devReady"
+      },
+      {
+       "n": 7,
+       "column": "review",
+       "head": "h",
+       "reviewedBy": [
+        "mel"
+       ]
+      }
+     ]
+    },
+    "expect": [
+     {
+      "type": "turn",
+      "to": "bob",
+      "how": "wake",
+      "task": {
+       "kind": "qa",
+       "n": 7
+      },
+      "ids": []
+     },
+     {
+      "type": "turn",
+      "to": "stuart",
+      "how": "wake",
+      "task": {
+       "kind": "entrega-codigo",
+       "n": 5
+      },
+      "ids": []
+     },
+     {
+      "type": "turn",
+      "to": "mel",
+      "how": "wake",
+      "task": {
+       "kind": "arquitetura",
+       "n": 6
+      },
+      "ids": []
+     }
+    ]
+   },
+   "note": "O aviso ao dono da fila vira a própria tarefa, na ordem de prioridade."
+  },
+  {
+   "trigger": "N.noQueue",
+   "decide": {
+    "state": {
+     "sessions": {
+      "kevin": {
+       "state": "off"
+      },
+      "mel": {
+       "state": "off"
+      },
+      "stuart": {
+       "state": "off"
+      },
+      "bob": {
+       "state": "off"
+      }
+     },
+     "cards": [
+      {
+       "n": 1,
+       "column": "backlog"
+      },
+      {
+       "n": 2,
+       "column": "arch"
+      },
+      {
+       "n": 3,
+       "column": "dev"
+      }
+     ]
+    },
+    "expect": []
+   },
+   "note": "Coluna que não é fila: nenhuma tarefa."
+  },
+  {
+   "trigger": "N.redirectKevin",
+   "divergence": {
+    "category": "substituido",
+    "where": "T3.4.4",
+    "reason": "Vira o encaminhamento de dúvidas, por fsd-diga para o Kevin."
+   }
+  },
+  {
+   "trigger": "N.alertAuthor",
+   "divergence": {
+    "category": "permanece",
+    "where": "fsd-alert",
+    "reason": "O alerta ao autor continua pelo fsd-alert, só para o que for dele (D8)."
+   }
+  }
+ ]
+}
