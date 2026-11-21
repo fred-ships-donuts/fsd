@@ -12,7 +12,14 @@ const [n, mode] = process.argv.slice(2);
 const FIXTURE = process.env.FSD_MERGE_FIXTURE;
 if (FIXTURE && !L.DRY) L.die('fsd-merge: FSD_MERGE_FIXTURE só vale com FSD_DRY=1', 2);
 const getPr = (num) => (FIXTURE ? JSON.parse(readFileSync(FIXTURE, 'utf8')) : L.pr(num));
+// Registro (T3.5.1): cada tentativa de merge, mesclada ou recusada, com o motivo, em $FSD_STATE/merges.jsonl. --check não registra.
+import { appendFileSync, mkdirSync } from 'node:fs';
 function one(num, check) {
+  const r = oneRaw(num, check);
+  if (!check) { try { mkdirSync(L.stateDir(), { recursive: true }); appendFileSync(`${L.stateDir()}/merges.jsonl`, JSON.stringify({ t: new Date().toISOString(), n: Number(num), code: r[0], msg: r[1], by: process.env.FSD_AGENT || null }) + '\n'); } catch {} }
+  return r;
+}
+function oneRaw(num, check) {
   let p;
   for (let t = 0; t < 6; t++) { p = getPr(num); if (FIXTURE || p.state !== 'OPEN' || p.mergeable !== 'UNKNOWN') break; L.run('sleep', ['2']); }
   const g = L.mergeGate(p);

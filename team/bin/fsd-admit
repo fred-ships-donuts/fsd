@@ -1,0 +1,15 @@
+#!/usr/bin/env node
+// fsd-admit — aplica a decisão do autor nos issues com aguardando-autor (F3.5, T3.5.2): aceito → tira a label e põe no Backlog;
+// recusado → fecha (not planned). O supervisor roda a cada rodada; FSD_DRY=1 só mostra. Autor: FSD_AUTHOR ou agents.json → author.
+const L = await import('./fsd-lib.mjs');
+const { admission, HELD } = await import('./fsd-admit.mjs');
+const author = process.env.FSD_AUTHOR || L.CFG.author;
+if (!author) L.die('fsd-admit: sem autor (FSD_AUTHOR ou agents.json → author)', 2);
+const issues = process.env.FSD_ADMIT_FIXTURE ? JSON.parse((await import('node:fs')).readFileSync(process.env.FSD_ADMIT_FIXTURE, 'utf8'))
+  : L.ghJson(['issue', 'list', '--state', 'open', '--label', HELD, '--limit', '100', '--json', 'number,labels,comments']);
+const acts = admission(issues, { author }); const out = [];
+for (const a of acts) {
+  if (a.type === 'admit') { L.ghw(['issue', 'edit', String(a.n), '--remove-label', HELD]); out.push(`#${a.n} → ${L.board(L.STAGE.backlog, [a.n]) || 'Backlog'}`); }
+  else if (a.type === 'close') { L.ghw(['issue', 'close', String(a.n), '--reason', a.reason]); out.push(`#${a.n} fechado (decisão do autor)`); }
+}
+console.log(out.length ? out.join('\n') : 'fsd-admit: nada a fazer');
