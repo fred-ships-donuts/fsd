@@ -41,9 +41,17 @@ export function taskCard({ task, issue, notes = [] }) {
 }
 const dir = () => join(process.env.FSD_STATE || join(process.env.HOME || '', '.config', 'fsd-agents'), 'session-state');
 const file = (agent) => { if (!/^[a-z0-9_-]+$/.test(agent || '')) throw new Error(`agente inválido: ${agent}`); return join(dir(), `${agent}.card.md`); };
-export function saveCard(agent, text) { mkdirSync(dir(), { recursive: true }); const f = file(agent), tmp = `${f}.${process.pid}.tmp`; writeFileSync(tmp, text + '\n', { mode: 0o600 }); renameSync(tmp, f); }
+const put = (f, data) => { mkdirSync(dir(), { recursive: true }); const tmp = `${f}.${process.pid}.tmp`; writeFileSync(tmp, data, { mode: 0o600 }); renameSync(tmp, f); };
+// meta = { kind, n, acceptance } da tarefa: o hook Stop (T3.7.6) cobra a entrega dela. Sem meta, só o cartão (reinjeção).
+export function saveCard(agent, text, meta) {
+  put(file(agent), text + '\n');
+  if (meta) put(taskFile(agent), JSON.stringify({ kind: meta.kind, contract: CONTRACT_OF[meta.kind] || meta.kind, n: meta.n, acceptance: meta.acceptance ?? null, at: Date.now(), blocks: 0 }) + '\n');
+}
 export const loadCard = (agent) => { try { return readFileSync(file(agent), 'utf8').trim(); } catch { return ''; } };
-export const clearCard = (agent) => rmSync(file(agent), { force: true });
+const taskFile = (agent) => file(agent).replace(/\.card\.md$/, '.task.json');
+export const loadTask = (agent) => { try { return JSON.parse(readFileSync(taskFile(agent), 'utf8')); } catch { return null; } };
+export const saveTask = (agent, t) => put(taskFile(agent), JSON.stringify(t) + '\n');
+export const clearCard = (agent) => { rmSync(file(agent), { force: true }); rmSync(taskFile(agent), { force: true }); };
 // T3.4.1: a ação turn do decide() vira o texto do turno: o cartão (se houver tarefa) e as mensagens que vão junto.
 // issue = { number, title, body } do card da tarefa; messages = as do outbox cujos ids estão em action.ids.
 export function turnPrompt({ action, issue, messages = [], notes = [] }) {
