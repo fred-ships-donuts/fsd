@@ -1,13 +1,15 @@
 #!/usr/bin/env node
-// fsd-entrega <arquivo.json> [--aceite N] — valida uma entrega contra o contrato do tipo (team/contracts/<kind>.schema.json),
+// fsd-entrega <arquivo.json> [--aceite N] | fsd-entrega modelo <kind> — valida uma entrega contra o contrato do tipo (team/contracts/<kind>.schema.json),
 // com a Definition of Done e a rastreabilidade do aceite (N = itens do aceite do card), e grava a válida em
 // $FSD_STATE/entregas/<kind>/<card>-<hora>.json. O supervisor só avança o card com uma entrega gravada (F3.7, T3.7.2).
 // Inválida: não grava, lista os erros e diz como corrigir (exit 1). Uso errado: exit 2.
 import { readFileSync, writeFileSync, mkdirSync, renameSync } from 'node:fs';
 import { join } from 'node:path';
-import { checkDelivery } from './fsd-contract.mjs';
+import { checkDelivery, saveDelivery, DIR, KINDS } from './fsd-contract.mjs';
 
-const args = process.argv.slice(2); const file = args.find((a) => !a.startsWith('--') && args[args.indexOf(a) - 1] !== '--aceite');
+const args = process.argv.slice(2);
+// fsd-entrega modelo <kind>: o exemplo válido do contrato como ponto de partida (valida como está; troque os valores).
+if (args[0] === 'modelo') { if (!KINDS().includes(args[1])) { console.log(`uso: fsd-entrega modelo <${KINDS().join('|')}>`); process.exit(2); } process.stdout.write(readFileSync(join(DIR, 'examples', args[1], 'valid.json'), 'utf8')); process.exit(0); } const file = args.find((a) => !a.startsWith('--') && args[args.indexOf(a) - 1] !== '--aceite');
 const ai = args.indexOf('--aceite'); const acceptance = ai >= 0 ? Number(args[ai + 1]) : undefined;
 if (!file || (ai >= 0 && !(Number.isInteger(acceptance) && acceptance > 0))) { console.log('uso: fsd-entrega <arquivo.json> [--aceite N]'); process.exit(2); }
 let data; try { data = JSON.parse(readFileSync(file, 'utf8')); } catch (e) { console.log(`fsd-entrega: ${file} não é JSON válido (${String(e.message).split('\n')[0]})`); process.exit(1); }
@@ -18,8 +20,5 @@ if (errors.length) {
   console.log(`Corrija o arquivo e rode de novo: fsd-entrega ${file}${ai >= 0 ? ` --aceite ${acceptance}` : ''}`);
   process.exit(1);
 }
-const dir = join(process.env.FSD_STATE || join(process.env.HOME, '.config', 'fsd-agents'), 'entregas', kind);
-mkdirSync(dir, { recursive: true });
-const out = join(dir, `${data.card ?? data.ref?.slice(1) ?? 'x'}-${new Date().toISOString().replace(/[:.]/g, '-')}.json`), tmp = `${out}.${process.pid}.tmp`;
-writeFileSync(tmp, JSON.stringify(data, null, 1) + '\n', { mode: 0o600 }); renameSync(tmp, out);
+const out = saveDelivery(data);
 console.log(`entrega ${kind}${data.card ? ` #${data.card}` : ''} válida → ${out}`);

@@ -5,6 +5,8 @@
 // fsd-review post <n> approve|changes|comment <arquivo|->
 //                                    publica a revisão presa ao commit lido no start (recusa se o PR mudou), move o card e avisa
 import * as L from './fsd-lib.mjs';
+const C = await import('./fsd-contract.mjs'); const { loadTask } = await import('./fsd-task.mjs');
+const ENTREGA = (() => { const i = process.argv.indexOf('--entrega'); return i >= 0 ? process.argv[i + 1] : undefined; })();
 import { rmSync } from 'node:fs';
 import { refuseConflicting } from './fsd-conflict.mjs';
 const [cmd, n, ...rest] = process.argv.slice(2);
@@ -39,7 +41,14 @@ if (cmd === 'start') {
   if (L.ME === 'bob' && kind === 'approve' && L.closes(L.pr(n).body).length) L.die(`o Bob aprova PR que fecha issue só pelo fsd-qa, inclusive o de documentação: fsd-qa prep ${n}`, 1);
   const st = L.state(SF); if (!st) L.die(`rode fsd-review start ${n} antes de publicar`, 1);
   const cur = L.pr(n).headRefOid; if (st.sha !== cur) L.die(`#${n} tem commit novo (${cur.slice(0, 7)}): rode fsd-review start ${n} e revise de novo`, 1);
+  if (kind !== 'comment') {
+  // T3.7.3: na sessão nova a revisao sai com o JSON do contrato (--entrega), conferido com o que este comando entrega.
+  var delivery = null;
+  if (C.sessionRunner()) { const r = C.requireDelivery({ kind: 'revisao', file: ENTREGA, acceptance: loadTask(L.ME)?.acceptance ?? undefined, expect: { pr: Number(n), head: st.sha, verdict: kind === 'approve' ? 'approve' : 'changes' } });
+    if (!r.ok) L.die(`entrega inválida: nada foi publicado.\n${r.errors.map((e) => `- ${e}`).join('\n')}`, 1); delivery = r.data; }
+  }
   L.ghw(['api', '-X', 'POST', `repos/{owner}/{repo}/pulls/${n}/reviews`, '-f', `event=${ev}`, '-f', `commit_id=${st.sha}`, '-F', 'body=@-'], { input: body });
   if (kind === 'changes' && !L.DRY) rmSync(SF, { force: true });
+  if (typeof delivery !== 'undefined' && delivery) C.saveDelivery(delivery);
   console.log([`#${n} revisão ${kind} publicada (${st.sha.slice(0, 7)})`, kind === 'comment' ? '' : L.afterReview(n)].filter(Boolean).join(' | '));
 } else L.die('uso: fsd-review start|diff|read|post <n> …', 2);

@@ -28,7 +28,18 @@ recebe a lista de erros e o comando para rodar de novo. A validação não gasta
 - **Exemplos:** `examples/<kind>/` tem um `valid.json` e pelo menos dois `invalid-*.json`, no formato
   `{ "_why": "<trecho do erro esperado>", "data": {…} }`. O `bin/fsd-contract.test.mjs` confere todos.
 
-## Fora desta parte
+## Nos comandos do time (T3.7.3 e T3.7.6)
 
-- T3.7.3: o `fsd-review post`, o `fsd-qa verdict` e o `fsd-pr open` passam a gerar o JSON do contrato.
-- T3.7.6: o hook `Stop` ligado ao contrato.
+Na sessão nova (`FSD_RUNNER=session`), três comandos exigem `--entrega <arquivo.json>`:
+
+| Comando | Contrato | O que precisa bater com a entrega |
+|---|---|---|
+| `fsd-pr open` | `entrega-codigo` | card, branch e HEAD. O número do PR o comando preenche ao criar |
+| `fsd-review post <n> approve\|changes` | `revisao` | PR, head da revisão e veredito |
+| `fsd-qa finish` | `qa` | PR, head e veredito (pass/fail) |
+
+Sem a entrega, ou com ela inválida, nada é publicado. A entrega válida fica gravada como no `fsd-entrega`.
+`fsd-entrega modelo <kind>` imprime um exemplo que já valida, para usar como ponto de partida.
+
+O hook `Stop` só deixa terminar o turno de uma tarefa com a entrega válida dela, gravada depois do início da tarefa. Ele bloqueia
+no máximo 3 vezes; depois disso o turno termina e o Kevin é avisado.

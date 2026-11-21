@@ -13,6 +13,8 @@
 // fsd-qa bug "<título>" "<esperado>" [k]   issue de bug com o item k (padrão: o último rodado) e avisa o kevin
 // fsd-qa clean                        fecha o tmux (o terminal vive no socket -L fsd-qa-<agente>) e remove o worktree
 import * as L from './fsd-lib.mjs';
+const C = await import('./fsd-contract.mjs'); const { loadTask } = await import('./fsd-task.mjs');
+const ENTREGA = (() => { const i = process.argv.indexOf('--entrega'); return i >= 0 ? process.argv[i + 1] : undefined; })();
 import { rmSync, readdirSync } from 'node:fs';
 import { refuseConflicting } from './fsd-conflict.mjs';
 const Q = `/tmp/fsd-qa-${L.ME || 'x'}`, SF = `${Q}/state.json`, T = `fsd-qa-${L.ME || 'x'}`;
@@ -107,13 +109,19 @@ if (cmd === 'prep') {
     if (miss.length) L.die(`itens sem veredito: ${miss.join(',')} (fsd-qa run <k> "…" e fsd-qa verdict; item sem como rodar: fsd-qa verdict <k> FAIL "<motivo>")`, 1);
   }
   const p = L.pr(s.n); if (p.headRefOid !== s.sha) L.die(`o PR mudou (${p.headRefOid.slice(0, 7)} ≠ ${s.sha.slice(0, 7)}): rode fsd-qa prep ${s.n} de novo`, 1);
-  const fails = rows.filter((r) => r.verdict === 'FAIL'); const cell = (x) => String(x || '').replace(/\|/g, '\\|').replace(/\n/g, ' ').slice(0, 90);
+  const fails = rows.filter((r) => r.verdict === 'FAIL');
+  // T3.7.3: na sessão nova a qa sai com o JSON do contrato (--entrega), conferido com o que este comando entrega.
+  let delivery = null;
+  if (C.sessionRunner()) { const r = C.requireDelivery({ kind: 'qa', file: ENTREGA, acceptance: loadTask(L.ME)?.acceptance ?? undefined, expect: { pr: Number(s.n), head: s.sha, verdict: fails.length ? 'fail' : 'pass' } });
+    if (!r.ok) L.die(`entrega inválida: nada foi publicado.\n${r.errors.map((e) => `- ${e}`).join('\n')}`, 1); delivery = r.data; }
+ const cell = (x) => String(x || '').replace(/\|/g, '\\|').replace(/\n/g, ' ').slice(0, 90);
   let body = `Verified on commit ${s.sha.slice(0, 7)}, 80x24 terminal, temporary HOME.\n\n| # | Acceptance item | Command | Actual | Result |\n|---|---|---|---|---|\n`;
   body += rows.map((r, k) => `| ${k + 1} | ${cell(r.expected || s.items[k] || '')} | ${r.cmd ? '`' + cell(r.cmd) + '`' : '(not run)'} | exit ${r.exit ?? '-'}: ${cell(r.screen.split('\n').slice(-2).join(' '))} | ${r.verdict} |`).join('\n');
   const rep = rows.map((r, k) => (r.first ? `- Item ${k + 1}: the 1st attempt failed (exit ${r.first.exit ?? '-'}: ${cell(r.first.screen.split('\n').slice(-2).join(' '))}); repeated from scratch: **${r.verdict}**.${r.verdict === 'PASS' ? ' The result oscillated: a mistake in the 1st run, or an intermittent bug.' : ''}` : '')).filter(Boolean);
   if (rep.length) body += `\n\n## Repeated items\n${rep.join('\n')}`;
   if (fails.length) body += `\n\n## Steps to reproduce\n${rows.map((r, k) => (r.verdict === 'FAIL' ? `${k + 1}. \`${r.cmd}\`\n\n\`\`\`\n${r.screen.slice(-800)}\n\`\`\`` : '')).filter(Boolean).join('\n')}`;
   L.ghw(['api', '-X', 'POST', `repos/{owner}/{repo}/pulls/${s.n}/reviews`, '-f', `event=${fails.length ? 'REQUEST_CHANGES' : 'APPROVE'}`, '-f', `commit_id=${s.sha}`, '-F', 'body=@-'], { input: body });
+  if (delivery) C.saveDelivery(delivery);
   const after = L.DRY ? '' : L.afterReview(s.n); if (!L.DRY) { clean(s); rmSync(SF, { force: true }); }
   console.log([`#${s.n} ${fails.length ? `mudanças pedidas (itens ${rows.map((r, k) => (r.verdict === 'FAIL' ? k + 1 : 0)).filter(Boolean).join(',')})` : 'aprovado'}`, after].filter(Boolean).join(' | '));
 } else if (cmd === 'bug') {
