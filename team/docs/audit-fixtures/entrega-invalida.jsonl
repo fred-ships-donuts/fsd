@@ -1,0 +1,3 @@
+{"type": "user", "message": {"role": "user", "content": "[fsd-cartão] entrega-codigo · #12 fsd-merge confere o CI"}}
+{"type": "assistant", "message": {"role": "assistant", "content": [{"type": "tool_use", "id": "toolu_001", "name": "Bash", "input": {"command": "fsd-entrega /tmp/q.json --aceite 2"}}]}}
+{"type": "user", "message": {"role": "user", "content": [{"type": "tool_result", "tool_use_id": "toolu_001", "content": "entrega inválida (qa, 1 erro): nada foi gravado e o card não anda.\n- $.evidence: obrigatório"}]}}

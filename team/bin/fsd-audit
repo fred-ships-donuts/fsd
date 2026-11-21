@@ -1,0 +1,18 @@
+#!/usr/bin/env node
+// fsd-audit <transcrição.jsonl> --role <papel> [--card N] [--json] — audita uma sessão (F3.8, 0 token): comando proibido tentado,
+// entrega fora do contrato, card fora da vez, mensagem sem destino válido, texto de issue tratado como ordem, lista de tarefas.
+// Grava o relatório em $FSD_STATE/audit/<papel>-<sessão>.json (cada desvio com o caso de eval candidato) e imprime o resumo.
+// Saída: 0 sem desvio · 1 com desvio · 2 uso.
+import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+import { join, basename } from 'node:path';
+const { audit, report, summaryLine } = await import('./fsd-audit.mjs');
+const a = process.argv.slice(2); const opt = (k) => { const i = a.indexOf(k); return i >= 0 ? a[i + 1] : undefined; };
+const file = a.find((x, i) => !x.startsWith('--') && !['--role', '--card'].includes(a[i - 1])); const role = opt('--role'); const card = opt('--card');
+if (!file || !role || (card !== undefined && !/^\d+$/.test(card))) { console.log('uso: fsd-audit <transcrição.jsonl> --role <papel> [--card N] [--json]'); process.exit(2); }
+let lines; try { lines = readFileSync(file, 'utf8').split('\n').filter(Boolean); } catch (e) { console.log(`fsd-audit: ${e.message}`); process.exit(2); }
+const session = basename(file).replace(/\.jsonl$/, '');
+const r = report(audit(lines, { role, card: card === undefined ? undefined : Number(card) }), { role, session });
+const dir = join(process.env.FSD_STATE || join(process.env.HOME, '.config', 'fsd-agents'), 'audit'); mkdirSync(dir, { recursive: true });
+writeFileSync(join(dir, `${role}-${session}.json`), JSON.stringify(r, null, 1) + '\n', { mode: 0o600 });
+if (a.includes('--json')) console.log(JSON.stringify(r)); else { console.log(summaryLine(r)); for (const f of r.findings) console.log(`- turno ${f.turn} · ${f.rule}: ${f.detail}`); }
+process.exit(r.total ? 1 : 0);
