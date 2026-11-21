@@ -90,6 +90,9 @@ comando passam por cima do padrão.
 ├── bin/
 │   ├── fsd-agent           ⚙️     launcher: identidade, flags (modelo, esforço, ferramentas, MCP), tokens
 │   ├── fsd-token                  gera o token do GitHub App do agente: só o repositório do time e as permissões do papel (agents.json → tokens), sem workflows
+│   ├── fsd-diga                   mensagem para um colega (outbox; o supervisor entrega; remetente = dono do arquivo). Time nativo (F3.3)
+│   ├── fsd-session-hook           hooks da sessão nova (FSD_RUNNER=session): caixa no meio do turno, ocioso/trabalhando
+│   ├── fsd-entrega                valida e grava a entrega JSON contra team/contracts (F3.7)
 │   ├── fsd-secrets                pack/unpack dos segredos em secrets.tar.age (age, senha)
 │   ├── fsd-redirect-hook          hook PreToolUse (Bash): comando bloqueado → nega e nomeia o comando do time
 │   ├── fsd-cleanup                apaga worktree, branch local e remoto de PR mesclado há mais de cleanup.mergedMin (sem agente); --once, --loop, --dry
