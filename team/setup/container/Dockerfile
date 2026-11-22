@@ -158,8 +158,8 @@ if [ "${FSD_NATIVE:-0}" = 1 ] && [ -d "$FSD_REPO/.git" ]; then
      && git -C "$B.new" fetch -q --no-tags "$FSD_REPO" '+refs/remotes/origin/*:refs/remotes/origin/*' && rm -rf "$B" && mv "$B.new" "$B" \
      && git -C "$B" show "$ref:team/setup/container/fsd-native-setup" > /run/fsd-native-setup 2>/dev/null \
      && FSD_TEAM_SRC="$B" FSD_TEAM_REF="$ref" FSD_REPO_URL="$url" FSD_AIM_TOKENS_SRC="$AG/ai-memory-tokens" FSD_BROKER_KEYS_SRC="$AG/keys" bash /run/fsd-native-setup; then
-    touch /run/fsd-native
-  else echo "fsd: o time nativo não foi preparado (veja acima); o time no tmux segue"; fi
+    touch /run/fsd-native; echo "fsd: time nativo na ref $ref = $(git -C "$B" log -1 --format='%h de %ci' "$ref")"
+  else echo "fsd: FSD_NATIVE=1, mas o time nativo não foi preparado (veja acima: url do origin, clone, ref, FSD_TEAM_SHA); o time no tmux segue"; fi
 fi
 
 # 3. Comando dado ao container (ex.: docker run ... fsd bash)? Roda em vez do supervisord.
@@ -202,7 +202,8 @@ case "${1:-}" in
   broker|dispatch)
     # Time nativo (E6): o broker de tokens (fsd-broker) e o supervisor de sessões (fsd-dispatch, da cópia fixada). Sem FSD_NATIVE=1
     # (sem /run/fsd-native, que o entrypoint cria depois do fsd-native-setup), o programa fica parado e nada muda.
-    [ -e /run/fsd-native ] || exec sleep infinity
+    # Validação R49: time nativo pedido (FSD_NATIVE=1) e não preparado → erro (o supervisorctl mostra FATAL); não pedido → dorme.
+    if [ ! -e /run/fsd-native ]; then [ "${FSD_NATIVE:-0}" = 1 ] && { echo "fsd-svc: FSD_NATIVE=1, mas o time nativo não foi preparado (veja o log do entrypoint: docker logs fsd)"; exit 1; }; exec sleep infinity; fi
     T=/srv/fsd/team
     if [ "$1" = broker ]; then exec runuser -u fsd-broker -- env HOME=/home/fsd-broker node "$T/bin/fsd-broker" loop; fi
     out=$(runuser -u fsd-dispatch -- env HOME=/home/fsd-dispatch FSD_REPO=/srv/fsd/repo FSD_PIN_SHA="$(cat /srv/fsd/TEAM_SHA)" node "$T/bin/fsd-dispatch" pin) || exit 1
@@ -472,5 +473,7 @@ RUN cd /usr/local/bin && sed -i 's/\r$//' fsd-entrypoint fsd-svc fsd-links entra
 # (senão os arquivos criados ficam com dono root), e abre direto na pasta do projeto.
 LABEL devcontainer.metadata='[{"remoteUser":"fsd","workspaceFolder":"/media/fsd/Projects/projetos/fred-ships-donuts"}]'
 
-VOLUME ["/home/fsd", "/media/fsd/Projects"]
+# Validação R13: o time nativo também vive em volume (as homes dos papéis com login, confiança, transcripts e clones; o supervisor; a
+# cópia do time e o repositório; o estado). Use volumes nomeados no docker run (team/README.md, "Time nativo"), senão um docker rm perde tudo.
+VOLUME ["/home/fsd", "/media/fsd/Projects", "/home/fsd-kevin", "/home/fsd-mel", "/home/fsd-stuart", "/home/fsd-bob", "/home/fsd-dispatch", "/srv/fsd", "/var/lib/fsd-state"]
 ENTRYPOINT ["/usr/local/bin/fsd-entrypoint"]

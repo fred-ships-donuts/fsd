@@ -34,9 +34,13 @@ if (!VIA && ['start', 'turn', 'boot'].includes(cmd) && !process.env.FSD_SESSION_
 const stored = S.loadStored();
 const st = () => S.status({ agents: agents(), stored, hookState: sessionState });
 // O --bg imprime o id curto; o sessionId inteiro vem do `claude agents --json`. A conversa anterior fica em lastSessionId.
+// Validação R24: a conversa gravada sumiu (o claude diz "No conversation found with session ID"): devolve 'missing' para o chamador
+// abrir uma sessão nova, em vez de falhar para sempre a cada --resume.
+const MISSING = /No conversation found/i;
 function run(steps, r) {
   for (const s of steps) {
     const out = call(s.argv, r);
+    if (out.status !== 0 && s.argv.includes('--resume') && MISSING.test(`${out.stderr}\n${out.stdout}`)) return 'missing';
     if (out.status !== 0) die(`fsd-session: claude ${s.argv[0]} falhou (${(out.stderr || out.stdout || '').trim().split('\n')[0].slice(0, 160)})`, 4);
     if (s.sessionId !== '$OUT') continue;
     // Validação R25: o --bg volta antes do `agents` listar a sessão; lê de novo por até ~5 s. Sem ela, para a cópia que subiu (senão
@@ -54,12 +58,16 @@ else if ((cmd === 'start' || cmd === 'turn') && S.ROLES.includes(role) && text) 
   const { NEW_DAY_NOTE } = await import('./fsd-eod.mjs');
   const fresh = !stored[role]?.sessionId && stored[role]?.retiredAt;   // dia novo depois de um fim do dia: ler a passagem primeiro
   const p = S.planTurn(role, fresh ? `${NEW_DAY_NOTE}\n\n${text}` : text, { st: st()[role], stored }); if (p.refused) die(`fsd-session: ${p.refused}`, 1);
-  run(p.steps, role); console.log(`fsd-session: ${role} com turno novo na conversa ${stored[role].sessionId.slice(0, 8)}`);
+  if (run(p.steps, role) === 'missing') {
+    console.log(`fsd-session: a conversa ${String(stored[role]?.sessionId).slice(0, 8)} de ${role} sumiu; abrindo uma sessão nova`);
+    stored[role] = { ...(stored[role] || {}), lastSessionId: stored[role]?.sessionId || null }; delete stored[role].sessionId;
+    run(S.planStart(role, `${NEW_DAY_NOTE}\n\n${text}`, { stored }), role);
+  } console.log(`fsd-session: ${role} com turno novo na conversa ${stored[role].sessionId.slice(0, 8)}`);
 } else if (cmd === 'stop' && S.ROLES.includes(role)) { for (const s of S.planStop(role, { st: st()[role] })) call(s.argv, role); stored[role] = { ...(stored[role] || {}), active: false }; S.saveStored(stored); console.log(`fsd-session: ${role} parado`); }
 else if (cmd === 'retire' && S.ROLES.includes(role)) {   // fim do dia (T3.4.2): para e esquece a conversa; a próxima tarefa abre outra
   for (const s of S.planStop(role, { st: st()[role] })) call(s.argv, role);
   stored[role] = { active: false, retiredAt: new Date().toISOString(), lastSessionId: stored[role]?.sessionId || null }; S.saveStored(stored);
   console.log(`fsd-session: ${role} aposentado (fim do dia); a próxima tarefa abre uma sessão nova`);
 }
-else if (cmd === 'boot') { const b = S.planBoot({ stored, st: st() }); for (const x of b) run(x.steps, x.role); console.log(`fsd-session: boot religou ${b.map((x) => x.role).join(', ') || 'ninguém'}`); }
+else if (cmd === 'boot') { const b = S.planBoot({ stored, st: st() }); for (const x of b) if (run(x.steps, x.role) === 'missing') { stored[x.role] = { active: false, lastSessionId: stored[x.role]?.sessionId || null }; S.saveStored(stored); } console.log(`fsd-session: boot religou ${b.map((x) => x.role).join(', ') || 'ninguém'}`); }
 else die('uso: fsd-session status [--json] | start|turn <papel> "<texto>" | stop|retire <papel> | boot', 2);

@@ -71,7 +71,7 @@ if (a.includes('--bg')) {
   if (opt('--session-id')) console.error('warning: --bg manages the session id; ignoring --session-id (use --resume <id> to continue an existing session)');
   const flags = noPrompt.filter((x, i, l) => !['--bg', '--background', '--resume'].includes(x) && l[i - 1] !== '--resume');
   let s = resume ? st.sessions.find((x) => x.sessionId === resume) : null;
-  if (resume && !s) { save(); console.error(`no conversation ${resume}`); process.exit(1); }
+  if (resume && !s) { save(); console.error(`No conversation found with session ID: ${resume}`); process.exit(1); }   // a mensagem do 2.1.322
   const fresh = () => { const sessionId = randomUUID(); return { id: sessionId.slice(0, 8), sessionId, alive: true, context: [], startedAt: Date.now(), cwd: process.cwd(), ...env }; };
   if (s && (s.alive || flags.length)) {
     console.error(s.alive ? `note: session ${s.id} is already running in the background, so this started a copy.` : `note: background session ${s.id} keeps its own saved options, so the flags you passed started a copy.`);

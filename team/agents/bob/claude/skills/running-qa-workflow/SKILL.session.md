@@ -11,7 +11,7 @@ Every PR that closes an issue goes through this script, including one that only 
 
 1. `fsd-qa prep <N>` → shows the numbered acceptance items (1, 2, 3…) and opens the test terminal.
    - `JÁ VERIFICADO` → go to step 6. Do not look for another way to verify again. The only exception is `FSD_QA_REDO=<N> fsd-qa prep <N>`, and only when the author writes `FSD_QA_REDO` on the PR (team.md, "Impasse total").
-   - `BUILD FALHOU` → `fsd-qa finish` and go to step 6.
+   - `BUILD FALHOU` → `fsd-qa finish --entrega <file.json>` (the `qa` contract with verdict `fail`) and go to step 6.
    - Any other message → do what it says.
 2. For **each** item k: `fsd-qa run <k> "<command of item k>"` → shows the output and `EXIT=n`. To reach the state an item needs (installed, outdated, missing, a forced failure), use the skill `testing-cli`; to drive a screen, `driving-terminal-apps`.
    - Never write `echo $?`, even when the acceptance asks for it: `EXIT=n` already is the `$?` of the command. On an interactive screen it appears in the `fsd-qa key` that closes it. `fsd-qa` refuses a command with `$?`.

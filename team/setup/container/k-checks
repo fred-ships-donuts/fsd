@@ -11,6 +11,7 @@ check() { local id=$1 what=$2; shift 2; if "$@" >/dev/null; then ok "$id" "$what
 no_edit() { cannot "$1" "echo x >> $2/settings.json" && cannot "$1" "touch $2/novo"; }
 for u in "${ROLES[@]/#/fsd-}" fsd-run fsd-dispatch fsd-broker; do
   check K1 "$u existe e não é root" bash -c "id $u >/dev/null && [ \$(id -u $u) != 0 ]"
+  check K1 "R13: $u tem o uid fixo (2001-2007), o mesmo num container novo" bash -c "n=\$(id -u $u); [ \$n -ge 2001 ] && [ \$n -le 2007 ] && [ \$(id -g $u) = \$n ]"
   check K2 "home de $u é 0700 e do dono" bash -c "[ \$(stat -c %a /home/$u) = 700 ] && [ \$(stat -c %U /home/$u) = $u ]"
 done
 echo s > /home/fsd-stuart/segredo; chown fsd-stuart: /home/fsd-stuart/segredo; chmod 600 /home/fsd-stuart/segredo
@@ -249,6 +250,7 @@ if [ -x /usr/local/sbin/fsd-session-exec ] && [ -n "${FSD_SIM_TEAM:-}" ] && comm
   eout=$(su -s /bin/bash fsd-dispatch -c "cd ~ && FSD_STATE_ROOT=$SR FSD_EVAL_POLL_MS=200 FSD_EVAL_TIMEOUT_S=30 node $T/fsd-eval run /tmp/k18-sc.json --real" 2>&1)
   eval_real_ok() { grep -q '^PASS mel' <<<"$1" && ! compgen -G "$SR/mel/outbox/mel/*.json" >/dev/null; }
   check K18 "R31: o eval --real espera o Stop, lê a transcrição pelo wrapper e acha a mensagem da Mel (e não a deixa no outbox)" eval_real_ok "$eout"
+  check K18 "R30: a rodada chama o fsd-admit (marca de quando rodou)" bash -c "[ -s $KD/st/dispatch/admit.at ]"
   rm -f "$SR/PAUSE" "$SR/PAUSE.usage" "/tmp/stub-claude-$(id -u fsd-mel)/env.json" /tmp/k18-waits.json /tmp/k18-play.json /tmp/k18-sc.json
 fi
 # K19 (validação R14/R47): o cwd da sessão é uma pasta do root, só leitura para o papel, fora do checkout compartilhado; com .claude/ ou
