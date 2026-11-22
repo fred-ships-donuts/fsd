@@ -12,7 +12,7 @@ import { readFileSync, writeFileSync, existsSync, openSync, closeSync, rmSync, s
 import { spawn } from 'node:child_process';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { stateDir, pausePath, ghw } from './fsd-lib.mjs';
+import { stateDir, stateRoot, roleStateDir, pausePath, AGENTS, ghw } from './fsd-lib.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const URL_ = 'https://api.anthropic.com/api/oauth/usage';
@@ -94,6 +94,9 @@ function pauseFor(info, why) {
 // Freio reativo (hook StopFailure com matcher rate_limit): a conta já bateu no limite. Sem resets_at, a pausa sai depois de
 // usage.reactiveHoldMin minutos; se a conta ainda estiver no limite, a próxima sessão bate de novo e pausa outra vez.
 export function stopFailure(cfg = usageConfig()) {
+  // Validação R12: no time nativo a sessão do papel não grava a raiz; pede a pausa na própria pasta e o supervisor a aplica.
+  const role = process.env.FSD_AGENT;
+  if (stateRoot() && process.env.FSD_RUNNER === 'session' && AGENTS.includes(role)) { writeFileSync(join(roleStateDir(role), 'PAUSE.request'), `${new Date(now()).toISOString()}\n`); return true; }
   if (existsSync(P('PAUSE.usage'))) return false;
   pauseFor({ window: 'reactive', resets_at: null, pct: null }, 'The team account hit its usage limit (StopFailure rate_limit)');
   return true;

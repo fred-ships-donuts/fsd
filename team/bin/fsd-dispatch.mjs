@@ -54,6 +54,7 @@ export function decide(state) {
   //    fechar, não começar); depois de pedido (eod) e com a sessão ociosa de novo, o supervisor a aposenta (retire, 0 token).
   if (s.endOfDayAt) for (const r of Object.keys(s.sessions).sort()) {
     const se = s.sessions[r];
+    if (se.eodHold) continue;   // validação R27: o fechamento já foi pedido 3 vezes e o Kevin avisado; o papel segue trabalhando
     if (se.state === 'idle' && se.eod) { out.push({ type: 'retire', to: r, ...(se.id ? { id: se.id } : {}) }); turned.add(r); continue; }
     if (se.state === 'idle' && !se.eod && (se.ctx || 0) >= s.endOfDayAt) { out.push({ type: 'endofday', to: r, ...(se.id ? { id: se.id } : {}) }); turned.add(r); busy++; }
   }
@@ -79,7 +80,7 @@ export function decide(state) {
     if (turned.has(t.role) || se.state === 'working' || se.task?.key === t.key) continue;
     if (frozen || busy >= s.maxConcurrent) continue;
     const ids = pendingFor(t.role).map((m) => m.id);
-    out.push({ type: 'turn', to: t.role, how: se.state === 'idle' ? 'resume' : 'wake', ...(se.id ? { id: se.id } : {}), task: { key: t.key, kind: t.kind, n: t.card.n }, ids });
+    out.push({ type: 'turn', to: t.role, how: se.state === 'idle' ? 'resume' : 'wake', ...(se.id ? { id: se.id } : {}), task: { key: t.key, kind: t.kind, n: t.card.n, ...(t.card.head ? { head: t.card.head } : {}) }, ids });
     turned.add(t.role); busy++;
   }
 

@@ -30,6 +30,8 @@ export function liveAgents({ claude = process.env.FSD_CLAUDE || 'claude', cwd } 
   return via() ? ROLES.flatMap((r) => parse(sx(r, 'agents'))) : parse(spawnSync(claude, ['agents', '--json'], { encoding: 'utf8', ...(cwd ? { cwd } : {}) }));
 }
 
+export const stopSession = (role, id, { claude = process.env.FSD_CLAUDE || 'claude' } = {}) => (via() ? sx(role, 'stop', id) : spawnSync(claude, ['stop', id], { encoding: 'utf8' }));
+
 export function status({ agents = [], stored = {}, hookState = () => null }) {
   const out = {};
   for (const r of ROLES) {

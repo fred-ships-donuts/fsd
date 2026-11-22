@@ -20,6 +20,8 @@ export const loadJudged = () => read('judged.json', []);
 export const loadEod = () => read('eod.json', {});
 export const saveEod = (v) => write('eod.json', v);
 export const saveTasks = (v) => write('tasks.json', v);
+export const loadStalled = () => read('stalled.json', {});
+export const saveStalled = (v) => write('stalled.json', v);
 const journal = (e) => { mkdirSync(dispatchDir(), { recursive: true }); appendFileSync(join(dispatchDir(), 'journal.jsonl'), JSON.stringify(e) + '\n'); };
 export function readJournal() { try { return readFileSync(join(dispatchDir(), 'journal.jsonl'), 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l)); } catch { return []; } }
 const actionId = (a) => createHash('sha256').update(JSON.stringify(a)).digest('hex').slice(0, 12);
@@ -49,10 +51,15 @@ export async function round({ gather, exec, now = Date.now(), cfg = {} }) {
   for (const a of actions) {
     const id = actionId({ a, round: Math.floor(now / 1000) });
     journal({ t: now, id, phase: 'intent', action: a });
+    const prev = tasks[a.to];
     if (a.type === 'turn' && a.task) { tasks = { ...tasks, [a.to]: { key: a.task.key, kind: a.task.kind, n: a.task.n, at: now } }; write('tasks.json', tasks); }
     if (a.type === 'judge') write('judged.json', [...new Set([...loadJudged(), a.ref])]);
     try { const r = await exec(a, g); journal({ t: now, id, phase: 'done', action: a, result: r ?? null }); done.push(a); }
-    catch (e) { journal({ t: now, id, phase: 'failed', action: a, error: String(e.message || e).slice(0, 300) }); skipped.push(a); }
+    catch (e) {
+      journal({ t: now, id, phase: 'failed', action: a, error: String(e.message || e).slice(0, 300) }); skipped.push(a);
+      // Validação R23: o turno não abriu; a tarefa volta ao que era (senão ficava presa até o lease vencer).
+      if (a.type === 'turn' && a.task) { tasks = { ...tasks }; if (prev) tasks[a.to] = prev; else delete tasks[a.to]; write('tasks.json', tasks); }
+    }
   }
   return { actions, done, skipped };
 }

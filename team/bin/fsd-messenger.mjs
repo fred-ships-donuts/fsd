@@ -13,6 +13,7 @@ import { execFileSync } from 'node:child_process';
 import { AGENTS, CFG, stateDir, stateRoot, roleStateDir, shareMode, inboxAppend, inboxDrain, noticeLine } from './fsd-lib.mjs';
 import { checkDelivery } from './fsd-contract.mjs';
 import { loadCard, loadTask, saveTask } from './fsd-task.mjs';
+import { ctxOf } from './fsd-eod.mjs';
 
 // Outbox de um papel: <estado do papel>/outbox/<papel>. Validação R1: no time nativo, a pasta do papel, que só ele e o supervisor gravam.
 export const outboxDir = (role) => (role ? join(roleStateDir(role), 'outbox', role) : join(stateDir(), 'outbox'));
@@ -60,17 +61,21 @@ export function collect({ uidToRole = defaultUidToRole() } = {}) {
   return { messages, rejected };
 }
 export const messageText = (m) => `${m.urgent ? '[urgente] ' : ''}${m.ref ? `${m.ref}: ` : ''}${m.text}`;
-export function deliver(m) { inboxAppend(m.to, m.from, messageText(m)); try { unlinkSync(m.file); } catch {} }
+// consume: tira do outbox sem pôr na caixa (a mensagem foi junto no texto do turno, validação R23).
+export function consume(m) { try { unlinkSync(m.file); } catch {} }
+export function deliver(m) { inboxAppend(m.to, m.from, messageText(m)); consume(m); }
 
 const stateFile = (agent) => join(roleStateDir(agent), 'session-state', `${agent}.json`);
 export const sessionState = (agent) => { try { return JSON.parse(readFileSync(stateFile(agent), 'utf8')); } catch { return null; } };
 export function hook(event, input = {}, agent = process.env.FSD_AGENT) {
   if (!AGENTS.includes(agent)) return null;
-  const mark = (state) => { mkdirSync(join(roleStateDir(agent), 'session-state'), { recursive: true }); atomic(stateFile(agent), JSON.stringify({ state, at: new Date().toISOString(), session_id: input.session_id || null }) + '\n'); };
-  if (event === 'Stop') { const g = stopGate(agent); if (g) return g; mark('idle'); return null; }
+  // Validação R11: no fim do turno o hook grava também o contexto da conversa (o transcript é do papel; o supervisor lê o número aqui).
+  const mark = (state, ctx) => { mkdirSync(join(roleStateDir(agent), 'session-state'), { recursive: true }); atomic(stateFile(agent), JSON.stringify({ state, at: new Date().toISOString(), session_id: input.session_id || null, ...(ctx ? { ctx } : {}) }) + '\n'); };
+  const ctx = () => (input.transcript_path ? ctxOf(input.transcript_path) : 0);
+  if (event === 'Stop') { const g = stopGate(agent); if (g) return g; mark('idle', ctx()); return null; }
   // Validação R3: um turno que acaba por erro da API (StopFailure: rate limit, sobrecarga) ou uma sessão parada/morta (SessionEnd)
   // não pode deixar o estado em working para sempre, senão o papel nunca mais recebe turno.
-  if (event === 'StopFailure') { mark('idle'); return null; }
+  if (event === 'StopFailure') { mark('idle', ctx()); return null; }
   if (event === 'SessionEnd') { mark('off'); return null; }
   if (!['PostToolUse', 'UserPromptSubmit', 'SessionStart'].includes(event)) return null;
   if (event !== 'SessionStart') mark('working');
