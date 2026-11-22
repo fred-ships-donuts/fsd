@@ -129,6 +129,10 @@ if command -v jq >/dev/null && [ -f /etc/fsd/profiles/stuart/settings.json ]; th
   check K12 "o argv do hook não tem o token nem --auth-token" bash -c "[ -s /tmp/k12-argv ] && ! grep -qF \"\$(cat $D/auth-token)\" /tmp/k12-argv && ! grep -q -- --auth-token /tmp/k12-argv"
   rm -rf /home/fsd-stuart/.local/lib /tmp/k12-argv
 fi
+# K14 (F4.8): o modelo de cada papel vem do agents.json, no perfil do root.
+if command -v jq >/dev/null && [ -n "${FSD_SIM_TEAM:-}" ]; then
+  for r in "${ROLES[@]}"; do check K14 "o perfil do $r tem o modelo do agents.json" bash -c "[ \"\$(jq -r .model /etc/fsd/profiles/$r/settings.json)\" = \"\$(jq -r '.agents.$r.claude.model' $FSD_SIM_TEAM/agents.json)\" ]"; done
+fi
 # K13 (F0.2, T0.2.2): o aceite do bypass em --bg vem das managed settings do root, que nenhum papel edita.
 if command -v jq >/dev/null; then
   check K13 "managed settings do root com o aceite do bypass" bash -c "[ \"\$(stat -c '%U %a' /etc/claude-code/managed-settings.json)\" = 'root 644' ] && jq -e '.skipDangerousModePermissionPrompt == true' /etc/claude-code/managed-settings.json >/dev/null"

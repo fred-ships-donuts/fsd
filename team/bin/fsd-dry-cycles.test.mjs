@@ -132,3 +132,34 @@ test('F4.7 Stuart: a message from Mel during the work reaches him at the next to
   const again = spawnSync(join(BIN, 'fsd-session-hook'), { input: JSON.stringify({ hook_event_name: 'PostToolUse', session_id: 's', tool_name: 'Bash', tool_input: { command: 'ls' } }), encoding: 'utf8', env: { ...process.env, ...w.env, FSD_AGENT: 'stuart' } });
   assert.doesNotMatch(again.stdout, /mergeGate/);   // entregue uma vez só
 });
+
+// F4.8 Kevin: triagem pela entrega (tamanho, coluna, decisão registrada; recusa fecha; decisão do autor vira Deadlock), resposta a um
+// "parado:" e nenhum merge na sessão nova (o deny e o guard: fsd-native-guard.test.mjs).
+const triage = (over) => ({ ...example('triagem'), ...over });
+test('F4.8 Kevin: triage accepts, sizes and moves the card; an invalid delivery changes nothing', () => {
+  const w = world({ issues: { 12: { ...ISSUE, labels: [{ name: 'size:L' }] } } });
+  const bad = as(w, 'kevin', 'fsd-issue', ['triage', '12', '--entrega', file(w, 't0.json', triage({ card: 13 }))]);
+  assert.equal(bad.status, 1); assert.match(bad.stdout + bad.stderr, /\$\.card/); assert.equal(gh(w).issues['12'].comments.length, 0); assert.deepEqual(board(w), {});
+  assert.equal(as(w, 'mel', 'fsd-issue', ['triage', '12', '--entrega', file(w, 't1.json', triage())]).status, 1);   // só o kevin
+  const ok = as(w, 'kevin', 'fsd-issue', ['triage', '12', '--entrega', file(w, 't.json', triage())]); assert.equal(ok.status, 0, ok.stdout + ok.stderr);
+  const i = gh(w).issues['12'];
+  assert.deepEqual(i.labels.map((l) => l.name), ['size:S']); assert.match(i.comments[0].body, /^Decision \(PM, \d{4}-\d\d-\d\d\): Bug com reprodução/);
+  assert.equal(board(w)['12'], 'Ready for Development (Stuart)'); assert.match(inbox(w, 'stuart'), /#12/); assert.equal(entregas(w, 'triagem').length, 1);
+});
+
+test('F4.8 Kevin: declined and duplicate close the issue; an author decision becomes a deadlock with the decision label', () => {
+  for (const [decision, re] of [['recusar', /declined/], ['duplicado', /duplicate/]]) {
+    const w = world(); assert.equal(as(w, 'kevin', 'fsd-issue', ['triage', '12', '--entrega', file(w, 't.json', triage({ decision }))]).status, 0);
+    const i = gh(w).issues['12']; assert.equal(i.state, 'CLOSED'); assert.match(i.comments[0].body, re); assert.deepEqual(board(w), {});
+  }
+  const w = world(); assert.equal(as(w, 'kevin', 'fsd-issue', ['triage', '12', '--entrega', file(w, 't.json', triage({ decision: 'decisao-do-autor' }))]).status, 0);
+  const i = gh(w).issues['12']; assert.equal(i.state, 'OPEN'); assert.ok(i.labels.some((l) => l.name === 'decision')); assert.match(i.comments[0].body, /^Deadlock: author decision needed/);
+});
+
+test('F4.8 Kevin: a "parado:" from Stuart reaches Kevin, and the answer reaches Stuart', () => {
+  const w = world();
+  assert.equal(as(w, 'stuart', 'fsd-diga', ['kevin', 'parado: #220 entregue; fila: vazia']).status, 0);
+  assert.match(inbox(w, 'kevin'), /"from":\s*"stuart"[\s\S]*parado: #220 entregue|parado: #220 entregue[\s\S]*"from":\s*"stuart"/);
+  assert.equal(as(w, 'kevin', 'fsd-diga', ['stuart', 'pegue #13']).status, 0);
+  assert.match(inbox(w, 'stuart'), /pegue #13/);
+});

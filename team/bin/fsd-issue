@@ -3,6 +3,9 @@
 // fsd-issue new "<título>" --area <a> --size S|M|L [--milestone "<m>"] [--to "<coluna>"] [--force] <arquivo|->
 //     confere as seções (S: What e Acceptance; M e L: What, Why, Acceptance, References), recusa duplicado provável (--force se não for), cria e põe no quadro (padrão Backlog)
 // fsd-issue decide <n> "<texto>"         (só o kevin) registra "Decision (PM, AAAA-MM-DD): …" e tira a label decision
+// fsd-issue triage <n> --entrega <json>   (só o kevin; F4.8) aplica a triagem do contrato team/contracts/triagem.schema.json:
+//     aceitar → size:<S|M|L> (troca o anterior), card → coluna, "Decision (PM, …)"; recusar|duplicado → "Decision (PM, …)" e fecha;
+//     decisao-do-autor → label decision e "Deadlock: author decision needed". Entrega inválida: nada muda.
 // (não existe "ask": o time não pergunta ao autor)
 import * as L from './fsd-lib.mjs';
 const a = process.argv.slice(2); const cmd = a[0];
@@ -43,6 +46,27 @@ if (cmd === 'show') {
   if (L.ME !== 'kevin') L.die('só o kevin registra decisão', 1);
   const n = a[1]; const text = a[2]; if (!/^\d+$/.test(n || '') || !text) L.die('uso: fsd-issue decide <n> "<texto>"', 2);
   L.ghw(['issue', 'comment', n, '--body', `Decision (PM, ${L.today()}): ${text}`]);
-  L.write(L.BIN + '/gh', ['issue', 'edit', n, '--remove-label', 'decision'], { allowFail: true });
+  L.write(L.GH, ['issue', 'edit', n, '--remove-label', 'decision'], { allowFail: true });
   console.log(`#${n} decisão registrada`);
-} else L.die('uso: fsd-issue show|new|decide …', 2);
+} else if (cmd === 'triage') {
+  if (L.ME !== 'kevin') L.die('só o kevin faz a triagem', 1);
+  const n = a[1]; const ei = a.indexOf('--entrega'); if (!/^\d+$/.test(n || '')) L.die('uso: fsd-issue triage <n> --entrega <json>', 2);
+  const C = await import('./fsd-contract.mjs');
+  const r = C.requireDelivery({ kind: 'triagem', file: ei >= 0 ? a[ei + 1] : undefined, expect: { card: Number(n), role: 'kevin' } });
+  if (!r.ok) L.die(`entrega inválida: nada mudou.\n${r.errors.map((e) => `- ${e}`).join('\n')}`, 1);
+  const t = r.data; const i = L.issue(n); const out = [];
+  if (t.decision === 'aceitar') {
+    const old = (i.labels || []).map((l) => l.name).filter((x) => /^size:/.test(x) && x !== `size:${t.size}`);
+    L.ghw(['issue', 'edit', n, '--add-label', `size:${t.size}`, ...old.flatMap((x) => ['--remove-label', x])]);
+    L.ghw(['issue', 'comment', n, '--body', `Decision (PM, ${L.today()}): ${t.reason}`]);
+    out.push(`size:${t.size}`, L.board(L.STAGE[t.column], [Number(n)], { quiet: false }));
+  } else if (t.decision === 'decisao-do-autor') {
+    L.ghw(['issue', 'edit', n, '--add-label', 'decision']);
+    L.ghw(['issue', 'comment', n, '--body', `Deadlock: author decision needed\n\n${t.reason}`]); out.push('aguardando a decisão do autor (label decision)');
+  } else {
+    L.ghw(['issue', 'comment', n, '--body', `Decision (PM, ${L.today()}): ${t.decision === 'duplicado' ? 'duplicate. ' : 'declined. '}${t.reason}`]);
+    L.ghw(['issue', 'close', n]); out.push(t.decision === 'duplicado' ? 'fechado como duplicado' : 'recusado e fechado');
+  }
+  C.saveDelivery(t);
+  console.log([`#${n} triado: ${t.decision}`, ...out].filter(Boolean).join(' | '));
+} else L.die('uso: fsd-issue show|new|decide|triage …', 2);

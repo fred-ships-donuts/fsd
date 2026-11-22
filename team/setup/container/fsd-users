@@ -45,11 +45,15 @@ for r in "${ROLES[@]}"; do
   team=${FSD_TEAM_DIR:-}/claude-settings.json
   if [ -n "${FSD_TEAM_DIR:-}" ] && [ -f "$team" ] && command -v jq >/dev/null; then
     role=$p/settings.json; [ -s "$role" ] || role=/dev/null
+    # Modelo do papel (F4.8; a medição D5 troca aqui): agents.json → agents.<papel>.claude.model, no perfil do root (o --resume com as
+    # flags fixas não leva --model; o settings sim).
+    model=$(jq -r --arg r "$r" '.agents[$r].claude.model // ""' "${FSD_TEAM_DIR}/agents.json" 2>/dev/null || true)
     sess=$p/settings.session.json; [ -s "$sess" ] || sess=/dev/null   # F4.2: o deny e o guard só da sessão nova
     jq -s 'def m($a; $b): if ($a|type) == "object" and ($b|type) == "object" then reduce (($a|keys) + ($b|keys) | unique)[] as $k ({}; .[$k] = m($a[$k]; $b[$k]))
            elif ($a|type) == "array" and ($b|type) == "array" then ($a + $b | unique) elif $b == null then $a else $b end;
            m(m(.[0]; (.[1] // {})); (.[2] // {}))
-           | .hooks |= walk(if type == "string" then gsub(" --auth-token \"\\$AI_MEMORY_AUTH_TOKEN\""; "") else . end)' "$team" "$role" "$sess" > "$p/settings.json.tmp" && install -o root -g root -m 0644 "$p/settings.json.tmp" "$p/settings.json"; rm -f "$p/settings.json.tmp"
+           | .hooks |= walk(if type == "string" then gsub(" --auth-token \"\\$AI_MEMORY_AUTH_TOKEN\""; "") else . end)
+           | if $model != "" then .model = $model else . end' --arg model "$model" "$team" "$role" "$sess" > "$p/settings.json.tmp" && install -o root -g root -m 0644 "$p/settings.json.tmp" "$p/settings.json"; rm -f "$p/settings.json.tmp"
   fi
 done
 # ai-memory (T2.5.2): o token do papel nunca vai no argv (todos os uids leem o argv; fase0.md). O hook sem --auth-token lê
