@@ -4,6 +4,7 @@
 // hora, antes da próxima ferramenta. Passou → nada. Só com FSD_RUNNER=session.
 //   plan(filePath, { exists }) → { root, steps: [{ name, cmd, args }] } | null    (puro; o executor roda)
 //   verify(input, { run, exists }) → '' | JSON
+import { realpathSync } from 'node:fs';
 import { existsSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { dirname, join, basename, extname, relative } from 'node:path';
@@ -43,7 +44,7 @@ export function verify(input, { run = defaultRun, exists = existsSync } = {}) {
   return JSON.stringify({ decision: 'block', reason: `Verificação depois da edição de ${relative(p.root, input.tool_input.file_path)} falhou (corrija antes de seguir):\n\n${bad.join('\n\n')}` });
 }
 import { fileURLToPath } from 'node:url';
-if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
+if (process.argv[1] && realpathSync(process.argv[1]) === fileURLToPath(import.meta.url)) {
   if (process.env.FSD_RUNNER !== 'session') process.exit(0);
   let raw = ''; process.stdin.on('data', (d) => { raw += d; }).on('end', () => {
     let input = null; try { input = JSON.parse(raw); } catch { process.exit(0); }

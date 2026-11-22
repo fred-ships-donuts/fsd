@@ -138,6 +138,19 @@ chown 1000:1000 "$H/.local/share/tailscale"
 if [ -c /dev/net/tun ] && [ "${TS_USERSPACE:-0}" != 1 ]; then echo tun > /run/fsd-net-mode
 else echo userspace > /run/fsd-net-mode; echo "fsd: sem /dev/net/tun, Tailscale em userspace (SOCKS5 127.0.0.1:1055)"; fi
 
+# 2b. Time nativo (preparação da E6), só com FSD_NATIVE=1: o root extrai o fsd-native-setup da ref fixada (FSD_TEAM_REF, padrão
+#     origin/develop) do clone e o roda; nunca executa o checkout do humano. Ele cria os usuários, a cópia do team/ do root, o
+#     repositório dos papéis, os perfis, os tokens do ai-memory e as chaves do broker (do cofre). Falhou: o time no tmux segue.
+rm -f /run/fsd-native
+if [ "${FSD_NATIVE:-0}" = 1 ] && [ -d "$FSD_REPO/.git" ]; then
+  ref="${FSD_TEAM_REF:-origin/develop}"; AG="$H/.config/fsd-agents"
+  git config --system --get-all safe.directory 2>/dev/null | grep -qxF "$FSD_REPO" || git config --system --add safe.directory "$FSD_REPO"
+  if git -C "$FSD_REPO" show "$ref:team/setup/container/fsd-native-setup" > /run/fsd-native-setup 2>/dev/null \
+     && FSD_TEAM_SRC="$FSD_REPO" FSD_TEAM_REF="$ref" FSD_AIM_TOKENS_SRC="$AG/ai-memory-tokens" FSD_BROKER_KEYS_SRC="$AG/keys" bash /run/fsd-native-setup; then
+    touch /run/fsd-native
+  else echo "fsd: o time nativo não foi preparado (veja acima); o time no tmux segue"; fi
+fi
+
 # 3. Comando dado ao container (ex.: docker run ... fsd bash)? Roda em vez do supervisord.
 [ $# -gt 0 ] && exec "$@"
 exec /usr/bin/supervisord -n -c /etc/supervisor/supervisord.conf
@@ -146,7 +159,7 @@ EOF
 # ── fsd-svc: os 3 serviços, chamados pelo supervisord ──────────────────────────────────────────────────
 COPY <<'EOF' /usr/local/bin/fsd-svc
 #!/usr/bin/env bash
-# fsd-svc tailscaled|syncthing|tunnel|watch|cleanup — serviços do container fsd, chamados pelo supervisord.
+# fsd-svc tailscaled|syncthing|tunnel|watch|cleanup|broker|dispatch — serviços do container fsd, chamados pelo supervisord.
 set -uo pipefail
 H=/home/fsd; MODE="$(cat /run/fsd-net-mode 2>/dev/null || echo tun)"
 STATE=(--state="$H/.local/share/tailscale/tailscaled.state" --socket=/run/tailscale/tailscaled.sock)
@@ -175,7 +188,16 @@ case "${1:-}" in
     # PAUSE nunca é apagado aqui: o próprio fsd-watch respeita.
     B="$H/.local/bin/fsd-$1"; A=(--loop); [ "$1" = watch ] && A+=(--fix)
     while true; do "$B" "${A[@]}"; sleep 5; done ;;
-  *) echo "uso: fsd-svc tailscaled|syncthing|tunnel|watch|cleanup"; exit 2 ;;
+  broker|dispatch)
+    # Time nativo (E6): o broker de tokens (fsd-broker) e o supervisor de sessões (fsd-dispatch, da cópia fixada). Sem FSD_NATIVE=1
+    # (sem /run/fsd-native, que o entrypoint cria depois do fsd-native-setup), o programa fica parado e nada muda.
+    [ -e /run/fsd-native ] || exec sleep infinity
+    T=/srv/fsd/team
+    if [ "$1" = broker ]; then exec runuser -u fsd-broker -- env HOME=/home/fsd-broker node "$T/bin/fsd-broker" loop; fi
+    out=$(runuser -u fsd-dispatch -- env HOME=/home/fsd-dispatch FSD_REPO=/srv/fsd/repo FSD_PIN_SHA="$(cat /srv/fsd/TEAM_SHA)" node "$T/bin/fsd-dispatch" pin) || exit 1
+    pinned=$(sed -n 's/^rode: \(.*\) loop$/\1/p' <<<"$out")
+    exec runuser -u fsd-dispatch -- env HOME=/home/fsd-dispatch FSD_REPO=/srv/fsd/repo FSD_RUNNER=session FSD_SESSION_VIA=sudo node "$pinned" loop ;;
+  *) echo "uso: fsd-svc tailscaled|syncthing|tunnel|watch|cleanup|broker|dispatch"; exit 2 ;;
 esac
 EOF
 
@@ -410,6 +432,22 @@ environment=HOME="/home/fsd",USER="fsd"
 priority=50
 autorestart=true
 stdout_logfile=/var/log/fsd/cleanup.log
+redirect_stderr=true
+
+; Time nativo (E6): só age com FSD_NATIVE=1 (senão o programa dorme). Root aqui; o fsd-svc troca para fsd-broker / fsd-dispatch.
+[program:fsd-broker]
+command=/usr/local/bin/fsd-svc broker
+priority=60
+autorestart=true
+stdout_logfile=/var/log/fsd/broker.log
+redirect_stderr=true
+
+[program:fsd-dispatch]
+command=/usr/local/bin/fsd-svc dispatch
+priority=70
+autorestart=true
+startretries=10
+stdout_logfile=/var/log/fsd/dispatch.log
 redirect_stderr=true
 EOF
 

@@ -4,7 +4,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createServer } from 'node:net';
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, writeFileSync, readFileSync, mkdirSync, chmodSync, cpSync } from 'node:fs';
+import { mkdtempSync, writeFileSync, readFileSync, mkdirSync, chmodSync, cpSync, symlinkSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -98,4 +98,11 @@ test('T0.2.3: a hook whose script is missing fails open in claude, so the prefli
   writeFileSync(f, JSON.stringify({ hooks: { PreToolUse: [{ hooks: [{ command: '$FSD_TEAM/bin/fsd-native-guard' }, { command: 'node x.mjs' }] }] } }));
   assert.deepEqual(hookScriptsMissing([f], { home: d, team: d }), [`${d}/bin/fsd-native-guard`]);
   assert.match((await check({ settingsFiles: [f], claude: STUB, home: d, team: d, probe: async () => true })).join(), /script do hook ausente \(.*fsd-native-guard\)/);
+});
+
+test('E6: run through a symlinked team dir (/srv/fsd/team → team-<sha>), the preflight still runs and refuses', () => {
+  const d = mkdtempSync(join(tmpdir(), 'pfl-')); const link = join(d, 'team'); symlinkSync(join(dirname(TEAM_SETTINGS)), link);
+  const f = join(d, 'empty.json'); writeFileSync(f, '{}');
+  const r = spawnSync(process.execPath, [join(link, 'bin', 'fsd-session-preflight.mjs'), f], { encoding: 'utf8', env: { ...process.env, FSD_PREFLIGHT_CLAUDE: STUB } });
+  assert.equal(r.status, 1, r.stdout + r.stderr); assert.match(r.stdout, /a sessão não sobe/);
 });
