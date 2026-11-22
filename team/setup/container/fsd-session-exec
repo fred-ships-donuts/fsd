@@ -19,6 +19,7 @@ case "$role" in kevin|mel|stuart|bob) ;; *) echo "fsd-session-exec: só como usu
 REPO=/srv/fsd/repo; TEAM=/srv/fsd/repo/team; CLAUDE=/usr/local/bin/claude; PREFLIGHT=1; STATE_ROOT=/var/lib/fsd-state; CWD_ROOT=/srv/fsd/cwd
 # shellcheck disable=SC1091
 [ -r /etc/fsd/session.env ] && [ "$(stat -c %U /etc/fsd/session.env)" = root ] && . /etc/fsd/session.env
+role_repo() { if [ -d "$HOME/repo/.git" ]; then echo "$HOME/repo"; else echo "$REPO"; fi; }
 UUID='^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
 # Validação R39: o prompt (cartão, mensagens) entra pelo stdin do claude --bg (provado no 2.1.322), não pelo argv, que todo uid lê em
 # /proc/<pid>/cmdline.
@@ -40,7 +41,8 @@ run_bg() {   # run_bg <arquivo> [--resume <uuid>]
   node "$TEAM/bin/fsd-profile.mjs" "$HOME/.claude.json" "$cwd" >/dev/null || { echo "fsd-session-exec: não consegui gravar a confiança de $cwd" >&2; exit 3; }
   # Validação R6/R7: o PATH do time (fsd-*, o wrapper gh, rtk), o repositório (o fsd-lib não acha pelo link da cópia fixada) e o git do
   # root; sem prompt de git nem editor. R1: o estado na pasta do papel ($STATE_ROOT/<papel>), que o supervisor também lê e grava.
-  cd "$cwd" && exec env FSD_AGENT="$role" FSD_RUNNER=session FSD_TEAM="$TEAM" FSD_REPO="$REPO" FSD_STATE="$STATE_ROOT/$role" FSD_STATE_ROOT="$STATE_ROOT" \
+  # Validação R18: o repositório da sessão é o clone do papel na home dele (o compartilhado é só leitura).
+  cd "$cwd" && exec env FSD_AGENT="$role" FSD_RUNNER=session FSD_TEAM="$TEAM" FSD_REPO="$(role_repo)" FSD_STATE="$STATE_ROOT/$role" FSD_STATE_ROOT="$STATE_ROOT" \
     PATH="$TEAM/bin:/usr/local/bin:/usr/bin:/bin" GIT_CONFIG_GLOBAL="/etc/fsd/profiles/$role/gitconfig" GIT_TERMINAL_PROMPT=0 GIT_EDITOR=true \
     "$CLAUDE" --bg --name "$role" --permission-mode bypassPermissions \
     --setting-sources local --settings "/etc/fsd/profiles/$role/settings.json" \
@@ -52,11 +54,12 @@ case "${1:-}" in
   start) [ $# -eq 2 ] || { echo "fsd-session-exec: start <arquivo-prompt>" >&2; exit 2; }; run_bg "$2" ;;
   resume) [[ ${2:-} =~ $UUID ]] || { echo "fsd-session-exec: uuid inválido" >&2; exit 2; }; run_bg "${3:-}" --resume "$2" ;;
   state) cat "$STATE_ROOT/$role/session-state/$role.json" 2>/dev/null || echo '{}' ;;
-  unsaved) exec node -e 'import(process.argv[1]).then((m) => console.log(JSON.stringify(m.unsaved(process.argv[2], { repo: process.argv[3] }))))' "$TEAM/bin/fsd-eod.mjs" "$role" "$REPO" ;;
+  unsaved) exec node -e 'import(process.argv[1]).then((m) => console.log(JSON.stringify(m.unsaved(process.argv[2], { repo: process.argv[3] }))))' "$TEAM/bin/fsd-eod.mjs" "$role" "$(role_repo)" ;;
   # Validação R28: o juiz roda como o Kevin (o token pelo uid dele, o login do claude na home dele), com o ambiente da sessão.
   judge) [ "$role" = kevin ] || { echo "fsd-session-exec: o juiz só roda como fsd-kevin" >&2; exit 2; }
     [[ ${2:-} =~ ^[0-9]{1,7}$ ]] && [ -f "${3:-}" ] && [ -r "$3" ] || { echo "fsd-session-exec: judge <n> <arquivo-esperas>" >&2; exit 2; }
-    cd "$REPO" && exec env FSD_AGENT=kevin FSD_RUNNER=session FSD_TEAM="$TEAM" FSD_REPO="$REPO" FSD_STATE="$STATE_ROOT/kevin" FSD_STATE_ROOT="$STATE_ROOT" \
+    # O juiz no cwd do root (R14): nada do clone do Kevin (CLAUDE.local.md, .claude/) entra na sessão dele.
+    cd "$CWD_ROOT/kevin" && exec env FSD_JUDGE_CWD="$CWD_ROOT/kevin" FSD_AGENT=kevin FSD_RUNNER=session FSD_TEAM="$TEAM" FSD_REPO="$(role_repo)" FSD_STATE="$STATE_ROOT/kevin" FSD_STATE_ROOT="$STATE_ROOT" \
       FSD_JUDGE_WAITS_FILE="$3" PATH="$TEAM/bin:/usr/local/bin:/usr/bin:/bin" GIT_CONFIG_GLOBAL="/etc/fsd/profiles/kevin/gitconfig" GIT_TERMINAL_PROMPT=0 \
       node "$TEAM/bin/fsd-judge" "$2" ;;
   # Validação R31: a transcrição fica na home do papel (0700); o eval real a lê por aqui.
