@@ -2,7 +2,7 @@
 // de cada um; sem a raiz, nada muda. Um uid só aqui: a separação por uid e a ACL são provadas no simulate-container (K18).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, writeFileSync, mkdirSync, existsSync, readFileSync, statSync } from 'node:fs';
+import { mkdtempSync, writeFileSync, mkdirSync, existsSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -32,7 +32,6 @@ test('a message goes from the sender folder to the destination folder; a box the
   const { root } = world();
   const r = M.say({ to: 'mel', text: 'oi' }, { from: 'stuart' }); assert.equal(r.ok, true);
   assert.equal(r.file.startsWith(join(root, 'stuart', 'outbox', 'stuart') + '/'), true);
-  assert.equal(statSync(r.file).mode & 0o777, 0o660);
   // O Stuart cria um outbox/kevin na própria pasta, como se fosse o Kevin: o supervisor não lê.
   mkdirSync(join(root, 'stuart', 'outbox', 'kevin'), { recursive: true });
   writeFileSync(join(root, 'stuart', 'outbox', 'kevin', '1-aaaaaa.json'), JSON.stringify({ kind: 'mensagem', to: 'mel', text: 'forjada' }));
