@@ -19,6 +19,7 @@ test('T4.1.2: argv per role — bypass, only the root-owned profile settings, th
   for (const r of ['kevin', 'mel', 'stuart', 'bob'])
     assert.deepEqual(baseArgs(r), ['--bg', '--name', r, '--permission-mode', 'bypassPermissions', '--setting-sources', 'local', '--settings', `/etc/fsd/profiles/${r}/settings.json`, '--append-system-prompt-file', `/etc/fsd/profiles/${r}/system.md`]);
   const sx = readFileSync(join(TEAM, 'setup', 'container', 'fsd-session-exec'), 'utf8');
+  assert.match(sx, /--mcp-config "\$TEAM\/mcp\.json" --strict-mcp-config/);
   assert.match(sx, /--bg --name "\$role" --permission-mode bypassPermissions/); assert.match(sx, /--setting-sources local --settings "\/etc\/fsd\/profiles\/\$role\/settings\.json"/);
 });
 
@@ -43,6 +44,14 @@ test('T4.1.3: all present → no reason; each stub variant is refused with its r
     assert.deepEqual(await check({ settingsFiles: [TEAM_SETTINGS], claude: STUB, home, probe: open }), []);
     assert.deepEqual(await check({ settingsFiles: [TEAM_SETTINGS], claude: STUB, home, probe: closed }), ['túnel do ai-memory fechado (127.0.0.1:49374)']);
     assert.match((await check({ settingsFiles: [TEAM_SETTINGS], claude: STUB, home: await world({ binary: false }), probe: open })).join(), /ai-memory não instalado/);
+    // T2.5.2: o perfil da sessão chama o hook sem --auth-token; aí o token tem de estar no arquivo do data dir.
+    const prof = join(home, 'profile.json'); const t = JSON.parse(readFileSync(TEAM_SETTINGS, 'utf8'));
+    for (const l of Object.values(t.hooks)) for (const x of l) for (const h of x.hooks) h.command = h.command.replace(' --auth-token "$AI_MEMORY_AUTH_TOKEN"', '');
+    writeFileSync(prof, JSON.stringify(t));
+    assert.equal(aiMemoryOf([TEAM_SETTINGS], home).tokenFile, null);
+    assert.deepEqual(await check({ settingsFiles: [prof], claude: STUB, home, probe: open }), [`sem o token do ai-memory (${home}/.local/share/ai-memory/auth-token)`]);
+    mkdirSync(join(home, '.local', 'share', 'ai-memory'), { recursive: true }); writeFileSync(join(home, '.local', 'share', 'ai-memory', 'auth-token'), 'aim_x\n');
+    assert.deepEqual(await check({ settingsFiles: [prof], claude: STUB, home, probe: open }), []);
     env({ STUB_NOT_LOGGED_IN: '1' });
     assert.deepEqual(await check({ settingsFiles: [TEAM_SETTINGS], claude: STUB, home, probe: open }), ['claude sem login (claude auth status: loggedIn false)']);
     delete process.env.STUB_NOT_LOGGED_IN;

@@ -24,7 +24,7 @@ run_bg() {   # run_bg <flag> <uuid> <arquivo>
   if [ "$PREFLIGHT" != 0 ]; then FSD_PREFLIGHT_CLAUDE="$CLAUDE" node "$TEAM/bin/fsd-session-preflight.mjs" "/etc/fsd/profiles/$role/settings.json" || exit 3; fi
   cd "$REPO" && exec env FSD_AGENT="$role" FSD_RUNNER=session FSD_TEAM="$TEAM" "$CLAUDE" --bg --name "$role" --permission-mode bypassPermissions \
     --setting-sources local --settings "/etc/fsd/profiles/$role/settings.json" \
-    --append-system-prompt-file "/etc/fsd/profiles/$role/system.md" "$1" "$2" "$p"
+    --append-system-prompt-file "/etc/fsd/profiles/$role/system.md" --mcp-config "$TEAM/mcp.json" --strict-mcp-config "$1" "$2" "$p"
 }
 case "${1:-}" in
   agents) exec "$CLAUDE" agents --json ;;

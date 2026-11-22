@@ -1,5 +1,5 @@
 // fsd-session-preflight.mjs — antes de subir a sessão de um papel (F4.1, T4.1.3): recusa sem os hooks do time, sem o ai-memory, sem
-// login ou com o túnel do ai-memory fechado. Cada falha vem com o motivo. 0 token: lê arquivos, `claude auth status` e uma porta.
+// login, sem o token do ai-memory em arquivo ou com o túnel do ai-memory fechado. Cada falha vem com o motivo. 0 token: lê arquivos, `claude auth status` e uma porta.
 //   requiredHooks · hooksMissing(settingsFiles) · check({ settingsFiles, claude, home, probe }) → [motivos]
 import { readFileSync, existsSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
@@ -23,14 +23,18 @@ export function hooksMissing(files) {
 export function aiMemoryOf(files, home) {
   const c = Object.values(cmds(files)).flat().find((x) => /ai-memory/.test(x)); if (!c) return null;
   const bin = c.split(/\s+/)[0].replace(/^\$HOME|^~/, home); const port = Number(/--server-url\s+\S*:(\d+)/.exec(c)?.[1] || 0);
-  return { bin, port };
+  // T2.5.2: sem --auth-token no comando, o hook autentica pelo <data_dir>/auth-token (o argv é legível por todos os uids).
+  const dataDir = (/--data-dir\s+(\S+)/.exec(c)?.[1] || '$HOME/.local/share/ai-memory').replace(/^\$HOME|^~/, home);
+  return { bin, port, tokenFile: /--auth-token\b/.test(c) ? null : `${dataDir}/auth-token` };
 }
+const readable = (f) => { try { return readFileSync(f, 'utf8').trim() !== ''; } catch { return false; } };
 export const portOpen = (port, host = '127.0.0.1', ms = 1500) => new Promise((res) => { const s = connect({ port, host }); const t = setTimeout(() => { s.destroy(); res(false); }, ms); s.on('connect', () => { clearTimeout(t); s.end(); res(true); }); s.on('error', () => { clearTimeout(t); res(false); }); });
 export async function check({ settingsFiles, claude = 'claude', home = process.env.HOME, probe = portOpen }) {
   const why = [];
   for (const m of hooksMissing(settingsFiles)) why.push(`hook faltando (${m})`);
   const aim = aiMemoryOf(settingsFiles, home);
   if (aim && !existsSync(aim.bin)) why.push(`ai-memory não instalado (${aim.bin})`);
+  if (aim?.tokenFile && !readable(aim.tokenFile)) why.push(`sem o token do ai-memory (${aim.tokenFile})`);
   if (aim?.port && !(await probe(aim.port))) why.push(`túnel do ai-memory fechado (127.0.0.1:${aim.port})`);
   let auth = null; try { auth = JSON.parse(spawnSync(claude, ['auth', 'status'], { encoding: 'utf8', timeout: 20000 }).stdout || 'null'); } catch {}
   if (!auth?.loggedIn) why.push('claude sem login (claude auth status: loggedIn false)');
