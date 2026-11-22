@@ -117,7 +117,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Mesmo usuário da matriz (UID/GID 1000). A imagem traz "ubuntu" com UID 1000: sai antes.
 RUN userdel -r ubuntu \
  && groupadd -g 1000 fsd && useradd -m -u 1000 -g 1000 -s /bin/bash fsd \
- && echo 'fsd ALL=(root) NOPASSWD: /usr/bin/tailscale' > /etc/sudoers.d/fsd-tailscale \
+ && printf '%s\n' 'fsd ALL=(root) NOPASSWD: /usr/bin/tailscale up *, /usr/bin/tailscale status, /usr/bin/tailscale status *, /usr/bin/tailscale ip, /usr/bin/tailscale ip *' > /etc/sudoers.d/fsd-tailscale \
  && mkdir -p /media/fsd/Projects/projetos /var/log/fsd /run/tailscale \
  && chown -R 1000:1000 /media/fsd
 
@@ -150,8 +150,14 @@ rm -f /run/fsd-native
 if [ "${FSD_NATIVE:-0}" = 1 ] && [ -d "$FSD_REPO/.git" ]; then
   ref="${FSD_TEAM_REF:-origin/develop}"; AG="$H/.config/fsd-agents"
   git config --system --get-all safe.directory 2>/dev/null | grep -qxF "$FSD_REPO" || git config --system --add safe.directory "$FSD_REPO"
-  if git -C "$FSD_REPO" show "$ref:team/setup/container/fsd-native-setup" > /run/fsd-native-setup 2>/dev/null \
-     && FSD_TEAM_SRC="$FSD_REPO" FSD_TEAM_REF="$ref" FSD_AIM_TOKENS_SRC="$AG/ai-memory-tokens" FSD_BROKER_KEYS_SRC="$AG/keys" bash /run/fsd-native-setup; then
+  # Validação R19: o root copia o clone do humano para um bare dele (--no-local: o index-pack confere cada objeto) e lê o time de lá;
+  # com FSD_TEAM_SHA no team.env, só aquele commit sobe. A url dos papéis é a do GitHub, conferida.
+  B=/srv/fsd/team.git; mkdir -p /srv/fsd; rm -rf "$B.new"
+  url=$(git -C "$FSD_REPO" remote get-url origin 2>/dev/null); url=${url/#git@github.com:/https://github.com/}
+  if [[ $url =~ ^https://github\.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ ]] && git clone -q --bare --no-local "$FSD_REPO" "$B.new" \
+     && git -C "$B.new" fetch -q --no-tags "$FSD_REPO" '+refs/remotes/origin/*:refs/remotes/origin/*' && rm -rf "$B" && mv "$B.new" "$B" \
+     && git -C "$B" show "$ref:team/setup/container/fsd-native-setup" > /run/fsd-native-setup 2>/dev/null \
+     && FSD_TEAM_SRC="$B" FSD_TEAM_REF="$ref" FSD_REPO_URL="$url" FSD_AIM_TOKENS_SRC="$AG/ai-memory-tokens" FSD_BROKER_KEYS_SRC="$AG/keys" bash /run/fsd-native-setup; then
     touch /run/fsd-native
   else echo "fsd: o time nativo não foi preparado (veja acima); o time no tmux segue"; fi
 fi

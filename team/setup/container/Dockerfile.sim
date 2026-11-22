@@ -1,6 +1,6 @@
 # Imagem local de teste do isolamento (F2.0): os usuários do time nativo e as verificações K, sem rede nem segredo.
 FROM ubuntu:24.04
-RUN apt-get update -qq && apt-get install -y -qq --no-install-recommends git ca-certificates curl xz-utils libatomic1 sudo jq acl >/dev/null && rm -rf /var/lib/apt/lists/*
+RUN apt-get update -qq && apt-get install -y -qq --no-install-recommends git ca-certificates curl xz-utils libatomic1 sudo jq acl procps >/dev/null && rm -rf /var/lib/apt/lists/*
 # Validação R34: o mesmo Node da imagem de produção (o simulate-container passa o NODE_VERSION do Dockerfile), não o do apt (18).
 # Tarball oficial conferido pelo SHASUMS256.txt.
 ARG NODE_VERSION

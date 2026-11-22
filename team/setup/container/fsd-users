@@ -70,8 +70,8 @@ for r in "${ROLES[@]}"; do
     jq -s 'def m($a; $b): if ($a|type) == "object" and ($b|type) == "object" then reduce (($a|keys) + ($b|keys) | unique)[] as $k ({}; .[$k] = m($a[$k]; $b[$k]))
            elif ($a|type) == "array" and ($b|type) == "array" then ($a + $b | unique) elif $b == null then $a else $b end;
            m(m(.[0]; (.[1] // {})); (.[2] // {}))
-           | .hooks |= walk(if type == "string" then gsub(" --auth-token \"\\$AI_MEMORY_AUTH_TOKEN\""; "") else . end)
-           | if $model != "" then .model = $model else . end' --arg model "$model" "$team" "$role" "$sess" > "$p/settings.json.tmp" && install -o root -g root -m 0644 "$p/settings.json.tmp" "$p/settings.json"; rm -f "$p/settings.json.tmp"
+           | .hooks |= walk(if type == "string" then gsub(" --auth-token \"\\$AI_MEMORY_AUTH_TOKEN\""; "") | gsub("--data-dir \\$HOME/.local/share/ai-memory "; "--data-dir $HOME/.local/share/ai-memory --config " + $aimcfg + " ") else . end)
+           | if $model != "" then .model = $model else . end' --arg model "$model" --arg aimcfg "$p/ai-memory.toml" "$team" "$role" "$sess" > "$p/settings.json.tmp" && install -o root -g root -m 0644 "$p/settings.json.tmp" "$p/settings.json"; rm -f "$p/settings.json.tmp"
   fi
 done
 # git do papel (validação R7): identidade do bot, o credential helper do time (token do arquivo do papel) e https no lugar de ssh, num
@@ -91,9 +91,16 @@ fi
 for r in "${ROLES[@]}"; do
   h=/home/fsd-$r; dd=$h/.local/share/ai-memory
   install -d -o "fsd-$r" -g "fsd-$r" -m 0700 "$h/.local" "$h/.local/share" "$dd"
-  printf '[auth]\nbearer_token_file = "%s/auth-token"\n' "$dd" > "$dd/config.toml.tmp" && install -o root -g root -m 0644 "$dd/config.toml.tmp" "$dd/config.toml"; rm -f "$dd/config.toml.tmp"
+  # Validação R40: o config fica no perfil do root (o papel apagava e recriava o config.toml da pasta de dados dele); hooks e MCP passam
+  # --config (o explícito vence o <data_dir>/config.toml).
+  printf '[auth]\nbearer_token_file = "%s/auth-token"\n' "$dd" > "/etc/fsd/profiles/$r/ai-memory.toml.tmp" && install -o root -g root -m 0644 "/etc/fsd/profiles/$r/ai-memory.toml.tmp" "/etc/fsd/profiles/$r/ai-memory.toml"; rm -f "/etc/fsd/profiles/$r/ai-memory.toml.tmp" "$dd/config.toml"
+  if [ -n "${FSD_TEAM_DIR:-}" ] && [ -f "$FSD_TEAM_DIR/mcp.json" ] && command -v jq >/dev/null; then
+    jq --arg c "/etc/fsd/profiles/$r/ai-memory.toml" '(.mcpServers["ai-memory"].args) |= (.[0:1] + ["--config", $c] + .[1:])' "$FSD_TEAM_DIR/mcp.json" > "/etc/fsd/profiles/$r/mcp.json.tmp" \
+      && install -o root -g root -m 0644 "/etc/fsd/profiles/$r/mcp.json.tmp" "/etc/fsd/profiles/$r/mcp.json"; rm -f "/etc/fsd/profiles/$r/mcp.json.tmp"
+  fi
   tok=${FSD_AIM_TOKENS_SRC:-}/$r
-  if [ -n "${FSD_AIM_TOKENS_SRC:-}" ] && [ -s "$tok" ]; then install -o "fsd-$r" -g "fsd-$r" -m 0400 "$tok" "$dd/auth-token"; fi
+  # Validação R19: só arquivo de verdade (o install segue link; um link do uid 1000 apontaria para outro arquivo).
+  if [ -n "${FSD_AIM_TOKENS_SRC:-}" ] && [ -f "$tok" ] && [ ! -L "$tok" ] && [ -s "$tok" ]; then install -o "fsd-$r" -g "fsd-$r" -m 0400 "$tok" "$dd/auth-token"; fi
 done
 # Bypass em --bg (F0.2, T0.2.2): o claude exige o aceite do aviso (skipDangerousModePermissionPrompt) nas settings do usuário, que a
 # sessão do papel não lê (--setting-sources local). As managed settings (/etc/claude-code, do root, sempre lidas) valem para isso
