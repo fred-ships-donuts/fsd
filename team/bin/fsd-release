@@ -1,0 +1,39 @@
+#!/usr/bin/env node
+// fsd-release plan [--json] | prepare [--dry] — a release do produto (E5, RELEASE.md). 0 token.
+//   plan      a próxima versão pelos commits desde a última tag v* (só os que tocam src/ e package.json) e as notas
+//   prepare   branch release/vX.Y.Z a partir da develop, com o CHANGELOG promovido e a versão no package.json, e o PR para a main
+//             com notas, checklist e o autor como revisor. --dry (ou FSD_DRY=1) só mostra. Quem roda é o supervisor (token de release).
+import { readFileSync, writeFileSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
+import { join, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
+const R = await import('./fsd-release.mjs');
+const BIN = dirname(fileURLToPath(import.meta.url)), REPO = process.env.FSD_REPO || join(BIN, '..', '..');
+const CFG = JSON.parse(readFileSync(join(BIN, '..', 'agents.json'), 'utf8'));
+const git = (...a) => { const r = spawnSync('git', ['-C', REPO, ...a], { encoding: 'utf8' }); if (r.status !== 0) throw new Error(`git ${a[0]}: ${(r.stderr || '').trim().split('\n')[0]}`); return r.stdout.trim(); };
+const [cmd, ...rest] = process.argv.slice(2); const DRY = rest.includes('--dry') || !!process.env.FSD_DRY;
+const ref = process.env.FSD_RELEASE_REF || 'origin/develop';
+function plan() {
+  let lastTag = null; try { lastTag = git('describe', '--tags', '--abbrev=0', '--match', 'v[0-9]*', ref); } catch {}
+  const range = lastTag ? `${lastTag}..${ref}` : ref;
+  const raw = git('log', '--no-merges', '--format=%x1e%H%x1f%s%x1f%b', '--name-only', range);
+  const commits = raw.split('\x1e').filter(Boolean).map((b) => { const [h, subject, rest2 = ''] = b.split('\x1f'); const [body, ...files] = rest2.split('\n\n'); return { h, subject, body, files: files.join('\n').split('\n').filter(Boolean) }; });
+  const base = JSON.parse(git('show', `${ref}:package.json`)).version;
+  return { lastTag, ...R.nextVersion({ lastTag, base, commits }), commits: commits.length };
+}
+if (cmd === 'plan') {
+  const p = plan(); if (rest.includes('--json')) console.log(JSON.stringify(p));
+  else console.log(p.version ? `próxima versão: v${p.version} (${p.bump}; ${p.counted} commit(s) do produto${p.lastTag ? ` desde ${p.lastTag}` : ', primeira release'})` : `nada a lançar desde ${p.lastTag} (nenhum feat/fix/breaking no produto)`);
+} else if (cmd === 'prepare') {
+  const p = plan(); if (!p.version) { console.log(`fsd-release: nada a lançar desde ${p.lastTag}`); process.exit(1); }
+  const date = new Date(Number(process.env.FSD_NOW) || Date.now()).toISOString().slice(0, 10);
+  const { text, notes } = R.promoteUnreleased(git('show', `${ref}:CHANGELOG.md`), p.version, date, CFG.repo);
+  const pkg = R.setPackageVersion(git('show', `${ref}:package.json`), p.version);
+  const body = R.releaseBody({ version: p.version, notes, author: CFG.author });
+  const branch = `release/v${p.version}`;
+  if (DRY) { console.log(`[dry] branch ${branch} de ${ref}; CHANGELOG [${p.version}] - ${date}; package.json ${p.version}\n[dry] gh pr create --base main --head ${branch} --title "release: v${p.version}" --reviewer ${CFG.author}\n--- corpo ---\n${body}`); process.exit(0); }
+  git('switch', '-c', branch, ref); writeFileSync(join(REPO, 'CHANGELOG.md'), text); writeFileSync(join(REPO, 'package.json'), pkg);
+  git('add', 'CHANGELOG.md', 'package.json'); git('commit', '-qm', `release: v${p.version}`); git('push', '-q', 'origin', branch);
+  const r = spawnSync(join(BIN, 'gh'), ['pr', 'create', '--base', 'main', '--head', branch, '--title', `release: v${p.version}`, '--reviewer', CFG.author, '--body-file', '-'], { input: body, encoding: 'utf8' });
+  console.log(r.status === 0 ? r.stdout.trim() : `fsd-release: PR falhou: ${r.stderr.trim()}`); process.exit(r.status === 0 ? 0 : 4);
+} else { console.log('uso: fsd-release plan [--json] | prepare [--dry]'); process.exit(2); }
