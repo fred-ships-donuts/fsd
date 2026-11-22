@@ -81,7 +81,8 @@
         "~/.fsd",
         "~/.npm",
         "~/.cache",
-        "/tmp"
+        "/tmp",
+        "/var/lib/fsd-state/bob"
       ]
     },
     "network": {

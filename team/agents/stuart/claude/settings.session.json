@@ -92,7 +92,8 @@
         "~/.fsd",
         "~/.npm",
         "~/.cache",
-        "/tmp"
+        "/tmp",
+        "/var/lib/fsd-state/stuart"
       ]
     },
     "network": {
