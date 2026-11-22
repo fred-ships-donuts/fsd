@@ -8,7 +8,7 @@ import { mkdtempSync, writeFileSync, readFileSync, mkdirSync, chmodSync, cpSync 
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { hooksMissing, aiMemoryOf, check } from './fsd-session-preflight.mjs';
+import { hooksMissing, aiMemoryOf, check, hookScriptsMissing } from './fsd-session-preflight.mjs';
 import { baseArgs } from './fsd-session.mjs';
 import { wrapUpReason } from './fsd-context.mjs';
 
@@ -89,4 +89,13 @@ test('T4.1.5: the old watcher does not bring back a role migrated to runner "ses
   const r = spawnSync(join(t, 'bin', 'fsd-watch'), [], { encoding: 'utf8', env: { ...process.env, FSD_STATE: mkdtempSync(join(tmpdir(), 'ws-')), FSD_DRY: '1', FSD_TMUX_SOCKET: `pf-${process.pid}`, FSD_REPO: t } });
   assert.equal(r.status, 0, r.stderr); assert.match(r.stdout, /Kevin/); assert.match(r.stdout, /Stuart/); assert.doesNotMatch(r.stdout, /│ Mel /);
   assert.match(readFileSync(join(BIN, 'fsd-wait'), 'utf8'), /runner !== 'session'/);
+});
+
+test('T0.2.3: a hook whose script is missing fails open in claude, so the preflight refuses it', async () => {
+  const TEAMDIR = join(dirname(TEAM_SETTINGS));
+  assert.deepEqual(hookScriptsMissing([TEAM_SETTINGS], { home: '/nada', team: TEAMDIR }).filter((p) => !p.endsWith('ai-memory/ai-memory')), []);
+  const d = mkdtempSync(join(tmpdir(), 'pfm-')); const f = join(d, 's.json');
+  writeFileSync(f, JSON.stringify({ hooks: { PreToolUse: [{ hooks: [{ command: '$FSD_TEAM/bin/fsd-native-guard' }, { command: 'node x.mjs' }] }] } }));
+  assert.deepEqual(hookScriptsMissing([f], { home: d, team: d }), [`${d}/bin/fsd-native-guard`]);
+  assert.match((await check({ settingsFiles: [f], claude: STUB, home: d, team: d, probe: async () => true })).join(), /script do hook ausente \(.*fsd-native-guard\)/);
 });

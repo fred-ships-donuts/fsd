@@ -1,11 +1,14 @@
-// fsd-session.mjs — ciclo de vida da sessão de cada papel (F3.2, T3.2.1). Cada papel tem uma conversa fixa: um uuid guardado em
-// $FSD_STATE/dispatch/sessions.json ({ <papel>: { sessionId, active } }), passado com --session-id na primeira vez e retomado com
-// --resume depois. Assim religar, depois de ocioso, desligado ou de um reinício do container, é sempre a mesma conversa.
+// fsd-session.mjs — ciclo de vida da sessão de cada papel (F3.2, T3.2.1). Cada papel tem uma conversa: $FSD_STATE/dispatch/sessions.json
+// ({ <papel>: { sessionId, active } }) guarda o id da sessão atual dela.
+// Como o claude 2.1.322 se comporta (F0.2, fase0.md): o --bg escolhe o id (ignora --session-id) e o imprime ("backgrounded · <id>");
+// --resume com flags cria uma cópia que leva o histórico, com id novo; sem flags, a sessão sobe com as opções que ela guardou na home
+// do papel. Aqui todo turno passa as flags fixas do root (o papel não muda o próprio perfil, F4.1), então cada turno é uma cópia com a
+// conversa inteira e o id novo é gravado. A sessão ligada (ociosa ou trabalhando) também gera cópia: ociosa → stop antes; trabalhando →
+// a tarefa espera o fim do turno.
 //   status({ agents, stored, hookState })   { <papel>: { state: 'working'|'idle'|'off', id?, sessionId? } } para o decide()
-//   planStart / planTurn / planStop / planBoot   o argv das chamadas ao claude (puro); o executor roda
+//   planStart / planTurn / planStop / planBoot   o argv das chamadas ao claude (puro); o executor roda e lê o id da saída
+//   bgId(saída)   o id curto que o --bg imprimiu
 // Estado: ligado = a sessão do papel aparece no `claude agents --json` (pelo sessionId); working/idle = o hook (fsd-session-hook).
-// Regra: nunca --resume numa sessão trabalhando (cria cópia, E-cópia): a tarefa espera o fim do turno.
-import { randomUUID } from 'node:crypto';
 import { readFileSync, writeFileSync, mkdirSync, renameSync } from 'node:fs';
 import { join } from 'node:path';
 
@@ -34,9 +37,10 @@ export function baseArgs(role, { settings = profileSettings(role) } = {}) {
 }
 export function planStart(role, prompt, { stored = {}, opts } = {}) {
   const sid = stored[role]?.sessionId;
-  return sid ? [{ argv: [...baseArgs(role, opts), '--resume', sid, prompt], sessionId: sid }] : [{ argv: [...baseArgs(role, opts), '--session-id', '$NEW', prompt], sessionId: '$NEW' }];
+  return [{ argv: [...baseArgs(role, opts), ...(sid ? ['--resume', sid] : []), prompt], sessionId: '$OUT', ...(sid ? { from: sid } : {}) }];
 }
-// turn: ocioso → stop + resume (mesma conversa, sem cópia); desligado → resume/start; trabalhando → recusa.
+export const bgId = (out) => /backgrounded · ([0-9a-f]{6,16})/.exec(String(out || ''))?.[1] || null;
+// turn: ocioso → stop + resume (a conversa segue na cópia, sem a sessão antiga ligada); desligado → resume/start; trabalhando → recusa.
 export function planTurn(role, prompt, { st, stored = {}, opts } = {}) {
   if (st?.state === 'working') return { refused: `${role} está trabalhando: --resume criaria uma cópia; a tarefa espera o fim do turno` };
   const stop = st?.state === 'idle' && st.id ? [{ argv: ['stop', st.id] }] : [];
@@ -48,4 +52,3 @@ export function planBoot({ stored = {}, st = {}, opts } = {}) {
   return ROLES.filter((r) => stored[r]?.active && st[r]?.state === 'off' && stored[r].sessionId)
     .map((r) => ({ role: r, steps: planStart(r, '[fsd] Sessão religada depois de um reinício do container. Siga o cartão da tarefa e a caixa; nada novo chegou.', { stored, opts }) }));
 }
-export const newSessionId = () => randomUUID();

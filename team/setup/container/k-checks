@@ -82,16 +82,20 @@ if [ -x /usr/local/sbin/fsd-run-exec ]; then
 fi
 # K10 (F2.6): o supervisor controla só as sessões dos papéis, só pelo wrapper e como cada papel (stub-claude no lugar do claude).
 if [ -x /usr/local/sbin/fsd-session-exec ]; then
-  SX="sudo -n -u fsd-stuart /usr/local/sbin/fsd-session-exec"; U=11111111-2222-3333-4444-555555555555
+  SX="sudo -n -u fsd-stuart /usr/local/sbin/fsd-session-exec"
   echo "tarefa" > /tmp/k10-prompt; chmod 644 /tmp/k10-prompt
   check K10 "o supervisor lista as sessões do Stuart como o Stuart" bash -c "su -s /bin/bash fsd-dispatch -c '$SX agents' 2>/dev/null | grep -q '^\['"
-  check K10 "o supervisor sobe a sessão do Stuart (como fsd-stuart, FSD_RUNNER=session)" bash -c "su -s /bin/bash fsd-dispatch -c '$SX start $U /tmp/k10-prompt' >/dev/null 2>&1 && su -s /bin/bash fsd-dispatch -c '$SX agents' | grep -q '\"sessionId\": \"$U\"'"
+  # O --bg escolhe o id e o imprime (F0.2); a sessão sobe com as flags fixas do root, sem --session-id.
+  k10_start() { local id; id=$(su -s /bin/bash fsd-dispatch -c "$SX start /tmp/k10-prompt" 2>/dev/null | sed -n 's/^backgrounded · \([0-9a-f]*\).*/\1/p'); [ -n "$id" ] && su -s /bin/bash fsd-dispatch -c "$SX agents" | grep -q "\"id\": \"$id\""; }
+  k10_flags() { local f; f=/tmp/stub-claude-$(id -u fsd-stuart)/state.json; grep -q -- '--strict-mcp-config' "$f" && ! grep -q -- '--session-id' "$f"; }
+  check K10 "o supervisor sobe a sessão do Stuart (como fsd-stuart, FSD_RUNNER=session) e o --bg diz o id" k10_start
+  check K10 "a sessão sobe com as flags fixas do root (MCP do time, sem --session-id)" k10_flags
   check K10 "a sessão subiu como o Stuart" bash -c "grep -q '\"agent\": \"stuart\"' /tmp/stub-claude/state.json 2>/dev/null || grep -rq '\"agent\": \"stuart\"' /tmp/stub-claude* 2>/dev/null"
   check K10 "o supervisor não roda outra coisa como o Stuart" cannot fsd-dispatch "sudo -n -u fsd-stuart id"
   check K10 "o supervisor não usa o wrapper como root nem como fsd-run" bash -c "! su -s /bin/bash fsd-dispatch -c 'sudo -n -u root /usr/local/sbin/fsd-session-exec agents' >/dev/null 2>&1 && ! su -s /bin/bash fsd-dispatch -c 'sudo -n -u fsd-run /usr/local/sbin/fsd-session-exec agents' >/dev/null 2>&1"
   check K10 "um papel não usa o wrapper para outro papel" cannot fsd-mel "sudo -n -u fsd-stuart /usr/local/sbin/fsd-session-exec agents"
   check K10 "fsd-session (como fsd-dispatch, FSD_SESSION_VIA=sudo) sobe a Mel e vê o estado dela" bash -c "su -s /bin/bash fsd-dispatch -c 'cd ~ && FSD_SESSION_VIA=sudo FSD_STATE=\$HOME/st node $FSD_SIM_TEAM/bin/fsd-session start mel \"tarefa #3\" >/dev/null && FSD_SESSION_VIA=sudo FSD_STATE=\$HOME/st node $FSD_SIM_TEAM/bin/fsd-session status --json' 2>/dev/null | grep -q '\"mel\":{\"state\":\"idle\"'"
-  check K10 "o wrapper recusa id e uuid inválidos" bash -c "! su -s /bin/bash fsd-dispatch -c '$SX stop \"x;id\"' >/dev/null 2>&1 && ! su -s /bin/bash fsd-dispatch -c '$SX start not-a-uuid /tmp/k10-prompt' >/dev/null 2>&1"
+  check K10 "o wrapper recusa id e uuid inválidos" bash -c "! su -s /bin/bash fsd-dispatch -c '$SX stop \"x;id\"' >/dev/null 2>&1 && ! su -s /bin/bash fsd-dispatch -c '$SX resume not-a-uuid /tmp/k10-prompt' >/dev/null 2>&1"
 fi
 # K11 (F4.1): o perfil do papel junta os hooks do time e o papel; com a checagem ligada, sem ai-memory nem túnel, a sessão não sobe.
 if [ -x /usr/local/sbin/fsd-session-exec ] && command -v jq >/dev/null; then
@@ -102,7 +106,7 @@ if [ -x /usr/local/sbin/fsd-session-exec ] && command -v jq >/dev/null; then
   done
   sed -i 's/^PREFLIGHT=.*/PREFLIGHT=1/' /etc/fsd/session.env
   echo x > /tmp/k11-prompt; chmod 644 /tmp/k11-prompt
-  out=$(su -s /bin/bash fsd-dispatch -c "sudo -n -u fsd-bob /usr/local/sbin/fsd-session-exec start 22222222-3333-4444-5555-666666666666 /tmp/k11-prompt" 2>&1)
+  out=$(su -s /bin/bash fsd-dispatch -c "sudo -n -u fsd-bob /usr/local/sbin/fsd-session-exec start /tmp/k11-prompt" 2>&1)
   check K11 "com a checagem ligada, sem ai-memory e sem túnel, a sessão do Bob não sobe e diz por quê" bash -c "grep -q 'ai-memory não instalado' <<<\"$out\" && grep -q 'túnel do ai-memory fechado' <<<\"$out\""
   sed -i 's/^PREFLIGHT=.*/PREFLIGHT=0/' /etc/fsd/session.env
 fi
@@ -124,6 +128,11 @@ if command -v jq >/dev/null && [ -f /etc/fsd/profiles/stuart/settings.json ]; th
   su -s /bin/bash fsd-stuart -c "AI_MEMORY_AUTH_TOKEN= $cmd" </dev/null >/dev/null 2>&1
   check K12 "o argv do hook não tem o token nem --auth-token" bash -c "[ -s /tmp/k12-argv ] && ! grep -qF \"\$(cat $D/auth-token)\" /tmp/k12-argv && ! grep -q -- --auth-token /tmp/k12-argv"
   rm -rf /home/fsd-stuart/.local/lib /tmp/k12-argv
+fi
+# K13 (F0.2, T0.2.2): o aceite do bypass em --bg vem das managed settings do root, que nenhum papel edita.
+if command -v jq >/dev/null; then
+  check K13 "managed settings do root com o aceite do bypass" bash -c "[ \"\$(stat -c '%U %a' /etc/claude-code/managed-settings.json)\" = 'root 644' ] && jq -e '.skipDangerousModePermissionPrompt == true' /etc/claude-code/managed-settings.json >/dev/null"
+  for r in "${ROLES[@]}"; do check K13 "fsd-$r não edita as managed settings" cannot "fsd-$r" "echo x >> /etc/claude-code/managed-settings.json"; done
 fi
 [ $fail = 0 ] && echo "k-checks: tudo ok" || echo "k-checks: há falhas"
 exit $fail
