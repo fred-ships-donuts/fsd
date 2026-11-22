@@ -17,7 +17,7 @@ const TEAM_SETTINGS = join(TEAM, 'claude-settings.json');
 
 test('T4.1.2: argv per role — bypass, only the root-owned profile settings, the role name', () => {
   for (const r of ['kevin', 'mel', 'stuart', 'bob'])
-    assert.deepEqual(baseArgs(r), ['--bg', '--name', r, '--permission-mode', 'bypassPermissions', '--setting-sources', 'local', '--settings', `/etc/fsd/profiles/${r}/settings.json`]);
+    assert.deepEqual(baseArgs(r), ['--bg', '--name', r, '--permission-mode', 'bypassPermissions', '--setting-sources', 'local', '--settings', `/etc/fsd/profiles/${r}/settings.json`, '--append-system-prompt-file', `/etc/fsd/profiles/${r}/system.md`]);
   const sx = readFileSync(join(TEAM, 'setup', 'container', 'fsd-session-exec'), 'utf8');
   assert.match(sx, /--bg --name "\$role" --permission-mode bypassPermissions/); assert.match(sx, /--setting-sources local --settings "\/etc\/fsd\/profiles\/\$role\/settings\.json"/);
 });

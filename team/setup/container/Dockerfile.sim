@@ -3,6 +3,7 @@ FROM ubuntu:24.04
 RUN apt-get update -qq && apt-get install -y -qq --no-install-recommends git ca-certificates nodejs sudo jq >/dev/null && rm -rf /var/lib/apt/lists/*
 COPY team/setup/container/fsd-users team/setup/container/fsd-repo team/setup/container/fsd-run-exec team/setup/container/fsd-session-exec team/setup/container/k-checks /opt/fsd-sim/
 COPY team/agents /opt/fsd-sim/agents
+COPY team/common /opt/fsd-sim/common
 COPY team/bin /opt/fsd-sim/team/bin
 COPY team/agents.json team/claude-settings.json /opt/fsd-sim/team/
 COPY team/setup/stub-claude /opt/fsd-sim/team/setup/stub-claude

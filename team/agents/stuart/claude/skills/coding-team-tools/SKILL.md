@@ -21,7 +21,7 @@ description: Explains how the agent team's tooling under team/ is built and chan
 - **Readers do not consume shared state.** A file under `$FSD_STATE` (`~/.config/fsd-agents`) or `/tmp/fsd-*` that tracks "already reported" belongs to one agent. A read-only command run by anyone else must not update it (#105).
 - **The first read counts.** A check that keeps a baseline must report what already exists on its first read, not only what appears afterwards (#96).
 - **No silent loss.** If delivery fails, queue it or say so. A failure that prints nothing is a bug.
-- **Exit codes are a contract** for other scripts and for `fsd-wait`: keep each script's documented codes (the usage comment at the top of the file).
+- **Exit codes are a contract** for other scripts that read them: keep each script's documented codes (the usage comment at the top of the file).
 - **Every file a script reads ships in the same PR** (#109) and is listed in `team/.gitignore` exceptions if needed.
 
 ## Paths and environments

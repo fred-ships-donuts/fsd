@@ -97,6 +97,9 @@ fi
 if [ -x /usr/local/sbin/fsd-session-exec ] && command -v jq >/dev/null; then
   check K11 "o perfil do Stuart tem os hooks do time e o deny dele" bash -c "jq -e '.hooks.PostToolUse | map(.hooks[].command) | any(test(\"fsd-session-hook\"))' /etc/fsd/profiles/stuart/settings.json >/dev/null && jq -e '.permissions.deny | any(test(\"git push\"))' /etc/fsd/profiles/stuart/settings.json >/dev/null"
   check K11 "o perfil do Kevin junta o deny da sessão nova (sem fsd-merge, sem Monitor) e o guard" bash -c "jq -e '(.permissions.deny | index(\"Bash(fsd-merge*)\")) and (.permissions.deny | index(\"Monitor\")) and (.hooks.PreToolUse | map(.hooks[].command) | any(test(\"fsd-native-guard\")))' /etc/fsd/profiles/kevin/settings.json >/dev/null"
+  for r in kevin mel stuart bob; do
+    check K11 "o prompt e as skills do perfil do $r não têm os termos do time no tmux (F4.3)" bash -c "[ -s /etc/fsd/profiles/$r/system.md ] && ! grep -rqE 'fsd-restart|fsd-wait|fsd-notify|\\bMonitor\\b|\\[fsd-aviso|fsd-merge' /etc/fsd/profiles/$r/system.md /etc/fsd/profiles/$r/skills"
+  done
   sed -i 's/^PREFLIGHT=.*/PREFLIGHT=1/' /etc/fsd/session.env
   echo x > /tmp/k11-prompt; chmod 644 /tmp/k11-prompt
   out=$(su -s /bin/bash fsd-dispatch -c "sudo -n -u fsd-bob /usr/local/sbin/fsd-session-exec start 22222222-3333-4444-5555-666666666666 /tmp/k11-prompt" 2>&1)
