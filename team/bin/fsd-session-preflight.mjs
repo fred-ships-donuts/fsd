@@ -1,7 +1,7 @@
 // fsd-session-preflight.mjs — antes de subir a sessão de um papel (F4.1, T4.1.3): recusa sem os hooks do time, sem o ai-memory, sem
 // login, sem o token do ai-memory em arquivo ou com o túnel do ai-memory fechado. Cada falha vem com o motivo. 0 token: lê arquivos, `claude auth status` e uma porta.
 //   requiredHooks · hooksMissing(settingsFiles) · check({ settingsFiles, claude, home, probe }) → [motivos]
-import { readFileSync, existsSync } from 'node:fs';
+import { readFileSync, existsSync, accessSync, constants } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { connect } from 'node:net';
 
@@ -29,9 +29,23 @@ export function aiMemoryOf(files, home) {
 }
 const readable = (f) => { try { return readFileSync(f, 'utf8').trim() !== ''; } catch { return false; } };
 export const portOpen = (port, host = '127.0.0.1', ms = 1500) => new Promise((res) => { const s = connect({ port, host }); const t = setTimeout(() => { s.destroy(); res(false); }, ms); s.on('connect', () => { clearTimeout(t); s.end(); res(true); }); s.on('error', () => { clearTimeout(t); res(false); }); });
-export async function check({ settingsFiles, claude = 'claude', home = process.env.HOME, probe = portOpen }) {
+// T0.2.3 (F0.2): o claude 2.1.322 não tem onFailure; um hook cujo script não existe deixa a ferramenta passar (o guard abriria).
+// Cada comando de hook com caminho ($FSD_TEAM/…, $HOME/…, /…) precisa existir e ser executável; nomes soltos (node, rtk) ficam no PATH.
+const TEAM_DIR = new URL('..', import.meta.url).pathname.replace(/\/$/, '');
+export function hookScriptsMissing(files, { home = process.env.HOME, team = process.env.FSD_TEAM || TEAM_DIR } = {}) {
+  const out = new Set();
+  for (const c of Object.values(cmds(files)).flat()) {
+    const exe = c.trim().split(/\s+/)[0] || ''; if (!exe.includes('/')) continue;
+    const p = exe.replace(/^\$\{?HOME\}?|^~/, home || '').replace(/^\$\{?FSD_TEAM\}?/, team || '');
+    if (p.includes('$')) { out.add(exe); continue; }
+    try { accessSync(p, constants.X_OK); } catch { out.add(p); }
+  }
+  return [...out];
+}
+export async function check({ settingsFiles, claude = 'claude', home = process.env.HOME, team = process.env.FSD_TEAM || TEAM_DIR, probe = portOpen }) {
   const why = [];
   for (const m of hooksMissing(settingsFiles)) why.push(`hook faltando (${m})`);
+  for (const p of hookScriptsMissing(settingsFiles, { home, team })) if (!/ai-memory\/ai-memory$/.test(p)) why.push(`script do hook ausente (${p})`);
   const aim = aiMemoryOf(settingsFiles, home);
   if (aim && !existsSync(aim.bin)) why.push(`ai-memory não instalado (${aim.bin})`);
   if (aim?.tokenFile && !readable(aim.tokenFile)) why.push(`sem o token do ai-memory (${aim.tokenFile})`);

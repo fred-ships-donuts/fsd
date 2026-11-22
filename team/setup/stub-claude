@@ -2,8 +2,8 @@
 // stub-claude — um claude falso para os testes D do time nativo (0 token). Estado em $STUB_CLAUDE_DIR/state.json.
 // Emula o que o supervisor usa, no formato visto na T0.1.5 (claude agents --json do 2.1.322):
 //   --help                       as flags e subcomandos que o check-claude-cli confere
-//   --bg [--name n] [--session-id u | --resume u] ... "<prompt>"   imprime o id curto. --resume de uma sessão ligada cria uma
-//                                cópia (nova conversa; E-cópia). Grava prompts, cwd, FSD_AGENT e FSD_RUNNER de cada sessão.
+//   --bg [--name n] [--resume u] ... "<prompt>"   imprime "backgrounded · <id> · <nome>" (ver o bloco --bg). Grava prompts, cwd,
+//                                FSD_AGENT e FSD_RUNNER de cada sessão.
 //                                STUB_RUN_HOOKS=1: roda $FSD_TEAM/bin/fsd-session-hook com SessionStart, UserPromptSubmit e Stop (o
 //                                turno começa e acaba). STUB_WORKING=1: o turno não acaba (sem Stop).
 //   agents --json [--all]        as sessões background ligadas (com --all, também as paradas)
@@ -53,13 +53,21 @@ if (a[0] === 'agents') {
 if (a[0] === 'stop') { const s = st.sessions.find((x) => x.id === a[1]); if (!s) { save(); console.error(`no session ${a[1]}`); process.exit(1); } s.alive = false; save(); process.exit(0); }
 if (a[0] === 'reboot') { for (const s of st.sessions) s.alive = false; save(); process.exit(0); }
 if (a.includes('--bg')) {
+  // Como o 2.1.322 (F0.2): o --bg escolhe o id (ignora --session-id, com aviso) e imprime "backgrounded · <id> · <nome>"; o id curto é o
+  // começo do sessionId. --resume com flags (além do --bg) cria uma cópia que leva o histórico (id novo; a sessão guarda as próprias
+  // opções); sem flags, acorda a mesma sessão desligada; ligada (ociosa ou trabalhando), sempre cópia (E-cópia).
   const prompt = a[a.length - 1]; const resume = opt('--resume');
   const env = { agent: process.env.FSD_AGENT || null, runner: process.env.FSD_RUNNER || null };
+  if (opt('--session-id')) console.error('warning: --bg manages the session id; ignoring --session-id (use --resume <id> to continue an existing session)');
+  const flags = a.slice(0, -1).filter((x, i, l) => !['--bg', '--background', '--resume'].includes(x) && l[i - 1] !== '--resume');
   let s = resume ? st.sessions.find((x) => x.sessionId === resume) : null;
   if (resume && !s) { save(); console.error(`no conversation ${resume}`); process.exit(1); }
-  if (s && s.alive) { const copy = { ...s, id: randomBytes(4).toString('hex'), sessionId: randomUUID(), copyOf: s.sessionId, prompts: [prompt], context: [], startedAt: Date.now() }; st.sessions.push(copy); s = copy; }
-  else if (s) { s.alive = true; s.id = randomBytes(4).toString('hex'); s.prompts.push(prompt); Object.assign(s, env, { cwd: process.cwd() }); }
-  else { s = { id: randomBytes(4).toString('hex'), sessionId: opt('--session-id') || randomUUID(), name: opt('--name') || null, alive: true, prompts: [prompt], context: [], startedAt: Date.now(), cwd: process.cwd(), args: a.slice(0, -1), ...env }; st.sessions.push(s); }
-  hooks(s, prompt); play(s, prompt); save(); console.log(s.id); process.exit(0);
+  const fresh = () => { const sessionId = randomUUID(); return { id: sessionId.slice(0, 8), sessionId, alive: true, context: [], startedAt: Date.now(), cwd: process.cwd(), ...env }; };
+  if (s && (s.alive || flags.length)) {
+    console.error(s.alive ? `note: session ${s.id} is already running in the background, so this started a copy.` : `note: background session ${s.id} keeps its own saved options, so the flags you passed started a copy.`);
+    s = { ...s, ...fresh(), name: opt('--name') || null, copyOf: s.sessionId, prompts: [...s.prompts, prompt], args: flags.length ? a.slice(0, -1) : s.args }; st.sessions.push(s);
+  } else if (s) { console.error(`note: woke session ${s.id} with its saved options.`); s.alive = true; s.prompts.push(prompt); Object.assign(s, env, { cwd: process.cwd() }); }
+  else { s = { ...fresh(), name: opt('--name') || null, prompts: [prompt], args: a.slice(0, -1) }; st.sessions.push(s); }
+  hooks(s, prompt); play(s, prompt); save(); console.log(`backgrounded · ${s.id}${s.name ? ` · ${s.name}` : ''}`); process.exit(0);
 }
 save(); console.error(`stub-claude: não emulado: ${a.join(' ')}`); process.exit(2);

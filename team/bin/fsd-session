@@ -17,9 +17,9 @@ const VIA = process.env.FSD_SESSION_VIA === 'sudo';
 const SX = (r, ...x) => spawnSync('sudo', ['-n', '-u', `fsd-${r}`, '/usr/local/sbin/fsd-session-exec', ...x], { encoding: 'utf8' });
 function viaWrapper(argv, role) {
   if (argv[0] === 'stop') return SX(role, 'stop', argv[1]);
-  const i = argv.findIndex((x) => x === '--session-id' || x === '--resume');
+  const i = argv.indexOf('--resume');
   const dir = mkdtempSync(join(tmpdir(), 'fsd-prompt-')); chmodSync(dir, 0o711); const f = join(dir, 'prompt'); writeFileSync(f, argv[argv.length - 1], { mode: 0o644 });
-  try { return SX(role, argv[i] === '--resume' ? 'resume' : 'start', argv[i + 1], f); } finally { rmSync(dir, { recursive: true, force: true }); }
+  try { return i >= 0 ? SX(role, 'resume', argv[i + 1], f) : SX(role, 'start', f); } finally { rmSync(dir, { recursive: true, force: true }); }
 }
 const call = (argv, role) => (VIA ? viaWrapper(argv, role) : spawnSync(CLAUDE, argv, { cwd: REPO, encoding: 'utf8', env: { ...process.env, ...(role ? { FSD_AGENT: role, FSD_RUNNER: 'session', FSD_TEAM: join(BIN, '..') } : {}) } }));
 const agents = () => {
@@ -34,12 +34,15 @@ if (!VIA && ['start', 'turn', 'boot'].includes(cmd) && !process.env.FSD_SESSION_
   die('fsd-session: sem isolamento (FSD_SESSION_VIA=sudo no container): a sessão do papel roda em bypass e só sobe isolada (D6)', 1);
 const stored = S.loadStored();
 const st = () => S.status({ agents: agents(), stored, hookState: sessionState });
+// O --bg imprime o id curto; o sessionId inteiro vem do `claude agents --json`. A conversa anterior fica em lastSessionId.
 function run(steps, r) {
   for (const s of steps) {
-    let argv = s.argv;
-    if (s.sessionId === '$NEW') { const id = S.newSessionId(); argv = argv.map((x) => (x === '$NEW' ? id : x)); stored[r] = { ...(stored[r] || {}), sessionId: id }; }
-    const out = call(argv, r);
-    if (out.status !== 0) die(`fsd-session: claude ${argv[0]} falhou (${(out.stderr || out.stdout || '').trim().split('\n')[0].slice(0, 160)})`, 4);
+    const out = call(s.argv, r);
+    if (out.status !== 0) die(`fsd-session: claude ${s.argv[0]} falhou (${(out.stderr || out.stdout || '').trim().split('\n')[0].slice(0, 160)})`, 4);
+    if (s.sessionId !== '$OUT') continue;
+    const id = S.bgId(`${out.stdout}\n${out.stderr}`); const live = id && agents().find((a) => a.id === id);
+    if (!live?.sessionId) die(`fsd-session: o claude não disse o id da sessão de ${r} (${(out.stdout || out.stderr || '').trim().split('\n')[0].slice(0, 120)})`, 4);
+    stored[r] = { ...(stored[r] || {}), sessionId: live.sessionId, ...(s.from ? { lastSessionId: s.from } : {}) };
   }
   stored[r] = { ...(stored[r] || {}), active: true }; S.saveStored(stored);
 }
