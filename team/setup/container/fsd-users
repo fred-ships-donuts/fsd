@@ -109,6 +109,14 @@ for r in "${ROLES[@]}"; do install -d -o fsd-broker -g "fsd-$r" -m 2750 "/var/li
 install -d -o fsd-broker -g fsd-dispatch -m 2750 /var/lib/fsd-tokens/dispatch
 install -d -o fsd-broker -g fsd-broker -m 0700 /var/lib/fsd-broker /var/lib/fsd-broker/keys
 state_dirs
+# cwd das sessões (validação R14): uma pasta do root por papel, 0755, só com o .ai-memory.toml do repositório (o projeto do ai-memory).
+CR=${FSD_CWD_ROOT:-/srv/fsd/cwd}
+install -d -o root -g root -m 0755 "$(dirname "$CR")" "$CR"
+for r in "${ROLES[@]}"; do
+  install -d -o root -g root -m 0755 "$CR/$r"
+  aim=${FSD_REPO_DIR:-/srv/fsd/repo}/.ai-memory.toml
+  if [ -f "$aim" ] && [ ! -L "$aim" ]; then install -o root -g root -m 0644 "$aim" "$CR/$r/.ai-memory.toml"; fi
+done
 # QA (F2.4): o código do PR roda como fsd-run, numa área só dele; o Bob chama só o fsd-run-exec, por um sudoers estreito.
 install -d -o fsd-run -g fsd-run -m 0700 /var/lib/fsd-run /var/lib/fsd-run/qa
 src=$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/fsd-run-exec
@@ -119,7 +127,7 @@ if [ -d /etc/sudoers.d ]; then
   if command -v visudo >/dev/null && visudo -cf /etc/sudoers.d/fsd-run.tmp >/dev/null; then mv /etc/sudoers.d/fsd-run.tmp /etc/sudoers.d/fsd-run; else rm -f /etc/sudoers.d/fsd-run.tmp; echo "fsd-users: sudoers do fsd-run inválido" >&2; exit 1; fi
 fi
 # Supervisor (F2.6): o fsd-dispatch controla as sessões dos papéis só pelo fsd-session-exec, como cada papel.
-printf 'REPO=%q\nTEAM=%q\nCLAUDE=%q\nPREFLIGHT=%q\nSTATE_ROOT=%q\n' "${FSD_REPO_DIR:-/srv/fsd/repo}" "${FSD_TEAM_DIR:-${FSD_REPO_DIR:-/srv/fsd/repo}/team}" "${FSD_CLAUDE_BIN:-/usr/local/bin/claude}" "${FSD_NATIVE_PREFLIGHT:-1}" "$SR" > /etc/fsd/session.env
+printf 'REPO=%q\nTEAM=%q\nCLAUDE=%q\nPREFLIGHT=%q\nSTATE_ROOT=%q\nCWD_ROOT=%q\n' "${FSD_REPO_DIR:-/srv/fsd/repo}" "${FSD_TEAM_DIR:-${FSD_REPO_DIR:-/srv/fsd/repo}/team}" "${FSD_CLAUDE_BIN:-/usr/local/bin/claude}" "${FSD_NATIVE_PREFLIGHT:-1}" "$SR" "$CR" > /etc/fsd/session.env
 chown root:root /etc/fsd/session.env; chmod 0644 /etc/fsd/session.env
 src=$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/fsd-session-exec
 [ -f "$src" ] && install -o root -g root -m 0755 "$src" /usr/local/sbin/fsd-session-exec

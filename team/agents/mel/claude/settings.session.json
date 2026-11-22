@@ -42,7 +42,9 @@
       "Bash(fsd-qa*)",
       "Bash(fsd-issue decide*)",
       "Bash(fsd-issue new*)",
-      "Bash(fsd-dev start*)"
+      "Bash(fsd-dev start*)",
+      "Edit(//srv/fsd/repo/**)",
+      "Write(//srv/fsd/repo/**)"
     ]
   },
   "hooks": {
@@ -77,7 +79,8 @@
         "~/.fsd",
         "~/.npm",
         "~/.cache",
-        "/tmp"
+        "/tmp",
+        "/srv/fsd/repo/.git"
       ]
     },
     "network": {
