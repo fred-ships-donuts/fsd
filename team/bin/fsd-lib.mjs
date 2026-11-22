@@ -37,14 +37,16 @@ export function run(cmd, args, { input, allowFail = false, cwd } = {}) {
   if (r.status !== 0 && !allowFail) die(`${cmd} ${args[0] ?? ''} falhou: ${firstLine(r.stderr || r.stdout).slice(0, 200)}`, 4);
   return allowFail ? { ok: r.status === 0, out: (r.stdout || '').trim(), err: firstLine(r.stderr || r.stdout) } : (r.stdout || '').trim();
 }
-export const gh = (args, o) => run(join(BIN, 'gh'), args, o);
+// FSD_GH: um gh no lugar do wrapper, só para testes e ciclos dry (team/setup/fake-gh). Sem token nem rede: quem o usa só engana a si mesmo.
+export const GH = process.env.FSD_GH || join(BIN, 'gh');
+export const gh = (args, o) => run(GH, args, o);
 // Escrita no GitHub/quadro/avisos: com FSD_DRY=1 só imprime o que faria (para testes).
 export const DRY = !!process.env.FSD_DRY;
 export function write(cmd, args, o = {}) {
   if (DRY) { console.log(`[dry] ${cmd.split('/').pop()} ${args.map((x) => (/\s/.test(x) ? JSON.stringify(x) : x)).join(' ')}${o.input ? ` <<${JSON.stringify(o.input.slice(0, 120))}${o.input.length > 120 ? '…' : ''}` : ''}`); return o.allowFail ? { ok: true, out: '', err: '' } : 'https://github.com/x/y/issues/0'; }
   return run(cmd, args, o);
 }
-export const ghw = (args, o) => write(join(BIN, 'gh'), args, o);
+export const ghw = (args, o) => write(GH, args, o);
 export const ghJson = (args) => JSON.parse(gh(args) || 'null');
 // Tamanho do issue pela label size:S|M|L (null sem label). A documentação escala por ele: S só o essencial, L a cadeia toda.
 export const sizeOf = (i) => ((i.labels || []).map((l) => l.name).find((x) => /^size:[SML]$/.test(x)) || '').slice(5) || null;
@@ -62,7 +64,7 @@ export function closes(body) {
 
 const PR_FIELDS = 'number,title,url,state,isDraft,baseRefName,headRefName,headRefOid,author,reviews,mergeable,body,mergeCommit,reviewRequests,statusCheckRollup';
 export function pr(n) {
-  const r = run(join(BIN, 'gh'), ['pr', 'view', String(n), '--json', PR_FIELDS], { allowFail: true });
+  const r = run(GH, ['pr', 'view', String(n), '--json', PR_FIELDS], { allowFail: true });
   if (!r.ok) die(/not found|Could not resolve/i.test(r.err) ? `PR #${n} não encontrado` : `gh falhou: ${r.err.slice(0, 200)}`, /not found|Could not resolve/i.test(r.err) ? 1 : 4);
   return markBots(JSON.parse(r.out));
 }
@@ -358,7 +360,7 @@ export function todo(login) {
   return openPrs().filter((p) => !p.isDraft && p.baseRefName === 'develop' && (rev || REVIEWERS.includes(agentOf(p.author?.login))) && ['todo', 'stale'].includes(myStatus(p, login)));
 }
 export function issue(n) {
-  const r = run(join(BIN, 'gh'), ['issue', 'view', String(n), '--json', 'number,title,body,state,labels,comments'], { allowFail: true });
+  const r = run(GH, ['issue', 'view', String(n), '--json', 'number,title,body,state,labels,comments'], { allowFail: true });
   if (!r.ok) die(/not found|Could not resolve/i.test(r.err) ? `issue #${n} não encontrado` : `gh falhou: ${r.err.slice(0, 200)}`, /not found|Could not resolve/i.test(r.err) ? 1 : 4);
   return JSON.parse(r.out);
 }

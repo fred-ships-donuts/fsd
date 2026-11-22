@@ -2,10 +2,15 @@
 // fsd-arq start <issue>                card → Architecting (Mel); mostra o issue (corpo até 40 linhas) e o aceite numerado
 // Por tamanho: size:L pede as 6 seções; size:M só What to do, Files e Verification; size:S não tem passagem (o Kevin
 // manda direto para Ready for Development (Stuart)). Issue sem size: o Kevin define antes.
-// fsd-arq publish <issue> <arquivo|->  confere as seções do tamanho, publica "Architect handoff" (recusa se já houver um),
+// fsd-arq publish <issue> <arquivo|-> [--entrega <json>]  confere as seções do tamanho, publica "Architect handoff" (recusa se já houver um),
 //                                      card → Ready for Development (Stuart) e avisa o stuart
+// Sessão nova (F4.5): o publish exige a entrega arquitetura (--entrega <json>, contrato team/contracts/arquitetura.schema.json) e põe o
+// plano dela no card (**Plan:**) antes de mover para Ready for Development: o plan mode nativo não convive com o bypass, então o plano
+// vira um passo do contrato.
 import * as L from './fsd-lib.mjs';
-const [cmd, n, file] = process.argv.slice(2).filter((x) => x !== '--again');
+const C = await import('./fsd-contract.mjs'); const { loadTask } = await import('./fsd-task.mjs');
+const argv = process.argv.slice(2); const ei = argv.indexOf('--entrega'); const ENTREGA = ei >= 0 ? argv[ei + 1] : undefined;
+const [cmd, n, file] = argv.filter((x, i) => x !== '--again' && x !== '--entrega' && argv[i - 1] !== '--entrega');
 const NEED = { L: ['What to do', 'Files', 'Contracts', 'Risks', 'Out of scope', 'Verification'], M: ['What to do', 'Files', 'Verification'] };
 const sized = (i) => { const s = L.sizeOf(i);
   if (!s) L.die(`#${i.number} sem size:S|M|L: o Kevin define o tamanho antes da passagem (fsd-notify kevin "#${i.number} sem size")`, 1);
@@ -21,8 +26,15 @@ if (cmd === 'start') {
   const miss = NEED[s].filter((h) => !new RegExp(`\\*\\*${h}:?\\*\\*`, 'i').test(body));
   if (miss.length) L.die(`faltam seções: ${miss.join(', ')} (formato **Seção:**)`, 1);
   if (L.handoffOf(L.issue(n)) && !process.argv.includes('--again')) L.die(`#${n} já tem Architect handoff; para publicar outro, repita com --again no fim: fsd-arq publish ${n} <arquivo|-> --again`, 1);
+  let delivery = null;
+  if (C.sessionRunner()) {
+    const r = C.requireDelivery({ kind: 'arquitetura', file: ENTREGA, acceptance: loadTask(L.ME)?.acceptance ?? undefined, expect: { card: Number(n), role: L.ME || null } });
+    if (!r.ok) L.die(`entrega inválida: nada foi publicado.\n${r.errors.map((e) => `- ${e}`).join('\n')}`, 1);
+    delivery = r.data; if (!/\*\*Plan:?\*\*/i.test(body)) body = `**Plan:** ${String(delivery.plan).trim()}\n\n${body}`;
+  }
   if (!/^\*\*Architect handoff\*\*/i.test(body)) body = `**Architect handoff**\n\n${body}`;
   const url = L.ghw(['issue', 'comment', n, '--body-file', '-'], { input: body });
+  if (delivery) C.saveDelivery(delivery);
   const b = L.board(L.STAGE.devReady, [Number(n)]);
   const nt = L.noticeSummary(L.notify(['stuart'], `Architect handoff do #${n} publicado: fsd-dev start ${n}`));
   console.log([`#${n} passagem publicada ${url}`, b, nt].filter(Boolean).join(' | '));
