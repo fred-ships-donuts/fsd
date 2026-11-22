@@ -106,5 +106,24 @@ if [ -x /usr/local/sbin/fsd-session-exec ] && command -v jq >/dev/null; then
   check K11 "com a checagem ligada, sem ai-memory e sem túnel, a sessão do Bob não sobe e diz por quê" bash -c "grep -q 'ai-memory não instalado' <<<\"$out\" && grep -q 'túnel do ai-memory fechado' <<<\"$out\""
   sed -i 's/^PREFLIGHT=.*/PREFLIGHT=0/' /etc/fsd/session.env
 fi
+# K12 (T2.5.2): o token do ai-memory fora do argv. O perfil chama o hook sem --auth-token; o token é um arquivo 0400 do papel, que
+# outro papel não lê; um hook falso (que só imprime o argv) não vê o token; o config.toml do papel é do root.
+if command -v jq >/dev/null && [ -f /etc/fsd/profiles/stuart/settings.json ]; then
+  D=/home/fsd-stuart/.local/share/ai-memory
+  check K12 "nenhum hook do perfil passa --auth-token" bash -c "for r in kevin mel stuart bob; do jq -e '[.hooks[][].hooks[].command] | any(test(\"auth-token\")) | not' /etc/fsd/profiles/\$r/settings.json >/dev/null || exit 1; done"
+  check K12 "os hooks do ai-memory seguem no perfil" bash -c "jq -e '[.hooks[][].hooks[].command] | map(select(test(\"ai-memory\"))) | length > 5' /etc/fsd/profiles/stuart/settings.json >/dev/null"
+  check K12 "o token do Stuart é 0400 dele" bash -c "[ \"\$(stat -c '%a %U' $D/auth-token)\" = '400 fsd-stuart' ]"
+  check K12 "a Mel não lê o token do Stuart" cannot fsd-mel "cat $D/auth-token"
+  check K12 "o config.toml do papel é do root e aponta o arquivo" bash -c "[ \"\$(stat -c %U $D/config.toml)\" = root ] && grep -q 'bearer_token_file = \"$D/auth-token\"' $D/config.toml"
+  check K12 "o Stuart não reescreve o config.toml" cannot fsd-stuart "echo x >> $D/config.toml"
+  # O comando do hook como o perfil o roda, com um ai-memory falso que grava o argv: nenhum pedaço do token aparece.
+  cmd=$(jq -r '[.hooks[][].hooks[].command | select(test("ai-memory"))][0]' /etc/fsd/profiles/stuart/settings.json)
+  install -d -o fsd-stuart -g fsd-stuart -m 0700 /home/fsd-stuart/.local/lib /home/fsd-stuart/.local/lib/ai-memory
+  printf '#!/bin/sh\necho "$0 $*" > /tmp/k12-argv\n' > /home/fsd-stuart/.local/lib/ai-memory/ai-memory
+  chown fsd-stuart: /home/fsd-stuart/.local/lib/ai-memory/ai-memory; chmod 0700 /home/fsd-stuart/.local/lib/ai-memory/ai-memory
+  su -s /bin/bash fsd-stuart -c "AI_MEMORY_AUTH_TOKEN= $cmd" </dev/null >/dev/null 2>&1
+  check K12 "o argv do hook não tem o token nem --auth-token" bash -c "[ -s /tmp/k12-argv ] && ! grep -qF \"\$(cat $D/auth-token)\" /tmp/k12-argv && ! grep -q -- --auth-token /tmp/k12-argv"
+  rm -rf /home/fsd-stuart/.local/lib /tmp/k12-argv
+fi
 [ $fail = 0 ] && echo "k-checks: tudo ok" || echo "k-checks: há falhas"
 exit $fail

@@ -1,6 +1,9 @@
 # F4.2 (T4.2.1): o deny da sessão nova, caso a caso. papel<TAB>comando (ou ferramenta: tool:<nome>)<TAB>deny|allow<TAB>por quê
 stuart	env	deny	segredo: o ambiente tem o token
 stuart	printenv GH_TOKEN	deny	segredo
+stuart	cat ~/.local/share/ai-memory/auth-token	deny	token do ai-memory (T2.5.2)
+mel	head -c 9 /home/fsd-mel/.local/share/ai-memory/auth-header	deny	token do ai-memory (T2.5.2)
+bob	tool:Read(~/.local/share/ai-memory/auth-*)	deny	token do ai-memory (T2.5.2)
 stuart	cat /var/lib/fsd-tokens/mel/token	deny	token de outro papel
 mel	ls /var/lib/fsd-broker/keys	deny	chaves dos Apps
 bob	cat ~/.claude/.credentials.json	deny	credencial da assinatura

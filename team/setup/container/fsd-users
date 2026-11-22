@@ -48,8 +48,20 @@ for r in "${ROLES[@]}"; do
     sess=$p/settings.session.json; [ -s "$sess" ] || sess=/dev/null   # F4.2: o deny e o guard só da sessão nova
     jq -s 'def m($a; $b): if ($a|type) == "object" and ($b|type) == "object" then reduce (($a|keys) + ($b|keys) | unique)[] as $k ({}; .[$k] = m($a[$k]; $b[$k]))
            elif ($a|type) == "array" and ($b|type) == "array" then ($a + $b | unique) elif $b == null then $a else $b end;
-           m(m(.[0]; (.[1] // {})); (.[2] // {}))' "$team" "$role" "$sess" > "$p/settings.json.tmp" && install -o root -g root -m 0644 "$p/settings.json.tmp" "$p/settings.json"; rm -f "$p/settings.json.tmp"
+           m(m(.[0]; (.[1] // {})); (.[2] // {}))
+           | .hooks |= walk(if type == "string" then gsub(" --auth-token \"\\$AI_MEMORY_AUTH_TOKEN\""; "") else . end)' "$team" "$role" "$sess" > "$p/settings.json.tmp" && install -o root -g root -m 0644 "$p/settings.json.tmp" "$p/settings.json"; rm -f "$p/settings.json.tmp"
   fi
+done
+# ai-memory (T2.5.2): o token do papel nunca vai no argv (todos os uids leem o argv; fase0.md). O hook sem --auth-token lê
+# <data_dir>/auth-token e o mcp-bridge lê o [auth].bearer_token_file do config.toml (provado na 3.4.3 com um servidor falso).
+# O data dir é do papel (spool, estado); o token é 0400 do papel, o config.toml é do root. FSD_AIM_TOKENS_SRC=<pasta com um
+# arquivo aim_… por papel> instala os tokens; sem ela, só a estrutura (a sessão sobe sem credencial e o ai-memory recusa).
+for r in "${ROLES[@]}"; do
+  h=/home/fsd-$r; dd=$h/.local/share/ai-memory
+  install -d -o "fsd-$r" -g "fsd-$r" -m 0700 "$h/.local" "$h/.local/share" "$dd"
+  printf '[auth]\nbearer_token_file = "%s/auth-token"\n' "$dd" > "$dd/config.toml.tmp" && install -o root -g root -m 0644 "$dd/config.toml.tmp" "$dd/config.toml"; rm -f "$dd/config.toml.tmp"
+  tok=${FSD_AIM_TOKENS_SRC:-}/$r
+  if [ -n "${FSD_AIM_TOKENS_SRC:-}" ] && [ -s "$tok" ]; then install -o "fsd-$r" -g "fsd-$r" -m 0400 "$tok" "$dd/auth-token"; fi
 done
 # Tokens (F2.3): a pasta de cada papel é do fsd-broker, com o grupo do papel e setgid (o arquivo herda o grupo); 0750 + arquivo 0440
 # = só o broker escreve e só o papel lê. O token de merge e release fica numa pasta do grupo do supervisor. As chaves: só o broker.

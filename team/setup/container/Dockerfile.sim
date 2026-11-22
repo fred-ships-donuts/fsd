@@ -8,7 +8,8 @@ COPY team/bin /opt/fsd-sim/team/bin
 COPY team/agents.json team/claude-settings.json /opt/fsd-sim/team/
 COPY team/setup/stub-claude /opt/fsd-sim/team/setup/stub-claude
 RUN ln -s /opt/fsd-sim/team/setup/stub-claude /usr/local/bin/claude
-RUN chmod 0755 /opt/fsd-sim/fsd-users /opt/fsd-sim/fsd-repo /opt/fsd-sim/fsd-run-exec /opt/fsd-sim/fsd-session-exec /opt/fsd-sim/k-checks && FSD_PROFILES_SRC=/opt/fsd-sim/agents FSD_REPO_DIR=/srv/repo FSD_TEAM_DIR=/opt/fsd-sim/team FSD_NATIVE_PREFLIGHT=0 /opt/fsd-sim/fsd-users
+RUN mkdir -p /opt/fsd-sim/aim-tokens && for r in kevin mel stuart bob; do echo "aim_fake_$r" > /opt/fsd-sim/aim-tokens/$r; done
+RUN chmod 0755 /opt/fsd-sim/fsd-users /opt/fsd-sim/fsd-repo /opt/fsd-sim/fsd-run-exec /opt/fsd-sim/fsd-session-exec /opt/fsd-sim/k-checks && FSD_PROFILES_SRC=/opt/fsd-sim/agents FSD_REPO_DIR=/srv/repo FSD_TEAM_DIR=/opt/fsd-sim/team FSD_NATIVE_PREFLIGHT=0 FSD_AIM_TOKENS_SRC=/opt/fsd-sim/aim-tokens /opt/fsd-sim/fsd-users
 # Um remoto bare local (o grupo grava, como o GitHub para quem tem token) e o clone do time preparado pelo fsd-repo (K7).
 RUN git config --global user.email sim@sim && git config --global user.name sim \
  && git init -q --bare /srv/origin.git && git clone -q /srv/origin.git /tmp/seed && cd /tmp/seed && echo a > a && git add a && git commit -qm init && git push -q origin HEAD:develop \
