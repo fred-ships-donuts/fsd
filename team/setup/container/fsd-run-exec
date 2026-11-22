@@ -4,6 +4,8 @@
 #   prep <nome> <url> <sha>   clona o PR (url do GitHub) em /var/lib/fsd-run/qa/<nome>/pr, checkout do sha, npm ci e build
 #   run <nome> -- <comando>   roda o comando em .../work, HOME .../home, ambiente limpo (env -i) e o alias fsd do PR
 #   clean <nome>             apaga a área do PR
+# Validação R20: o fsd-run é o mesmo uid para todo PR; no prep e no clean, todo processo dele morre (kill -1: todos os do uid, menos
+# este) e a área inteira some, para um processo deixado pelo postinstall de um PR não mexer no build do seguinte.
 # O ambiente de quem chamou não entra (sudo já zera; env -i garante): nenhum token, nenhum FSD_*. O exit é o do comando.
 set -uo pipefail
 [ "$(id -un)" = fsd-run ] || { echo "fsd-run-exec: só como fsd-run (sudo -u fsd-run)" >&2; exit 2; }
@@ -15,13 +17,13 @@ case "$mode" in
     url=${3:-}; sha=${4:-}
     [[ $url =~ ^https://github\.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+(\.git)?$ ]] || { echo "fsd-run-exec: url fora do GitHub" >&2; exit 2; }
     [[ $sha =~ ^[0-9a-f]{40}$ ]] || { echo "fsd-run-exec: sha inválido" >&2; exit 2; }
-    rm -rf "$D"; mkdir -p "$D/home" "$D/work"
+    kill -KILL -1 2>/dev/null; find "$BASE" -mindepth 1 -maxdepth 1 -exec rm -rf {} + 2>/dev/null; mkdir -p "$D/home" "$D/work"
     "${CLEAN[@]}" git clone -q --filter=blob:none "$url" "$D/pr" && "${CLEAN[@]}" git -C "$D/pr" fetch -q origin "$sha" && "${CLEAN[@]}" git -C "$D/pr" checkout -q "$sha" || exit 3
     cd "$D/pr" && "${CLEAN[@]}" npm ci --silent --no-audit --no-fund && "${CLEAN[@]}" npm run -s build ;;
   run)
     [ "${3:-}" = -- ] || { echo "uso: fsd-run-exec run <nome> -- <comando>" >&2; exit 2; }
     shift 3; [ -d "$D/work" ] || { echo "fsd-run-exec: rode o prep antes" >&2; exit 2; }
     cd "$D/work" && exec "${CLEAN[@]}" bash --noprofile --norc -c "fsd() { node '$D/pr/dist/cli/fsd.js' \"\$@\"; }; $*" ;;
-  clean) rm -rf "$D" ;;
+  clean) kill -KILL -1 2>/dev/null; find "$BASE" -mindepth 1 -maxdepth 1 -exec rm -rf {} + 2>/dev/null; exit 0 ;;
   *) echo "uso: fsd-run-exec prep <nome> <url> <sha> | run <nome> -- <comando> | clean <nome>" >&2; exit 2 ;;
 esac

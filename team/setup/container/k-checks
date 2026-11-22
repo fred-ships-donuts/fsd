@@ -130,8 +130,10 @@ if command -v jq >/dev/null && [ -f /etc/fsd/profiles/stuart/settings.json ]; th
   check K12 "os hooks do ai-memory seguem no perfil" bash -c "jq -e '[.hooks[][].hooks[].command] | map(select(test(\"ai-memory\"))) | length > 5' /etc/fsd/profiles/stuart/settings.json >/dev/null"
   check K12 "o token do Stuart é 0400 dele" bash -c "[ \"\$(stat -c '%a %U' $D/auth-token)\" = '400 fsd-stuart' ]"
   check K12 "a Mel não lê o token do Stuart" cannot fsd-mel "cat $D/auth-token"
-  check K12 "o config.toml do papel é do root e aponta o arquivo" bash -c "[ \"\$(stat -c %U $D/config.toml)\" = root ] && grep -q 'bearer_token_file = \"$D/auth-token\"' $D/config.toml"
-  check K12 "o Stuart não reescreve o config.toml" cannot fsd-stuart "echo x >> $D/config.toml"
+  AC=/etc/fsd/profiles/stuart/ai-memory.toml
+  check K12 "R40: o config do ai-memory do papel é do root, no perfil, e aponta o arquivo" bash -c "[ \"\$(stat -c %U $AC)\" = root ] && grep -q 'bearer_token_file = \"$D/auth-token\"' $AC && [ ! -e $D/config.toml ]"
+  check K12 "R40: o Stuart não apaga nem reescreve o config (rm -f e >>)" bash -c "! su -s /bin/bash fsd-stuart -c 'rm -f $AC' 2>/dev/null; [ -f $AC ] && ! su -s /bin/bash fsd-stuart -c 'echo x >> $AC' 2>/dev/null"
+  check K12 "R40: os hooks e o MCP do papel passam --config com esse arquivo" bash -c "jq -e --arg c $AC '[.hooks[][].hooks[].command | select(test(\"ai-memory\"))] | all(contains(\"--config \" + \$c))' /etc/fsd/profiles/stuart/settings.json && jq -e --arg c $AC '.mcpServers[\"ai-memory\"].args | index(\$c)' /etc/fsd/profiles/stuart/mcp.json"
   # O comando do hook como o perfil o roda, com um ai-memory falso que grava o argv: nenhum pedaço do token aparece.
   cmd=$(jq -r '[.hooks[][].hooks[].command | select(test("ai-memory"))][0]' /etc/fsd/profiles/stuart/settings.json)
   [ -e /home/fsd-stuart/.local/lib ] && mv /home/fsd-stuart/.local/lib /home/fsd-stuart/.local/lib.k12   # o do setup nativo volta no fim
@@ -264,6 +266,31 @@ if [ -x /usr/local/sbin/fsd-session-exec ] && command -v jq >/dev/null; then
   check K19 "com .claude/ no cwd, a sessão da Mel não sobe" bash -c "! su -s /bin/bash fsd-dispatch -c 'sudo -n -u fsd-mel /usr/local/sbin/fsd-session-exec start /tmp/k19-prompt' 2>&1 | grep -q backgrounded"
   rmdir "$CR/mel/.claude"
   for r in "${ROLES[@]}"; do check K19 "o perfil do $r dá escrita ao .git compartilhado no sandbox e nega Write/Edit no checkout" jq -e '(.sandbox.filesystem.allowWrite | index("/srv/fsd/repo/.git")) and (.permissions.deny | index("Write(//srv/fsd/repo/**)")) and (.permissions.deny | index("Edit(//srv/fsd/repo/**)"))' "/etc/fsd/profiles/$r/settings.json"; done
+fi
+# K20 (validação R20, R37, R39, R19): o fsd-run sem processo de um PR para o seguinte; as ferramentas dos papéis são cópias do root; o
+# prompt da sessão não aparece no argv; o time só sobe no FSD_TEAM_SHA.
+if [ -x /usr/local/sbin/fsd-run-exec ]; then
+  RX="sudo -n -u fsd-run /usr/local/sbin/fsd-run-exec"
+  install -d -o fsd-run -g fsd-run -m 0700 /var/lib/fsd-run/qa/k20a /var/lib/fsd-run/qa/k20a/work /var/lib/fsd-run/qa/k20a/home
+  su -s /bin/bash fsd-bob -c "$RX run k20a -- 'setsid sleep 300 </dev/null >/dev/null 2>&1 &'" >/dev/null 2>&1
+  left_before() { pgrep -u fsd-run -x sleep >/dev/null; }
+  check K20 "R20: um processo deixado pelo item segue vivo (o cenário do ataque)" left_before
+  su -s /bin/bash fsd-bob -c "$RX clean k20a" >/dev/null 2>&1
+  clean_ok() { ! pgrep -u fsd-run >/dev/null && [ -z "$(ls -A /var/lib/fsd-run/qa)" ]; }
+  check K20 "R20: o clean mata todo processo do fsd-run e apaga a área inteira" clean_ok
+fi
+if [ -d /srv/native ]; then
+  for t in node claude; do check K20 "R37: o $t dos papéis é uma cópia do root, sem escrita de outro" bash -c "f=\$(readlink -f /usr/local/bin/$t); [ \"\${f#/opt/fsd-native/}\" != \"\$f\" ] && [ \"\$(stat -c %U \$f)\" = root ] && [ -z \"\$(find \$f -perm /022)\" ]"; done
+  check K20 "R37: o ai-memory dos papéis aponta para a cópia do root" bash -c "[ \"\$(readlink /home/fsd-mel/.local/lib/ai-memory)\" = /opt/fsd-native/ai-memory ] && [ \"\$(stat -c %U /opt/fsd-native/ai-memory/ai-memory)\" = root ]"
+  pin_refused() { local o; o=$(FSD_TEAM_SRC=/tmp/src FSD_TEAM_REF=HEAD FSD_TEAM_SHA=0000000000000000000000000000000000000000 FSD_NATIVE_ROOT=/tmp/k20-native bash /tmp/src/team/setup/container/fsd-native-setup 2>&1); grep -q 'não no FSD_TEAM_SHA' <<<"$o" && [ ! -d /tmp/k20-native/repo ]; }
+  check K20 "R19: com FSD_TEAM_SHA diferente da ref, o setup recusa antes de tudo" pin_refused
+fi
+if [ -x /usr/local/sbin/fsd-session-exec ]; then
+  printf '%s\n' 'segredo-do-cartao-k20' > /tmp/k20-prompt; chmod 644 /tmp/k20-prompt
+  su -s /bin/bash fsd-dispatch -c "sudo -n -u fsd-bob /usr/local/sbin/fsd-session-exec start /tmp/k20-prompt" >/dev/null 2>&1
+  sjb=/tmp/stub-claude-$(id -u fsd-bob)/state.json
+  argv_clean() { jq -e '[.sessions[] | select(.agent == "bob")] | last | (.prompts[-1] == "segredo-do-cartao-k20") and ((.args | index("segredo-do-cartao-k20")) | not)' "$sjb" >/dev/null; }
+  check K20 "R39: o prompt chega à sessão pelo stdin, fora do argv" argv_clean
 fi
 # K13 (F0.2, T0.2.2): o aceite do bypass em --bg vem das managed settings do root, que nenhum papel edita.
 if command -v jq >/dev/null; then

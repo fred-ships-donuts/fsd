@@ -16,6 +16,9 @@ set -euo pipefail
 SRC=${FSD_TEAM_SRC:?defina FSD_TEAM_SRC (o clone com o time)}; REF=${FSD_TEAM_REF:-origin/develop}; ROOT=${FSD_NATIVE_ROOT:-/srv/fsd}
 git config --system --get-all safe.directory 2>/dev/null | grep -qxF "$SRC" || git config --system --add safe.directory "$SRC"
 sha=$(git -C "$SRC" rev-parse --verify --quiet "$REF^{commit}") || { echo "fsd-native-setup: ref $REF não existe em $SRC"; exit 2; }
+# Validação R19: com FSD_TEAM_SHA (team.env), o time só sobe se a ref apontar para esse commit (um ref movido no clone do humano não
+# troca o código que o root roda).
+if [ -n "${FSD_TEAM_SHA:-}" ] && [ "$sha" != "$FSD_TEAM_SHA" ]; then echo "fsd-native-setup: $REF está em ${sha:0:12}, não no FSD_TEAM_SHA ${FSD_TEAM_SHA:0:12}"; exit 2; fi
 install -d -o root -g root -m 0755 "$ROOT"
 
 # 1. A cópia fixada do team/, do root.
@@ -43,7 +46,12 @@ NODE=${FSD_NODE_BIN:-$(ls -d /opt/fsd/nvm/versions/node/v*/bin/node 2>/dev/null 
 CLAUDE=${FSD_CLAUDE_REAL:-/opt/fsd/claude/versions/$(cat /opt/fsd/CLAUDE_VERSION 2>/dev/null || echo x)}
 AIM=${FSD_AIM_DIR:-/opt/fsd/ai-memory}
 for x in "$NODE" "$CLAUDE" "$AIM/ai-memory"; do [ -x "$x" ] || { echo "fsd-native-setup: falta $x"; exit 1; }; done
-ln -sfn "$NODE" /usr/local/bin/node; ln -sfn "$CLAUDE" /usr/local/bin/claude
+# Validação R37: cópias do root (o /opt/fsd é do uid 1000, que as trocaria); o nvm e o npm -g do humano seguem como estão.
+N=/opt/fsd-native; install -d -o root -g root -m 0755 "$N" "$N/bin"
+install -o root -g root -m 0755 "$NODE" "$N/bin/node"; install -o root -g root -m 0755 "$CLAUDE" "$N/bin/claude"
+rm -rf "$N/ai-memory.new"; cp -rL "$AIM" "$N/ai-memory.new"; chown -R root:root "$N/ai-memory.new"; chmod -R u+rwX,go+rX,go-w "$N/ai-memory.new"
+rm -rf "$N/ai-memory"; mv "$N/ai-memory.new" "$N/ai-memory"; AIM=$N/ai-memory
+ln -sfn "$N/bin/node" /usr/local/bin/node; ln -sfn "$N/bin/claude" /usr/local/bin/claude
 # rtk dos hooks (validação R6): cópia do root em /usr/local/bin, não o /opt/fsd/bin do uid 1000.
 RTK=${FSD_RTK_BIN:-/opt/fsd/bin/rtk}; [ -x "$RTK" ] && install -o root -g root -m 0755 "$RTK" /usr/local/bin/rtk
 for r in kevin mel stuart bob; do
