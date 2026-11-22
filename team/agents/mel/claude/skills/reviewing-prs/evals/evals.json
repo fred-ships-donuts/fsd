@@ -29,6 +29,15 @@
         "responde-duvida-tecnica",
         "responde-quando-pedem"
       ]
+    },
+    {
+      "id": 3,
+      "name": "conflict-refused",
+      "prompt": "Review PR #221, which is in conflict with develop.",
+      "expected_output": "`fsd-review start 221` refuses: the card goes back to the developer to sync. Does NOT review a conflicting PR and does NOT post a loose comment on it.",
+      "behaviors": [
+        "revisao"
+      ]
     }
   ]
 }

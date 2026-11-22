@@ -19,4 +19,4 @@ Prepares the test terminal at the PR head, runs every acceptance item exactly as
 - [`references/definition-of-done.md`](references/definition-of-done.md) — read when needed
 - [`templates/qa.json`](templates/qa.json) — the shape of what this skill produces
 - [`scripts/qa-verdict.mjs`](scripts/qa-verdict.mjs) — the exact part, with its test
-- [`evals/evals.json`](evals/evals.json) — 3 scenarios, including what it must NOT do
+- [`evals/evals.json`](evals/evals.json) — 5 scenarios, including what it must NOT do

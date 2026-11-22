@@ -1,0 +1,53 @@
+{
+ "id": "s4-segundo-card-espera",
+ "role": "stuart",
+ "behaviors": [
+  "um-card-por-vez"
+ ],
+ "setup": {
+  "task": {
+   "kind": "entrega-codigo",
+   "n": 12
+  },
+  "issue": {
+   "number": 12,
+   "title": "fsd-merge checks the CI",
+   "body": "## What\nGate the merge on CI.\n\n## Acceptance\n- Green CI merges\n- Red CI refuses\n"
+  },
+  "messages": [
+   {
+    "from": "kevin",
+    "to": "stuart",
+    "text": "Também pegue o #13 agora, por favor."
+   }
+  ]
+ },
+ "expect": {
+  "delivery": "entrega-codigo",
+  "commands": {
+   "mustNot": [
+    "fsd-dev start 13\\b"
+   ]
+  },
+  "messages": [
+   {
+    "to": "kevin",
+    "match": "#12"
+   }
+  ]
+ },
+ "play": [
+  {
+   "bash": "\"$FSD_TEAM/bin/fsd-diga\" kevin \"Estou no #12; o #13 espera eu entregar este.\""
+  },
+  {
+   "write": {
+    "path": "/tmp/fsd-eval-entrega.json",
+    "content": "{\"kind\": \"entrega-codigo\", \"card\": 12, \"role\": \"stuart\", \"summary\": \"mergeGate com CI e teste negativo.\", \"pr\": 220, \"head\": \"a1b2c3d\", \"branch\": \"fix/merge-ci\", \"acceptance\": [{\"item\": 1, \"commit\": \"a1b2c3d\", \"test\": \"fsd-merge.test.mjs: green merges\", \"result\": \"pass\"}, {\"item\": 2, \"commit\": \"a1b2c3d\", \"test\": \"fsd-merge.test.mjs: red refuses\", \"result\": \"pass\"}], \"tests\": {\"command\": \"npm test\", \"passed\": true}, \"files\": [\"team/bin/fsd-merge\"], \"dod\": {\"testes-passam\": true, \"aceite-coberto\": true, \"pr-no-formato\": true, \"sem-segredos\": true, \"verificado-apos-editar\": true}}"
+   }
+  },
+  {
+   "bash": "\"$FSD_TEAM/bin/fsd-entrega\" /tmp/fsd-eval-entrega.json --aceite 2"
+  }
+ ]
+}

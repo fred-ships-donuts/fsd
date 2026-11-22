@@ -12,11 +12,24 @@
   "issue": {
    "number": 12,
    "title": "fsd-merge checks the CI",
-   "body": "## What\nGate the merge on CI.\n\n## Acceptance\n- Green CI merges\n- Red CI refuses\n"
+   "body": "## What\nGate the merge on CI.\n\n## Acceptance\n- Green CI merges\n- Red CI refuses\n",
+   "labels": [
+    {
+     "name": "size:M"
+    }
+   ]
   }
  },
  "expect": {
-  "delivery": "arquitetura"
+  "delivery": "arquitetura",
+  "commands": {
+   "must": [
+    "fsd-arq publish 12 \\S+ --entrega \\S+"
+   ],
+   "mustNot": [
+    "fsd-board move"
+   ]
+  }
  },
  "play": [
   {
@@ -26,7 +39,13 @@
    }
   },
   {
-   "bash": "\"$FSD_TEAM/bin/fsd-entrega\" /tmp/fsd-eval-entrega.json"
+   "write": {
+    "path": "/tmp/fsd-eval-handoff.md",
+    "content": "**What to do:** mergeGate puro em fsd-lib; fsd-merge o chama.\n**Files:** team/bin/fsd-lib.mjs — mergeGate; team/bin/fsd-merge — chama o portão\n**Verification:** fsd-merge.test.mjs cobre os itens 1 e 2\n"
+   }
+  },
+  {
+   "bash": "\"$FSD_TEAM/bin/fsd-arq\" publish 12 /tmp/fsd-eval-handoff.md --entrega /tmp/fsd-eval-entrega.json"
   }
  ]
 }

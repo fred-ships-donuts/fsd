@@ -25,7 +25,13 @@ const re = (x) => new RegExp(x);
 export async function run(sc, { mode = 'stub', claude, play = sc.play } = {}) {
   const st = mkdtempSync(join(tmpdir(), 'eval-st-')), stub = mkdtempSync(join(tmpdir(), 'eval-stub-')), repo = mkdtempSync(join(tmpdir(), 'eval-repo-'));
   spawnSync('git', ['init', '-q', repo]);
-  const env = { ...process.env, FSD_STATE: st, FSD_REPO: repo, FSD_AGENT: '', FSD_RUNNER: '', STUB_CLAUDE_DIR: stub, FSD_DRY: '1' };
+  // GitHub falso (setup/fake-gh) com o issue e os PRs do cenário, e o quadro num JSON: os comandos de verdade (fsd-arq, fsd-issue triage,
+  // fsd-qa…) leem o que precisam; as escritas seguem só impressas (FSD_DRY). Nos dois modos, nenhuma eval toca o GitHub.
+  const ghState = join(st, 'gh.json'), iss = sc.setup?.issue;
+  writeFileSync(ghState, JSON.stringify({ issues: iss ? { [iss.number]: { state: 'OPEN', labels: [], comments: [], ...iss } } : {},
+    prs: Object.fromEntries((sc.setup?.prs || []).map((p) => [p.number, { state: 'OPEN', isDraft: false, baseRefName: 'develop', headRefOid: '0'.repeat(40), author: { login: 'fsd-stuart' }, files: [], diff: '', reviews: [], comments: [], reviewRequests: [], mergeable: 'MERGEABLE', statusCheckRollup: [], ...p }])) }));
+  const env = { ...process.env, FSD_STATE: st, FSD_REPO: repo, FSD_AGENT: '', FSD_RUNNER: '', STUB_CLAUDE_DIR: stub, FSD_DRY: '1',
+    FSD_GH: join(TEAM, 'setup', 'fake-gh'), FAKE_GH_STATE: ghState, FSD_BOARD_FAKE: join(st, 'board.json') };
   const prev = process.env.FSD_STATE; process.env.FSD_STATE = st;
   try {
     const T = await import('./fsd-task.mjs'); const M = await import('./fsd-messenger.mjs'); const L = await import('./fsd-lib.mjs');

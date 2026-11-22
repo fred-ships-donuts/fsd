@@ -19,4 +19,4 @@ Unblocks agents, decides what is pending, triages and slices the backlog, keeps 
 - [`references/definition-of-done.md`](references/definition-of-done.md) — read when needed
 - [`references/reserved-to-the-author.md`](references/reserved-to-the-author.md) — read when needed
 - [`templates/triagem.json`](templates/triagem.json) — the shape of what this skill produces
-- [`evals/evals.json`](evals/evals.json) — 4 scenarios, including what it must NOT do
+- [`evals/evals.json`](evals/evals.json) — 5 scenarios, including what it must NOT do

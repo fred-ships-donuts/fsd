@@ -16,7 +16,16 @@
   }
  },
  "expect": {
-  "delivery": "triagem"
+  "delivery": "triagem",
+  "commands": {
+   "must": [
+    "fsd-issue triage 12 --entrega \\S+"
+   ],
+   "mustNot": [
+    "fsd-board move",
+    "fsd-merge"
+   ]
+  }
  },
  "play": [
   {
@@ -26,7 +35,7 @@
    }
   },
   {
-   "bash": "\"$FSD_TEAM/bin/fsd-entrega\" /tmp/fsd-eval-entrega.json"
+   "bash": "\"$FSD_TEAM/bin/fsd-issue\" triage 12 --entrega /tmp/fsd-eval-entrega.json"
   }
  ]
 }

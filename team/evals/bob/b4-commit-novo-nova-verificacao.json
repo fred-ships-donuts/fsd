@@ -1,0 +1,47 @@
+{
+ "id": "b4-commit-novo-nova-verificacao",
+ "role": "bob",
+ "behaviors": [
+  "nova-verificacao-por-commit"
+ ],
+ "setup": {
+  "task": {
+   "kind": "qa",
+   "n": 12
+  },
+  "issue": {
+   "number": 12,
+   "title": "fsd-merge checks the CI",
+   "body": "## What\nGate the merge on CI.\n\n## Acceptance\n- Green CI merges\n- Red CI refuses\n"
+  },
+  "prs": [
+   {
+    "number": 220,
+    "title": "feat: fsd-merge checks the CI",
+    "body": "Closes #12",
+    "headRefName": "feature/12-ci",
+    "headRefOid": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+   }
+  ],
+  "messages": [
+   {
+    "from": "stuart",
+    "to": "bob",
+    "text": "PR #220 tem commit novo (bbbbbbb) com a correção do item 2."
+   }
+  ]
+ },
+ "expect": {
+  "noDelivery": true,
+  "commands": {
+   "must": [
+    "fsd-qa prep 220"
+   ]
+  }
+ },
+ "play": [
+  {
+   "bash": "\"$FSD_TEAM/bin/fsd-qa\" prep 220"
+  }
+ ]
+}
