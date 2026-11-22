@@ -128,6 +128,7 @@ if [ -x /usr/local/sbin/fsd-session-exec ] && command -v jq >/dev/null; then
   for r in kevin mel stuart bob; do
     check K11 "R9: o sandbox do $r grava no estado dele e as pastas ~/ do allowWrite existem, dele e 0700" bash -c "jq -e '.sandbox.filesystem.allowWrite | index(\"/var/lib/fsd-state/$r\")' /etc/fsd/profiles/$r/settings.json >/dev/null && for d in \$(jq -r '.sandbox.filesystem.allowWrite[] | select(startswith(\"~/\")) | .[2:]' /etc/fsd/profiles/$r/settings.json); do [ \"\$(stat -c %U:%a /home/fsd-$r/\$d)\" = fsd-$r:700 ] || [ \"\$d\" = repo ] || exit 1; done"
   done
+  check K11 "budgetOk: a statusline dos quatro perfis grava o uso na pasta do papel (fsd-usage statusline)" bash -c "for r in kevin mel stuart bob; do jq -e '.statusLine.command | test(\"fsd-usage.mjs statusline\")' /etc/fsd/profiles/\$r/settings.json >/dev/null || exit 1; done"
   check K11 "R8: a skill do Bob está no plugin dele como SKILL.md" test -s /etc/fsd/profiles/bob/plugin/skills/running-qa-workflow/SKILL.md
   sed -i 's/^PREFLIGHT=.*/PREFLIGHT=1/' /etc/fsd/session.env
   echo x > /tmp/k11-prompt; chmod 644 /tmp/k11-prompt

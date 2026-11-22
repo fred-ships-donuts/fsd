@@ -47,6 +47,10 @@
       "Write(//srv/fsd/repo/**)"
     ]
   },
+  "statusLine": {
+    "type": "command",
+    "command": "node $FSD_TEAM/bin/fsd-usage.mjs statusline"
+  },
   "hooks": {
     "PreToolUse": [
       {
