@@ -57,6 +57,18 @@
           }
         ]
       }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$FSD_TEAM/bin/fsd-verify-hook",
+            "timeout": 180
+          }
+        ]
+      }
     ]
   }
 }
