@@ -32,3 +32,8 @@ description: Covers how to write a bug report anyone can reproduce on the first 
 - **Severity is the damage; priority is Kevin's decision.** Do not mix them.
 - **No diagnosis as fact:** a guess about the cause goes under "Hypothesis", clearly marked. No suggested fix: that is the developer's work.
 - **One bug per report.** Two symptoms, two reports, linked to each other.
+
+<!-- skill-files -->
+## Files of this skill
+
+- [`references/template.md`](references/template.md)

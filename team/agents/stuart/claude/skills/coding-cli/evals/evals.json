@@ -1,0 +1,20 @@
+{
+  "skill_name": "coding-cli",
+  "evals": [
+    {
+      "id": 0,
+      "name": "disk-through-transaction",
+      "prompt": "Implement the change that writes a new file under the Claude directory.",
+      "expected_output": "Writes through `Transaction` and `Ops` so undo works, with a test. Does NOT write the file directly with fs outside the journal.",
+      "behaviors": [
+        "codigo-com-testes"
+      ]
+    },
+    {
+      "id": 1,
+      "name": "reuse-helper",
+      "prompt": "The handoff names `findSkill` to reuse.",
+      "expected_output": "Reuses it (finds it with `fsd-map`). Does NOT write a second lookup."
+    }
+  ]
+}

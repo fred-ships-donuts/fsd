@@ -39,3 +39,8 @@ description: Explains how the agent team's tooling under team/ is built and chan
 ## Rollout
 
 Agents run the scripts from the main checkout. A merged change reaches them when that checkout is updated, and hooks and settings apply to sessions opened after that. Say in the PR what changes for a running agent.
+
+<!-- skill-files -->
+## Files of this skill
+
+- [`references/rules.md`](references/rules.md)

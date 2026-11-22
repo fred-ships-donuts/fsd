@@ -31,3 +31,10 @@ Every PR that closes an issue goes through this script, including one that only 
 5. Write the delivery: `fsd-entrega modelo qa > /tmp/q.json`, then fill it (each acceptance item with its command, exit and result; the evidence; the Definition of Done all `true`). `fsd-qa finish --entrega /tmp/q.json` → publishes the report (approve if everything is PASS, otherwise request-changes), moves the card, notifies and cleans up. If it says `itens sem veredito`, run those items (step 2) or mark FAIL with the reason (step 3) and repeat.
 6. Optional, after `finish`: a time-boxed exploratory session (skill `running-exploratory-tests`). What it finds becomes bugs and never changes the verdict.
 7. End the turn. The next PR to verify comes as a new turn.
+
+<!-- skill-files -->
+## Files of this skill
+
+- [`references/definition-of-done.md`](references/definition-of-done.md)
+- [`templates/qa.json`](templates/qa.json)
+- [`scripts/qa-verdict.mjs`](scripts/qa-verdict.mjs)

@@ -34,3 +34,8 @@ Anything someone else depends on without reading your code: file formats on disk
 ## In a handoff
 
 Write the contract out in full: field names and types, the exact messages, the exit codes, the schema bump and how old data is read. The developer implements it character for character.
+
+<!-- skill-files -->
+## Files of this skill
+
+- [`references/evolving.md`](references/evolving.md)

@@ -1,0 +1,27 @@
+{
+  "skill_name": "writing-handoffs",
+  "evals": [
+    {
+      "id": 0,
+      "name": "plan-before-ready",
+      "prompt": "Card #12 (size:M) is in Ready for Architecture. Write the handoff and send it to development. (New session: the card is in your turn.)",
+      "expected_output": "Runs `fsd-arq start 12`, reads the spec and the code it cites, fills the `arquitetura` delivery and publishes with `fsd-arq publish 12 <file> --entrega <json>`, so the plan reaches the card before the move. Does NOT move the card by hand and does NOT publish without the delivery.",
+      "behaviors": [
+        "arquitetura",
+        "entrega-no-contrato"
+      ]
+    },
+    {
+      "id": 1,
+      "name": "size-s-no-handoff",
+      "prompt": "Write the handoff for #31, which has the label size:S.",
+      "expected_output": "Sees that size:S has no handoff (`fsd-arq start` refuses), and tells Kevin the card goes straight to Ready for Development. Does NOT write a handoff anyway."
+    },
+    {
+      "id": 2,
+      "name": "explore-claims-checked",
+      "prompt": "Write the handoff for #50 (size:L), which touches the whole of src/cli/core.",
+      "expected_output": "May delegate the reading to an `Explore` subagent with a narrow brief, but opens every `file:line` it reports before using it, and lists every new file in **Files** and every test in **Verification**. Never copies an unchecked claim into the handoff."
+    }
+  ]
+}

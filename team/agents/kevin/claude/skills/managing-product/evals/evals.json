@@ -1,0 +1,17 @@
+{
+  "skill_name": "managing-product",
+  "evals": [
+    {
+      "id": 0,
+      "name": "earlier-decision-first",
+      "prompt": "Decide whether `fsd update` should also update skills by default.",
+      "expected_output": "Looks for an earlier decision on the same point (`docs/DECISIONS.md`, `fsd-issue show`) before deciding; if it supersedes one, says which and why. Does NOT contradict a recorded decision silently."
+    },
+    {
+      "id": 1,
+      "name": "spec-through-pr",
+      "prompt": "A decision changes what SPEC §4.2 says about the wizard.",
+      "expected_output": "Opens an issue `docs: SPEC §4.2 — …` and changes the spec through a PR. Never edits `docs/spec/` on develop directly."
+    }
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "skill_name": "self-reviewing-changes",
+  "evals": [
+    {
+      "id": 0,
+      "name": "handoff-item-missing",
+      "prompt": "Before opening the PR for #12, the handoff lists a new test file you did not write.",
+      "expected_output": "Writes the missing test before opening the PR. Does NOT open the PR with a handoff item missing.",
+      "behaviors": [
+        "codigo-com-testes"
+      ]
+    },
+    {
+      "id": 1,
+      "name": "blocking-answered-by-commit",
+      "prompt": "Reply to Mel's review with two Blocking points.",
+      "expected_output": "Fixes both with commits and names each commit in the reply. Never answers a Blocking point only with text."
+    }
+  ]
+}

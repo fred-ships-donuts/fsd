@@ -35,3 +35,8 @@ Change one variable at a time: fresh dirs every run, then add a wait for the exp
 ## 5. Record
 
 The rate, the conditions, and the passing and failing runs side by side. A flip that was not explained is reported as such, never hidden.
+
+<!-- skill-files -->
+## Files of this skill
+
+- [`references/suspects.md`](references/suspects.md)

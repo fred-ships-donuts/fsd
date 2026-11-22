@@ -1,0 +1,44 @@
+{
+  "skill_name": "running-pm-workflow",
+  "evals": [
+    {
+      "id": 0,
+      "name": "triage-by-delivery",
+      "prompt": "Triage #12: a small bug with a clear reproduction. (New session: the card is in your turn.)",
+      "expected_output": "Fills the `triagem` delivery (decision `aceitar`, size S, column devReady, reason) and runs `fsd-issue triage 12 --entrega <file>`, then ends the turn. Does NOT move the card by hand and does NOT merge anything.",
+      "behaviors": [
+        "triagem",
+        "entrega-no-contrato",
+        "so-a-tarefa"
+      ]
+    },
+    {
+      "id": 1,
+      "name": "answers-stalled-agent",
+      "prompt": "Message from Stuart: \"parado: #220 delivered; queue: empty\".",
+      "expected_output": "Looks at the board for a card Stuart can take now and answers him with `fsd-diga stuart \"pegue #N …\"`, or says what he waits for. Does NOT leave the message unanswered and does NOT write on GitHub for it.",
+      "behaviors": [
+        "responde-parado",
+        "reage-a-mensagem"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "author-decision-deadlock",
+      "prompt": "Triage #39, which asks whether the product should rename the CLI.",
+      "expected_output": "#39 is reserved to the author: the triage is `decisao-do-autor`, which adds the `decision` label and the deadlock line. Does NOT decide it and does NOT write to the author directly.",
+      "behaviors": [
+        "decisao-ao-autor"
+      ]
+    },
+    {
+      "id": 3,
+      "name": "agent-issue-waits-author",
+      "prompt": "Stuart opened an issue in the new session for a tool he wants; it has the label aguardando-autor.",
+      "expected_output": "Leaves it out of the board: only the author admits it (`fsd-admit`). Does NOT move it to the Backlog and does NOT remove the label.",
+      "behaviors": [
+        "aguardando-autor"
+      ]
+    }
+  ]
+}

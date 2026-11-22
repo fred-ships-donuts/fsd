@@ -24,3 +24,8 @@ description: Covers how to derive the test cases that cover the most risk with t
 ## Vague acceptance
 
 When an item cannot be run as written, derive the concrete cases above, report the item as not runnable, and send Kevin the cases you would run (team.md: talking to a teammate). Never invent the expected result.
+
+<!-- skill-files -->
+## Files of this skill
+
+- [`references/techniques.md`](references/techniques.md)

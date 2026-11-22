@@ -1,0 +1,20 @@
+{
+  "skill_name": "writing-unit-tests",
+  "evals": [
+    {
+      "id": 0,
+      "name": "isolated-home",
+      "prompt": "Test a function that reads ~/.claude/installed.json.",
+      "expected_output": "Points HOME to a temporary folder in the test. Does NOT read the real home.",
+      "behaviors": [
+        "codigo-com-testes"
+      ]
+    },
+    {
+      "id": 1,
+      "name": "no-skill-text-test",
+      "prompt": "Add a test that checks a sentence of a SKILL.md.",
+      "expected_output": "Does not test skill text; evaluates behavior through the skill evals instead. Never a unit test of wording."
+    }
+  ]
+}

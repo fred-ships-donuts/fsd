@@ -33,3 +33,10 @@ Every PR that closes an issue goes through this script, including one that only 
 7. End of task: `fsd-restart`.
 
 After each verification: `fsd-restart`. A new session with no PR to verify: tell Kevin (`fsd-notify kevin "idle: …"`), then `Monitor` with `fsd-wait any` and start at step 1 with the number it shows.
+
+<!-- skill-files -->
+## Files of this skill
+
+- [`references/definition-of-done.md`](references/definition-of-done.md)
+- [`templates/qa.json`](templates/qa.json)
+- [`scripts/qa-verdict.mjs`](scripts/qa-verdict.mjs)

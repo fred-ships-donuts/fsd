@@ -9,7 +9,7 @@ description: Runs Kevin's product manager loop in the native team session. Cover
 
 1. The turn brings the card (`triagem`) or messages (`[fsd-mensagens: N]`): doubts of flow, supervisor notices (a denied command, a delivery that did not come).
 2. `fsd-queue` and `fsd-board list`: what is waiting and what is ready. Act in this order: unblock a stuck agent → decide pending `decision` issues (except #39 and #40) → work the Backlog (refine, slice, move; standing issues and blocked cards are not work) → refill the queues.
-3. A triage ends with the delivery (`fsd-entrega modelo triagem`, then `fsd-entrega <file>`); then end the turn. The merge is the supervisor's.
+3. A triage ends with the delivery: `fsd-entrega modelo triagem`, fill it, then `fsd-issue triage <n> --entrega <file>` (it applies the size, the column and the decision; declined and duplicate close the issue; an author decision becomes a deadlock). Then end the turn. The merge is the supervisor's.
 
 ## Unblocking agents
 
@@ -36,3 +36,10 @@ A decision that changes the design updates the spec (`docs/spec/`) through a PR 
 
 - An issue ready for the next stage: `fsd-board move "<column>" <n>`; the supervisor sends the task to the column's owner.
 - Merging is the supervisor's: with the 4 CI jobs green, 2 team approvals on the last commit and no conflict.
+
+<!-- skill-files -->
+## Files of this skill
+
+- [`references/definition-of-done.md`](references/definition-of-done.md)
+- [`references/reserved-to-the-author.md`](references/reserved-to-the-author.md)
+- [`templates/triagem.json`](templates/triagem.json)

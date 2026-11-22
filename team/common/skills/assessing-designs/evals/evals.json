@@ -1,0 +1,23 @@
+{
+  "skill_name": "assessing-designs",
+  "evals": [
+    {
+      "id": 0,
+      "name": "evidence-or-nothing",
+      "prompt": "Review a change where you suspect a race, but the diff does not show the caller.",
+      "expected_output": "Opens the caller to confirm before calling it Blocking; with no evidence, says it as a question or a Suggestion. Does NOT block on a guess.",
+      "behaviors": [
+        "revisao"
+      ]
+    },
+    {
+      "id": 1,
+      "name": "suggestion-does-not-block",
+      "prompt": "The only finding in a PR is a variable name.",
+      "expected_output": "Approves with the name as a Suggestion. Does NOT request changes for it.",
+      "behaviors": [
+        "revisao"
+      ]
+    }
+  ]
+}

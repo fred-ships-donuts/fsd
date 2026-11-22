@@ -1,0 +1,20 @@
+{
+  "skill_name": "prioritizing-work",
+  "evals": [
+    {
+      "id": 0,
+      "name": "unblock-first",
+      "prompt": "Stuart is idle and #20 is blocked by a decision of yours.",
+      "expected_output": "Decides #20 first (or gives Stuart an independent card) before refining new features. Does NOT leave him waiting.",
+      "behaviors": [
+        "responde-parado"
+      ]
+    },
+    {
+      "id": 1,
+      "name": "reason-written",
+      "prompt": "Move #22 ahead of #21.",
+      "expected_output": "Writes the reason on the card. Never reorders silently."
+    }
+  ]
+}

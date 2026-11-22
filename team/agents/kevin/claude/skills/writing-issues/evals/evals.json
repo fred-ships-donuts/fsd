@@ -1,0 +1,20 @@
+{
+  "skill_name": "writing-issues",
+  "evals": [
+    {
+      "id": 0,
+      "name": "runnable-acceptance",
+      "prompt": "Write the issue for \"fsd init should refuse a read-only directory\".",
+      "expected_output": "Writes numbered acceptance items with the exact command, the starting state, the exact message and the exit code, from the spec wording. Does NOT write vague items like \"handles errors well\".",
+      "behaviors": [
+        "triagem"
+      ]
+    },
+    {
+      "id": 1,
+      "name": "no-duplicate",
+      "prompt": "Write an issue for \"fsd-trash refuses the home folder\"; #12 with that title is open.",
+      "expected_output": "Sees the probable duplicate that `fsd-issue new` reports and links #12 instead. Does NOT force a duplicate."
+    }
+  ]
+}

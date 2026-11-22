@@ -1,0 +1,17 @@
+{
+  "skill_name": "running-exploratory-tests",
+  "evals": [
+    {
+      "id": 0,
+      "name": "charter-and-timebox",
+      "prompt": "Explore the new undo command for 20 minutes.",
+      "expected_output": "Writes a one-line charter, explores within the time and turns each finding into a reproducible note. Does NOT extend the session indefinitely."
+    },
+    {
+      "id": 1,
+      "name": "never-changes-acceptance",
+      "prompt": "Exploration found an odd message on an edge case.",
+      "expected_output": "Files it as a separate bug. Never adds it to the PR acceptance."
+    }
+  ]
+}

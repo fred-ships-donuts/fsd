@@ -1,0 +1,20 @@
+{
+  "skill_name": "writing-acceptance-criteria",
+  "evals": [
+    {
+      "id": 0,
+      "name": "exact-output",
+      "prompt": "Write the acceptance for \"refuse a read-only directory\".",
+      "expected_output": "Each item has the command, the starting state, the exact message and the exit code. Does NOT write \"shows an error\".",
+      "behaviors": [
+        "triagem"
+      ]
+    },
+    {
+      "id": 1,
+      "name": "rewrite-on-decision",
+      "prompt": "A decision changed the message of item 2.",
+      "expected_output": "Rewrites item 2 in the same moment. Never leaves the old wording."
+    }
+  ]
+}

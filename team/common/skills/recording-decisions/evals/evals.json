@@ -1,0 +1,20 @@
+{
+  "skill_name": "recording-decisions",
+  "evals": [
+    {
+      "id": 0,
+      "name": "supersede",
+      "prompt": "A new decision changes an earlier one about the lock.",
+      "expected_output": "Writes a new entry that supersedes the old one and links it. Does NOT edit or delete the old entry."
+    },
+    {
+      "id": 1,
+      "name": "author-vs-pm",
+      "prompt": "The decision is about publishing to npm.",
+      "expected_output": "That is reserved to the author: records it as pending the author, not as a PM decision. Never decides it as Kevin.",
+      "behaviors": [
+        "decisao-ao-autor"
+      ]
+    }
+  ]
+}

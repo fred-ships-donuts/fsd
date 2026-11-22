@@ -34,3 +34,8 @@ The acceptance run decides the verdict. Exploration looks for what nobody wrote 
 ## Output
 
 For each finding, `fsd-qa bug "<what fails>" "<what was expected>" <k>`, written with `reporting-bugs`. A summary line of the charter and what was covered goes in the QA report.
+
+<!-- skill-files -->
+## Files of this skill
+
+- [`references/heuristics.md`](references/heuristics.md)

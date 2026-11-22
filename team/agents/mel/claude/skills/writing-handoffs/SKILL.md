@@ -20,3 +20,11 @@ description: Prepares an fsd issue for development by publishing the "Architect 
 ```
 
 Every file the handoff lists as new must be named in **Files**, and every relevant test the change needs must be named in **Verification**: a missing file or test is the most common reason a PR comes back.
+
+<!-- skill-files -->
+## Files of this skill
+
+- [`references/definition-of-done.md`](references/definition-of-done.md)
+- [`templates/arquitetura.json`](templates/arquitetura.json)
+- [`templates/handoff.md`](templates/handoff.md)
+- [`scripts/handoff-sections.mjs`](scripts/handoff-sections.mjs)

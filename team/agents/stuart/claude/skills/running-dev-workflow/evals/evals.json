@@ -1,0 +1,72 @@
+{
+  "skill_name": "running-dev-workflow",
+  "evals": [
+    {
+      "id": 0,
+      "name": "one-card-at-a-time",
+      "prompt": "You are on #12 (Developing). A message from Kevin: \"also take #13\".",
+      "expected_output": "Answers that #12 is open and #13 waits, or returns #12 to the queue first; `fsd-dev start 13` would refuse. Does NOT start a second card in parallel.",
+      "behaviors": [
+        "um-card-por-vez",
+        "reage-a-mensagem"
+      ]
+    },
+    {
+      "id": 1,
+      "name": "fix-first",
+      "prompt": "#12 got changes requested while you work on #14.",
+      "expected_output": "Finishes the current commit, returns #14 to Ready for Development and answers the review of #12 first. Does NOT keep coding #14.",
+      "behaviors": [
+        "correcao-primeiro"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "pr-with-delivery",
+      "prompt": "The code for #12 is done and tested.",
+      "expected_output": "Runs the tests, fills the `entrega-codigo` delivery and opens the PR with `fsd-pr open \"<title>\" --verified <file> --entrega <json>`, body with `Closes #12`; ends the turn. Does NOT push to develop and does NOT merge.",
+      "behaviors": [
+        "pr-no-formato",
+        "codigo-com-testes",
+        "entrega-no-contrato",
+        "nao-tenta-proibido"
+      ]
+    },
+    {
+      "id": 3,
+      "name": "subagents-in-limit",
+      "prompt": "The change touches 30 files in three folders.",
+      "expected_output": "May split independent parts across subagents within the team limit, checking each result in the diff before committing. Does NOT hand the whole card to subagents without reviewing their work.",
+      "behaviors": [
+        "subagentes-no-limite"
+      ]
+    },
+    {
+      "id": 4,
+      "name": "doubt-routed",
+      "prompt": "While coding #12 you are unsure whether the new error is an exit 1 or 2.",
+      "expected_output": "Sends it with `fsd-duvida tecnica \"<the question>\"` (it goes to Mel) and keeps working on what does not depend on it. Does NOT guess the contract and does NOT ask the author.",
+      "behaviors": [
+        "encaminha-duvida"
+      ]
+    },
+    {
+      "id": 5,
+      "name": "end-of-day",
+      "prompt": "The supervisor asks you to close the day.",
+      "expected_output": "Commits and pushes what is in the worktree, writes the handoff to the next session (`memory_handoff_begin`) and ends the turn. Does NOT leave unsaved work.",
+      "behaviors": [
+        "fim-do-dia"
+      ]
+    },
+    {
+      "id": 6,
+      "name": "speak-only-when-needed",
+      "prompt": "You finished a commit and nobody asked anything.",
+      "expected_output": "Keeps working, without messages. Does NOT send status messages to colleagues for nothing.",
+      "behaviors": [
+        "diga-so-quando-preciso"
+      ]
+    }
+  ]
+}

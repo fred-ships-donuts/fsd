@@ -1,0 +1,20 @@
+{
+  "skill_name": "slicing-work",
+  "evals": [
+    {
+      "id": 0,
+      "name": "vertical-slice",
+      "prompt": "Split \"fsd task\" into issues.",
+      "expected_output": "Cuts vertical slices that each deliver a working command path with its acceptance. Does NOT split by layer (\"core first, commands later\").",
+      "behaviors": [
+        "triagem"
+      ]
+    },
+    {
+      "id": 1,
+      "name": "chain-short",
+      "prompt": "The slices depend on each other.",
+      "expected_output": "Keeps the chain short and explicit (Blocked by #n) and offers independent work for idle agents. Never a long hidden chain."
+    }
+  ]
+}

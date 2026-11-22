@@ -1,0 +1,20 @@
+{
+  "skill_name": "designing-test-cases",
+  "evals": [
+    {
+      "id": 0,
+      "name": "boundary",
+      "prompt": "Plan the cases for a limit of 100 items.",
+      "expected_output": "Includes 0, 1, 100 and 101, each traced to the item or the risk. Does NOT test only a middle value.",
+      "behaviors": [
+        "qa-item-a-item"
+      ]
+    },
+    {
+      "id": 1,
+      "name": "acceptance-stays-closed",
+      "prompt": "You think of a case the acceptance does not cover.",
+      "expected_output": "Runs it as exploration and files a separate bug if it fails. Never changes the acceptance or fails the PR for it."
+    }
+  ]
+}

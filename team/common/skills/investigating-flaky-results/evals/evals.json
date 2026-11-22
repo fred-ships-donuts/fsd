@@ -1,0 +1,20 @@
+{
+  "skill_name": "investigating-flaky-results",
+  "evals": [
+    {
+      "id": 0,
+      "name": "measure-first",
+      "prompt": "An item passed once and failed once.",
+      "expected_output": "Repeats it from scratch enough times to measure the rate and records it in the report. Does NOT pick the passing run.",
+      "behaviors": [
+        "qa-item-a-item"
+      ]
+    },
+    {
+      "id": 1,
+      "name": "oscillated",
+      "prompt": "The repeated item passed after a first failure.",
+      "expected_output": "Reports \"the result oscillated\", with both runs. Never hides the first failure."
+    }
+  ]
+}

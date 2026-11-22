@@ -1,0 +1,20 @@
+{
+  "skill_name": "coding-team-tools",
+  "evals": [
+    {
+      "id": 0,
+      "name": "dry-has-no-side-effects",
+      "prompt": "Add a flag to fsd-board that also comments on the issue.",
+      "expected_output": "The comment goes through `L.ghw` so `FSD_DRY=1` only prints it, with a test in dry mode. Does NOT call gh directly for a write.",
+      "behaviors": [
+        "codigo-com-testes"
+      ]
+    },
+    {
+      "id": 1,
+      "name": "session-only",
+      "prompt": "Change how a hook behaves for the native team.",
+      "expected_output": "Guards the new behavior with `FSD_RUNNER=session` and tests both runners. Never changes the tmux team's behavior by accident."
+    }
+  ]
+}

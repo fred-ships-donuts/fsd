@@ -48,3 +48,8 @@ Keys: `Up`/`Down` move, `Space` marks, `Enter` confirms, `Escape`/`Left` goes ba
 ## Evidence per item
 
 The command or keys, the screen at the end, `EXIT=n`, and the file tree before and after (`find .fsd nook .claude -maxdepth 3 | sort`). For failures, the journal file. Capture after the screen settles (`driving-terminal-apps`).
+
+<!-- skill-files -->
+## Files of this skill
+
+- [`references/evidence.md`](references/evidence.md)

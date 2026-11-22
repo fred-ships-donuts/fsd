@@ -48,3 +48,8 @@ Based on the Command Line Interface Guidelines (clig.dev) and POSIX conventions.
 
 - Deprecate before removing: warn on stderr for at least one minor version, document the replacement, then remove in a major.
 - A message other tools match on is a contract: change it like an API.
+
+<!-- skill-files -->
+## Files of this skill
+
+- [`references/checklist.md`](references/checklist.md)

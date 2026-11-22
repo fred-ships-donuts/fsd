@@ -1,0 +1,20 @@
+{
+  "skill_name": "designing-clis",
+  "evals": [
+    {
+      "id": 0,
+      "name": "json-only-stdout",
+      "prompt": "Add --json to a command that prints a progress line.",
+      "expected_output": "Sends the progress to stderr so stdout holds only JSON. Does NOT mix text into the JSON stream.",
+      "behaviors": [
+        "codigo-com-testes"
+      ]
+    },
+    {
+      "id": 1,
+      "name": "actionable-error",
+      "prompt": "Write the error for a missing config file.",
+      "expected_output": "The message names the file and the command that creates it, with the exit code from the table. Never a bare \"error\"."
+    }
+  ]
+}

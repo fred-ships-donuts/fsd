@@ -21,3 +21,10 @@ description: Reviews an fsd pull request technically against its architect hando
 ```
 
 With anything in Blocking, use `changes`; otherwise `approve`. If the PR changed since `start`, it refuses: run `start` again. The command moves the card and notifies the PR author.
+
+<!-- skill-files -->
+## Files of this skill
+
+- [`references/definition-of-done.md`](references/definition-of-done.md)
+- [`templates/revisao.json`](templates/revisao.json)
+- [`templates/review.md`](templates/review.md)
