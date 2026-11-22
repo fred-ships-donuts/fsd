@@ -17,21 +17,28 @@ const C = await import('./fsd-contract.mjs'); const { loadTask } = await import(
 const ENTREGA = (() => { const i = process.argv.indexOf('--entrega'); return i >= 0 ? process.argv[i + 1] : undefined; })();
 import { rmSync, readdirSync, readFileSync } from 'node:fs';
 import { refuseConflicting } from './fsd-conflict.mjs';
-// Sessão nova (F2.4): o código do PR roda como fsd-run (fsd-run-exec, por sudo estreito, ambiente limpo; A2) e o exit de cada item vem
-// de um arquivo em ~/qa (0700, do Bob), gravado pelo shell do Bob depois que o fsd-run termina: o que o programa imprime não forja o PASS.
+// Sessão nova (F2.4): o código do PR roda como fsd-run (fsd-run-exec, por sudo estreito, ambiente limpo; A2). Validação R16: nenhum
+// shell do Bob fica num painel (o fsd-qa roda fora do sandbox; um shell dele ali era o caminho para "key --text" rodar o que quisesse
+// sem sandbox). Cada run abre uma janela com o comando direto (remain-on-exit) e um sh -c não interativo, que grava o exit num arquivo em
+// ~/qa (0700, do Bob) e sai: o que o programa imprime não forja o PASS, e nenhum shell lê teclas. O #{pane_dead_status} fica de reserva
+// (o tmux nem sempre o registra quando o processo sai na hora). O key só vale com o item vivo.
 const SESSION = process.env.FSD_RUNNER === 'session';
 const RX = process.env.FSD_RUN_EXEC || 'sudo -n -u fsd-run /usr/local/sbin/fsd-run-exec';
-const Q = SESSION ? `${process.env.HOME}/qa` : `/tmp/fsd-qa-${L.ME || 'x'}`, SF = `${Q}/state.json`, T = `fsd-qa-${L.ME || 'x'}`;
+const Q = SESSION ? `${process.env.HOME}/qa` : `/tmp/fsd-qa-${L.ME || 'x'}`, SF = `${Q}/state.json`, T = process.env.FSD_QA_TMUX || `fsd-qa-${L.ME || 'x'}`;   // FSD_QA_TMUX: socket e sessão próprios (testes em paralelo)
 const runName = (n) => `qa-${L.ME || 'x'}-${n}`;
 const sq = (x) => `'${String(x).replace(/'/g, `'\\''`)}'`;   // aspas simples para o shell
-const exitFile = (k, nonce) => `${Q}/exit.${k}.${nonce}`;
 const [cmd, ...a] = process.argv.slice(2);
 // Terminal de teste no socket próprio (-L fsd-qa-<agente>): um kill-server lá dentro não derruba o tmux do time.
 const tmux = (...x) => L.run('tmux', ['-L', T, ...x], { allowFail: true });
 const sleep = (ms) => L.run('sleep', [String(ms / 1000)]);
-const tidy = (txt) => txt.split('\n').map((l) => l.replace(/\s+$/, '')).filter((l) => !/__EXIT=|^__BEGIN$|^\$ ?$/.test(l) && !l.includes('echo __EXIT') && !l.includes('echo __BEGIN')).join('\n').replace(/\n{3,}/g, '\n\n').trim();
+const tidy = (txt) => txt.split('\n').map((l) => l.replace(/\s+$/, '')).filter((l) => !/__EXIT=|^__BEGIN$|^\$ ?$|^Pane is dead/.test(l) && !l.includes('echo __EXIT') && !l.includes('echo __BEGIN')).join('\n').replace(/\n{3,}/g, '\n\n').trim();
 const after = (raw) => { const i = raw.lastIndexOf('\n__BEGIN\n'); return i >= 0 ? raw.slice(i + 9) : raw.startsWith('__BEGIN\n') ? raw.slice(8) : raw; };
-const pane = (hist) => tmux('capture-pane', '-p', '-t', T, ...(hist ? ['-S', '-300'] : [])).out;
+const pane = (hist, target = T) => tmux('capture-pane', '-p', '-t', target, ...(hist ? ['-S', '-300'] : [])).out;
+// Sessão nova: a janela do item e o exit dela (null enquanto vive).
+const winOf = (s) => `${T}:${s.win}`;
+const exitFile = (k, nonce) => `${Q}/exit.${k}.${nonce}`;
+const fileExit = (f) => { try { const v = (readFileSync(f, 'utf8') || '').trim(); return /^\d+$/.test(v) ? Number(v) : null; } catch { return null; } };
+const deadExit = (target) => { const [d, st] = String(tmux('display-message', '-p', '-t', target, '#{pane_dead} #{pane_dead_status}').out || '').trim().split(' '); return d === '1' && /^\d+$/.test(st || '') ? Number(st) : null; };
 function need() {
   const s = L.state(SF); if (!s) L.die('nenhuma verificação em andamento: fsd-qa prep <n>', 1);
   if (s.build && !tmux('has-session', '-t', T).ok) L.die('terminal de teste fechado: rode fsd-qa prep ' + s.n + ' de novo', 1);
@@ -81,8 +88,12 @@ if (cmd === 'prep') {
   }
   L.saveState(SF, { n: Number(n), i, sha, items: ac.items, rows: [], build: b2.ok, buildErr: b2.ok ? '' : b2.err });
   if (!b2.ok) L.die(`BUILD FALHOU no ${sha.slice(0, 7)}: ${b2.err.slice(0, 300)}\n→ fsd-qa finish`, 1);
-  tmux('new-session', '-d', '-s', T, '-x', '80', '-y', '24', '-c', `${Q}/work`);
-  tmux('send-keys', '-t', T, SESSION ? `PS1='$ '; clear` : `export HOME=${Q}/home PS1='$ '; alias fsd='node ${Q}/pr-${n}/dist/cli/fsd.js'; clear`, 'Enter');
+  if (SESSION) {   // R16: a sessão segura o servidor com um programa que não lê nada; os itens abrem janelas próprias
+    tmux('new-session', '-d', '-s', T, '-x', '80', '-y', '24', '-c', `${Q}/work`, 'sleep infinity'); tmux('set-option', '-wg', 'remain-on-exit', 'on');
+  } else {
+    tmux('new-session', '-d', '-s', T, '-x', '80', '-y', '24', '-c', `${Q}/work`);
+    tmux('send-keys', '-t', T, `export HOME=${Q}/home PS1='$ '; alias fsd='node ${Q}/pr-${n}/dist/cli/fsd.js'; clear`, 'Enter');
+  }
   const bd = L.boardPr(p);
   console.log(`PR #${n} | issue #${i} | ${sha.slice(0, 7)} | build ok | ${ac.items.length} itens${bd ? ' | ' + bd : ''}`);
   console.log(ac.items.map((x, k) => `${k + 1}. ${x.slice(0, 200)}`).join('\n'));
@@ -90,24 +101,34 @@ if (cmd === 'prep') {
   const s = need(); const k = Number(a[0]); const c = (a[1] === '-' ? L.readArgFile('-') : a.slice(1).join(' ')).trim();
   if (!(k >= 1 && k <= s.items.length) || !c) L.die(`uso: fsd-qa run <k> "<comando>" (itens 1..${s.items.length})`, 2);
   if (c.includes('$?')) L.die(`comando com $? recusado: o fsd-qa já mostra o EXIT=n do comando no fim da saída (e da tela interativa, depois do fsd-qa key que a fecha). Rode só: fsd-qa run ${k} "${c.replace(/\s*;?\s*echo[^;]*\$\?[^;]*/g, '').trim()}"`, 2);
-  let note = ''; if (s.cur && s.rows[s.cur - 1]?.exit === null) { tmux('send-keys', '-t', T, 'C-c'); sleep(300); note = '(item anterior encerrado com C-c)\n'; }
-  const nonce = Math.random().toString(36).slice(2, 10); const ef = exitFile(k, nonce);
-  if (SESSION) tmux('send-keys', '-t', T, `clear; echo __BEGIN; ${RX} run ${runName(s.n)} -- ${sq(c)}; echo $? > ${ef}; echo __END`, 'Enter');
-  else tmux('send-keys', '-t', T, `clear; echo __BEGIN; ${c}; echo __EXIT=$?`, 'Enter');
-  const fileExit = () => { try { const v = (readFileSync(ef, 'utf8') || '').trim(); return /^\d+$/.test(v) ? Number(v) : null; } catch { return null; } };
+  let note = '';
+  const nonce = Math.random().toString(36).slice(2, 10);
+  if (SESSION) {
+    if (s.win) { if (deadExit(winOf(s)) === null && s.rows[s.cur - 1]?.exit === null) note = '(item anterior encerrado)\n'; tmux('kill-window', '-t', winOf(s)); }
+    s.win = `item${k}-${nonce}`; tmux('set-option', '-wg', 'remain-on-exit', 'on');
+    s.exitFile = exitFile(k, nonce);
+    tmux('new-window', '-d', '-t', `${T}:`, '-n', s.win, '-c', `${Q}/work`, `${RX} run ${runName(s.n)} -- ${sq(c)}; echo $? > ${sq(s.exitFile)}`);
+  } else {
+    if (s.cur && s.rows[s.cur - 1]?.exit === null) { tmux('send-keys', '-t', T, 'C-c'); sleep(300); note = '(item anterior encerrado com C-c)\n'; }
+    tmux('send-keys', '-t', T, `clear; echo __BEGIN; ${c}; echo __EXIT=$?`, 'Enter');
+  }
+  const target = SESSION ? winOf(s) : T;
   let code = null, vis = '';
-  for (let t = 0; t < 50; t++) { sleep(300); vis = after(pane(false)); if (SESSION) { code = fileExit(); if (code !== null) break; } else { const m = vis.match(/__EXIT=(\d+)/); if (m) { code = Number(m[1]); break; } } }
-  const all = tidy(code === null ? vis : after(pane(true))); const lines = all.split('\n'); const shown = lines.length > 40 ? `(+${lines.length - 40} linhas acima)\n` + lines.slice(-40).join('\n') : all;
-  const r = row(s, k - 1); r.cmd = r.cmd ? `${r.cmd} ; ${c}` : c; r.screen = all.slice(-3000); r.exit = code; r.verdict = null; r.exitFile = SESSION ? ef : undefined; s.cur = k; L.saveState(SF, s);
+  for (let t = 0; t < 50; t++) { sleep(300); vis = after(pane(false, target)); if (SESSION) { code = fileExit(s.exitFile) ?? deadExit(target); if (code !== null) break; } else { const m = vis.match(/__EXIT=(\d+)/); if (m) { code = Number(m[1]); break; } } }
+  const all = tidy(code === null ? vis : after(pane(true, target))); const lines = all.split('\n'); const shown = lines.length > 40 ? `(+${lines.length - 40} linhas acima)\n` + lines.slice(-40).join('\n') : all;
+  const r = row(s, k - 1); r.cmd = r.cmd ? `${r.cmd} ; ${c}` : c; r.screen = all.slice(-3000); r.exit = code; r.verdict = null; s.cur = k; L.saveState(SF, s);
   console.log(`${note}[item ${k}] ${shown || '(sem saída)'}\n${code === null ? 'TELA INTERATIVA (sem fim em 15s): fsd-qa key …' : 'EXIT=' + code}`);
 } else if (cmd === 'key') {
   const s = need(); const lit = a[0] === '--text'; const keys = lit ? a.slice(1) : a; if (!keys.length) L.die('uso: fsd-qa key [--text] <tecla…>', 2);
-  tmux('send-keys', '-t', T, ...(lit ? ['-l', keys.join(' ')] : keys)); sleep(500);
-  const vis = pane(false); const sc = tidy(vis);
-  // Sessão nova: o exit da tela interativa também vem do arquivo do Bob; no time antigo, do marcador na tela.
-  const m = SESSION ? null : vis.match(/__EXIT=(\d+)/);
-  if (s.cur) { const r = row(s, s.cur - 1); r.screen = sc.slice(-3000); r.cmd += ` ⟶ ${keys.join(' ')}`; if (SESSION && r.exitFile) { try { const v = readFileSync(r.exitFile, 'utf8').trim(); if (/^\d+$/.test(v)) r.exit = Number(v); } catch {} } else if (m) r.exit = Number(m[1]); L.saveState(SF, s); }
-  console.log((sc || '(tela vazia)') + (m ? `\nEXIT=${m[1]}` : ''));
+  // Validação R16: na sessão nova as teclas só vão para o programa do item, vivo; terminado, não há terminal para digitar.
+  if (SESSION && (!s.win || fileExit(s.exitFile) !== null || deadExit(winOf(s)) !== null)) L.die(`nenhum item rodando${s.cur ? ` (o item ${s.cur} terminou)` : ''}: fsd-qa run <k> "…" abre o próximo`, 1);
+  const target = SESSION ? winOf(s) : T;
+  tmux('send-keys', '-t', target, ...(lit ? ['-l', keys.join(' ')] : keys)); sleep(500);
+  const vis = pane(false, target); const sc = tidy(vis);
+  // Sessão nova: o exit vem do arquivo em ~/qa (reserva: o painel morto); no time antigo, do marcador na tela.
+  const dead = SESSION ? fileExit(s.exitFile) ?? deadExit(target) : null; const m = SESSION ? null : vis.match(/__EXIT=(\d+)/);
+  if (s.cur) { const r = row(s, s.cur - 1); r.screen = sc.slice(-3000); r.cmd += ` ⟶ ${keys.join(' ')}`; if (dead !== null) r.exit = dead; else if (m) r.exit = Number(m[1]); L.saveState(SF, s); }
+  console.log((sc || '(tela vazia)') + (m ? `\nEXIT=${m[1]}` : dead !== null ? `\nEXIT=${dead}` : ''));
 } else if (cmd === 'verdict') {
   const s = need();
   if (a[0] === '--all-pass') { const skip = []; s.rows.forEach((r, k) => { if (r && r.cmd && !r.verdict) { if (r.exit === 0) r.verdict = 'PASS'; else skip.push(k + 1); } }); if (skip.length) console.log(`não marcados (EXIT≠0 ou tela aberta): ${skip.join(',')} → fsd-qa verdict <k> PASS|FAIL "<esperado>"`); }

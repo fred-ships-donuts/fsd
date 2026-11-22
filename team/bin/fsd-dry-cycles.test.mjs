@@ -77,10 +77,12 @@ test('F4.5 Mel: a technical doubt from Stuart reaches Mel, and her answer reache
 
 // F4.6 Bob: QA na sessão nova. O fsd-run-exec é falso aqui (registra e roda o comando; a troca de usuário real é o K9); o tmux é real.
 const hasTmux = spawnSync('tmux', ['-V']).status === 0;
+let bobN = 0;
 function bobWorld() {
   const w = world({ prs: { 220: PR } }); const rx = join(w.d, 'rx');
   writeFileSync(rx, `#!/bin/bash\necho "$*" >> ${w.d}/rx.log\ncase "$1" in run) shift 3; exec bash -c "$*" ;; *) exit 0 ;; esac\n`); spawnSync('chmod', ['755', rx]);
-  w.env = { ...w.env, HOME: w.d, FSD_RUN_EXEC: rx }; return w;
+  // Socket do tmux próprio (FSD_QA_TMUX): outros testes rodam o fsd-qa do Bob em paralelo e derrubariam o fsd-qa-bob no meio.
+  w.env = { ...w.env, HOME: w.d, FSD_RUN_EXEC: rx, FSD_QA_TMUX: `fsd-qa-dry-${process.pid}-${++bobN}` }; return w;
 }
 const qa = (w, ...a) => as(w, 'bob', 'fsd-qa', a);
 for (const [name, second, verdict, state] of [['PASS', 'true', 'pass', 'APPROVED'], ['FAIL', 'exit 1', 'fail', 'CHANGES_REQUESTED']]) {
@@ -104,7 +106,7 @@ for (const [name, second, verdict, state] of [['PASS', 'true', 'pass', 'APPROVED
       assert.equal(r.state, state); assert.equal(r.author.login, 'fsd-bob'); assert.equal(r.commit.oid, HEAD);
       if (verdict === 'fail') assert.match(r.body, /## Steps to reproduce\n2\. `exit 1`/); else assert.doesNotMatch(r.body, /Steps to reproduce/);
       assert.equal(entregas(w, 'qa').length, 1);
-    } finally { spawnSync('tmux', ['-L', 'fsd-qa-bob', 'kill-server']); }
+    } finally { spawnSync('tmux', ['-L', w.env.FSD_QA_TMUX, 'kill-server']); }
   });
 }
 
