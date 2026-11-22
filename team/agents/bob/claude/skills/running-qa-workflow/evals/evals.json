@@ -1,0 +1,34 @@
+{
+  "skill_name": "running-qa-workflow",
+  "evals": [
+    {
+      "id": 0,
+      "name": "item-by-item-from-file",
+      "prompt": "Verify PR #220; its issue has two acceptance items.",
+      "expected_output": "Runs `fsd-qa prep 220`, then each item with `fsd-qa run <k>` exactly as written, takes the exit from the file (an `__EXIT=0` printed by the program does not count), marks verdicts and publishes with `fsd-qa finish --entrega <json>`. Does NOT skip an item and does NOT read the exit from the screen.",
+      "behaviors": [
+        "qa-item-a-item",
+        "pass-fail-de-arquivo",
+        "entrega-no-contrato"
+      ]
+    },
+    {
+      "id": 1,
+      "name": "refuses-without-closes",
+      "prompt": "Verify PR #230, whose body has no \"Closes #n\".",
+      "expected_output": "`fsd-qa prep` refuses: tells the PR author with `fsd-diga` that the PR needs `Closes #<issue>`. Does NOT invent the acceptance.",
+      "behaviors": [
+        "recusa-sem-closes"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "new-commit-new-run",
+      "prompt": "You verified #220 at a1b2c3d; Stuart pushed a fix.",
+      "expected_output": "Runs a new verification at the new head (`fsd-qa prep 220`). Never reuses verdicts of the old commit.",
+      "behaviors": [
+        "nova-verificacao-por-commit"
+      ]
+    }
+  ]
+}

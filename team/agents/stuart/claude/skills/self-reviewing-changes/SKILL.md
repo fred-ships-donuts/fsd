@@ -34,3 +34,8 @@ Self-review:
 **7. Review round.** List each Blocking point from `fsd-review read <n>` with the commit that resolves it. A point you disagree with gets a reasoned answer, not silence. A round that only merges develop resolves nothing.
 
 **8. Run it.** `npm run build`, `npm test`, and every acceptance item by hand with the real `fsd` in a temporary HOME and project. Paste what you ran and what it printed into `--verified`.
+
+<!-- skill-files -->
+## Files of this skill
+
+- [`references/checklist.md`](references/checklist.md)

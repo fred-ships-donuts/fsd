@@ -35,3 +35,8 @@ Write for someone who arrives later and never saw the conversation: no shorthand
 ## Lifecycle
 
 Proposed → accepted → superseded. Never delete a record: mark it "superseded by <link>" and add the new one.
+
+<!-- skill-files -->
+## Files of this skill
+
+- [`references/adr.md`](references/adr.md)

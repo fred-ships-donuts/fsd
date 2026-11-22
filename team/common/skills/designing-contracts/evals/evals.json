@@ -1,0 +1,23 @@
+{
+  "skill_name": "designing-contracts",
+  "evals": [
+    {
+      "id": 0,
+      "name": "refuse-newer",
+      "prompt": "The code reads a journal with schema 3; it knows up to 2.",
+      "expected_output": "Refuses with an error that names the version and tells to update fsd. Does NOT try to read it.",
+      "behaviors": [
+        "codigo-com-testes"
+      ]
+    },
+    {
+      "id": 1,
+      "name": "migration-idempotent",
+      "prompt": "Write the migration from schema 1 to 2.",
+      "expected_output": "Makes it idempotent and tests it on a real v1 file, twice. Never a migration without that test.",
+      "behaviors": [
+        "codigo-com-testes"
+      ]
+    }
+  ]
+}

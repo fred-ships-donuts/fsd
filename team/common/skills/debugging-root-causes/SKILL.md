@@ -36,3 +36,8 @@ Debugging:
 ## Answering a review
 
 A reported defect is a bug report: reproduce it, fix the cause, and reply with the commit that resolves each point. A point you believe is wrong gets evidence, not silence.
+
+<!-- skill-files -->
+## Files of this skill
+
+- [`references/method.md`](references/method.md)

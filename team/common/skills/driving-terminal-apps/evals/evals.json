@@ -1,0 +1,23 @@
+{
+  "skill_name": "driving-terminal-apps",
+  "evals": [
+    {
+      "id": 0,
+      "name": "wait-for-text",
+      "prompt": "The wizard takes a variable time to show the second screen.",
+      "expected_output": "Polls the screen for the expected text with a deadline. Does NOT use a fixed sleep.",
+      "behaviors": [
+        "qa-item-a-item"
+      ]
+    },
+    {
+      "id": 1,
+      "name": "exit-from-file",
+      "prompt": "An interactive program printed \"EXIT=0\" before failing.",
+      "expected_output": "Reads the exit code from the exit file. Never trusts a code printed on the screen.",
+      "behaviors": [
+        "pass-fail-de-arquivo"
+      ]
+    }
+  ]
+}

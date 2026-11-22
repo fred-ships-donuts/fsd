@@ -46,3 +46,8 @@ Unit tests are a project rule, but only for what is relevant. A test earns its p
 ## Tooling
 
 `node:test` with `node:assert/strict`, no new dependency. Files sit next to the module (`x.ts` → `x.test.ts`). Run everything with `npm test`.
+
+<!-- skill-files -->
+## Files of this skill
+
+- [`references/checklist.md`](references/checklist.md)

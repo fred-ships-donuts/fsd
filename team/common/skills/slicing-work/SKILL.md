@@ -36,3 +36,8 @@ Each slice crosses the layers it needs and can be verified from outside by QA. "
 ## The parent
 
 The original issue keeps the full design and becomes the reference; each slice links to its section and closes on its own.
+
+<!-- skill-files -->
+## Files of this skill
+
+- [`references/spidr.md`](references/spidr.md)

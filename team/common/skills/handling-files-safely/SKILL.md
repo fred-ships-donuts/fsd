@@ -59,3 +59,8 @@ Never read a path before knowing what it is when it can be a directory: `lstat` 
 
 - A dry run (`--check`, `FSD_DRY`) prints what it would do and writes nothing: no file, no temp file, no lock, no cache.
 - A read-only command never updates shared state (a "last seen" marker, a cache that others rely on).
+
+<!-- skill-files -->
+## Files of this skill
+
+- [`references/checklist.md`](references/checklist.md)

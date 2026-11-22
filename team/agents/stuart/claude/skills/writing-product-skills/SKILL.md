@@ -37,3 +37,8 @@ Skills are measured with evals, never with unit tests (the output varies by desi
 3. Measure without the skill, then with it; keep only content that changes the result.
 4. Use the `skill-creator` skill to run and compare, and test with the models users run (Haiku, Sonnet, Opus).
 5. Watch a fresh session use the skill on real tasks; fix what it misses or never reads.
+
+<!-- skill-files -->
+## Files of this skill
+
+- [`references/anatomy.md`](references/anatomy.md)

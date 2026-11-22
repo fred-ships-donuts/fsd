@@ -1,0 +1,17 @@
+{
+  "skill_name": "writing-product-skills",
+  "evals": [
+    {
+      "id": 0,
+      "name": "eval-not-unit-test",
+      "prompt": "Add a test that checks the wording of a product skill.",
+      "expected_output": "Evaluates the skill with skill-creator scenarios in `evals/evals.json`. Does NOT write a unit test of skill text."
+    },
+    {
+      "id": 1,
+      "name": "version-bump",
+      "prompt": "Change the behavior of fsd-ui-approval.",
+      "expected_output": "Bumps the frontmatter `version` and updates the evals that the change affects. Never changes behavior without the version."
+    }
+  ]
+}

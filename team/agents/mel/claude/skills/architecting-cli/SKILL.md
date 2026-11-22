@@ -48,3 +48,8 @@ The developer should not need to guess. Name:
 - what is out of scope.
 
 If a PR comes back with a Blocking point the handoff could have prevented, add that kind of point to future handoffs and say so in the review ("my handoff got this wrong" is a valid line, #105).
+
+<!-- skill-files -->
+## Files of this skill
+
+- [`references/contracts.md`](references/contracts.md)

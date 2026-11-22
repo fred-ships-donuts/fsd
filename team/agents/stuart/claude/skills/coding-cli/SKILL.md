@@ -52,3 +52,8 @@ Tests sit next to the module (`*.test.ts`, `node:test`), run with `npm test`. Us
 ## Check it for real
 
 `npm run build`, then run `node dist/cli/fsd.js` (or the linked `fsd`) with a temporary HOME and project. The wizard: in tmux at 80x24.
+
+<!-- skill-files -->
+## Files of this skill
+
+- [`references/layers.md`](references/layers.md)

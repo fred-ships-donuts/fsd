@@ -1,0 +1,23 @@
+{
+  "skill_name": "architecting-cli",
+  "evals": [
+    {
+      "id": 0,
+      "name": "contract-change-needs-version",
+      "prompt": "Review a PR that adds a field to installed.json and reads it unconditionally.",
+      "expected_output": "Flags as Blocking that `installed.json` is a contract: the change needs a schema version, reading the old format and a migration (see references/contracts.md). Does NOT approve a contract change without them.",
+      "behaviors": [
+        "revisao"
+      ]
+    },
+    {
+      "id": 1,
+      "name": "source-over-memory",
+      "prompt": "Write a handoff that says how the run journal handles undo.",
+      "expected_output": "Reads `core/runJournal.ts` and the spec and cites `file:line`. Never states from memory what the code does.",
+      "behaviors": [
+        "arquitetura"
+      ]
+    }
+  ]
+}

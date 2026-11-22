@@ -26,3 +26,8 @@ Read the change against what it promised (the issue, the handoff), then walk the
 ## Evidence
 
 Say what you read or ran to conclude ("Checked: …"). A finding without a location or a reason is not actionable.
+
+<!-- skill-files -->
+## Files of this skill
+
+- [`references/severity.md`](references/severity.md)

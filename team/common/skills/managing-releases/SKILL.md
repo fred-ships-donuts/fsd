@@ -40,3 +40,8 @@ Release readiness:
 ## Boundaries
 
 You prepare and decide readiness. Merging into `main` and publishing to npm are the author's.
+
+<!-- skill-files -->
+## Files of this skill
+
+- [`references/ready-to-publish.md`](references/ready-to-publish.md)

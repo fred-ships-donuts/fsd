@@ -27,3 +27,9 @@ Body of an M or L task, in a file or on standard input:
 - Never ask the author. Decide: `fsd-issue decide <n> "<decision>"` (the decision and the why; it removes the `decision` label). If the decision changes the acceptance, rewrite the affected items in the same moment.
 - The acceptance must be runnable by someone who did not read the conversation, one item per numbered line (skill `writing-acceptance-criteria`).
 - Labels: `area:cli|nook|process|release|ui`, `size:S|M|L`, `decision`, `bug`. Milestone = the phase. Initial column: Backlog, or `--to "Ready for Architecture"` when it can already go to Mel (she is notified).
+
+<!-- skill-files -->
+## Files of this skill
+
+- [`references/definition-of-done.md`](references/definition-of-done.md)
+- [`templates/issue.md`](templates/issue.md)

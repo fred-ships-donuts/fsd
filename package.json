@@ -6,8 +6,8 @@
   "scripts": {
     "dev": "tsx src/cli/fsd.ts",
     "prepack": "npm run build",
-    "test": "node --import tsx --test \"src/**/*.test.ts\" \"team/bin/*.test.mjs\"",
-    "test:coverage": "node --import tsx --test --experimental-test-coverage --test-coverage-lines=80 --test-coverage-branches=70 --test-coverage-functions=72 \"src/**/*.test.ts\" \"team/bin/*.test.mjs\"",
+    "test": "node --import tsx --test \"src/**/*.test.ts\" \"team/bin/*.test.mjs\" \"team/agents/*/claude/skills/*/scripts/*.test.mjs\"",
+    "test:coverage": "node --import tsx --test --experimental-test-coverage --test-coverage-lines=80 --test-coverage-branches=70 --test-coverage-functions=72 \"src/**/*.test.ts\" \"team/bin/*.test.mjs\" \"team/agents/*/claude/skills/*/scripts/*.test.mjs\"",
     "typecheck:tests": "tsc -p tsconfig.test.json",
     "build": "tsc",
     "check:paths": "node team/setup/check-paths",

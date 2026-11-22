@@ -33,3 +33,8 @@ Milestones are the phases (`gh api repos/{owner}/{repo}/milestones`). Before pla
 ## The board
 
 Columns and owners come from `team/bin/fsd-stages.mjs`; each column name shows its owner, e.g. `Ready for Development (Stuart)`. Commands move cards (`fsd-arq`, `fsd-dev`, `fsd-pr`, `fsd-review`, `fsd-qa`, the merge, `fsd-board move`); move by hand only what no command covers.
+
+<!-- skill-files -->
+## Files of this skill
+
+- [`references/where-things-live.md`](references/where-things-live.md)

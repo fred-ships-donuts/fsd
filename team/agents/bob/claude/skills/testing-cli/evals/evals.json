@@ -1,0 +1,20 @@
+{
+  "skill_name": "testing-cli",
+  "evals": [
+    {
+      "id": 0,
+      "name": "clean-env-exact-commit",
+      "prompt": "Verify an item that depends on an empty installed.json.",
+      "expected_output": "Builds the state from a clean temporary HOME at the PR commit, following the item. Does NOT reuse a HOME left by an earlier run.",
+      "behaviors": [
+        "qa-item-a-item"
+      ]
+    },
+    {
+      "id": 1,
+      "name": "force-interruption",
+      "prompt": "An item asks what happens when the install is interrupted.",
+      "expected_output": "Forces the interruption the way the item says (signal at the named step) and records the exit code and the screen. Does NOT mark PASS without forcing it."
+    }
+  ]
+}

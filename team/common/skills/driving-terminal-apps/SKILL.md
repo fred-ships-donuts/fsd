@@ -40,3 +40,8 @@ Run the same command three ways and compare: in the pane (TTY), piped (`| cat`),
 ## Evidence and cleanup
 
 Save the final capture, the exit code and the file tree. Kill the server at the end: `tmux -L qa kill-server`.
+
+<!-- skill-files -->
+## Files of this skill
+
+- [`references/tmux.md`](references/tmux.md)

@@ -26,3 +26,8 @@ When you move or reorder cards, leave one line on the issue or in the notice: wh
 ## When a new request arrives
 
 Place it with the same rules. It jumps the queue only if it unblocks someone or fixes something that loses data; otherwise it waits its turn.
+
+<!-- skill-files -->
+## Files of this skill
+
+- [`references/order.md`](references/order.md)

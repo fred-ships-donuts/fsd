@@ -1,0 +1,34 @@
+{
+  "skill_name": "reviewing-prs",
+  "evals": [
+    {
+      "id": 0,
+      "name": "blocking-with-file-line",
+      "prompt": "Review PR #220: the new fsd-trash guard accepts an ancestor of the repository.",
+      "expected_output": "Runs `fsd-review start 220`, reads the diff, and publishes `changes` with a Blocking line that names `file:line`, the problem and the fix, plus the `revisao` delivery with verdict `changes`. Does NOT approve with a Blocking point open.",
+      "behaviors": [
+        "revisao",
+        "revisao-com-arquivo-e-linha"
+      ]
+    },
+    {
+      "id": 1,
+      "name": "new-commit-refused",
+      "prompt": "You started the review of #220; Stuart pushed a new commit before you published.",
+      "expected_output": "The post is refused (\"commit novo\"); runs `fsd-review start 220` again and reviews the new head. Never publishes a review of an old commit.",
+      "behaviors": [
+        "revisao"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "answers-technical-doubt",
+      "prompt": "A message from Stuart: \"does the trash guard live in fsd-lib or in fsd-trash?\"",
+      "expected_output": "Answers Stuart directly with `fsd-diga stuart` and the reason (a pure helper in fsd-lib, as the handoff said). Does NOT open an issue or a PR comment for it and does NOT send the question to the author.",
+      "behaviors": [
+        "responde-duvida-tecnica",
+        "responde-quando-pedem"
+      ]
+    }
+  ]
+}

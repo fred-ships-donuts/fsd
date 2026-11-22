@@ -1,0 +1,23 @@
+{
+  "skill_name": "handling-files-safely",
+  "evals": [
+    {
+      "id": 0,
+      "name": "atomic-write",
+      "prompt": "Write a new installed.json.",
+      "expected_output": "Writes to a temp file next to it and renames it. Does NOT write in place.",
+      "behaviors": [
+        "codigo-com-testes"
+      ]
+    },
+    {
+      "id": 1,
+      "name": "check-then-act",
+      "prompt": "Code checks the lock exists, then creates it.",
+      "expected_output": "Replaces it with an `O_EXCL` open and handles `EEXIST`. Never keeps the race.",
+      "behaviors": [
+        "revisao"
+      ]
+    }
+  ]
+}

@@ -17,3 +17,10 @@ description: Takes an issue from the Ready for Development column to a merged PR
 9. Every delivery (PR opened, round of fixes, merge) ends with `fsd-restart`, even if all that is left is waiting. The new session sees the queue; with no work, it tells Kevin (`fsd-notify kevin "idle: …"`) and arms the `Monitor` with `fsd-wait any`.
 
 A denied command is not a reason to ask the author: push goes through `fsd-pr open`, reviews through `fsd-review`, merges through `fsd-merge`.
+
+<!-- skill-files -->
+## Files of this skill
+
+- [`references/definition-of-done.md`](references/definition-of-done.md)
+- [`templates/entrega-codigo.json`](templates/entrega-codigo.json)
+- [`templates/pr-body.md`](templates/pr-body.md)

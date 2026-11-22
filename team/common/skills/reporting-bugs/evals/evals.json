@@ -1,0 +1,20 @@
+{
+  "skill_name": "reporting-bugs",
+  "evals": [
+    {
+      "id": 0,
+      "name": "one-bug-per-report",
+      "prompt": "You found two different defects in one run.",
+      "expected_output": "Files two reports. Does NOT combine them."
+    },
+    {
+      "id": 1,
+      "name": "out-of-scope-is-separate",
+      "prompt": "During QA of #220 you find a bug in a command the PR did not touch.",
+      "expected_output": "Files it as a separate bug (`fsd-qa bug`) and keeps the PR verdict on its own acceptance. Never fails the PR for it.",
+      "behaviors": [
+        "qa-item-a-item"
+      ]
+    }
+  ]
+}

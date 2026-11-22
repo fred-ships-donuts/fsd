@@ -28,3 +28,8 @@ A decision recorded after the issue was written (`fsd-issue decide`) that change
 ## Cold-reader test
 
 Re-read the list as someone who never saw the discussion. If you would need to ask anything to run an item, the item is not done.
+
+<!-- skill-files -->
+## Files of this skill
+
+- [`references/cold-reader.md`](references/cold-reader.md)

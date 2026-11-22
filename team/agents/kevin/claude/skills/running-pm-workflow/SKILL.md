@@ -36,3 +36,10 @@ A decision that changes the design updates the spec (`docs/spec/`) through a PR 
 
 - Ready PRs of agents that have waited 10 minutes: `fsd-merge --ready`. An author PR only by number (`fsd-merge <n>`).
 - An issue ready for the next stage: `fsd-board move "<column>" <n>` (it notifies the column's owner).
+
+<!-- skill-files -->
+## Files of this skill
+
+- [`references/definition-of-done.md`](references/definition-of-done.md)
+- [`references/reserved-to-the-author.md`](references/reserved-to-the-author.md)
+- [`templates/triagem.json`](templates/triagem.json)

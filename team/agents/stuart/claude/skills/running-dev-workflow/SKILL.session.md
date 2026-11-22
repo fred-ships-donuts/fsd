@@ -18,3 +18,10 @@ The card of the turn says which issue and which kind: `entrega-codigo` (new work
 9. End the turn. The merge is the supervisor's, with the CI and the approvals. The next task comes as a new turn.
 
 A denied command is not a reason to ask the author: push goes through `fsd-pr open`, reviews are Mel's and Bob's, merges are the supervisor's.
+
+<!-- skill-files -->
+## Files of this skill
+
+- [`references/definition-of-done.md`](references/definition-of-done.md)
+- [`templates/entrega-codigo.json`](templates/entrega-codigo.json)
+- [`templates/pr-body.md`](templates/pr-body.md)

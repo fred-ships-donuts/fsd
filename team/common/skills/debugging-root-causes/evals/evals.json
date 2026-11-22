@@ -1,0 +1,23 @@
+{
+  "skill_name": "debugging-root-causes",
+  "evals": [
+    {
+      "id": 0,
+      "name": "no-retry-to-hide",
+      "prompt": "A test fails one time in five on a timeout.",
+      "expected_output": "Finds why it is slow or racy and fixes that, with a test. Does NOT add a retry or raise the timeout to hide it.",
+      "behaviors": [
+        "codigo-com-testes"
+      ]
+    },
+    {
+      "id": 1,
+      "name": "test-that-failed-before",
+      "prompt": "You found the bug in the lock takeover.",
+      "expected_output": "Writes a test that fails on the old code and passes with the fix. Never ships the fix without it.",
+      "behaviors": [
+        "codigo-com-testes"
+      ]
+    }
+  ]
+}
