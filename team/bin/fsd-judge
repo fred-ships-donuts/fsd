@@ -44,10 +44,16 @@ for (const [sig, c] of [['SIGTERM', 15], ['SIGINT', 2], ['SIGHUP', 1]]) process.
 
 // --- Entradas, coletadas aqui e não pelo modelo.
 const waits = L.waitsList().filter((w) => w.ref === ref);
-let kind = 'pr'; let info = L.run(join(L.BIN, 'gh'), ['pr', 'view', String(n), '--json', 'title,state,labels,url'], { allowFail: true });
-if (!info.ok) { kind = 'issue'; info = L.run(join(L.BIN, 'gh'), ['issue', 'view', String(n), '--json', 'title,state,labels,url'], { allowFail: true }); }
+// FSD_JUDGE_META=<json {kind, title, state, labels, url}> (só com FSD_DRY): o ref sem o GitHub (testes das fixtures, F4.4).
+const META = process.env.FSD_JUDGE_META; if (META && !L.DRY) L.die('fsd-judge: FSD_JUDGE_META só vale com FSD_DRY=1', 2);
+let kind = 'pr', info;
+if (META) { const m = JSON.parse(readFileSync(META, 'utf8')); kind = m.kind || 'pr'; info = { ok: true, out: JSON.stringify(m) }; }
+else {
+  info = L.run(join(L.BIN, 'gh'), ['pr', 'view', String(n), '--json', 'title,state,labels,url'], { allowFail: true });
+  if (!info.ok) { kind = 'issue'; info = L.run(join(L.BIN, 'gh'), ['issue', 'view', String(n), '--json', 'title,state,labels,url'], { allowFail: true }); }
+}
 if (!info.ok) L.die(`fsd-judge: ${ref} não encontrado (${info.err.slice(0, 120)})`, 4);
-const meta = JSON.parse(info.out); const labels = (meta.labels || []).map((l) => l.name);
+const meta = JSON.parse(info.out); const labels = (meta.labels || []).map((l) => l.name ?? l);
 const author = process.env.FSD_AUTHOR || 'FSD_AUTHOR';
 const parties = new Set(waits.flatMap((w) => [w.agent, w.for]));
 
@@ -72,8 +78,9 @@ if (FIXTURE) {
   console.log(`[dry] claude ${claudeArgs.map((x) => (/[\s()*:]/.test(x) ? JSON.stringify(x) : x)).join(' ')}`);
   try { text = readFileSync(FIXTURE, 'utf8'); } catch { failure = 'judge error'; }
 } else {
-  // O hook de SessionStart do agente real não pode esvaziar a caixa do Kevin: o juiz roda como "judge" (fora do agents.json), com um FSD_STATE só dele.
-  const env = { ...process.env, FSD_AGENT: 'judge', FSD_STATE: mkdtempSync(join(tmpdir(), 'fsd-judge-')) };
+  // Os hooks estão desligados nos --settings do juiz (disableAllHooks, fsd-judge.mjs), então nada esvazia a caixa do Kevin; o juiz lê o
+  // GitHub como Kevin (gh pr view|diff e gh issue view, só leitura pela allowlist). Antes rodava como "judge", sem App, e o gh falhava.
+  const env = { ...process.env, FSD_AGENT: 'kevin' };
   // Prazo: FSD_JUDGE_TIMEOUT_MS (testes) ou timing.judge.timeoutMin. No prazo, SIGINT; depois SIGTERM (runSession).
   const timeoutMs = Number(process.env.FSD_JUDGE_TIMEOUT_MS) || Number(timing().judge.timeoutMin) * 60000;
   const r = await runSession({ bin: process.env.FSD_JUDGE_CLAUDE || 'claude', args: claudeArgs, input: prompt, cwd: L.REPO_DIR, env, timeoutMs, graceMs: Number(process.env.FSD_JUDGE_GRACE_MS) || 10000 });
