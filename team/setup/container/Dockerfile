@@ -107,7 +107,7 @@ ENV DEBIAN_FRONTEND=noninteractive LANG=C.UTF-8 LC_ALL=C.UTF-8 \
 # Pacotes do sistema (gh 2.45.0, syncthing 1.27.2, tmux 3.4: apt do Ubuntu 24.04, iguais à matriz) + Tailscale.
 RUN apt-get update && apt-get install -y --no-install-recommends \
       ca-certificates curl gnupg git gh tmux jq python3 openssh-client syncthing supervisor \
-      netcat-openbsd iptables iproute2 procps less sudo util-linux libatomic1 bubblewrap socat \
+      netcat-openbsd iptables iproute2 procps less sudo util-linux libatomic1 bubblewrap socat acl \
  && curl -fsSL https://pkgs.tailscale.com/stable/ubuntu/noble.noarmor.gpg -o /usr/share/keyrings/tailscale-archive-keyring.gpg \
  && curl -fsSL https://pkgs.tailscale.com/stable/ubuntu/noble.tailscale-keyring.list -o /etc/apt/sources.list.d/tailscale.list \
  && apt-get update && apt-get install -y --no-install-recommends tailscale \
@@ -201,7 +201,8 @@ case "${1:-}" in
     if [ "$1" = broker ]; then exec runuser -u fsd-broker -- env HOME=/home/fsd-broker node "$T/bin/fsd-broker" loop; fi
     out=$(runuser -u fsd-dispatch -- env HOME=/home/fsd-dispatch FSD_REPO=/srv/fsd/repo FSD_PIN_SHA="$(cat /srv/fsd/TEAM_SHA)" node "$T/bin/fsd-dispatch" pin) || exit 1
     pinned=$(sed -n 's/^rode: \(.*\) loop$/\1/p' <<<"$out")
-    exec runuser -u fsd-dispatch -- env HOME=/home/fsd-dispatch FSD_REPO=/srv/fsd/repo FSD_RUNNER=session FSD_SESSION_VIA=sudo node "$pinned" loop ;;
+    # Validação R1/R12: o supervisor lê e grava o estado de cada papel em /var/lib/fsd-state/<papel>, e o PAUSE do time fica na raiz.
+    exec runuser -u fsd-dispatch -- env HOME=/home/fsd-dispatch FSD_REPO=/srv/fsd/repo FSD_RUNNER=session FSD_SESSION_VIA=sudo FSD_STATE_ROOT=/var/lib/fsd-state node "$pinned" loop ;;
   *) echo "uso: fsd-svc tailscaled|syncthing|tunnel|watch|cleanup|broker|dispatch"; exit 2 ;;
 esac
 EOF

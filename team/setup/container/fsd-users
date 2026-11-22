@@ -9,6 +9,23 @@
 set -euo pipefail
 [ "$(id -u)" = 0 ] || { echo "fsd-users: rode como root"; exit 2; }
 ROLES=(kevin mel stuart bob)
+# Estado do time nativo (validação R1): uma pasta por papel em $FSD_STATE_ROOT/<papel> (outbox, caixa, estado do hook, cartão,
+# tarefa, leases, entregas). Dono o papel, grupo fsd-dispatch, 2770: só o papel e o supervisor entram; um papel não grava na pasta de
+# outro, então o dono do arquivo no outbox segue sendo o remetente (A4). A ACL padrão dá rw aos dois em tudo o que for criado ali,
+# apesar do umask 077 da sessão (R38). A raiz é do root, com o grupo do supervisor: o PAUSE único do time mora nela (R12).
+# A ACL só vale criada com o container no ar: o docker build não guarda ACL nas camadas (provado). O fsd-native-setup roda no
+# entrypoint, então vale; a imagem do sim chama `fsd-users --state` no início dos K.
+SR=${FSD_STATE_ROOT:-/var/lib/fsd-state}
+state_dirs() {
+  command -v setfacl >/dev/null || { echo "fsd-users: precisa do setfacl (pacote acl) para o estado dos papéis" >&2; exit 1; }
+  install -d -o root -g fsd-dispatch -m 0771 "$SR"
+  local r d acl
+  for r in "${ROLES[@]}"; do
+    d=$SR/$r; acl="u:fsd-$r:rwX,g:fsd-dispatch:rwX,m::rwx"
+    install -d -o "fsd-$r" -g fsd-dispatch -m 2770 "$d"
+    { setfacl -R -m "$acl" "$d" && find "$d" -type d -exec setfacl -d -m "$acl" {} +; } || { echo "fsd-users: a ACL de $d não pegou (o sistema de arquivos tem ACL?)" >&2; exit 1; }
+  done
+}
 getent group fsd >/dev/null || groupadd fsd
 mk() {   # mk <usuário> [grupos extras]
   local u=$1; shift
@@ -20,6 +37,7 @@ for r in "${ROLES[@]}"; do mk "fsd-$r" fsd; done
 mk fsd-dispatch fsd
 mk fsd-run
 mk fsd-broker
+if [ "${1:-}" = --state ]; then state_dirs; echo "fsd-users: estado dos papéis em $SR pronto"; exit 0; fi   # só as pastas de estado (sim)
 install -d -o root -g root -m 0755 /etc/fsd /etc/fsd/profiles
 for r in "${ROLES[@]}"; do
   p=/etc/fsd/profiles/$r; install -d -o root -g root -m 0755 "$p" "$p/skills"
@@ -90,6 +108,7 @@ install -d -o root -g root -m 0755 /var/lib/fsd-tokens
 for r in "${ROLES[@]}"; do install -d -o fsd-broker -g "fsd-$r" -m 2750 "/var/lib/fsd-tokens/$r"; done
 install -d -o fsd-broker -g fsd-dispatch -m 2750 /var/lib/fsd-tokens/dispatch
 install -d -o fsd-broker -g fsd-broker -m 0700 /var/lib/fsd-broker /var/lib/fsd-broker/keys
+state_dirs
 # QA (F2.4): o código do PR roda como fsd-run, numa área só dele; o Bob chama só o fsd-run-exec, por um sudoers estreito.
 install -d -o fsd-run -g fsd-run -m 0700 /var/lib/fsd-run /var/lib/fsd-run/qa
 src=$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/fsd-run-exec
@@ -100,7 +119,7 @@ if [ -d /etc/sudoers.d ]; then
   if command -v visudo >/dev/null && visudo -cf /etc/sudoers.d/fsd-run.tmp >/dev/null; then mv /etc/sudoers.d/fsd-run.tmp /etc/sudoers.d/fsd-run; else rm -f /etc/sudoers.d/fsd-run.tmp; echo "fsd-users: sudoers do fsd-run inválido" >&2; exit 1; fi
 fi
 # Supervisor (F2.6): o fsd-dispatch controla as sessões dos papéis só pelo fsd-session-exec, como cada papel.
-printf 'REPO=%q\nTEAM=%q\nCLAUDE=%q\nPREFLIGHT=%q\n' "${FSD_REPO_DIR:-/srv/fsd/repo}" "${FSD_TEAM_DIR:-${FSD_REPO_DIR:-/srv/fsd/repo}/team}" "${FSD_CLAUDE_BIN:-/usr/local/bin/claude}" "${FSD_NATIVE_PREFLIGHT:-1}" > /etc/fsd/session.env
+printf 'REPO=%q\nTEAM=%q\nCLAUDE=%q\nPREFLIGHT=%q\nSTATE_ROOT=%q\n' "${FSD_REPO_DIR:-/srv/fsd/repo}" "${FSD_TEAM_DIR:-${FSD_REPO_DIR:-/srv/fsd/repo}/team}" "${FSD_CLAUDE_BIN:-/usr/local/bin/claude}" "${FSD_NATIVE_PREFLIGHT:-1}" "$SR" > /etc/fsd/session.env
 chown root:root /etc/fsd/session.env; chmod 0644 /etc/fsd/session.env
 src=$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/fsd-session-exec
 [ -f "$src" ] && install -o root -g root -m 0755 "$src" /usr/local/sbin/fsd-session-exec

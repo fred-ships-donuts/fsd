@@ -1,12 +1,13 @@
 # Imagem local de teste do isolamento (F2.0): os usuários do time nativo e as verificações K, sem rede nem segredo.
 FROM ubuntu:24.04
-RUN apt-get update -qq && apt-get install -y -qq --no-install-recommends git ca-certificates nodejs sudo jq >/dev/null && rm -rf /var/lib/apt/lists/*
+RUN apt-get update -qq && apt-get install -y -qq --no-install-recommends git ca-certificates nodejs sudo jq acl >/dev/null && rm -rf /var/lib/apt/lists/*
 COPY team/setup/container/fsd-users team/setup/container/fsd-repo team/setup/container/fsd-run-exec team/setup/container/fsd-session-exec team/setup/container/k-checks /opt/fsd-sim/
 COPY team/agents /opt/fsd-sim/agents
 COPY team/common /opt/fsd-sim/common
 COPY team/bin /opt/fsd-sim/team/bin
 COPY team/agents.json team/claude-settings.json /opt/fsd-sim/team/
-COPY team/setup/stub-claude /opt/fsd-sim/team/setup/stub-claude
+COPY team/contracts /opt/fsd-sim/team/contracts
+COPY team/setup/stub-claude team/setup/fake-gh /opt/fsd-sim/team/setup/
 RUN ln -s /opt/fsd-sim/team/setup/stub-claude /usr/local/bin/claude
 RUN mkdir -p /opt/fsd-sim/aim-tokens && for r in kevin mel stuart bob; do echo "aim_fake_$r" > /opt/fsd-sim/aim-tokens/$r; done
 RUN chmod 0755 /opt/fsd-sim/fsd-users /opt/fsd-sim/fsd-repo /opt/fsd-sim/fsd-run-exec /opt/fsd-sim/fsd-session-exec /opt/fsd-sim/k-checks && FSD_PROFILES_SRC=/opt/fsd-sim/agents FSD_REPO_DIR=/srv/repo FSD_TEAM_DIR=/opt/fsd-sim/team FSD_NATIVE_PREFLIGHT=0 FSD_AIM_TOKENS_SRC=/opt/fsd-sim/aim-tokens /opt/fsd-sim/fsd-users
@@ -24,4 +25,5 @@ RUN git init -q /tmp/src && git -C /tmp/src add -A && git -C /tmp/src -c user.em
     FSD_AIM_TOKENS_SRC=/opt/fsd-sim/aim-tokens bash /tmp/src/team/setup/container/fsd-native-setup
 RUN echo '{"type":"module"}' > /opt/fsd-sim/package.json && chmod -R a+rX /opt/fsd-sim/team /opt/fsd-sim/package.json
 ENV FSD_SIM_REPO=/srv/repo FSD_SIM_TEAM=/opt/fsd-sim/team
-CMD ["/opt/fsd-sim/k-checks"]
+# A ACL das pastas de estado não sobrevive ao build (fsd-users): refeita no início, como o entrypoint faz em produção.
+CMD ["bash", "-c", "/opt/fsd-sim/fsd-users --state >/dev/null && exec /opt/fsd-sim/k-checks"]

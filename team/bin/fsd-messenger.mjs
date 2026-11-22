@@ -10,12 +10,13 @@ import { readdirSync, readFileSync, writeFileSync, mkdirSync, renameSync, statSy
 import { join } from 'node:path';
 import { randomBytes } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
-import { AGENTS, CFG, stateDir, inboxAppend, inboxDrain, noticeLine } from './fsd-lib.mjs';
+import { AGENTS, CFG, stateDir, stateRoot, roleStateDir, shareMode, inboxAppend, inboxDrain, noticeLine } from './fsd-lib.mjs';
 import { checkDelivery } from './fsd-contract.mjs';
 import { loadCard, loadTask, saveTask } from './fsd-task.mjs';
 
-export const outboxDir = (role) => join(stateDir(), 'outbox', ...(role ? [role] : []));
-const atomic = (f, data) => { const tmp = `${f}.${process.pid}.tmp`; writeFileSync(tmp, data, { mode: 0o600 }); renameSync(tmp, f); };
+// Outbox de um papel: <estado do papel>/outbox/<papel>. Validação R1: no time nativo, a pasta do papel, que só ele e o supervisor gravam.
+export const outboxDir = (role) => (role ? join(roleStateDir(role), 'outbox', role) : join(stateDir(), 'outbox'));
+const atomic = (f, data) => { const tmp = `${f}.${process.pid}.tmp`; writeFileSync(tmp, data, { mode: shareMode(0o600) }); renameSync(tmp, f); };
 
 export function say({ to, text, urgent = false, ref }, { from }) {
   const m = { kind: 'mensagem', from, to, text, urgent: !!urgent, ...(ref ? { ref } : {}) };
@@ -23,7 +24,7 @@ export function say({ to, text, urgent = false, ref }, { from }) {
   if (!AGENTS.includes(from)) errors.push(`$.from: ${JSON.stringify(from)} não é um agente (FSD_AGENT)`);
   if (from === to) errors.push('$.to: mensagem para si mesmo');
   if (errors.length) return { ok: false, errors };
-  const dir = outboxDir(from); mkdirSync(dir, { recursive: true, mode: 0o700 });
+  const dir = outboxDir(from); mkdirSync(dir, { recursive: true, mode: shareMode(0o700) });
   const id = `${Date.now()}-${randomBytes(3).toString('hex')}`; const file = join(dir, `${id}.json`);
   const { from: _ignored, ...body } = m;   // o remetente não vai no arquivo: vem do dono
   atomic(file, JSON.stringify({ ...body, at: new Date().toISOString() }) + '\n');
@@ -41,7 +42,8 @@ export function defaultUidToRole() {
 }
 export function collect({ uidToRole = defaultUidToRole() } = {}) {
   const messages = [], rejected = [];
-  let roles = []; try { roles = readdirSync(outboxDir()); } catch { return { messages, rejected }; }
+  // Com a raiz do time nativo, só o outbox de cada papel na pasta dele; um outbox/<outro> que o papel crie na própria pasta não é lido.
+  let roles = stateRoot() ? [...AGENTS] : []; if (!stateRoot()) try { roles = readdirSync(outboxDir()); } catch { return { messages, rejected }; }
   for (const dirRole of roles.sort()) {
     let files = []; try { files = readdirSync(outboxDir(dirRole)).filter((f) => f.endsWith('.json')).sort(); } catch { continue; }
     for (const f of files) {
@@ -60,11 +62,11 @@ export function collect({ uidToRole = defaultUidToRole() } = {}) {
 export const messageText = (m) => `${m.urgent ? '[urgente] ' : ''}${m.ref ? `${m.ref}: ` : ''}${m.text}`;
 export function deliver(m) { inboxAppend(m.to, m.from, messageText(m)); try { unlinkSync(m.file); } catch {} }
 
-const stateFile = (agent) => join(stateDir(), 'session-state', `${agent}.json`);
+const stateFile = (agent) => join(roleStateDir(agent), 'session-state', `${agent}.json`);
 export const sessionState = (agent) => { try { return JSON.parse(readFileSync(stateFile(agent), 'utf8')); } catch { return null; } };
 export function hook(event, input = {}, agent = process.env.FSD_AGENT) {
   if (!AGENTS.includes(agent)) return null;
-  const mark = (state) => { mkdirSync(join(stateDir(), 'session-state'), { recursive: true }); atomic(stateFile(agent), JSON.stringify({ state, at: new Date().toISOString(), session_id: input.session_id || null }) + '\n'); };
+  const mark = (state) => { mkdirSync(join(roleStateDir(agent), 'session-state'), { recursive: true }); atomic(stateFile(agent), JSON.stringify({ state, at: new Date().toISOString(), session_id: input.session_id || null }) + '\n'); };
   if (event === 'Stop') { const g = stopGate(agent); if (g) return g; mark('idle'); return null; }
   // Validação R3: um turno que acaba por erro da API (StopFailure: rate limit, sobrecarga) ou uma sessão parada/morta (SessionEnd)
   // não pode deixar o estado em working para sempre, senão o papel nunca mais recebe turno.
@@ -82,12 +84,12 @@ export function hook(event, input = {}, agent = process.env.FSD_AGENT) {
 // feita depois do início da tarefa. Sem ela: bloqueia com "continue: falta …", no máximo MAX_BLOCKS vezes por tarefa (contador
 // próprio: stop_hook_active fica true depois de qualquer bloqueio); na última, deixa parar e avisa o Kevin.
 export const MAX_BLOCKS = 3;
-export function hasDelivery(task) {
-  const d = join(stateDir(), 'entregas', task.contract);
+export function hasDelivery(task, agent) {
+  const d = join(agent ? roleStateDir(agent) : stateDir(), 'entregas', task.contract);
   try { return readdirSync(d).some((f) => f.startsWith(`${task.n}-`) && f.endsWith('.json') && statSync(join(d, f)).mtimeMs >= task.at); } catch { return false; }
 }
 function stopGate(agent) {
-  const t = loadTask(agent); if (!t || hasDelivery(t)) return null;
+  const t = loadTask(agent); if (!t || hasDelivery(t, agent)) return null;
   if ((t.blocks || 0) >= MAX_BLOCKS) {
     if (agent !== 'kevin') say({ to: 'kevin', text: `${agent} terminou o turno sem a entrega válida de ${t.kind} #${t.n} depois de ${MAX_BLOCKS} avisos.`, ref: `#${t.n}` }, { from: agent });
     return null;

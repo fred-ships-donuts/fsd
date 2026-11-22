@@ -98,7 +98,7 @@ comando passam por cima do padrão.
 │   ├── fsd-admit                  issue de agente (aguardando-autor) entra no Backlog só com "Decision (author, …)"; recusa fecha (D8)
 │   ├── fsd-audit                  audita uma sessão (0 token): comando proibido, entrega fora do contrato, card fora da vez, destino inválido, texto de issue como ordem, lista de tarefas (F3.8)
 │   ├── fsd-session                sessão --bg de cada papel numa conversa fixa (--session-id/--resume): start, turn, stop, boot (F3.2)
-│   ├── fsd-dispatch               supervisor do time nativo (0 token): round, loop (só da cópia fixada), pin, status (F3.2)
+│   ├── fsd-dispatch               supervisor do time nativo (0 token): round, loop (só da cópia fixada), pin, status (F3.2). Lê e grava o estado de cada papel em /var/lib/fsd-state/<papel> (FSD_STATE_ROOT; do papel, grupo fsd-dispatch, 2770 + ACL); o PAUSE do time é /var/lib/fsd-state/PAUSE
 │   ├── fsd-broker                 broker de tokens (usuário fsd-broker): um token por papel em /var/lib/fsd-tokens/<papel> (0440, só o papel lê) e o de merge do supervisor (F2.3)
 │   ├── fsd-token-file             o token do papel pelo usuário Unix, nunca pelo FSD_AGENT (C1; gh e git-credential-fsd na sessão nova)
 │   ├── fsd-secrets                pack/unpack dos segredos em secrets.tar.age (age, senha)

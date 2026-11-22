@@ -97,11 +97,11 @@ if [ -x /usr/local/sbin/fsd-session-exec ]; then
   check K10 "fsd-session (como fsd-dispatch, FSD_SESSION_VIA=sudo) sobe a Mel e vê o estado dela" bash -c "su -s /bin/bash fsd-dispatch -c 'cd ~ && FSD_SESSION_VIA=sudo FSD_STATE=\$HOME/st node $FSD_SIM_TEAM/bin/fsd-session start mel \"tarefa #3\" >/dev/null && FSD_SESSION_VIA=sudo FSD_STATE=\$HOME/st node $FSD_SIM_TEAM/bin/fsd-session status --json' 2>/dev/null | grep -q '\"mel\":{\"state\":\"idle\"'"
   check K10 "o wrapper recusa id e uuid inválidos" bash -c "! su -s /bin/bash fsd-dispatch -c '$SX stop \"x;id\"' >/dev/null 2>&1 && ! su -s /bin/bash fsd-dispatch -c '$SX resume not-a-uuid /tmp/k10-prompt' >/dev/null 2>&1"
 fi
-# K17 (validação R6/R7): a sessão do papel sobe com o PATH do time, o repositório, o estado na home e o git do root; um commit como o
+# K17 (validação R6/R7): a sessão do papel sobe com o PATH do time, o repositório, o estado do papel e o git do root; um commit como o
 # papel sai com a identidade do bot só pelo GIT_CONFIG_GLOBAL (sem -c).
 if [ -x /usr/local/sbin/fsd-session-exec ] && command -v jq >/dev/null; then
   sj=/tmp/stub-claude-$(id -u fsd-stuart)/state.json; T17=$(grep -E '^TEAM=' /etc/fsd/session.env | cut -d= -f2); R17=$(grep -E '^REPO=' /etc/fsd/session.env | cut -d= -f2)
-  k17_env() { jq -e --arg t "$T17/bin" --arg r "$R17" '[.sessions[] | select(.agent == "stuart")] | last | (.path | startswith($t + ":")) and .repo == $r and .state == "/home/fsd-stuart/.config/fsd-agents" and .gitcfg == "/etc/fsd/profiles/stuart/gitconfig"' "$sj" >/dev/null; }
+  k17_env() { jq -e --arg t "$T17/bin" --arg r "$R17" '[.sessions[] | select(.agent == "stuart")] | last | (.path | startswith($t + ":")) and .repo == $r and .state == "/var/lib/fsd-state/stuart" and .gitcfg == "/etc/fsd/profiles/stuart/gitconfig"' "$sj" >/dev/null; }
   check K17 "a sessão do Stuart sobe com PATH do time, FSD_REPO, FSD_STATE e o gitconfig do root" k17_env
   check K17 "o gitconfig do papel é do root, com a identidade do bot e o helper do time" bash -c "[ \"\$(stat -c %U /etc/fsd/profiles/stuart/gitconfig)\" = root ] && git config -f /etc/fsd/profiles/stuart/gitconfig user.name | grep -qx 'fsd-stuart\[bot\]' && git config -f /etc/fsd/profiles/stuart/gitconfig --get-all credential.https://github.com.helper | grep -q git-credential-fsd"
   if [ -n "${FSD_SIM_REPO:-}" ]; then
@@ -164,6 +164,51 @@ if command -v jq >/dev/null; then
     check K16 "o perfil do $r liga o sandbox, sem comando fora dele, e nega a credencial" jq -e '.sandbox.enabled == true and .sandbox.allowUnsandboxedCommands == false and .sandbox.failIfUnavailable == true and (.sandbox.filesystem.denyRead | index("~/.claude/.credentials.json")) and (.sandbox.network.allowedDomains == ["*"])' "/etc/fsd/profiles/$r/settings.json"
   done
   check K16 "só o fsd-qa do Bob fica fora do sandbox" bash -c "[ \"\$(jq -c .sandbox.excludedCommands /etc/fsd/profiles/bob/settings.json)\" = '[\"fsd-qa *\"]' ] && for r in kevin mel stuart; do [ \"\$(jq -c '.sandbox.excludedCommands // []' /etc/fsd/profiles/\$r/settings.json)\" = '[]' ] || exit 1; done"
+fi
+# K18 (validação R1, R2, R12 e R34): o estado entre os uids, de ponta a ponta e sem token. Cada papel tem a pasta dele em
+# /var/lib/fsd-state; o Stuart manda uma mensagem à Mel; o supervisor roda uma rodada como fsd-dispatch (pelo wrapper, com o GitHub e o
+# quadro falsos) e a Mel recebe pelo hook da sessão dela; com a Mel trabalhando, a mensagem seguinte vai para a caixa, sem turno novo
+# (o turno dela não é cortado); com o PAUSE do time, nenhum turno sai.
+if [ -x /usr/local/sbin/fsd-session-exec ] && [ -n "${FSD_SIM_TEAM:-}" ] && command -v getfacl >/dev/null; then
+  SR=/var/lib/fsd-state; T=$FSD_SIM_TEAM/bin
+  for r in "${ROLES[@]}"; do
+    check K18 "a pasta de estado do $r é dele, do grupo fsd-dispatch, 2770, com a ACL padrão" bash -c "[ \"\$(stat -c '%U %G %a' $SR/$r)\" = 'fsd-$r fsd-dispatch 2770' ] && getfacl -p $SR/$r 2>/dev/null | grep -qx 'default:group:fsd-dispatch:rwx' && getfacl -p $SR/$r 2>/dev/null | grep -qx 'default:user:fsd-$r:rwx'"
+  done
+  check K18 "a Mel não entra na pasta de estado do Stuart" cannot fsd-mel "ls $SR/stuart"
+  check K18 "a Mel não cria o PAUSE do time nem cria pasta na raiz" bash -c "! su -s /bin/bash fsd-mel -c 'touch $SR/PAUSE' 2>/dev/null && ! su -s /bin/bash fsd-mel -c 'mkdir $SR/x' 2>/dev/null"
+  # O ambiente das partes: o supervisor como no fsd-svc (FSD_SESSION_VIA=sudo, FSD_STATE_ROOT), com o GitHub e o quadro falsos.
+  KD=/home/fsd-dispatch/k18; rm -rf "$KD"; install -d -o fsd-dispatch -g fsd-dispatch -m 0700 "$KD"
+  echo '{}' > "$KD/gh.json"; echo '{}' > "$KD/board.json"; chown fsd-dispatch: "$KD/gh.json" "$KD/board.json"
+  disp() { su -s /bin/bash fsd-dispatch -c "cd ~ && FSD_SESSION_VIA=sudo FSD_STATE_ROOT=$SR FSD_STATE=$KD/st FSD_GH=$FSD_SIM_TEAM/setup/fake-gh FAKE_GH_STATE=$KD/gh.json FSD_BOARD_FAKE=$KD/board.json FSD_RUNNER=session node $T/fsd-dispatch round" 2>&1; }
+  diga() { su -s /bin/bash fsd-stuart -c "FSD_AGENT=stuart FSD_STATE=$SR/stuart FSD_STATE_ROOT=$SR node $T/fsd-diga mel '$1' --urgente" >/dev/null 2>&1; }
+  stubenv() { local d; d=/tmp/stub-claude-$(id -u fsd-mel); install -d -o fsd-mel -g fsd-mel -m 0700 "$d"; echo "$1" > "$d/env.json"; chmod 644 "$d/env.json"; }
+  sjm=/tmp/stub-claude-$(id -u fsd-mel)/state.json
+  stubenv '{"STUB_RUN_HOOKS":"1"}'
+  has_out() { compgen -G "$SR/stuart/outbox/stuart/*.json" >/dev/null; }
+  diga 'k18 primeira'
+  check K18 "o Stuart grava a mensagem no próprio outbox" has_out
+  check K18 "a Mel não grava no outbox do Stuart (o remetente é o dono do arquivo, A4)" cannot fsd-mel "touch $SR/stuart/outbox/stuart/forjada.json"
+  round_ok() { grep -q ', 1 feita(s)$' <<<"$1"; }
+  got() { jq -e --arg t "$1" '[.sessions[] | select(.agent == "mel") | .context[]?.out] | any(contains($t))' "$sjm" >/dev/null; }
+  out1=$(disp)
+  check K18 "a rodada do supervisor (fsd-dispatch, pelo wrapper) abre o turno da Mel" round_ok "$out1"
+  check K18 "a Mel recebeu a mensagem do Stuart pelo hook da sessão dela" got 'stuart: [urgente] k18 primeira'
+  check K18 "o outbox do Stuart ficou vazio (entregue uma vez)" bash -c "! compgen -G '$SR/stuart/outbox/stuart/*.json' >/dev/null"
+  check K18 "o estado do hook da Mel está na pasta dela, é dela e o supervisor o lê" bash -c "[ \"\$(stat -c %U $SR/mel/session-state/mel.json)\" = fsd-mel ] && su -s /bin/bash fsd-dispatch -c 'cat $SR/mel/session-state/mel.json' | grep -q '\"state\":\"idle\"'"
+  # A Mel num turno que não acaba (STUB_WORKING): a próxima mensagem abre o turno; a seguinte vai para a caixa, sem cortar o turno.
+  stubenv '{"STUB_RUN_HOOKS":"1","STUB_WORKING":"1"}'
+  diga 'k18 segunda'; disp >/dev/null
+  check K18 "o supervisor vê a Mel trabalhando (estado do hook dela, sessão pelo wrapper)" bash -c "su -s /bin/bash fsd-dispatch -c 'cd ~ && FSD_SESSION_VIA=sudo FSD_STATE_ROOT=$SR FSD_STATE=$KD/st node $T/fsd-session status --json' 2>/dev/null | grep -q '\"mel\":{\"state\":\"working\"'"
+  turns() { jq '[.calls[] | select(index("--bg"))] | length' "$sjm"; }
+  to_inbox() { [ "$(turns)" = "$1" ] && grep -q 'k18 terceira' "$SR/mel/inbox/mel" && round_ok "$2"; }
+  n0=$(turns); diga 'k18 terceira'; out3=$(disp)
+  check K18 "com a Mel trabalhando, a mensagem vai para a caixa dela e nenhum turno novo sai" to_inbox "$n0" "$out3"
+  # PAUSE único do time (R12): na raiz, criado pelo autor (root); nenhum turno novo sai, a mensagem espera no outbox.
+  stubenv '{"STUB_RUN_HOOKS":"1"}'; su -s /bin/bash fsd-mel -c "FSD_AGENT=mel FSD_RUNNER=session FSD_STATE=$SR/mel FSD_STATE_ROOT=$SR $T/fsd-session-hook" <<<'{"hook_event_name":"Stop","session_id":"x"}' >/dev/null 2>&1
+  touch $SR/PAUSE; n1=$(turns); diga 'k18 quarta'; disp >/dev/null
+  held() { [ "$(turns)" = "$1" ] && has_out; }
+  check K18 "com o PAUSE do time, nenhum turno sai e a mensagem fica no outbox" held "$n1"
+  rm -f "$SR/PAUSE" "/tmp/stub-claude-$(id -u fsd-mel)/env.json"
 fi
 # K13 (F0.2, T0.2.2): o aceite do bypass em --bg vem das managed settings do root, que nenhum papel edita.
 if command -v jq >/dev/null; then

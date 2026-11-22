@@ -12,12 +12,13 @@ import { readFileSync, writeFileSync, existsSync, openSync, closeSync, rmSync, s
 import { spawn } from 'node:child_process';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { stateDir, ghw } from './fsd-lib.mjs';
+import { stateDir, pausePath, ghw } from './fsd-lib.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const URL_ = 'https://api.anthropic.com/api/oauth/usage';
 const now = () => Number(process.env.FSD_USAGE_NOW) || Date.now();
-const P = (n) => join(stateDir(), n);
+// Validação R12: o PAUSE e o PAUSE.usage são os do time (no nativo, na raiz do estado); o resto fica no estado de quem roda.
+const P = (n) => (n === 'PAUSE' || n === 'PAUSE.usage' ? pausePath(n) : join(stateDir(), n));
 const read = (f) => { try { return JSON.parse(readFileSync(f, 'utf8')); } catch { return null; } };
 export function usageConfig() {
   const u = read(join(HERE, '..', 'agents.json'))?.claude_common?.usage;

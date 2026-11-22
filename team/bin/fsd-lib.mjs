@@ -141,12 +141,13 @@ export function notify(agents, text) {
   return res;
 }
 export const noticeSummary = (r) => [r.delivered.length ? `avisados: ${r.delivered.join(',')}` : '', r.queued.length ? `na fila: ${r.queued.join(',')}` : ''].filter(Boolean).join(' | ');
-// Caixa de avisos não entregues: $FSD_STATE/inbox/<agente>, uma linha JSON por aviso. Só nomes de agents.json viram caminho.
-export const inboxDir = () => join(process.env.FSD_STATE || join(process.env.HOME || '', '.config', 'fsd-agents'), 'inbox');
+// Caixa de avisos não entregues: <estado do agente>/inbox/<agente>, uma linha JSON por aviso. Só nomes de agents.json viram caminho.
+// No time nativo a caixa fica na pasta do papel (roleStateDir), que o supervisor grava pela ACL do grupo fsd-dispatch.
+export const inboxDir = (agent) => join(agent ? roleStateDir(agent) : stateDir(), 'inbox');
 export const inboxValid = (a) => typeof a === 'string' && /^[a-z0-9_-]+$/.test(a) && AGENTS.includes(a);
-const inboxFile = (a) => { if (!inboxValid(a)) throw new Error(`unknown agent: ${a}`); return join(inboxDir(), a); };
+const inboxFile = (a) => { if (!inboxValid(a)) throw new Error(`unknown agent: ${a}`); return join(inboxDir(a), a); };
 export function inboxAppend(agent, from, text) {
-  const f = inboxFile(agent); mkdirSync(inboxDir(), { recursive: true });
+  const f = inboxFile(agent); mkdirSync(inboxDir(agent), { recursive: true });
   appendFileSync(f, JSON.stringify({ t: new Date().toISOString(), from, text }) + '\n');
 }
 // Esvazia por rename: um aviso que chega durante a leitura cai num arquivo novo, sem perda nem leitura dupla.
@@ -165,6 +166,21 @@ export function inboxCount(agent) {
 export const noticeLine = (n) => `[${n.t.slice(0, 16).replace('T', ' ')}] ${n.from}: ${n.text}`;
 // Registro de esperas ($FSD_STATE/waits/<agente>.json): quem espera por quem. Só os agentes de agents.json viram nome de arquivo.
 export const stateDir = () => process.env.FSD_STATE || join(process.env.HOME || '', '.config', 'fsd-agents');
+// Validação R1: no time nativo (FSD_STATE_ROOT, padrão do container /var/lib/fsd-state) cada papel guarda o estado em
+// $FSD_STATE_ROOT/<papel>: dono o papel, grupo fsd-dispatch, 2770 com ACL padrão para o papel e o supervisor (fsd-users). Outbox,
+// caixa, estado do hook, cartão, tarefa, leases e entregas de um papel moram ali, e o supervisor lê e grava a pasta de cada um.
+// Sem FSD_STATE_ROOT (time no tmux, testes de um uid só), tudo fica no stateDir() de sempre.
+export const stateRoot = () => process.env.FSD_STATE_ROOT || '';
+export function roleStateDir(role) {
+  if (!stateRoot()) return stateDir();
+  if (!AGENTS.includes(role)) throw new Error(`agente desconhecido: ${role}`);
+  return join(stateRoot(), role);
+}
+// Validação R12: um PAUSE só para o time nativo, na raiz do estado; sem raiz, o PAUSE de sempre.
+export const pausePath = (name = 'PAUSE') => join(stateRoot() || stateDir(), name);
+// Arquivo de estado de papel: com a raiz (ACL), o modo pedido vale também para o grupo, senão a máscara da ACL zera o acesso do
+// supervisor e o do papel; sem a raiz, o modo de sempre.
+export const shareMode = (mode) => (stateRoot() ? mode | ((mode & 0o700) >> 3) : mode);
 export const waitsDir = () => join(stateDir(), 'waits');
 const pidAlive = (pid) => { try { process.kill(pid, 0); return true; } catch (e) { return e.code === 'EPERM'; } };
 // Lista as esperas vivas; apaga as de mais de timing.waits.expireMin, as de processo morto e as ilegíveis.

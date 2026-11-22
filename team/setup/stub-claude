@@ -15,6 +15,9 @@ import { randomUUID, randomBytes } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 const DIR = process.env.STUB_CLAUDE_DIR || `/tmp/stub-claude-${process.getuid?.() ?? 'x'}`; mkdirSync(DIR, { recursive: true });   // um por uid (cada papel tem o seu supervisor)
 const F = join(DIR, 'state.json');
+// $STUB_CLAUDE_DIR/env.json ({ "STUB_RUN_HOOKS": "1", ... }): variáveis do stub para quando ele roda atrás do sudo do fsd-session-exec,
+// que limpa o ambiente (os K de ponta a ponta no simulate-container). Só as STUB_*.
+try { for (const [k, v] of Object.entries(JSON.parse(readFileSync(join(DIR, 'env.json'), 'utf8')))) if (k.startsWith('STUB_')) process.env[k] = String(v); } catch {}
 const load = () => { try { return JSON.parse(readFileSync(F, 'utf8')); } catch { return { sessions: [], calls: [] }; } };
 const st = load(); const a = process.argv.slice(2); st.calls.push(a); const save = () => writeFileSync(F, JSON.stringify(st, null, 1));
 const opt = (k) => { const i = a.indexOf(k); return i >= 0 ? a[i + 1] : undefined; };
