@@ -29,23 +29,24 @@ check K6 "o humano (root aqui) não ganha o umask do time" bash -c "[ \"\$(bash 
 check K6 "umask 077 numa sessão de login do papel" bash -c "[ \"\$(su -l -s /bin/bash fsd-mel -c umask)\" = 0077 ]"
 su -l -s /bin/bash fsd-mel -c 'echo s > /tmp/k6-mel'
 check K6 "arquivo novo da Mel no /tmp não é lido pelo Stuart" cannot fsd-stuart 'cat /tmp/k6-mel'
-# K7 (F2.2, A6): o repositório entre uids. FSD_SIM_REPO = um clone preparado pelo fsd-repo (o Dockerfile.sim monta um, com um
-# remoto bare local que o grupo grava).
+# K7 (F2.2, A6; validação R18): o repositório entre uids. FSD_SIM_REPO = o depósito compartilhado preparado pelo fsd-repo (o
+# Dockerfile.sim monta um, com um remoto bare local que o grupo grava). Cada papel trabalha no clone dele, na home (0700).
 if [ -n "${FSD_SIM_REPO:-}" ]; then
-  R=$FSD_SIM_REPO; inrepo() { su -s /bin/bash "$1" -c "umask 007; cd $R && $2" >/dev/null 2>&1; }; notrepo() { ! inrepo "$@"; }
-  check K7 "papel não grava alias no .git/config" notrepo fsd-stuart "git config alias.x '!id'"
-  check K7 "papel não muda core.hooksPath" notrepo fsd-stuart "git config core.hooksPath /tmp"
-  check K7 "papel não planta hook" notrepo fsd-mel "echo id > .git/hooks/pre-commit"
-  su -s /bin/bash fsd-mel -c "cd $R && git config --file .git/config.worktree alias.y '!touch /tmp/k7-pwned'" >/dev/null 2>&1
-  check K7 "config.worktree é ignorado (alias plantado não roda)" bash -c "! su -s /bin/bash fsd-stuart -c 'cd $R && git y' >/dev/null 2>&1 && [ ! -e /tmp/k7-pwned ]"
+  R=$FSD_SIM_REPO
+  inown() { su -s /bin/bash "$1" -c "umask 007; cd /home/$1/repo && $2" >/dev/null 2>&1; }
+  check K7 "R18: o compartilhado é só leitura para os papéis (nem .git, nem config, nem hook, nem ref)" bash -c "! su -s /bin/bash fsd-stuart -c 'touch $R/.git/x' 2>/dev/null && ! su -s /bin/bash fsd-stuart -c 'git -C $R config alias.x !id' 2>/dev/null && ! su -s /bin/bash fsd-mel -c 'echo id > $R/.git/hooks/pre-commit' 2>/dev/null && ! su -s /bin/bash fsd-mel -c 'git -C $R update-ref refs/heads/develop HEAD~0' 2>/dev/null"
+  for r in "${ROLES[@]}"; do
+    check K7 "R18: o clone do $r é dele, na home, com os objetos do compartilhado" bash -c "[ \"\$(stat -c %U /home/fsd-$r/repo)\" = fsd-$r ] && grep -qx '$R/.git/objects' /home/fsd-$r/repo/.git/objects/info/alternates"
+  done
+  check K7 "R18: a Mel não lê nem troca o clone do Stuart (index, HEAD, refs)" cannot fsd-mel "ls /home/fsd-stuart/repo/.git"
   W=/home/fsd-stuart/wt/fix-1-x
-  check K7 "papel busca sem FETCH_HEAD" inrepo fsd-stuart "git fetch -q --no-write-fetch-head origin develop"
-  check K7 "papel cria o worktree na própria home" inrepo fsd-stuart "mkdir -p /home/fsd-stuart/wt && git worktree add -q --no-track -b fix/1-x $W origin/develop"
-  check K7 "commit no worktree funciona" inrepo fsd-stuart "cd $W && echo b > b && git add b && git -c user.email=s@s -c user.name=s commit -qm b"
-  check K7 "push do branch funciona" inrepo fsd-stuart "cd $W && git push -q origin fix/1-x"
-  check K7 "outro papel não lê o worktree do Stuart" notrepo fsd-mel "ls $W"
-  check K7 "o supervisor busca, compacta as refs e apaga branch" inrepo fsd-dispatch "git fetch -q origin && git pack-refs --all && git worktree prune && git branch -D fix/1-x"
-  check K7 ".git/config segue fora do alcance dos papéis" notrepo fsd-bob "git config alias.z '!id'"
+  check K7 "papel busca no próprio clone" inown fsd-stuart "git fetch -q origin develop"
+  check K7 "papel cria o worktree do próprio clone na home" inown fsd-stuart "mkdir -p /home/fsd-stuart/wt && git worktree add -q --no-track -b fix/1-x $W origin/develop"
+  check K7 "commit no worktree funciona" inown fsd-stuart "cd $W && echo b > b && git add b && git -c user.email=s@s -c user.name=s commit -qm b"
+  check K7 "push do branch funciona" inown fsd-stuart "cd $W && git push -q origin fix/1-x"
+  check K7 "outro papel não lê o worktree do Stuart" cannot fsd-mel "ls $W"
+  check K7 "o supervisor busca e compacta as refs no compartilhado" bash -c "su -s /bin/bash fsd-dispatch -c 'git -C $R fetch -q origin && git -C $R pack-refs --all' >/dev/null 2>&1"
+  check K7 "o compartilhado não apaga objeto de que um clone dependa (sem gc)" bash -c "[ \"\$(git -C $R config gc.auto)\" = 0 ] && [ \"\$(git -C $R config gc.pruneExpire)\" = never ]"
 fi
 # K8 (F2.3, C1): o broker. FSD_SIM_TEAM = o team/bin e o agents.json dentro da imagem (tokens falsos, sem chave nem rede).
 if [ -n "${FSD_SIM_TEAM:-}" ]; then
@@ -101,11 +102,11 @@ fi
 # papel sai com a identidade do bot só pelo GIT_CONFIG_GLOBAL (sem -c).
 if [ -x /usr/local/sbin/fsd-session-exec ] && command -v jq >/dev/null; then
   sj=/tmp/stub-claude-$(id -u fsd-stuart)/state.json; T17=$(grep -E '^TEAM=' /etc/fsd/session.env | cut -d= -f2); R17=$(grep -E '^REPO=' /etc/fsd/session.env | cut -d= -f2)
-  k17_env() { jq -e --arg t "$T17/bin" --arg r "$R17" '[.sessions[] | select(.agent == "stuart")] | last | (.path | startswith($t + ":")) and .repo == $r and .state == "/var/lib/fsd-state/stuart" and .gitcfg == "/etc/fsd/profiles/stuart/gitconfig"' "$sj" >/dev/null; }
+  k17_env() { jq -e --arg t "$T17/bin" --arg r "$R17" '[.sessions[] | select(.agent == "stuart")] | last | (.path | startswith($t + ":")) and .repo == "/home/fsd-stuart/repo" and .state == "/var/lib/fsd-state/stuart" and .gitcfg == "/etc/fsd/profiles/stuart/gitconfig"' "$sj" >/dev/null; }
   check K17 "a sessão do Stuart sobe com PATH do time, FSD_REPO, FSD_STATE e o gitconfig do root" k17_env
   check K17 "o gitconfig do papel é do root, com a identidade do bot e o helper do time" bash -c "[ \"\$(stat -c %U /etc/fsd/profiles/stuart/gitconfig)\" = root ] && git config -f /etc/fsd/profiles/stuart/gitconfig user.name | grep -qx 'fsd-stuart\[bot\]' && git config -f /etc/fsd/profiles/stuart/gitconfig --get-all credential.https://github.com.helper | grep -q git-credential-fsd"
   if [ -n "${FSD_SIM_REPO:-}" ]; then
-    k17_commit() { su -s /bin/bash fsd-stuart -c "umask 007; export GIT_CONFIG_GLOBAL=/etc/fsd/profiles/stuart/gitconfig; d=/home/fsd-stuart/wt/k17; cd $FSD_SIM_REPO && git worktree add -q --no-track -b k17 \$d origin/develop && cd \$d && echo k > k && git add k && git commit -qm k && git log -1 --format=%an" 2>/dev/null | grep -qx 'fsd-stuart\[bot\]'; }
+    k17_commit() { su -s /bin/bash fsd-stuart -c "umask 007; export GIT_CONFIG_GLOBAL=/etc/fsd/profiles/stuart/gitconfig; d=/home/fsd-stuart/wt/k17; cd /home/fsd-stuart/repo && git worktree add -q --no-track -b k17 \$d origin/develop && cd \$d && echo k > k && git add k && git commit -qm k && git log -1 --format=%an" 2>/dev/null | grep -qx 'fsd-stuart\[bot\]'; }
     check K17 "commit como o Stuart, sem -c, sai como fsd-stuart[bot]" k17_commit
   fi
 fi
@@ -265,7 +266,7 @@ if [ -x /usr/local/sbin/fsd-session-exec ] && command -v jq >/dev/null; then
   mkdir "$CR/mel/.claude"
   check K19 "com .claude/ no cwd, a sessão da Mel não sobe" bash -c "! su -s /bin/bash fsd-dispatch -c 'sudo -n -u fsd-mel /usr/local/sbin/fsd-session-exec start /tmp/k19-prompt' 2>&1 | grep -q backgrounded"
   rmdir "$CR/mel/.claude"
-  for r in "${ROLES[@]}"; do check K19 "o perfil do $r dá escrita ao .git compartilhado no sandbox e nega Write/Edit no checkout" jq -e '(.sandbox.filesystem.allowWrite | index("/srv/fsd/repo/.git")) and (.permissions.deny | index("Write(//srv/fsd/repo/**)")) and (.permissions.deny | index("Edit(//srv/fsd/repo/**)"))' "/etc/fsd/profiles/$r/settings.json"; done
+  for r in "${ROLES[@]}"; do check K19 "o perfil do $r dá escrita ao clone do papel no sandbox (R18) e nega Write/Edit no checkout" jq -e '(.sandbox.filesystem.allowWrite | index("~/repo")) and (.permissions.deny | index("Write(//srv/fsd/repo/**)")) and (.permissions.deny | index("Edit(//srv/fsd/repo/**)"))' "/etc/fsd/profiles/$r/settings.json"; done
 fi
 # K20 (validação R20, R37, R39, R19): o fsd-run sem processo de um PR para o seguinte; as ferramentas dos papéis são cópias do root; o
 # prompt da sessão não aparece no argv; o time só sobe no FSD_TEAM_SHA.

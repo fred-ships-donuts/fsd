@@ -87,7 +87,7 @@ if (FIXTURE) {
   const env = { ...process.env, FSD_AGENT: 'kevin' };
   // Prazo: FSD_JUDGE_TIMEOUT_MS (testes) ou timing.judge.timeoutMin. No prazo, SIGINT; depois SIGTERM (runSession).
   const timeoutMs = Number(process.env.FSD_JUDGE_TIMEOUT_MS) || Number(timing().judge.timeoutMin) * 60000;
-  const r = await runSession({ bin: process.env.FSD_JUDGE_CLAUDE || 'claude', args: claudeArgs, input: prompt, cwd: L.REPO_DIR, env, timeoutMs, graceMs: Number(process.env.FSD_JUDGE_GRACE_MS) || 10000 });
+  const r = await runSession({ bin: process.env.FSD_JUDGE_CLAUDE || 'claude', args: claudeArgs, input: prompt, cwd: process.env.FSD_JUDGE_CWD || L.REPO_DIR, env, timeoutMs, graceMs: Number(process.env.FSD_JUDGE_GRACE_MS) || 10000 });
   if (r.timedOut) failure = 'timeout';
   else if (r.error || r.status !== 0) failure = 'judge error';
   else text = r.stdout || '';

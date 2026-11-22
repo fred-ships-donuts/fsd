@@ -74,14 +74,14 @@
         "~/.local/share/ai-memory/auth-tokens"
       ],
       "allowWrite": [
+        "~/repo",
         "~/wt",
         "~/qa",
         "~/.config/fsd-agents",
         "~/.fsd",
         "~/.npm",
         "~/.cache",
-        "/tmp",
-        "/srv/fsd/repo/.git"
+        "/tmp"
       ]
     },
     "network": {
