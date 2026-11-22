@@ -107,3 +107,28 @@ for (const [name, second, verdict, state] of [['PASS', 'true', 'pass', 'APPROVED
     } finally { spawnSync('tmux', ['-L', 'fsd-qa-bob', 'kill-server']); }
   });
 }
+
+// F4.7 Stuart: o card na sessão nova (worktree na home, um card por vez), uma mensagem da Mel no meio do trabalho entregue no
+// PostToolUse seguinte e o erro de tipo devolvido pelo fsd-verify-hook (o teste dele, em fsd-verify-hook.test.mjs, roda o tsc).
+function gitWorld() {
+  const w = world(); const g = (cwd, ...a) => spawnSync('git', a, { cwd, encoding: 'utf8' });
+  const bare = join(w.d, 'origin.git'), repo = join(w.d, 'repo'); g(w.d, 'init', '-q', '--bare', bare); g(w.d, 'clone', '-q', bare, repo);
+  writeFileSync(join(repo, 'a'), '1'); g(repo, 'add', 'a'); g(repo, '-c', 'user.email=t@t', '-c', 'user.name=t', 'commit', '-qm', 'init'); g(repo, 'push', '-q', 'origin', 'HEAD:develop');
+  w.env = { ...w.env, HOME: w.d, FSD_REPO: repo }; return w;
+}
+test('F4.7 Stuart: the card starts in a worktree in his home; a second card is refused while the first is open', () => {
+  const w = gitWorld(); const g = gh(w); g.issues['13'] = { ...ISSUE, number: 13, title: 'other card' }; writeFileSync(w.env.FAKE_GH_STATE, JSON.stringify(g));
+  writeFileSync(w.env.FSD_BOARD_FAKE, JSON.stringify({ 12: 'Ready for Development (Stuart)', 13: 'Ready for Development (Stuart)' }));
+  const s = as(w, 'stuart', 'fsd-dev', ['start', '12']); assert.equal(s.status, 0, s.stdout + s.stderr);
+  assert.ok(existsSync(join(w.d, 'wt', 'feature-12-fsd-merge-checks-the-ci', 'a'))); assert.equal(board(w)['12'], 'Developing (Stuart)');
+  const two = as(w, 'stuart', 'fsd-dev', ['start', '13']); assert.equal(two.status, 1); assert.match(two.stdout + two.stderr, /already has #12/); assert.equal(board(w)['13'], 'Ready for Development (Stuart)');
+});
+
+test('F4.7 Stuart: a message from Mel during the work reaches him at the next tool call', () => {
+  const w = world();
+  assert.equal(as(w, 'mel', 'fsd-diga', ['stuart', 'use o mergeGate do fsd-lib']).status, 0); deliver(w);
+  const h = spawnSync(join(BIN, 'fsd-session-hook'), { input: JSON.stringify({ hook_event_name: 'PostToolUse', session_id: 's', tool_name: 'Bash', tool_input: { command: 'npm test' } }), encoding: 'utf8', env: { ...process.env, ...w.env, FSD_AGENT: 'stuart' } });
+  assert.equal(h.status, 0, h.stderr); assert.match(h.stdout, /mel: use o mergeGate do fsd-lib/);
+  const again = spawnSync(join(BIN, 'fsd-session-hook'), { input: JSON.stringify({ hook_event_name: 'PostToolUse', session_id: 's', tool_name: 'Bash', tool_input: { command: 'ls' } }), encoding: 'utf8', env: { ...process.env, ...w.env, FSD_AGENT: 'stuart' } });
+  assert.doesNotMatch(again.stdout, /mergeGate/);   // entregue uma vez só
+});

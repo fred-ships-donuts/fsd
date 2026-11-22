@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+# fsd-verify-hook — PostToolUse do Stuart na sessão nova (F4.7): tsc, node --check e o teste do arquivo editado. Ver fsd-verify-hook.mjs.
+exec node "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/fsd-verify-hook.mjs"
