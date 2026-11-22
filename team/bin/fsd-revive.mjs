@@ -23,7 +23,10 @@ export function watcherDown(dir = stateDir(), loopSeconds = Number(timing().watc
 }
 // Laço de verdade só para o estado real (#212): com FSD_DRY, ou com o FSD_STATE dentro do tmpdir (testes, simulate-envs, QA),
 // nunca sobe um vigia — foi assim que vigias de teste esquecidos se espalharam. FSD_REVIVE_CMD (stub de teste) passa.
+// Validação R12: na sessão nativa (FSD_RUNNER=session) o vigia do tmux nunca sobe. Lá quem acorda os papéis é o supervisor, e o
+// vigia, rodando como o papel, tentaria subir o time inteiro e o laço do fsd-cleanup (provado na sessão real, 2.1.322).
 export function reviveRefused(dir = stateDir()) {
+  if (process.env.FSD_RUNNER === 'session') return 'sessão nativa (o supervisor acorda os papéis)';
   if (process.env.FSD_REVIVE_CMD) return null;
   if (process.env.FSD_DRY) return 'FSD_DRY';
   const real = (p) => { try { return realpathSync(p); } catch { return p; } };

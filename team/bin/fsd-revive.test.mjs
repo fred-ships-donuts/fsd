@@ -52,3 +52,10 @@ test('fsd-revive.mjs (what fsd-agent calls) starts a dead watcher', () => {
   assert.equal(starts(t), 1); assert.match(readFileSync(join(t.d, 'watch.log'), 'utf8'), /bob subiu o vigia/);
   stop(t);
 });
+
+test('R12: in a native session (FSD_RUNNER=session) the hook never starts the tmux watcher, and fsd-watch refuses to run', () => {
+  const t = mk(); t.env.FSD_RUNNER = 'session';
+  hook(t); spawnSync('sleep', ['0.5']); assert.equal(starts(t), 0); assert.equal(existsSync(join(t.d, 'watch.log')), false);
+  const w = spawnSync(join(BIN, 'fsd-watch'), ['--fix', '--loop'], { env: t.env, encoding: 'utf8', timeout: 10000 });
+  assert.equal(w.status, 2, w.stdout + w.stderr); assert.match(w.stderr, /sessão nativa/); assert.equal(existsSync(join(t.d, 'watch.pid')), false);
+});

@@ -83,6 +83,17 @@ for r in "${ROLES[@]}"; do
            | if $model != "" then .model = $model else . end' --arg model "$model" --arg aimcfg "$p/ai-memory.toml" "$team" "$role" "$sess" > "$p/settings.json.tmp" && install -o root -g root -m 0644 "$p/settings.json.tmp" "$p/settings.json"; rm -f "$p/settings.json.tmp"
   fi
 done
+# Validação R9: as pastas da home que o sandbox do Bash deixa gravar (allowWrite "~/…") existem antes da sessão. Um caminho que não
+# existe fica só leitura dentro do sandbox, e o papel não consegue criá-lo (provado na sessão real: git worktree add em ~/wt falhava).
+if command -v jq >/dev/null; then
+  for r in "${ROLES[@]}"; do
+    [ -s "/etc/fsd/profiles/$r/settings.json" ] || continue
+    jq -r '.sandbox.filesystem.allowWrite // [] | .[] | select(startswith("~/")) | .[2:]' "/etc/fsd/profiles/$r/settings.json" | while IFS= read -r rel; do
+      case "$rel" in ''|*..*) continue ;; esac
+      runuser -u "fsd-$r" -- mkdir -p -m 0700 "/home/fsd-$r/$rel"
+    done
+  done
+fi
 # git do papel (validação R7): identidade do bot, o credential helper do time (token do arquivo do papel) e https no lugar de ssh, num
 # arquivo do root que a sessão usa como GIT_CONFIG_GLOBAL (o papel não edita; o ~/.gitconfig dele não entra).
 if [ -n "${FSD_TEAM_DIR:-}" ] && [ -f "$FSD_TEAM_DIR/agents.json" ] && command -v jq >/dev/null; then

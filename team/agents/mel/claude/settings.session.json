@@ -80,7 +80,8 @@
         "~/.fsd",
         "~/.npm",
         "~/.cache",
-        "/tmp"
+        "/tmp",
+        "/var/lib/fsd-state/mel"
       ]
     },
     "network": {

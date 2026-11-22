@@ -51,6 +51,8 @@ const AGENTS = ['kevin', 'mel', 'stuart', 'bob'].filter((a) => cfg.agents[a] && 
 // Estado das rodadas (cooldowns, pedidos já vistos) no $FSD_STATE (#212): um vigia de teste, com outro FSD_STATE, nunca mexe no do real.
 const STATE = join((process.env.FSD_STATE || join(process.env.HOME, '.config', 'fsd-agents')), 'watch-state.json');
 const a = process.argv.slice(2); const FIX = a.includes('--fix');
+// Validação R12: o vigia do tmux não roda numa sessão nativa (lá, rodando como o papel, subiria o time inteiro).
+if (process.env.FSD_RUNNER === 'session') { console.error('fsd-watch: sessão nativa (FSD_RUNNER=session): o vigia do tmux não roda aqui; o supervisor acorda os papéis'); process.exit(2); }
 if (FIX) refuseIfQa({ repoDir: REPO });   // #169: de um worktree de QA, só com estado e tmux privados
 const LOOP = a.includes('--loop') ? Number(a[a.indexOf('--loop') + 1]) || Number(T.loopSeconds) : 0;
 
