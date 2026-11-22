@@ -34,7 +34,7 @@ if [ ! -d "$R/.git" ]; then
   git clone -q --no-hardlinks -b develop "$url" "$R"
 fi
 # 3. Usuários, perfis (da cópia fixada), sudoers, managed settings, tokens do ai-memory.
-FSD_PROFILES_SRC="$ROOT/team/agents" FSD_TEAM_DIR="$ROOT/team" FSD_REPO_DIR="$R" FSD_CLAUDE_BIN=/usr/local/bin/claude \
+FSD_PROFILES_SRC="$ROOT/team/agents" FSD_TEAM_DIR="$ROOT/team" FSD_REPO_DIR="$R" FSD_CWD_ROOT="$ROOT/cwd" FSD_CLAUDE_BIN=/usr/local/bin/claude \
   FSD_NATIVE_PREFLIGHT="${FSD_NATIVE_PREFLIGHT:-1}" FSD_AIM_TOKENS_SRC="${FSD_AIM_TOKENS_SRC:-}" "$ROOT/team/setup/container/fsd-users"
 "$ROOT/team/setup/container/fsd-repo" "$R"
 

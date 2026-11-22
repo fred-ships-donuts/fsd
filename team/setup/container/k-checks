@@ -7,7 +7,7 @@ ok() { echo "ok    $1 $2"; }; bad() { echo "FALHA $1 $2"; fail=1; }
 # shellcheck disable=SC2329  # as funções são chamadas por check "$@"
 can() { su -s /bin/bash "$1" -c "$2" >/dev/null 2>&1; }   # can <usuário> <comando>: 0 se o usuário consegue
 cannot() { ! can "$@"; }   # cannot <usuário> <comando>: 0 se o usuário NÃO consegue (no mesmo processo, nunca num bash -c)
-check() { local id=$1 what=$2; shift 2; if "$@"; then ok "$id" "$what"; else bad "$id" "$what"; fi; }
+check() { local id=$1 what=$2; shift 2; if "$@" >/dev/null; then ok "$id" "$what"; else bad "$id" "$what"; fi; }
 no_edit() { cannot "$1" "echo x >> $2/settings.json" && cannot "$1" "touch $2/novo"; }
 for u in "${ROLES[@]/#/fsd-}" fsd-run fsd-dispatch fsd-broker; do
   check K1 "$u existe e não é root" bash -c "id $u >/dev/null && [ \$(id -u $u) != 0 ]"
@@ -247,6 +247,23 @@ if [ -x /usr/local/sbin/fsd-session-exec ] && [ -n "${FSD_SIM_TEAM:-}" ] && comm
   eval_real_ok() { grep -q '^PASS mel' <<<"$1" && ! compgen -G "$SR/mel/outbox/mel/*.json" >/dev/null; }
   check K18 "R31: o eval --real espera o Stop, lê a transcrição pelo wrapper e acha a mensagem da Mel (e não a deixa no outbox)" eval_real_ok "$eout"
   rm -f "$SR/PAUSE" "$SR/PAUSE.usage" "/tmp/stub-claude-$(id -u fsd-mel)/env.json" /tmp/k18-waits.json /tmp/k18-play.json /tmp/k18-sc.json
+fi
+# K19 (validação R14/R47): o cwd da sessão é uma pasta do root, só leitura para o papel, fora do checkout compartilhado; com .claude/ ou
+# CLAUDE*.md nela a sessão não sobe; a confiança da pasta fica no .claude.json do papel; o .git compartilhado tem escrita no sandbox.
+if [ -x /usr/local/sbin/fsd-session-exec ] && command -v jq >/dev/null; then
+  CR=$(grep -E '^CWD_ROOT=' /etc/fsd/session.env | cut -d= -f2)
+  echo x > /tmp/k19-prompt; chmod 644 /tmp/k19-prompt
+  for r in "${ROLES[@]}"; do check K19 "o cwd do $r é do root, 0755, com o .ai-memory.toml" bash -c "[ \"\$(stat -c '%U %a' $CR/$r)\" = 'root 755' ] && [ -f $CR/$r/.ai-memory.toml ]"; done
+  check K19 "o Stuart não grava .claude/ nem CLAUDE.local.md no cwd dele nem no de outro" bash -c "! su -s /bin/bash fsd-stuart -c 'mkdir $CR/stuart/.claude' 2>/dev/null && ! su -s /bin/bash fsd-stuart -c 'touch $CR/mel/CLAUDE.local.md' 2>/dev/null"
+  su -s /bin/bash fsd-dispatch -c "sudo -n -u fsd-stuart /usr/local/sbin/fsd-session-exec start /tmp/k19-prompt" >/dev/null 2>&1
+  sj19=/tmp/stub-claude-$(id -u fsd-stuart)/state.json
+  k19_cwd() { jq -e --arg c "$CR/stuart" '[.sessions[] | select(.agent == "stuart")] | last | .cwd == $c' "$sj19" >/dev/null; }
+  check K19 "a sessão do Stuart sobe no cwd do root, fora do checkout" k19_cwd
+  check K19 "R47: a confiança do cwd está no .claude.json do Stuart" bash -c "jq -e --arg c '$CR/stuart' '.projects[\$c].hasTrustDialogAccepted == true' /home/fsd-stuart/.claude.json >/dev/null"
+  mkdir "$CR/mel/.claude"
+  check K19 "com .claude/ no cwd, a sessão da Mel não sobe" bash -c "! su -s /bin/bash fsd-dispatch -c 'sudo -n -u fsd-mel /usr/local/sbin/fsd-session-exec start /tmp/k19-prompt' 2>&1 | grep -q backgrounded"
+  rmdir "$CR/mel/.claude"
+  for r in "${ROLES[@]}"; do check K19 "o perfil do $r dá escrita ao .git compartilhado no sandbox e nega Write/Edit no checkout" jq -e '(.sandbox.filesystem.allowWrite | index("/srv/fsd/repo/.git")) and (.permissions.deny | index("Write(//srv/fsd/repo/**)")) and (.permissions.deny | index("Edit(//srv/fsd/repo/**)"))' "/etc/fsd/profiles/$r/settings.json"; done
 fi
 # K13 (F0.2, T0.2.2): o aceite do bypass em --bg vem das managed settings do root, que nenhum papel edita.
 if command -v jq >/dev/null; then

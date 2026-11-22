@@ -21,7 +21,7 @@ RUN mkdir -p /opt/fsd-sim/aim-tokens && for r in kevin mel stuart bob; do echo "
 RUN chmod 0755 /opt/fsd-sim/fsd-users /opt/fsd-sim/fsd-repo /opt/fsd-sim/fsd-run-exec /opt/fsd-sim/fsd-session-exec /opt/fsd-sim/k-checks && FSD_PROFILES_SRC=/opt/fsd-sim/agents FSD_REPO_DIR=/srv/repo FSD_TEAM_DIR=/opt/fsd-sim/team FSD_NATIVE_PREFLIGHT=0 FSD_AIM_TOKENS_SRC=/opt/fsd-sim/aim-tokens /opt/fsd-sim/fsd-users
 # Um remoto bare local (o grupo grava, como o GitHub para quem tem token) e o clone do time preparado pelo fsd-repo (K7).
 RUN git config --global user.email sim@sim && git config --global user.name sim \
- && git init -q --bare /srv/origin.git && git clone -q /srv/origin.git /tmp/seed && cd /tmp/seed && echo a > a && git add a && git commit -qm init && git push -q origin HEAD:develop \
+ && git init -q --bare /srv/origin.git && git clone -q /srv/origin.git /tmp/seed && cd /tmp/seed && echo a > a && printf 'workspace = "default"\nproject = "sim"\n' > .ai-memory.toml && git add a .ai-memory.toml && git commit -qm init && git push -q origin HEAD:develop \
  && chgrp -R fsd /srv/origin.git && chmod -R g+rwX /srv/origin.git && find /srv/origin.git -type d -exec chmod g+s {} + && git -C /srv/origin.git config core.sharedRepository group \
  && git config --system --add safe.directory /srv/origin.git && git clone -q -b develop /srv/origin.git /srv/repo && /opt/fsd-sim/fsd-repo /srv/repo
 # E6 (preparação): o fsd-native-setup de ponta a ponta numa raiz à parte, com um clone git que tem o team/ e ferramentas falsas.
