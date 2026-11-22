@@ -17,6 +17,11 @@ const read = (f, d) => { try { return JSON.parse(readFileSync(join(dispatchDir()
 const write = (f, v) => { mkdirSync(dispatchDir(), { recursive: true }); const p = join(dispatchDir(), f), tmp = `${p}.${process.pid}.tmp`; writeFileSync(tmp, JSON.stringify(v, null, 1) + '\n'); renameSync(tmp, p); };
 export const loadTasks = () => read('tasks.json', {});
 export const loadJudged = () => read('judged.json', []);
+// Validação R28: o juiz em andamento ou que falhou há pouco (judging.json: { <ref>: { at, state: 'running'|'failed' } }) não é chamado
+// de novo; o ref só entra em judged.json quando o juiz respondeu (o supervisor lê o resultado nas rodadas seguintes).
+export const loadJudging = () => read('judging.json', {});
+export const saveJudging = (v) => write('judging.json', v);
+export const saveJudged = (v) => write('judged.json', v);
 export const loadEod = () => read('eod.json', {});
 export const saveEod = (v) => write('eod.json', v);
 export const saveTasks = (v) => write('tasks.json', v);
@@ -45,7 +50,7 @@ export async function round({ gather, exec, now = Date.now(), cfg = {} }) {
   const g = await gather();
   let tasks = expireTasks(loadTasks(), g.sessions || {}, now, cfg);
   const sessions = Object.fromEntries(Object.entries(g.sessions || {}).map(([r, s]) => [r, { ...s, ...(tasks[r] ? { task: { key: tasks[r].key } } : {}) }]));
-  const judged = loadJudged();
+  const judged = [...new Set([...loadJudged(), ...Object.keys(loadJudging())])];
   const actions = decide({ ...g, sessions, judged, maxConcurrent: cfg.maxConcurrent ?? g.maxConcurrent ?? 1, offline: cfg.offline ?? g.offline ?? 'byUrgency' });
   const done = [], skipped = [];
   for (const a of actions) {
@@ -53,7 +58,7 @@ export async function round({ gather, exec, now = Date.now(), cfg = {} }) {
     journal({ t: now, id, phase: 'intent', action: a });
     const prev = tasks[a.to];
     if (a.type === 'turn' && a.task) { tasks = { ...tasks, [a.to]: { key: a.task.key, kind: a.task.kind, n: a.task.n, at: now } }; write('tasks.json', tasks); }
-    if (a.type === 'judge') write('judged.json', [...new Set([...loadJudged(), a.ref])]);
+    if (a.type === 'judge') saveJudging({ ...loadJudging(), [a.ref]: { at: now, state: 'running' } });
     try { const r = await exec(a, g); journal({ t: now, id, phase: 'done', action: a, result: r ?? null }); done.push(a); }
     catch (e) {
       journal({ t: now, id, phase: 'failed', action: a, error: String(e.message || e).slice(0, 300) }); skipped.push(a);

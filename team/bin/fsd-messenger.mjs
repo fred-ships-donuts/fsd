@@ -9,10 +9,12 @@
 import { readdirSync, readFileSync, writeFileSync, mkdirSync, renameSync, statSync, unlinkSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { randomBytes } from 'node:crypto';
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 import { AGENTS, CFG, stateDir, stateRoot, roleStateDir, shareMode, inboxAppend, inboxDrain, noticeLine } from './fsd-lib.mjs';
 import { checkDelivery } from './fsd-contract.mjs';
-import { loadCard, loadTask, saveTask } from './fsd-task.mjs';
+import { loadCard, loadTask, saveTask, clearCard } from './fsd-task.mjs';
+import { list as leases } from './fsd-lease.mjs';
 import { ctxOf } from './fsd-eod.mjs';
 
 // Outbox de um papel: <estado do papel>/outbox/<papel>. Validação R1: no time nativo, a pasta do papel, que só ele e o supervisor gravam.
@@ -72,7 +74,9 @@ export function hook(event, input = {}, agent = process.env.FSD_AGENT) {
   // Validação R11: no fim do turno o hook grava também o contexto da conversa (o transcript é do papel; o supervisor lê o número aqui).
   const mark = (state, ctx) => { mkdirSync(join(roleStateDir(agent), 'session-state'), { recursive: true }); atomic(stateFile(agent), JSON.stringify({ state, at: new Date().toISOString(), session_id: input.session_id || null, ...(ctx ? { ctx } : {}) }) + '\n'); };
   const ctx = () => (input.transcript_path ? ctxOf(input.transcript_path) : 0);
-  if (event === 'Stop') { const g = stopGate(agent); if (g) return g; mark('idle', ctx()); return null; }
+  // Validação R29: as portas do Stop numa corrente só; o idle só é gravado quando nenhuma bloqueia (senão a rodada seguinte via o papel
+  // ocioso e cortava a continuação).
+  if (event === 'Stop') { const g = stopChain(input) || stopGate(agent); if (g) return g; mark('idle', ctx()); return null; }
   // Validação R3: um turno que acaba por erro da API (StopFailure: rate limit, sobrecarga) ou uma sessão parada/morta (SessionEnd)
   // não pode deixar o estado em working para sempre, senão o papel nunca mais recebe turno.
   if (event === 'StopFailure') { mark('idle', ctx()); return null; }
@@ -89,14 +93,32 @@ export function hook(event, input = {}, agent = process.env.FSD_AGENT) {
 // feita depois do início da tarefa. Sem ela: bloqueia com "continue: falta …", no máximo MAX_BLOCKS vezes por tarefa (contador
 // próprio: stop_hook_active fica true depois de qualquer bloqueio); na última, deixa parar e avisa o Kevin.
 export const MAX_BLOCKS = 3;
+// Os guards do time (contexto, pedido ao autor) na ordem, com o mesmo input; o primeiro bloqueio vale. Só na sessão nova.
+const BIN = fileURLToPath(new URL('.', import.meta.url));
+export const STOP_GUARDS = ['fsd-context-guard', 'fsd-stop-guard'];
+export function stopChain(input, { run = (g) => spawnSync(join(BIN, g), { input: JSON.stringify(input), encoding: 'utf8', env: { ...process.env, FSD_STOP_CHAIN: '1' }, timeout: 8000 }) } = {}) {
+  if (process.env.FSD_RUNNER !== 'session') return null;
+  for (const g of STOP_GUARDS) {
+    let o = null; try { o = JSON.parse(String(run(g)?.stdout || '').trim().split('\n').pop() || 'null'); } catch {}
+    if (o?.decision === 'block') return o;
+  }
+  return null;
+}
+// Validação R26: o turno do fim do dia (o supervisor marca <estado do papel>/session-state/<papel>.eod) termina sem a entrega.
+export const eodFile = (agent) => join(roleStateDir(agent), 'session-state', `${agent}.eod`);
 export function hasDelivery(task, agent) {
   const d = join(agent ? roleStateDir(agent) : stateDir(), 'entregas', task.contract);
   try { return readdirSync(d).some((f) => f.startsWith(`${task.n}-`) && f.endsWith('.json') && statSync(join(d, f)).mtimeMs >= task.at); } catch { return false; }
 }
 function stopGate(agent) {
-  const t = loadTask(agent); if (!t || hasDelivery(t, agent)) return null;
+  const t = loadTask(agent); if (!t) return null;
+  if (hasDelivery(t, agent)) { clearCard(agent); return null; }   // R26: entrega válida, o cartão não volta mais
+  // R26: esperando um colega (lease ativo) ou no fechamento do dia, o turno termina sem a entrega.
+  if (existsSync(eodFile(agent))) return null;
+  try { if (leases().some((l) => l.agent === agent)) return null; } catch {}
   if ((t.blocks || 0) >= MAX_BLOCKS) {
-    if (agent !== 'kevin') say({ to: 'kevin', text: `${agent} terminou o turno sem a entrega válida de ${t.kind} #${t.n} depois de ${MAX_BLOCKS} avisos.`, ref: `#${t.n}` }, { from: agent });
+    // R26: avisa o Kevin uma vez por tarefa, não a cada Stop seguinte.
+    if (!t.notified) { if (agent !== 'kevin') say({ to: 'kevin', text: `${agent} terminou o turno sem a entrega válida de ${t.kind} #${t.n} depois de ${MAX_BLOCKS} avisos.`, ref: `#${t.n}` }, { from: agent }); saveTask(agent, { ...t, notified: true }); }
     return null;
   }
   saveTask(agent, { ...t, blocks: (t.blocks || 0) + 1 });

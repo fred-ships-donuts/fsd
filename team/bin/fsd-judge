@@ -43,7 +43,11 @@ process.on('exit', () => { try { if (JSON.parse(readFileSync(lockFile, 'utf8')).
 for (const [sig, c] of [['SIGTERM', 15], ['SIGINT', 2], ['SIGHUP', 1]]) process.on(sig, () => process.exit(128 + c));
 
 // --- Entradas, coletadas aqui e não pelo modelo.
-const waits = L.waitsList().filter((w) => w.ref === ref);
+// Validação R28: no time nativo as esperas são os leases. O supervisor os passa num arquivo (FSD_JUDGE_WAITS_FILE), porque o Kevin não
+// lê a pasta dos colegas; sem o arquivo, a sessão nova lê os leases, e o time no tmux, o registro antigo.
+const waitsAll = process.env.FSD_JUDGE_WAITS_FILE ? (() => { try { const v = JSON.parse(readFileSync(process.env.FSD_JUDGE_WAITS_FILE, 'utf8')); return Array.isArray(v) ? v : []; } catch { return []; } })()
+  : process.env.FSD_RUNNER === 'session' ? (await import('./fsd-lease.mjs')).list() : L.waitsList();
+const waits = waitsAll.filter((w) => w && w.ref === ref && L.AGENTS.includes(w.agent) && L.AGENTS.includes(w.for));
 // FSD_JUDGE_META=<json {kind, title, state, labels, url}> (só com FSD_DRY): o ref sem o GitHub (testes das fixtures, F4.4).
 const META = process.env.FSD_JUDGE_META; if (META && !L.DRY) L.die('fsd-judge: FSD_JUDGE_META só vale com FSD_DRY=1', 2);
 let kind = 'pr', info;
@@ -125,6 +129,8 @@ if (L.DRY) console.log(comment); else L.ghw([kind, 'comment', String(n), '--body
 const notices = [[ans.verdict.continue.agent, `${ref} continue: ${ans.verdict.continue.instruction}`], ...ans.verdict.wait.map((x) => [x.agent, `${ref} wait: ${x.reason}`])];
 for (const [agent, text2] of notices) {
   if (agent === L.ME) { console.log(`you: ${text2.replace(`${ref} `, '')}`); continue; }
+  // Validação R28: na sessão nova o aviso vai pelo outbox do Kevin (o supervisor entrega); no tmux, pelo fsd-notify.
+  if (process.env.FSD_RUNNER === 'session') { const r = L.DRY ? { ok: true } : (await import('./fsd-messenger.mjs')).say({ to: agent, text: text2, urgent: true, ref }, { from: 'kevin' }); console.log(`${agent}: ${r.ok ? 'no outbox' : r.errors.join('; ')}`); continue; }
   console.log(`${agent}: ${L.noticeSummary(L.notify([agent], text2)) || 'sem entrega'}`);
 }
 if (!L.DRY) { mkdirSync(join(stateDir, 'judged'), { recursive: true }); writeFileSync(join(stateDir, 'judged', `${n}.json`), JSON.stringify({ at: new Date().toISOString(), verdict: ans.verdict })); }

@@ -44,6 +44,10 @@ const WINDOW = 20, RECENT = 3, MIN_COST = 1000;
 let input = {}; try { input = JSON.parse(readStdin() || '{}'); } catch { process.exit(0); }
 if (cfgWarn) console.error(cfgWarn);
 const ev = input.hook_event_name, PRINT = process.argv.includes('--print');
+// Validação R29: na sessão nova (FSD_RUNNER=session) o Stop chega só pela corrente do fsd-session-hook (FSD_STOP_CHAIN=1), que grava
+// idle só se ninguém bloquear. Chamado direto pelo claude, em paralelo, sai calado.
+const SESSION = process.env.FSD_RUNNER === 'session' && !!process.env.FSD_AGENT;
+if (SESSION && ev === 'Stop' && !process.env.FSD_STOP_CHAIN && !PRINT) process.exit(0);
 if (!PRINT && (ev === 'UserPromptSubmit' || ev === 'PostToolUse')) reviveWatcher();   // #197: o vigia morto sobe de novo (só checa arquivos)
 if (!PRINT) {
   if (ev !== 'PreToolUse') live();   // a ferramenta só é registrada se não for negada, abaixo
@@ -75,9 +79,10 @@ if (input.hook_event_name === 'PreToolUse') {
 }
 if (USAGE && ev === 'Stop' && !input.stop_hook_active) { console.log(JSON.stringify({ decision: 'block', reason: USAGE_MSG() })); process.exit(0); }
 if (USAGE && (ev === 'PostToolUse' || ev === 'UserPromptSubmit')) { console.log(JSON.stringify({ hookSpecificOutput: { hookEventName: ev, additionalContext: USAGE_MSG() }, systemMessage: `🚨 uso da conta ${Math.round(USAGE.pct)}%: terminar e parar` })); process.exit(0); }
-if (!level) process.exit(0);
+// Validação R29: na sessão nova cada turno é uma cópia com id novo; o "uma vez" é por papel e volta quando o contexto baixa.
+const state = join(tmpdir(), SESSION ? `fsd-ctx-role-${process.env.FSD_AGENT}.json` : `fsd-ctx-${input.session_id || 'x'}.json`);
+if (!level) { if (SESSION) { try { rmSync(state, { force: true }); } catch {} } process.exit(0); }
 
-const state = join(tmpdir(), `fsd-ctx-${input.session_id || 'x'}.json`);
 let st = {}; try { st = JSON.parse(readFileSync(state, 'utf8')); } catch {}
 const out = (o, patch) => { try { writeFileSync(state, JSON.stringify({ ...st, ...patch })); } catch {} console.log(JSON.stringify({ ...o, systemMessage: fill(SCREEN[level]) })); };
 // Stop: bloqueia uma vez por sessão o fim de turno sem handoff. Urgente: sempre; médio: ao aparecer e a cada prompt.
