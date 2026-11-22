@@ -32,7 +32,7 @@ function gather() {
   let pauseAt = null; try { pauseAt = statSync(join(L.stateDir(), 'PAUSE')).mtimeMs; } catch {}
   const inboxes = {};
   for (const a of L.AGENTS) {
-    try { inboxes[a] = readFileSync(join(L.inboxDir(), a), 'utf8').split('\n').filter((l) => l.trim()).map((l) => JSON.parse(l)); } catch {}
+    try { inboxes[a] = readFileSync(join(L.inboxDir(a), a), 'utf8').split('\n').filter((l) => l.trim()).map((l) => JSON.parse(l)); } catch {}
   }
   return { cards: buildCards({ board, issues, prs, closes: L.closes }), pauseAt, inboxes };
 }

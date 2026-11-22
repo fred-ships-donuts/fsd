@@ -11,6 +11,7 @@
 // Estado: ligado = a sessão do papel aparece no `claude agents --json` (pelo sessionId); working/idle = o hook (fsd-session-hook).
 import { readFileSync, writeFileSync, mkdirSync, renameSync } from 'node:fs';
 import { join } from 'node:path';
+import { spawnSync } from 'node:child_process';
 
 const ROOT = join(new URL('.', import.meta.url).pathname, '..');
 const CFG = JSON.parse(readFileSync(join(ROOT, 'agents.json'), 'utf8'));
@@ -18,6 +19,16 @@ export const ROLES = Object.keys(CFG.agents);
 const stDir = () => join(process.env.FSD_STATE || join(process.env.HOME || '', '.config', 'fsd-agents'), 'dispatch');
 export const loadStored = () => { try { return JSON.parse(readFileSync(join(stDir(), 'sessions.json'), 'utf8')); } catch { return {}; } };
 export function saveStored(s) { mkdirSync(stDir(), { recursive: true }); const f = join(stDir(), 'sessions.json'), tmp = `${f}.${process.pid}.tmp`; writeFileSync(tmp, JSON.stringify(s, null, 1) + '\n'); renameSync(tmp, f); }
+
+// No container (E2, FSD_SESSION_VIA=sudo) o supervisor roda como fsd-dispatch e fala com a sessão de cada papel só pelo wrapper
+// fsd-session-exec, como o papel: o supervisor nativo do claude é por uid. Validação R2: o gather do fsd-dispatch e o fsd-session usam
+// o mesmo liveAgents(), senão o supervisor via só as sessões do próprio uid (nenhuma) e todo papel ficava off.
+export const via = () => process.env.FSD_SESSION_VIA === 'sudo';
+export const sx = (role, ...args) => spawnSync('sudo', ['-n', '-u', `fsd-${role}`, '/usr/local/sbin/fsd-session-exec', ...args], { encoding: 'utf8' });
+export function liveAgents({ claude = process.env.FSD_CLAUDE || 'claude', cwd } = {}) {
+  const parse = (r) => { try { const v = JSON.parse(r.stdout || '[]'); return Array.isArray(v) ? v : []; } catch { return []; } };
+  return via() ? ROLES.flatMap((r) => parse(sx(r, 'agents'))) : parse(spawnSync(claude, ['agents', '--json'], { encoding: 'utf8', ...(cwd ? { cwd } : {}) }));
+}
 
 export function status({ agents = [], stored = {}, hookState = () => null }) {
   const out = {};

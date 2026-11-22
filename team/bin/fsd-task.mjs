@@ -4,8 +4,9 @@
 //                                       de entrega com --aceite N (a rastreabilidade da F3.7 confere os N itens)
 //   saveCard(agent, text) · loadCard(agent) · clearCard(agent)   $FSD_STATE/session-state/<agente>.card.md
 import { readFileSync, writeFileSync, mkdirSync, renameSync, rmSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, dirname } from 'node:path';
 import { loadSchema } from './fsd-contract.mjs';
+import { roleStateDir, shareMode } from './fsd-lib.mjs';
 
 export const CONTRACT_OF = { correcao: 'entrega-codigo' };   // a correção entrega no mesmo contrato do código
 const WHAT = {
@@ -39,9 +40,9 @@ export function taskCard({ task, issue, notes = [] }) {
   ];
   return lines.filter((l, i, a) => !(l === '' && a[i - 1] === '')).join('\n').trim();
 }
-const dir = () => join(process.env.FSD_STATE || join(process.env.HOME || '', '.config', 'fsd-agents'), 'session-state');
-const file = (agent) => { if (!/^[a-z0-9_-]+$/.test(agent || '')) throw new Error(`agente inválido: ${agent}`); return join(dir(), `${agent}.card.md`); };
-const put = (f, data) => { mkdirSync(dir(), { recursive: true }); const tmp = `${f}.${process.pid}.tmp`; writeFileSync(tmp, data, { mode: 0o600 }); renameSync(tmp, f); };
+// Validação R1: o cartão e a tarefa ficam na pasta do papel (o supervisor grava, o hook do papel lê e conta os avisos do Stop).
+const file = (agent) => { if (!/^[a-z0-9_-]+$/.test(agent || '')) throw new Error(`agente inválido: ${agent}`); return join(roleStateDir(agent), 'session-state', `${agent}.card.md`); };
+const put = (f, data) => { mkdirSync(dirname(f), { recursive: true }); const tmp = `${f}.${process.pid}.tmp`; writeFileSync(tmp, data, { mode: shareMode(0o600) }); renameSync(tmp, f); };
 // meta = { kind, n, acceptance } da tarefa: o hook Stop (T3.7.6) cobra a entrega dela. Sem meta, só o cartão (reinjeção).
 export function saveCard(agent, text, meta) {
   put(file(agent), text + '\n');

@@ -22,9 +22,8 @@ async function gather() {
   if (process.env.FSD_DISPATCH_FIXTURE) return JSON.parse(readFileSync(process.env.FSD_DISPATCH_FIXTURE, 'utf8'));
   const S = await import('./fsd-session.mjs'); const M = await import('./fsd-messenger.mjs'); const Le = await import('./fsd-lease.mjs');
   const U = await import('./fsd-usage.mjs'); const { stageName, STAGE } = await import('./fsd-stages.mjs');
-  const claude = process.env.FSD_CLAUDE || 'claude';
-  let agents = []; try { agents = JSON.parse(spawnSync(claude, ['agents', '--json'], { encoding: 'utf8' }).stdout || '[]'); } catch {}
-  const sessions = S.status({ agents, stored: S.loadStored(), hookState: M.sessionState });
+  // Validação R1/R2: as sessões vêm pelo wrapper de cada papel (como o fsd-session) e o estado do hook, da pasta do papel.
+  const sessions = S.status({ agents: S.liveAgents(), stored: S.loadStored(), hookState: M.sessionState });
   const key = Object.fromEntries(Object.entries(STAGE).map(([k, v]) => [v, k]));
   let board = []; try { board = JSON.parse(spawnSync(join(BIN, 'fsd-board'), ['list', '--json'], { encoding: 'utf8' }).stdout || '[]'); } catch {}
   const blocked = new Set((L.ghJson(['issue', 'list', '--label', 'blocked', '--state', 'open', '--json', 'number']) || []).map((i) => i.number));
@@ -47,7 +46,7 @@ async function gather() {
     if (s.state === 'off' || !s.sessionId) continue;
     try { for (const d of readdirSync(projects)) { const f = join(projects, d, `${s.sessionId}.jsonl`); if (existsSync(f)) { s.ctx = E.ctxOf(f); break; } } } catch {}
   }
-  return { sessions, cards, messages, deadlocks, paused: existsSync(join(L.stateDir(), 'PAUSE')), budgetOk, endOfDayAt: Number(cfg.endOfDayAt) || Number(L.CFG.claude_common?.context?.restartAbove) || 0 };
+  return { sessions, cards, messages, deadlocks, paused: existsSync(L.pausePath()), budgetOk, endOfDayAt: Number(cfg.endOfDayAt) || Number(L.CFG.claude_common?.context?.restartAbove) || 0 };
 }
 
 async function exec(a, g) {

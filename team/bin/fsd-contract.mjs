@@ -77,5 +77,6 @@ export function requireDelivery({ kind, file, acceptance, expect = {}, fill = {}
 export function saveDelivery(data, stateDir = process.env.FSD_STATE || `${process.env.HOME}/.config/fsd-agents`) {
   const dir = join(stateDir, 'entregas', data.kind); _m(dir, { recursive: true });
   const out = join(dir, `${data.card ?? data.ref?.slice(1) ?? 'x'}-${new Date().toISOString().replace(/[:.]/g, '-')}.json`), tmp = `${out}.${process.pid}.tmp`;
-  _w(tmp, JSON.stringify(data, null, 1) + '\n', { mode: 0o600 }); _r(tmp, out); return out;
+  // Validação R1: no time nativo (FSD_STATE_ROOT) o grupo lê também (ACL da pasta do papel), para o supervisor conferir a entrega.
+  _w(tmp, JSON.stringify(data, null, 1) + '\n', { mode: process.env.FSD_STATE_ROOT ? 0o660 : 0o600 }); _r(tmp, out); return out;
 }
