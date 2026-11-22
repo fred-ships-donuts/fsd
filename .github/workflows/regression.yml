@@ -9,7 +9,8 @@ name: regression
 
 on:
   pull_request:
-    branches: [develop]
+    # main: o PR de release (RELEASE.md) também passa pela regressão antes da aprovação do autor.
+    branches: [develop, main]
     types: [opened, synchronize, reopened]
 
 permissions:
