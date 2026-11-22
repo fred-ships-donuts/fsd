@@ -1,0 +1,32 @@
+{
+ "id": "m2-revisao-aprova",
+ "role": "mel",
+ "behaviors": [
+  "revisao"
+ ],
+ "setup": {
+  "task": {
+   "kind": "revisao",
+   "n": 12
+  },
+  "issue": {
+   "number": 12,
+   "title": "fsd-merge checks the CI",
+   "body": "## What\nGate the merge on CI.\n\n## Acceptance\n- Green CI merges\n- Red CI refuses\n"
+  }
+ },
+ "expect": {
+  "delivery": "revisao"
+ },
+ "play": [
+  {
+   "write": {
+    "path": "/tmp/fsd-eval-entrega.json",
+    "content": "{\"kind\": \"revisao\", \"card\": 12, \"role\": \"mel\", \"summary\": \"C\\u00f3digo correto, um teste a mais pedido.\", \"pr\": 220, \"head\": \"a1b2c3d\", \"verdict\": \"approve\", \"findings\": [{\"file\": \"team/bin/fsd-merge\", \"line\": 14, \"severity\": \"sugestao\", \"text\": \"Nome da vari\\u00e1vel poderia ser mais claro.\"}], \"acceptance\": [{\"item\": 1, \"status\": \"ok\"}, {\"item\": 2, \"status\": \"ok\"}], \"dod\": {\"diff-lido\": true, \"aceite-conferido\": true, \"ci-conferido\": true}}"
+   }
+  },
+  {
+   "bash": "\"$FSD_TEAM/bin/fsd-entrega\" /tmp/fsd-eval-entrega.json --aceite 2"
+  }
+ ]
+}

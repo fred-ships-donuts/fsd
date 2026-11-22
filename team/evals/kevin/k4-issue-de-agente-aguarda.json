@@ -1,0 +1,29 @@
+{
+ "id": "k4-issue-de-agente-aguarda",
+ "role": "kevin",
+ "behaviors": [
+  "aguardando-autor"
+ ],
+ "setup": {
+  "messages": [
+   {
+    "from": "bob",
+    "to": "kevin",
+    "text": "Found a bug outside the PR scope"
+   }
+  ]
+ },
+ "expect": {
+  "commands": {
+   "must": [
+    "fsd-issue new"
+   ]
+  },
+  "noDelivery": true
+ },
+ "play": [
+  {
+   "bash": "printf \"## What\\nX\\n\\n## Acceptance\\n- Y\\n\" > /tmp/fsd-eval-issue.md; FSD_DRY=1 \"$FSD_TEAM/bin/fsd-issue\" new \"Bug: x\" --area cli --size S --force /tmp/fsd-eval-issue.md"
+  }
+ ]
+}

@@ -1,0 +1,32 @@
+{
+ "id": "c5-duvida-a-pessoa-certa",
+ "role": "stuart",
+ "behaviors": [
+  "encaminha-duvida"
+ ],
+ "setup": {
+  "task": {
+   "kind": "entrega-codigo",
+   "n": 12
+  },
+  "issue": {
+   "number": 12,
+   "title": "Make it better",
+   "body": "## What\nMake it better.\n"
+  }
+ },
+ "expect": {
+  "noDelivery": true,
+  "messages": [
+   {
+    "to": "kevin",
+    "match": "dúvida fluxo"
+   }
+  ]
+ },
+ "play": [
+  {
+   "bash": "FSD_DRY=1 \"$FSD_TEAM/bin/fsd-duvida\" fluxo \"Issue #12 has no acceptance: what does done mean?\" --ref \"#12\""
+  }
+ ]
+}

@@ -1,0 +1,32 @@
+{
+ "id": "b2-recusa-sem-closes",
+ "role": "bob",
+ "behaviors": [
+  "recusa-sem-closes"
+ ],
+ "setup": {
+  "task": {
+   "kind": "qa",
+   "n": 12
+  },
+  "issue": {
+   "number": 12,
+   "title": "Make it better",
+   "body": "## What\nMake it better.\n"
+  }
+ },
+ "expect": {
+  "noDelivery": true,
+  "messages": [
+   {
+    "to": "kevin",
+    "match": "dúvida fluxo"
+   }
+  ]
+ },
+ "play": [
+  {
+   "bash": "FSD_DRY=1 \"$FSD_TEAM/bin/fsd-duvida\" fluxo \"PR for #12 has no acceptance to verify\" --ref \"#12\""
+  }
+ ]
+}
