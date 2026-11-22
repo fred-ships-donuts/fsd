@@ -36,6 +36,10 @@ test('session runner (R16): each item runs in its own window, the exit comes fro
     const cmds = tm('list-panes', '-a', '-F', '#{pane_current_command} #{pane_dead}').stdout.trim().split('\n');
     assert.equal(cmds.some((l) => /^(bash|sh|zsh) 0$/.test(l)), false, cmds.join('|'));
     assert.equal(qa('run', '2', 'true').stdout.includes('EXIT=0'), true);
+    // Validação R21: o corpo do item por arquivo, com aspas, $, operadores e várias linhas, vai inteiro para o fsd-run-exec.
+    const f = join(home, 'item2.sh'); writeFileSync(f, "X=\"a b\" && echo \"$X\" | tr a-z A-Z\nX\nexit 4\n");
+    const fr = qa('run', '2', '--file', f); assert.match(fr.stdout, /A B/, fr.stdout + fr.stderr); assert.match(fr.stdout, /EXIT=4/);
+    assert.match(readFileSync(log, 'utf8'), /^run qa-bob-7 -- X="a b" && echo "\$X" \| tr a-z A-Z$/m);
     // Um item interativo segue vivo e recebe as teclas; quando sai, o exit vem do painel.
     const i3 = qa('run', '3', 'read x; exit 5'); assert.match(i3.stdout, /TELA INTERATIVA/);
     const e = qa('key', '--text', 'ok'); assert.equal(e.status, 0); const done = qa('key', 'Enter'); assert.match(done.stdout, /EXIT=5/, done.stdout);

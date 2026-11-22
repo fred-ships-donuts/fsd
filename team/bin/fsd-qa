@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Verificação de QA em comandos curtos (estado em /tmp/fsd-qa-<agente>/state.json):
 // fsd-qa prep <n>                     issue, aceite numerado, worktree, build e tmux 80x24 (HOME temporário, alias fsd); card → In Review (Mel, Bob)
-// fsd-qa run <k> "<comando>" | run <k> - <<'X' …   roda no item k (repita o mesmo k para mais comandos), espera o fim, mostra a saída + EXIT=n
+// fsd-qa run <k> "<comando>" | run <k> --file <f> | run <k> - <<'X' …   roda no item k (repita o mesmo k para mais comandos), espera o fim, mostra a saída + EXIT=n
 //                                     (o EXIT sai sozinho: comando com $? é recusado, porque pegaria o código do comando errado)
 // fsd-qa key [--text] <tecla…>        teclas (Down, Enter, Escape, C-c…) ou texto literal (--text) no item atual; mostra a tela
 // fsd-qa verdict <k> PASS|FAIL "<esperado>"   |   fsd-qa verdict --all-pass   (marca PASS os itens rodados sem veredito)
@@ -98,8 +98,9 @@ if (cmd === 'prep') {
   console.log(`PR #${n} | issue #${i} | ${sha.slice(0, 7)} | build ok | ${ac.items.length} itens${bd ? ' | ' + bd : ''}`);
   console.log(ac.items.map((x, k) => `${k + 1}. ${x.slice(0, 200)}`).join('\n'));
 } else if (cmd === 'run') {
-  const s = need(); const k = Number(a[0]); const c = (a[1] === '-' ? L.readArgFile('-') : a.slice(1).join(' ')).trim();
-  if (!(k >= 1 && k <= s.items.length) || !c) L.die(`uso: fsd-qa run <k> "<comando>" (itens 1..${s.items.length})`, 2);
+  const s = need(); const k = Number(a[0]); // Validação R21: --file <f> lê o corpo de um arquivo (na sessão nova, o único jeito de um item com aspas, $, operadores ou várias linhas).
+  const c = (a[1] === '--file' ? L.readArgFile(a[2]) : a[1] === '-' ? L.readArgFile('-') : a.slice(1).join(' ')).trim();
+  if (!(k >= 1 && k <= s.items.length) || !c) L.die(`uso: fsd-qa run <k> "<comando>" | run <k> --file <arquivo> (itens 1..${s.items.length})`, 2);
   if (c.includes('$?')) L.die(`comando com $? recusado: o fsd-qa já mostra o EXIT=n do comando no fim da saída (e da tela interativa, depois do fsd-qa key que a fecha). Rode só: fsd-qa run ${k} "${c.replace(/\s*;?\s*echo[^;]*\$\?[^;]*/g, '').trim()}"`, 2);
   let note = '';
   const nonce = Math.random().toString(36).slice(2, 10);
@@ -172,4 +173,4 @@ if (cmd === 'prep') {
   const url = L.ghw(['issue', 'create', '--title', title, '--label', 'bug,area:cli,size:S', '--body-file', '-'], { input: body });
   console.log([`bug ${url}`, L.board(L.STAGE.backlog, [Number(url.split('/').pop())]), L.noticeSummary(L.notify(['kevin'], `Bug aberto na verificação do PR #${s.n}: ${url}`))].filter(Boolean).join(' | '));
 } else if (cmd === 'clean') { clean(L.state(SF)); rmSync(Q, { recursive: true, force: true }); console.log('limpo');
-} else L.die('uso: fsd-qa prep <n> | run <k> "<cmd>" | key [--text] <tecla…> | verdict <k> PASS|FAIL "<esperado>" | verdict --all-pass | finish | bug "<título>" "<esperado>" [k] | clean', 2);
+} else L.die('uso: fsd-qa prep <n> | run <k> "<cmd>" | run <k> --file <f> | key [--text] <tecla…> | verdict <k> PASS|FAIL "<esperado>" | verdict --all-pass | finish | bug "<título>" "<esperado>" [k] | clean', 2);

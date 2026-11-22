@@ -24,3 +24,4 @@ bob	fsd-qa run 1 "a && b"	deny
 bob	ls | fsd-qa run 1 -	deny
 bob	fsd-qa run 1 "echo a"	allow
 bob	fsd-qa finish --entrega /tmp/q.json	allow
+bob	fsd-qa run 1 --file /tmp/item1.sh	allow
