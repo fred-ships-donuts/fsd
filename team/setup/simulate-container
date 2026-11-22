@@ -5,5 +5,7 @@ set -euo pipefail
 HERE="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"; REPO="$(dirname "$(dirname "$HERE")")"
 tag=${FSD_SIM_TAG:-fsd-sim:local}
 command -v docker >/dev/null || { echo "simulate-container: precisa do docker"; exit 2; }
-docker build -q -f "$REPO/team/setup/container/Dockerfile.sim" -t "$tag" "$REPO" >/dev/null
+node=$(sed -n 's/^ARG NODE_VERSION=//p' "$REPO/team/setup/container/Dockerfile")   # o mesmo Node da imagem de produção
+[ -n "$node" ] || { echo "simulate-container: NODE_VERSION não achado no Dockerfile"; exit 2; }
+docker build -q --build-arg NODE_VERSION="$node" -f "$REPO/team/setup/container/Dockerfile.sim" -t "$tag" "$REPO" >/dev/null
 docker run --rm "$tag"

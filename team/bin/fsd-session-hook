@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # fsd-session-hook — hooks PostToolUse, UserPromptSubmit, SessionStart e Stop da sessão nova do papel (F3.3: T3.3.2 e T3.3.5).
 # Só com FSD_RUNNER=session (o time antigo, no tmux, não muda): entrega a caixa no meio do turno e grava ocioso/trabalhando.
-# Nunca derruba o turno: qualquer erro sai 0 sem saída. --input-type=module: o import() dinâmico num -e CommonJS derruba o node 18
-# (segfault; o do apt, na imagem do sim).
+# Nunca derruba o turno: qualquer erro sai 0 sem saída. --input-type=module: o import() dinâmico num -e CommonJS derruba node antigo
+# (segfault visto no 18).
 [ "${FSD_RUNNER:-}" = session ] || exit 0
 HERE="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"
 exec node --input-type=module -e '
