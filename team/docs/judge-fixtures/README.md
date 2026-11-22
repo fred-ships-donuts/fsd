@@ -1,6 +1,6 @@
 # fsd-judge fixtures (#92)
 
-Canned judge answers for a dry run, with no `claude` session. Run as Kevin. `FSD_JUDGE_STATE` moves only `judge.lock` and `judged/` to a temp dir; `FSD_STATE` stays the real one (the `gh` wrapper reads its credentials from there):
+Canned judge answers for a dry run, with no `claude` session. `team/bin/fsd-judge-fixtures.test.mjs` runs every case below in `npm test`, with `FSD_JUDGE_META` (a fixture of the PR title, state and labels) instead of the GitHub. Run as Kevin. `FSD_JUDGE_STATE` moves only `judge.lock` and `judged/` to a temp dir; `FSD_STATE` stays the real one (the `gh` wrapper reads its credentials from there):
 
 ```
 FSD_AGENT=kevin FSD_DRY=1 FSD_JUDGE_STATE=$(mktemp -d) FSD_JUDGE_FIXTURE=team/docs/judge-fixtures/<file> team/bin/fsd-judge <n>
