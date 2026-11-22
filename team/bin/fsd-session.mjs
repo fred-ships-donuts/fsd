@@ -30,7 +30,7 @@ export function status({ agents = [], stored = {}, hookState = () => null }) {
 // papel, com worktree.bgIsolation "none" e o bloco env), nenhuma outra fonte de settings.
 export const profileSettings = (role) => `/etc/fsd/profiles/${role}/settings.json`;
 export function baseArgs(role, { settings = profileSettings(role) } = {}) {
-  return ['--bg', '--name', role, '--permission-mode', 'bypassPermissions', '--setting-sources', 'local', '--settings', settings];
+  return ['--bg', '--name', role, '--permission-mode', 'bypassPermissions', '--setting-sources', 'local', '--settings', settings, '--append-system-prompt-file', settings.replace(/settings\.json$/, 'system.md')];
 }
 export function planStart(role, prompt, { stored = {}, opts } = {}) {
   const sid = stored[role]?.sessionId;

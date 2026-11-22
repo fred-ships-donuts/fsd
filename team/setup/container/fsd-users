@@ -28,7 +28,16 @@ for r in "${ROLES[@]}"; do
     [ -f "$src/settings.json" ] && install -o root -g root -m 0644 "$src/settings.json" "$p/settings.json"
     [ -f "$src/settings.session.json" ] && install -o root -g root -m 0644 "$src/settings.session.json" "$p/settings.session.json"
     [ -f "$src/CLAUDE.md" ] && install -o root -g root -m 0644 "$src/CLAUDE.md" "$p/CLAUDE.md"
-    [ -d "$src/skills" ] && cp -r "$src/skills/." "$p/skills/" && chown -R root:root "$p/skills" && chmod -R u=rwX,go=rX "$p/skills"
+    # Skills do papel (as comuns entram pelos links que o papel já tem, seguidos com -L); a versão da sessão nova
+    # (SKILL.session.md) entra no lugar do SKILL.md (F4.3).
+    if [ -d "$src/skills" ]; then cp -rL "$src/skills/." "$p/skills/"; fi
+    find "$p/skills" -name SKILL.session.md -exec sh -c 'mv -f "$1" "$(dirname "$1")/SKILL.md"' _ {} \;
+    chown -R root:root "$p/skills"; chmod -R u=rwX,go=rX "$p/skills"
+    # Prompt fixo do papel (--append-system-prompt-file): o papel na sessão nova + as regras do time na sessão nova.
+    team_rules=${FSD_PROFILES_SRC%/}/../common/team.session.md
+    if [ -f "$src/CLAUDE.session.md" ] && [ -f "$team_rules" ]; then
+      cat "$src/CLAUDE.session.md" <(echo) "$team_rules" > "$p/system.md.tmp" && install -o root -g root -m 0644 "$p/system.md.tmp" "$p/system.md"; rm -f "$p/system.md.tmp"
+    fi
   fi
   [ -f "$p/settings.json" ] || install -o root -g root -m 0644 /dev/null "$p/settings.json"
   # F4.1: a sessão sobe só com este arquivo (--setting-sources local): os hooks do time (claude-settings.json) + o perfil do papel,

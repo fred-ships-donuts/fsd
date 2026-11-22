@@ -21,7 +21,7 @@ Self-review:
 
 **1. Handoff coverage.** Walk the handoff section by section. Every **What to do** step is in the diff. Every file in **Files** is in `git diff --stat origin/develop...HEAD`, and every file marked new exists and is committed (`git status --short` is empty). Every **Contract** (signature, message, exit code) matches the code character for character. Every **Risk** has code that handles it. Past failure: #109 read `team/judge-prompt.md`, which was never added.
 
-**2. Scope.** Nothing outside the handoff. An improvement you noticed becomes an issue for Kevin (`fsd-notify kevin`), not a hunk in this PR. One PR delivers one issue: if the handoff says two PRs, open two (#42).
+**2. Scope.** Nothing outside the handoff. An improvement you noticed becomes an issue for Kevin (tell him as team.md says), not a hunk in this PR. One PR delivers one issue: if the handoff says two PRs, open two (#42).
 
 **3. Reuse.** For every value the new code computes, search before keeping it: `fsd-map grep "<field or concept>"`. If the plan, the registry or a helper already knows it, use that (#77 recomputed `Plan.label`). If two places now hold the same logic, extract one helper (#107).
 
