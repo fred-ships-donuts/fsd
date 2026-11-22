@@ -92,6 +92,8 @@ if [ -x /usr/local/sbin/fsd-session-exec ]; then
   k10_flags() { local f; f=/tmp/stub-claude-$(id -u fsd-stuart)/state.json; grep -q -- '--strict-mcp-config' "$f" && ! grep -q -- '--session-id' "$f"; }
   check K10 "o supervisor sobe a sessão do Stuart (como fsd-stuart, FSD_RUNNER=session) e o --bg diz o id" k10_start
   check K10 "a sessão sobe com as flags fixas do root (MCP do time, sem --session-id)" k10_flags
+  k10_plugin() { local f; f=/tmp/stub-claude-$(id -u fsd-stuart)/state.json; jq -e '[.calls[] | select(index("--bg")) | index("--plugin-dir") as $i | $i != null and .[$i + 1] == "/etc/fsd/profiles/stuart/plugin"] | last' "$f" >/dev/null; }
+  check K10 "R8: a sessão sobe com as skills do perfil por --plugin-dir (o plugin do root)" k10_plugin
   check K10 "a sessão subiu como o Stuart" bash -c "grep -q '\"agent\": \"stuart\"' /tmp/stub-claude/state.json 2>/dev/null || grep -rq '\"agent\": \"stuart\"' /tmp/stub-claude* 2>/dev/null"
   check K10 "o supervisor não roda outra coisa como o Stuart" cannot fsd-dispatch "sudo -n -u fsd-stuart id"
   check K10 "o supervisor não usa o wrapper como root nem como fsd-run" bash -c "! su -s /bin/bash fsd-dispatch -c 'sudo -n -u root /usr/local/sbin/fsd-session-exec agents' >/dev/null 2>&1 && ! su -s /bin/bash fsd-dispatch -c 'sudo -n -u fsd-run /usr/local/sbin/fsd-session-exec agents' >/dev/null 2>&1"
@@ -118,6 +120,12 @@ if [ -x /usr/local/sbin/fsd-session-exec ] && command -v jq >/dev/null; then
   for r in kevin mel stuart bob; do
     check K11 "o prompt e as skills do perfil do $r não têm os termos do time no tmux (F4.3)" bash -c "[ -s /etc/fsd/profiles/$r/system.md ] && ! grep -rqE 'fsd-restart|fsd-wait|fsd-notify|\\bMonitor\\b|\\[fsd-aviso|fsd-merge' /etc/fsd/profiles/$r/system.md /etc/fsd/profiles/$r/skills"
   done
+  k11_plugin_ro() { local pl=/etc/fsd/profiles/$1/plugin; cannot "fsd-$1" "echo x >> $pl/.claude-plugin/plugin.json" && cannot "fsd-$1" "touch $pl/skills/novo"; }
+  for r in kevin mel stuart bob; do
+    check K11 "R8: o plugin do $r é do root, com o manifesto fsd-$r e as mesmas skills do perfil" bash -c "pl=/etc/fsd/profiles/$r/plugin; [ \"\$(stat -c %U \$pl)\" = root ] && [ -z \"\$(find \$pl ! -user root)\" ] && jq -e '.name == \"fsd-$r\"' \$pl/.claude-plugin/plugin.json >/dev/null && diff -r /etc/fsd/profiles/$r/skills \$pl/skills >/dev/null"
+    check K11 "R8: fsd-$r não edita o manifesto nem as skills do próprio plugin" k11_plugin_ro "$r"
+  done
+  check K11 "R8: a skill do Bob está no plugin dele como SKILL.md" test -s /etc/fsd/profiles/bob/plugin/skills/running-qa-workflow/SKILL.md
   sed -i 's/^PREFLIGHT=.*/PREFLIGHT=1/' /etc/fsd/session.env
   echo x > /tmp/k11-prompt; chmod 644 /tmp/k11-prompt
   out=$(su -s /bin/bash fsd-dispatch -c "sudo -n -u fsd-bob /usr/local/sbin/fsd-session-exec start /tmp/k11-prompt" 2>&1)

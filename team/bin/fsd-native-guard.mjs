@@ -44,22 +44,21 @@ export function rulesFor(role) {
   return bashRules([join(TEAM, 'claude-settings.json'), join(TEAM, 'agents', role, 'claude', 'settings.json'), join(TEAM, 'agents', role, 'claude', 'settings.session.json')]);
 }
 // F2.5: o fsd-qa do Bob roda fora do sandbox do Bash (sandbox.excludedCommands; o sudo para o fsd-run não roda com no_new_privs). Para a
-// exceção não virar porta, um comando que cita o fsd-qa só passa sozinho: `fsd-qa <sub> <args>` sem operador de shell nenhum, ou
-// `fsd-qa run <k> - <<'TAG'` … `TAG`, cujo corpo vai como entrada para o fsd-run (outro usuário, ambiente limpo).
+// exceção não virar porta, um comando que cita o fsd-qa só passa sozinho: `fsd-qa <sub> <args>` sem operador de shell nenhum. Validação
+// R21: sem heredoc (uma linha do corpo igual ao terminador fecha a entrada e o resto vira comando fora do sandbox); o item com mais de
+// um comando vai num arquivo, `fsd-qa run <k> --file <f>`, e o corpo vai para o fsd-run (outro usuário, ambiente limpo).
 const QA = /(^|[\s;&|(`/])fsd-qa(\s|$)/;
 const SHELL_OPS = /[;&|`<>\n]|\$\(/;
 export function qaAlone(cmd) {
   const c = String(cmd).trim();
   if (!QA.test(c)) return true;
-  const h = /^(?:\S*\/)?fsd-qa\s+run\s+\d+\s+-\s+<<-?\s*'?([A-Za-z_]+)'?\n[\s\S]*\n\1$/.exec(c);
-  if (h) return !SHELL_OPS.test(c.split('\n')[0].replace(/<<-?\s*'?[A-Za-z_]+'?$/, ''));
   return /^(?:\S*\/)?fsd-qa\s+(prep|run|key|verdict|finish|bug|clean)(\s|$)/.test(c) && !SHELL_OPS.test(c);
 }
 export function decide(input, rules) {
   if (BLOCKED_TOOLS.includes(input.tool_name)) return `${input.tool_name} não existe na sessão do time nativo: fale com o colega por fsd-diga; o supervisor acorda quem precisa.`;
   if (input.tool_name !== 'Bash') return null;
   const cmd = String(input.tool_input?.command || '');
-  if (!qaAlone(cmd)) return 'negado: o fsd-qa roda fora do sandbox e só passa sozinho na linha (sem ;, &&, |, $( ), redireção nem outro comando). Item com mais de um comando: fsd-qa run <k> - <<\'X\' … X.';
+  if (!qaAlone(cmd)) return 'negado: o fsd-qa roda fora do sandbox e só passa sozinho na linha (sem ;, &&, |, $( ), redireção nem outro comando). Item com mais de um comando: escreva-o num arquivo (Write) e rode fsd-qa run <k> --file <arquivo>.';
   for (const piece of unwrap(cmd)) { const r = deniedBy(piece, rules); if (r) return `negado: "${piece.slice(0, 120)}" casa com Bash(${r})${piece !== cmd.trim() ? ' (dentro de um contorno)' : ''}. Se o comando for necessário, abra um issue para o autor liberar por PR.`; }
   return null;
 }

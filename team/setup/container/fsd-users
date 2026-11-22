@@ -54,6 +54,12 @@ for r in "${ROLES[@]}"; do
     if [ -d "$src/skills" ]; then cp -rL "$src/skills/." "$p/skills/"; fi
     find "$p/skills" -name SKILL.session.md -exec sh -c 'mv -f "$1" "$(dirname "$1")/SKILL.md"' _ {} \;
     chown -R root:root "$p/skills"; chmod -R u=rwX,go=rX "$p/skills"
+    # Validação R8: as skills do perfil entram na sessão como plugin (--plugin-dir; com --setting-sources local, as do usuário não
+    # carregam). Plugin à parte, só com o manifesto e as skills, para nada mais do perfil virar parte de plugin.
+    rm -rf "$p/plugin.new"; install -d -o root -g root -m 0755 "$p/plugin.new" "$p/plugin.new/.claude-plugin"
+    printf '{"name":"fsd-%s","version":"1.0.0","description":"Skills do papel %s no time nativo"}\n' "$r" "$r" > "$p/plugin.new/.claude-plugin/plugin.json"
+    cp -r "$p/skills" "$p/plugin.new/skills"; chown -R root:root "$p/plugin.new"; chmod -R u=rwX,go=rX "$p/plugin.new"
+    rm -rf "$p/plugin"; mv "$p/plugin.new" "$p/plugin"
     # Prompt fixo do papel (--append-system-prompt-file): o papel na sessão nova + as regras do time na sessão nova.
     team_rules=${FSD_PROFILES_SRC%/}/../common/team.session.md
     if [ -f "$src/CLAUDE.session.md" ] && [ -f "$team_rules" ]; then

@@ -20,7 +20,7 @@ test('T4.1.2: argv per role — bypass, only the root-owned profile settings, th
     assert.deepEqual(baseArgs(r), ['--bg', '--name', r, '--permission-mode', 'bypassPermissions', '--setting-sources', 'local', '--settings', `/etc/fsd/profiles/${r}/settings.json`, '--append-system-prompt-file', `/etc/fsd/profiles/${r}/system.md`]);
   const sx = readFileSync(join(TEAM, 'setup', 'container', 'fsd-session-exec'), 'utf8');
   // R40: o MCP do papel (do root, com o --config do ai-memory) quando existe, senão o do time. R39: o prompt entra pelo stdin.
-  assert.match(sx, /--mcp-config "\$MCP" --strict-mcp-config "\$@" < "\$pf"/); assert.match(sx, /MCP="\$TEAM\/mcp\.json"; \[ -f "\/etc\/fsd\/profiles\/\$role\/mcp\.json" \]/);
+  assert.match(sx, /--mcp-config "\$MCP" --strict-mcp-config "\$\{PLUGIN\[@\]\}" "\$@" < "\$pf"/); assert.match(sx, /PLUGIN=\(--plugin-dir "\/etc\/fsd\/profiles\/\$role\/plugin"\)/); assert.match(sx, /MCP="\$TEAM\/mcp\.json"; \[ -f "\/etc\/fsd\/profiles\/\$role\/mcp\.json" \]/);
   assert.match(sx, /--bg --name "\$role" --permission-mode bypassPermissions/); assert.match(sx, /--setting-sources local --settings "\/etc\/fsd\/profiles\/\$role\/settings\.json"/);
 });
 

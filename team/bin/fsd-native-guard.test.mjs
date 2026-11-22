@@ -6,7 +6,7 @@ import { readFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { unwrap, rulesFor, decide } from './fsd-native-guard.mjs';
+import { unwrap, rulesFor, decide, qaAlone } from './fsd-native-guard.mjs';
 import { deniedBy } from './fsd-audit.mjs';
 
 const BIN = dirname(fileURLToPath(import.meta.url)), TEAM = join(BIN, '..');
@@ -47,4 +47,11 @@ test('F2.5: every session profile turns the Bash sandbox on, with no way out and
     assert.deepEqual(sb.network.allowedDomains, ['*']); assert.deepEqual(sb.excludedCommands || [], r === 'bob' ? ['fsd-qa *'] : []);
   }
   const legacy = JSON.parse(readFileSync(join(TEAM, 'claude-settings.json'), 'utf8')); assert.equal(legacy.sandbox, undefined);   // o time no tmux não muda
+});
+
+test('R21: Bob\'s fsd-qa passes only alone on the line; the multi-command item goes by --file, never by heredoc', () => {
+  for (const ok of ['fsd-qa run 2 --file /tmp/item2.sh', 'fsd-qa run 1 "fsd --version"', 'fsd-qa verdict 1 PASS "ok"', 'ls -la']) assert.equal(qaAlone(ok), true, ok);
+  for (const bad of ["fsd-qa run 2 - <<'X'\necho a\nX", "fsd-qa run 2 - <<'X'\nX\nid > /tmp/pwned\nX", 'fsd-qa run 2 --file /tmp/f; id', 'fsd-qa run 1 x | sh', 'fsd-qa run 1 $(id)'])
+    assert.equal(qaAlone(bad), false, bad);
+  assert.match(decide({ tool_name: 'Bash', tool_input: { command: "fsd-qa run 2 - <<'X'\na\nX" } }, []), /fsd-qa run <k> --file <arquivo>/);
 });
