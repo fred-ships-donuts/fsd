@@ -1,0 +1,30 @@
+{
+ "id": "m4-duvida-tecnica",
+ "role": "mel",
+ "behaviors": [
+  "responde-duvida-tecnica"
+ ],
+ "setup": {
+  "messages": [
+   {
+    "from": "stuart",
+    "to": "mel",
+    "text": "[dúvida tecnica] mergeGate or a new module?"
+   }
+  ]
+ },
+ "expect": {
+  "messages": [
+   {
+    "to": "stuart",
+    "match": "mergeGate"
+   }
+  ],
+  "noDelivery": true
+ },
+ "play": [
+  {
+   "bash": "\"$FSD_TEAM/bin/fsd-diga\" stuart \"mergeGate in fsd-lib; no new module.\""
+  }
+ ]
+}

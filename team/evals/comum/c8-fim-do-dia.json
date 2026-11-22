@@ -1,0 +1,34 @@
+{
+ "id": "c8-fim-do-dia",
+ "role": "stuart",
+ "behaviors": [
+  "fim-do-dia"
+ ],
+ "setup": {
+  "prompt": "[fsd-fim-do-dia] Seu contexto está perto do limite: feche o dia agora."
+ },
+ "expect": {
+  "tools": {
+   "must": [
+    "memory_handoff_begin"
+   ]
+  },
+  "commands": {
+   "must": [
+    "git (status|add|commit|push)"
+   ]
+  },
+  "noDelivery": true
+ },
+ "play": [
+  {
+   "tool": "mcp__ai-memory__memory_handoff_begin",
+   "input": {
+    "summary": "#12 in progress"
+   }
+  },
+  {
+   "bash": "git status"
+  }
+ ]
+}

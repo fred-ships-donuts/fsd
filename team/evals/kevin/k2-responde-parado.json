@@ -1,0 +1,30 @@
+{
+ "id": "k2-responde-parado",
+ "role": "kevin",
+ "behaviors": [
+  "responde-parado"
+ ],
+ "setup": {
+  "messages": [
+   {
+    "from": "stuart",
+    "to": "kevin",
+    "text": "parado: PR #220 open; queue empty"
+   }
+  ]
+ },
+ "expect": {
+  "messages": [
+   {
+    "to": "stuart",
+    "match": "#"
+   }
+  ],
+  "noDelivery": true
+ },
+ "play": [
+  {
+   "bash": "\"$FSD_TEAM/bin/fsd-diga\" stuart \"Take #12: it is in Ready for Development.\""
+  }
+ ]
+}

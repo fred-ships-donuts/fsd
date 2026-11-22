@@ -9,7 +9,7 @@
 //   agents --json [--all]        as sessões background ligadas (com --all, também as paradas)
 //   stop <id>                    desliga (a conversa fica) · reboot (só do stub): desliga todas, como um docker restart
 //   auth status                  {loggedIn}; STUB_NOT_LOGGED_IN=1: false, e o --bg falha com "Not logged in"
-import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync, appendFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { randomUUID, randomBytes } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
@@ -24,6 +24,24 @@ const hooks = (s, prompt) => {
   const evs = ['SessionStart', 'UserPromptSubmit', ...(process.env.STUB_WORKING ? [] : ['Stop'])];
   for (const ev of evs) { const r = spawnSync(h, { input: JSON.stringify({ hook_event_name: ev, session_id: s.sessionId, prompt }), encoding: 'utf8', env: process.env }); if (r.stdout) s.context.push({ ev, out: r.stdout }); }
 };
+// STUB_PLAY=<json [{ bash } | { write: { path, content } } | { tool, input }]>: o stub "age" como um agente com um roteiro fixo (o executor de
+// eval prova a si mesmo sem token, F4.9). Cada ação roda no cwd da sessão, com o ambiente dela, e vira tool_use/tool_result na
+// transcrição $STUB_CLAUDE_DIR/transcripts/<sessionId>.jsonl, no formato do Claude Code (o fsd-audit lê).
+function play(s, prompt) {
+  if (!process.env.STUB_PLAY) return;
+  let acts = []; try { acts = JSON.parse(readFileSync(process.env.STUB_PLAY, 'utf8')); } catch { return; }
+  const dir = join(DIR, 'transcripts'); mkdirSync(dir, { recursive: true }); const f = join(dir, `${s.sessionId}.jsonl`);
+  const lines = [{ type: 'user', message: { role: 'user', content: prompt } }]; let k = 0;
+  for (const x of acts) {
+    const id = `toolu_stub_${++k}`; let name = 'Bash', input = {}, out = '';
+    if (x.bash) { input = { command: x.bash }; const r = spawnSync('bash', ['-c', x.bash], { cwd: process.cwd(), encoding: 'utf8', env: process.env }); out = `${r.stdout}${r.stderr}`.trim(); }
+    else if (x.write) { name = 'Write'; input = { file_path: x.write.path, content: x.write.content }; writeFileSync(x.write.path, typeof x.write.content === 'string' ? x.write.content : JSON.stringify(x.write.content)); out = 'ok'; }
+    else if (x.tool) { name = x.tool; input = x.input || {}; out = 'ok'; }
+    lines.push({ type: 'assistant', message: { role: 'assistant', content: [{ type: 'tool_use', id, name, input }] } });
+    lines.push({ type: 'user', message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: id, content: out }] } });
+  }
+  appendFileSync(f, lines.map((l) => JSON.stringify(l)).join('\n') + '\n');
+}
 if (a[0] === '--help') { console.log('Usage: claude [options]\n  --bg, --background\n  --bare\n  --permission-prompts\n  --settings <file-or-json>\n  --json-schema <schema>\n  --setting-sources <sources>\n  --resume [value]\n  --session-id <uuid>\n  -n, --name <name>'); process.exit(0); }
 if (['agents', 'respawn', 'stop', 'daemon'].includes(a[0]) && a[1] === '--help') { console.log(`Usage: claude ${a[0]} [options]${a[0] === 'agents' ? '\n  --json  Print active sessions' : ''}`); process.exit(0); }
 if (a[0] === 'auth' && a[1] === 'status') { save(); console.log(JSON.stringify({ loggedIn: !process.env.STUB_NOT_LOGGED_IN, authMethod: process.env.STUB_NOT_LOGGED_IN ? 'none' : 'claude.ai' })); process.exit(process.env.STUB_NOT_LOGGED_IN ? 1 : 0); }
@@ -42,6 +60,6 @@ if (a.includes('--bg')) {
   if (s && s.alive) { const copy = { ...s, id: randomBytes(4).toString('hex'), sessionId: randomUUID(), copyOf: s.sessionId, prompts: [prompt], context: [], startedAt: Date.now() }; st.sessions.push(copy); s = copy; }
   else if (s) { s.alive = true; s.id = randomBytes(4).toString('hex'); s.prompts.push(prompt); Object.assign(s, env, { cwd: process.cwd() }); }
   else { s = { id: randomBytes(4).toString('hex'), sessionId: opt('--session-id') || randomUUID(), name: opt('--name') || null, alive: true, prompts: [prompt], context: [], startedAt: Date.now(), cwd: process.cwd(), args: a.slice(0, -1), ...env }; st.sessions.push(s); }
-  hooks(s, prompt); save(); console.log(s.id); process.exit(0);
+  hooks(s, prompt); play(s, prompt); save(); console.log(s.id); process.exit(0);
 }
 save(); console.error(`stub-claude: não emulado: ${a.join(' ')}`); process.exit(2);

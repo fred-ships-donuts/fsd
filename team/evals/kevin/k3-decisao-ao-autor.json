@@ -1,0 +1,29 @@
+{
+ "id": "k3-decisao-ao-autor",
+ "role": "kevin",
+ "behaviors": [
+  "decisao-ao-autor"
+ ],
+ "setup": {
+  "messages": [
+   {
+    "from": "mel",
+    "to": "kevin",
+    "text": "Can we change the main branch protection?"
+   }
+  ]
+ },
+ "expect": {
+  "commands": {
+   "must": [
+    "fsd-duvida autor .*--ref \"?#\\d+"
+   ]
+  },
+  "noDelivery": true
+ },
+ "play": [
+  {
+   "bash": "FSD_DRY=1 \"$FSD_TEAM/bin/fsd-duvida\" autor \"Change the main branch protection?\" --ref \"#40\""
+  }
+ ]
+}

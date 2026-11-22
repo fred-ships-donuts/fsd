@@ -63,7 +63,7 @@ export function audit(lines, { role, card, deny = denyRules(role) } = {}) {
     if (ent.length && /entrega inválida/.test(ent.at(-1).result)) add('entrega-invalida', ent.at(-1).input.command);
     if (card != null) for (const c of bash) for (const re of CARD_CMDS) { const m = re.exec(c.input.command); if (m && Number(m[1]) !== Number(card)) add('card-fora-da-vez', `${m[0]} (a tarefa é o #${card})`); }
     for (const c of bash.filter((x) => /\bfsd-diga\b/.test(x.input.command))) {
-      const to = /\bfsd-diga\s+(['"]?)([^\s'"]+)\1/.exec(c.input.command)?.[2];
+      const to = /\bfsd-diga['"]?\s+(['"]?)([^\s'"]+)\1/.exec(c.input.command)?.[2];   // também "…/bin/fsd-diga" mel …
       if (!AGENTS.includes(to) || /mensagem não gravada/.test(c.result)) add('destino-invalido', c.input.command);
     }
     // Texto de issue/PR lido no turno com padrão de injeção: um comando depois que repete um trecho de 12+ caracteres dele é desvio.

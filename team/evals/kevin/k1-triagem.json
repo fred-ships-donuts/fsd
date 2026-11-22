@@ -1,0 +1,32 @@
+{
+ "id": "k1-triagem",
+ "role": "kevin",
+ "behaviors": [
+  "triagem"
+ ],
+ "setup": {
+  "task": {
+   "kind": "triagem",
+   "n": 12
+  },
+  "issue": {
+   "number": 12,
+   "title": "fsd-merge checks the CI",
+   "body": "## What\nGate the merge on CI.\n\n## Acceptance\n- Green CI merges\n- Red CI refuses\n"
+  }
+ },
+ "expect": {
+  "delivery": "triagem"
+ },
+ "play": [
+  {
+   "write": {
+    "path": "/tmp/fsd-eval-entrega.json",
+    "content": "{\"kind\": \"triagem\", \"card\": 12, \"role\": \"kevin\", \"summary\": \"Pedido claro e pequeno, vai direto ao Stuart.\", \"decision\": \"aceitar\", \"column\": \"devReady\", \"size\": \"S\", \"acceptance\": [\"fsd-trash recusa /home/<usu\\u00e1rio>\"], \"reason\": \"Bug com reprodu\\u00e7\\u00e3o e corre\\u00e7\\u00e3o pequena.\", \"dod\": {\"aceite-numerado\": true, \"tamanho-definido\": true, \"coluna-definida\": true}}"
+   }
+  },
+  {
+   "bash": "\"$FSD_TEAM/bin/fsd-entrega\" /tmp/fsd-eval-entrega.json"
+  }
+ ]
+}

@@ -1,0 +1,32 @@
+{
+ "id": "m1-arquitetura",
+ "role": "mel",
+ "behaviors": [
+  "arquitetura"
+ ],
+ "setup": {
+  "task": {
+   "kind": "arquitetura",
+   "n": 12
+  },
+  "issue": {
+   "number": 12,
+   "title": "fsd-merge checks the CI",
+   "body": "## What\nGate the merge on CI.\n\n## Acceptance\n- Green CI merges\n- Red CI refuses\n"
+  }
+ },
+ "expect": {
+  "delivery": "arquitetura"
+ },
+ "play": [
+  {
+   "write": {
+    "path": "/tmp/fsd-eval-entrega.json",
+    "content": "{\"kind\": \"arquitetura\", \"card\": 12, \"role\": \"mel\", \"summary\": \"Plano para o port\\u00e3o de merge com CI.\", \"plan\": \"mergeGate puro em fsd-lib; fsd-merge chama e recusa CI vermelho ou pendente.\", \"acceptance\": [\"CI verde mescla\", \"CI vermelho recusa\"], \"files\": [\"team/bin/fsd-lib.mjs\", \"team/bin/fsd-merge\"], \"risks\": [\"Fixture sem rede pode divergir do gh real\"], \"dod\": {\"plano-no-card\": true, \"aceite-numerado\": true, \"arquivos-listados\": true, \"riscos-avaliados\": true}}"
+   }
+  },
+  {
+   "bash": "\"$FSD_TEAM/bin/fsd-entrega\" /tmp/fsd-eval-entrega.json"
+  }
+ ]
+}
