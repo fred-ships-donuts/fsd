@@ -23,8 +23,8 @@ const CASES = [
     (a) => assert.deepEqual(a, [])],
   ['correção primeiro: Changes Requested antes de Ready for Development', { sessions: team(), cards: [{ n: 3, column: 'devReady' }, { n: 9, column: 'changes' }] },
     (a) => assert.deepEqual(turns(a), ['stuart:wake:correcao#9'])],
-  ['um card por vez: Stuart com card em Developing não pega Ready for Development', { sessions: team({ stuart: idle('s') }), cards: [{ n: 4, column: 'dev' }, { n: 5, column: 'devReady' }] },
-    (a) => assert.deepEqual(turns(a), [])],
+  ['um card por vez: Stuart com card em Developing não pega Ready for Development (continua o de Developing, validação R4)', { sessions: team({ stuart: idle('s') }), cards: [{ n: 4, column: 'dev' }, { n: 5, column: 'devReady' }] },
+    (a) => assert.deepEqual(turns(a), ['stuart:resume:entrega-codigo#4'])],
   ['card bloqueado não gera tarefa', { sessions: team(), cards: [{ n: 5, column: 'devReady', blocked: true }] }, (a) => assert.deepEqual(a, [])],
   ['In Review → Mel e Bob; com maxConcurrent 1 só um turno (Mel, pela ordem da tabela)', { sessions: team(), cards: [{ n: 7, column: 'review', head: 'h1' }] },
     (a) => assert.deepEqual(turns(a), ['mel:wake:revisao#7'])],
@@ -59,7 +59,7 @@ const CASES = [
     (a) => { assert.deepEqual(turns(a), ['stuart:wake:entrega-codigo#5']); assert.equal(a.find((x) => x.type === 'hold').to, 'mel'); }],
   ['impasse → juiz uma vez por ref', { sessions: team(), deadlocks: [{ ref: '#7', key: 'DEADLOCK #7' }, { ref: '#9', key: 'DEADLOCK #9' }], judged: ['#9'] },
     (a) => assert.deepEqual(a, [{ type: 'judge', ref: '#7' }])],
-  ['Backlog, Architecting, Developing e Done não geram tarefa', { sessions: team(), cards: ['backlog', 'arch', 'dev', 'done'].map((column, i) => ({ n: i + 1, column })) },
+  ['Backlog e Done não geram tarefa', { sessions: team(), cards: ['backlog', 'done'].map((column, i) => ({ n: i + 1, column })) },
     (a) => assert.deepEqual(a, [])],
 ];
 
@@ -69,4 +69,14 @@ test('decide is pure: same state, same actions; the state is not changed', () =>
   const st = { sessions: team({ mel: idle('m') }), cards: [{ n: 7, column: 'review', head: 'h' }], messages: [msg(1, 'mel')] };
   const copy = JSON.parse(JSON.stringify(st));
   assert.deepEqual(decide(st), decide(st)); assert.deepEqual(st, copy);
+});
+
+test('validation R4: a card already in Developing or Architecting continues once its task is over, never twice for the same task', () => {
+  const idle = { state: 'idle', id: 'a1b2c3d4' };
+  const dev = { n: 12, column: 'dev' }, arch = { n: 20, column: 'arch' };
+  assert.deepEqual(turns(decide({ sessions: team({ stuart: idle }), cards: [dev] })), ['stuart:resume:entrega-codigo#12']);
+  assert.deepEqual(turns(decide({ sessions: team({ stuart: { ...idle, task: { key: taskKey(dev, 'entrega-codigo') } } }), cards: [dev] })), []);
+  assert.deepEqual(turns(decide({ sessions: team({ mel: idle }), cards: [arch], maxConcurrent: 2 })), ['mel:resume:arquitetura#20']);
+  // finishing comes before starting: the card in Developing goes before a new one in Ready for Development (which waits anyway)
+  assert.deepEqual(turns(decide({ sessions: team({ stuart: idle }), cards: [{ n: 9, column: 'devReady' }, dev] })), ['stuart:resume:entrega-codigo#12']);
 });

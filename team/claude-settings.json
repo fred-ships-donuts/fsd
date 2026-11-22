@@ -298,6 +298,15 @@
     ],
     "StopFailure": [
       {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$FSD_TEAM/bin/fsd-session-hook",
+            "timeout": 10
+          }
+        ]
+      },
+      {
         "matcher": "rate_limit",
         "hooks": [
           {
@@ -309,6 +318,15 @@
       }
     ],
     "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$FSD_TEAM/bin/fsd-session-hook",
+            "timeout": 10
+          }
+        ]
+      },
       {
         "hooks": [
           {

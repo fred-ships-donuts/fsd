@@ -66,6 +66,10 @@ export function hook(event, input = {}, agent = process.env.FSD_AGENT) {
   if (!AGENTS.includes(agent)) return null;
   const mark = (state) => { mkdirSync(join(stateDir(), 'session-state'), { recursive: true }); atomic(stateFile(agent), JSON.stringify({ state, at: new Date().toISOString(), session_id: input.session_id || null }) + '\n'); };
   if (event === 'Stop') { const g = stopGate(agent); if (g) return g; mark('idle'); return null; }
+  // Validação R3: um turno que acaba por erro da API (StopFailure: rate limit, sobrecarga) ou uma sessão parada/morta (SessionEnd)
+  // não pode deixar o estado em working para sempre, senão o papel nunca mais recebe turno.
+  if (event === 'StopFailure') { mark('idle'); return null; }
+  if (event === 'SessionEnd') { mark('off'); return null; }
   if (!['PostToolUse', 'UserPromptSubmit', 'SessionStart'].includes(event)) return null;
   if (event !== 'SessionStart') mark('working');
   // T3.4.5: o cartão da tarefa volta ao abrir a sessão e a cada mensagem nova (não a cada ferramenta).

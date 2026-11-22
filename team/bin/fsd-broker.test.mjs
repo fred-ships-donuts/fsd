@@ -23,18 +23,20 @@ const world = async () => {
   return { s, seen, env: { FSD_BROKER_KEYS: keys, FSD_TOKEN_DIR: dir, FSD_GITHUB_API: `http://127.0.0.1:${s.address().port}`, FSD_BROKER_FAKE: '' }, dir };
 };
 
-test('once: token and token-org per role (0440) and the supervisor merge token, with the table bodies; fresh ones are kept', async () => {
+test('once: token and token-org per role (0440) and the supervisor tokens (merge and board), with the table bodies; fresh ones are kept', async () => {
   const w = await world();
   try {
     const r = await run(['once'], w.env); assert.equal(r.code, 0); assert.doesNotMatch(r.out, /falhou|sem /);
-    assert.equal(w.seen.length, Object.keys(CFG.agents).length * 2 + 1);
+    assert.equal(w.seen.length, Object.keys(CFG.agents).length * 2 + 2);
     for (const role of Object.keys(CFG.agents)) {
       assert.match(readFileSync(join(w.dir, role, 'token'), 'utf8'), /^tok-\d+\n$/);
       assert.equal(statSync(join(w.dir, role, 'token')).mode & 0o777, 0o440);
     }
     assert.ok(w.seen.some((x) => JSON.stringify(x.body) === JSON.stringify({ repositories: ['fsd'], permissions: CFG.tokens.repo.bob })));
     assert.ok(w.seen.every((x) => !x.body.permissions.workflows));
-    const again = await run(['once'], w.env); assert.equal(w.seen.length, Object.keys(CFG.agents).length * 2 + 1); assert.match(again.out, /fresco/);
+    // validação R10: o supervisor lê o quadro, então também tem o token-org
+    for (const f of ['token', 'token-org']) assert.match(readFileSync(join(w.dir, 'dispatch', f), 'utf8'), /^tok-\d+\n$/);
+    const again = await run(['once'], w.env); assert.equal(w.seen.length, Object.keys(CFG.agents).length * 2 + 2); assert.match(again.out, /fresco/);
   } finally { w.s.close(); }
 });
 

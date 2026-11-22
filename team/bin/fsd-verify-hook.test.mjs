@@ -7,7 +7,7 @@ import { mkdtempSync, writeFileSync, symlinkSync, existsSync, readFileSync } fro
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { plan, verify } from './fsd-verify-hook.mjs';
+import { plan, verify, sandboxed } from './fsd-verify-hook.mjs';
 
 const BIN = dirname(fileURLToPath(import.meta.url)), REPO = join(BIN, '..', '..');
 const has = (set) => (p) => set.has(p);
@@ -29,7 +29,8 @@ test('a failing step becomes decision:block with the error; all green prints not
 });
 
 const tsc = join(REPO, 'node_modules', '.bin', 'tsc');
-test('F4.7 dry: an edit with a type error gets the hook error at once; the fixed edit passes', { skip: !existsSync(tsc) }, () => {
+const bwrapOk = spawnSync('bwrap', ['--dev-bind', '/', '/', 'true']).status === 0;
+test('F4.7 dry: an edit with a type error gets the hook error at once; the fixed edit passes', { skip: !existsSync(tsc) || !bwrapOk }, () => {
   const r = mkdtempSync(join(tmpdir(), 'vh-'));
   writeFileSync(join(r, 'package.json'), '{"type":"module"}'); symlinkSync(join(REPO, 'node_modules'), join(r, 'node_modules'));
   writeFileSync(join(r, 'tsconfig.json'), JSON.stringify({ compilerOptions: { strict: true, module: 'nodenext', target: 'es2022', noEmit: true }, include: ['*.ts'] }));
@@ -45,4 +46,17 @@ test('the hook is wired only in the Stuart session profile', () => {
   const p = (r) => JSON.parse(readFileSync(join(BIN, '..', 'agents', r, 'claude', 'settings.session.json'), 'utf8'));
   assert.ok(p('stuart').hooks.PostToolUse.some((h) => h.hooks.some((x) => x.command.endsWith('fsd-verify-hook'))));
   for (const r of ['mel', 'bob', 'kevin']) assert.ok(!JSON.stringify(p(r)).includes('fsd-verify-hook'));
+});
+
+test('validation R15: the steps run in a bwrap that masks the credential; the agent test never leaks it (with or without bwrap)', () => {
+  const ex = (f) => f.endsWith('.credentials.json');
+  const w = sandboxed({ cmd: 'node', args: ['--test', 'a.test.mjs'] }, { home: '/h', exists: ex });
+  assert.equal(w.cmd, 'bwrap'); assert.deepEqual(w.args.slice(0, 7), ['--die-with-parent', '--dev-bind', '/', '/', '--ro-bind', '/dev/null', '/h/.claude/.credentials.json']);
+  assert.deepEqual(w.args.slice(-3), ['node', '--test', 'a.test.mjs']);
+  const h = mkdtempSync(join(tmpdir(), 'vhs-')); const r = join(h, 'r'); spawnSync('mkdir', ['-p', join(h, '.claude'), r]);
+  writeFileSync(join(h, '.claude', '.credentials.json'), 'SEGREDO-DA-ASSINATURA\n'); writeFileSync(join(r, 'package.json'), '{"type":"module"}');
+  writeFileSync(join(r, 'a.test.mjs'), "import { test } from 'node:test'; import { readFileSync } from 'node:fs';\ntest('leak', () => { throw new Error('VAZOU[' + readFileSync(process.env.HOME + '/.claude/.credentials.json', 'utf8') + ']'); });\n");
+  const o = spawnSync(join(BIN, 'fsd-verify-hook'), { input: JSON.stringify({ hook_event_name: 'PostToolUse', tool_name: 'Edit', tool_input: { file_path: join(r, 'a.test.mjs') } }), encoding: 'utf8', env: { ...process.env, HOME: h, FSD_RUNNER: 'session' } });
+  assert.doesNotMatch(o.stdout, /SEGREDO-DA-ASSINATURA/);
+  assert.match(o.stdout, bwrapOk ? /EACCES|permission denied/ : /não rodou/);
 });

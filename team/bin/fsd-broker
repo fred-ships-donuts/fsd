@@ -2,7 +2,7 @@
 // fsd-broker once | loop — o broker de tokens do time nativo (F2.3, T2.3.1; C1). Roda como o usuário fsd-broker, o único que lê
 // as chaves dos Apps ($FSD_BROKER_KEYS/<slug>.pem, 0400). Mantém, para cada papel, $FSD_TOKEN_DIR/<papel>/token e token-org
 // (pastas setgid do grupo do papel, criadas pelo fsd-users; arquivo 0440: só o papel lê), e o token de merge e release só para o
-// supervisor em $FSD_TOKEN_DIR/dispatch/token. Renova quando falta menos de FSD_BROKER_REFRESH_MIN (15) para vencer.
+// supervisor em $FSD_TOKEN_DIR/dispatch/token e token-org. Renova quando falta menos de FSD_BROKER_REFRESH_MIN (15) para vencer.
 // Corpo de cada token: a tabela agents.json → tokens (F1.6); o do supervisor usa o papel tokens.dispatch (padrão: o do Kevin).
 // FSD_BROKER_FAKE=1 (só a simulação do container): token falso, sem chave nem rede.
 import { readFileSync, writeFileSync, renameSync, chmodSync, existsSync, statSync } from 'node:fs';
@@ -30,7 +30,8 @@ export async function once() {
     for (const scope of ['repo', 'org']) { try { out.push(`${role} ${scope}: ${await ensure(join(d, scope === 'org' ? 'token-org' : 'token'), { name: role, scope })}`); } catch (e) { out.push(`${role} ${scope}: falhou (${e.message})`); } }
   }
   const dd = join(DIR, 'dispatch');
-  if (existsSync(dd)) { try { out.push(`dispatch: ${await ensure(join(dd, 'token'), { name: cfg.tokens?.dispatch || 'kevin', scope: 'repo' })}`); } catch (e) { out.push(`dispatch: falhou (${e.message})`); } }
+  // O supervisor também lê o quadro (fsd-board list, escopo org): sem o token-org, board = [] e nenhuma tarefa sai (validação R10).
+  if (existsSync(dd)) for (const scope of ['repo', 'org']) { try { out.push(`dispatch ${scope}: ${await ensure(join(dd, scope === 'org' ? 'token-org' : 'token'), { name: cfg.tokens?.dispatch || 'kevin', scope })}`); } catch (e) { out.push(`dispatch ${scope}: falhou (${e.message})`); } }
   return out;
 }
 const cmd = process.argv[2];

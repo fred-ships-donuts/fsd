@@ -54,7 +54,10 @@ async function exec(a, g) {
   if (DRY) { console.log(`[dry] ${JSON.stringify(a)}`); return 'dry'; }
   const M = await import('./fsd-messenger.mjs');
   const msgs = (ids) => (g.messages || []).filter((m) => (ids || []).includes(m.id));
-  if (a.type === 'inbox' || a.type === 'hold') { for (const m of msgs(a.ids)) M.deliver(m); return `${a.ids.length} na caixa de ${a.to}`; }
+  if (a.type === 'inbox') { for (const m of msgs(a.ids)) M.deliver(m); return `${a.ids.length} na caixa de ${a.to}`; }
+  // Validação R5: o hold não entrega. A mensagem fica no outbox, e o decide() a leva no próximo turno do destino; entregue aqui, ela saía
+  // do outbox e nunca mais acordava ninguém.
+  if (a.type === 'hold') return `${a.ids.length} esperando ${a.to} (${a.why})`;
   if (a.type === 'turn') {
     for (const m of msgs(a.ids)) M.deliver(m);   // o hook UserPromptSubmit entrega junto com o turno
     const T = await import('./fsd-task.mjs');

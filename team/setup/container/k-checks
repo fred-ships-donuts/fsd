@@ -97,6 +97,18 @@ if [ -x /usr/local/sbin/fsd-session-exec ]; then
   check K10 "fsd-session (como fsd-dispatch, FSD_SESSION_VIA=sudo) sobe a Mel e vê o estado dela" bash -c "su -s /bin/bash fsd-dispatch -c 'cd ~ && FSD_SESSION_VIA=sudo FSD_STATE=\$HOME/st node $FSD_SIM_TEAM/bin/fsd-session start mel \"tarefa #3\" >/dev/null && FSD_SESSION_VIA=sudo FSD_STATE=\$HOME/st node $FSD_SIM_TEAM/bin/fsd-session status --json' 2>/dev/null | grep -q '\"mel\":{\"state\":\"idle\"'"
   check K10 "o wrapper recusa id e uuid inválidos" bash -c "! su -s /bin/bash fsd-dispatch -c '$SX stop \"x;id\"' >/dev/null 2>&1 && ! su -s /bin/bash fsd-dispatch -c '$SX resume not-a-uuid /tmp/k10-prompt' >/dev/null 2>&1"
 fi
+# K17 (validação R6/R7): a sessão do papel sobe com o PATH do time, o repositório, o estado na home e o git do root; um commit como o
+# papel sai com a identidade do bot só pelo GIT_CONFIG_GLOBAL (sem -c).
+if [ -x /usr/local/sbin/fsd-session-exec ] && command -v jq >/dev/null; then
+  sj=/tmp/stub-claude-$(id -u fsd-stuart)/state.json; T17=$(grep -E '^TEAM=' /etc/fsd/session.env | cut -d= -f2); R17=$(grep -E '^REPO=' /etc/fsd/session.env | cut -d= -f2)
+  k17_env() { jq -e --arg t "$T17/bin" --arg r "$R17" '[.sessions[] | select(.agent == "stuart")] | last | (.path | startswith($t + ":")) and .repo == $r and .state == "/home/fsd-stuart/.config/fsd-agents" and .gitcfg == "/etc/fsd/profiles/stuart/gitconfig"' "$sj" >/dev/null; }
+  check K17 "a sessão do Stuart sobe com PATH do time, FSD_REPO, FSD_STATE e o gitconfig do root" k17_env
+  check K17 "o gitconfig do papel é do root, com a identidade do bot e o helper do time" bash -c "[ \"\$(stat -c %U /etc/fsd/profiles/stuart/gitconfig)\" = root ] && git config -f /etc/fsd/profiles/stuart/gitconfig user.name | grep -qx 'fsd-stuart\[bot\]' && git config -f /etc/fsd/profiles/stuart/gitconfig --get-all credential.https://github.com.helper | grep -q git-credential-fsd"
+  if [ -n "${FSD_SIM_REPO:-}" ]; then
+    k17_commit() { su -s /bin/bash fsd-stuart -c "umask 007; export GIT_CONFIG_GLOBAL=/etc/fsd/profiles/stuart/gitconfig; d=/home/fsd-stuart/wt/k17; cd $FSD_SIM_REPO && git worktree add -q --no-track -b k17 \$d origin/develop && cd \$d && echo k > k && git add k && git commit -qm k && git log -1 --format=%an" 2>/dev/null | grep -qx 'fsd-stuart\[bot\]'; }
+    check K17 "commit como o Stuart, sem -c, sai como fsd-stuart[bot]" k17_commit
+  fi
+fi
 # K11 (F4.1): o perfil do papel junta os hooks do time e o papel; com a checagem ligada, sem ai-memory nem túnel, a sessão não sobe.
 if [ -x /usr/local/sbin/fsd-session-exec ] && command -v jq >/dev/null; then
   check K11 "o perfil do Stuart tem os hooks do time e o deny dele" bash -c "jq -e '.hooks.PostToolUse | map(.hooks[].command) | any(test(\"fsd-session-hook\"))' /etc/fsd/profiles/stuart/settings.json >/dev/null && jq -e '.permissions.deny | any(test(\"git push\"))' /etc/fsd/profiles/stuart/settings.json >/dev/null"

@@ -622,9 +622,9 @@
       }
      ]
     },
-    "expect": []
+    "expect": [{"type": "turn", "to": "stuart", "how": "resume", "id": "s", "task": {"kind": "entrega-codigo", "n": 9}, "ids": []}]
    },
-   "note": "Developing: o Stuart está nele; não pega outro (um card por vez)."
+   "note": "Developing: o Stuart está nele e não pega outro (um card por vez); o card em andamento continua (validação R4)."
   },
   {
    "trigger": "C.conflict",
@@ -978,9 +978,9 @@
       }
      ]
     },
-    "expect": []
+    "expect": [{"type": "turn", "to": "stuart", "how": "wake", "task": {"kind": "entrega-codigo", "n": 3}, "ids": []}]
    },
-   "note": "Coluna que não é fila: nenhuma tarefa."
+   "note": "Backlog não é fila; Architecting e Developing continuam a tarefa (validação R4), terminar antes de começar: com maxConcurrent 1, o de Developing primeiro."
   },
   {
    "trigger": "N.redirectKevin",
