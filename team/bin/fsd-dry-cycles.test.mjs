@@ -74,3 +74,36 @@ test('F4.5 Mel: a technical doubt from Stuart reaches Mel, and her answer reache
   const a = as(w, 'mel', 'fsd-diga', ['stuart', 'sim, puro, no fsd-lib']); assert.equal(a.status, 0, a.stdout + a.stderr);
   assert.match(inbox(w, 'stuart'), /sim, puro, no fsd-lib/);
 });
+
+// F4.6 Bob: QA na sessão nova. O fsd-run-exec é falso aqui (registra e roda o comando; a troca de usuário real é o K9); o tmux é real.
+const hasTmux = spawnSync('tmux', ['-V']).status === 0;
+function bobWorld() {
+  const w = world({ prs: { 220: PR } }); const rx = join(w.d, 'rx');
+  writeFileSync(rx, `#!/bin/bash\necho "$*" >> ${w.d}/rx.log\ncase "$1" in run) shift 3; exec bash -c "$*" ;; *) exit 0 ;; esac\n`); spawnSync('chmod', ['755', rx]);
+  w.env = { ...w.env, HOME: w.d, FSD_RUN_EXEC: rx }; return w;
+}
+const qa = (w, ...a) => as(w, 'bob', 'fsd-qa', a);
+for (const [name, second, verdict, state] of [['PASS', 'true', 'pass', 'APPROVED'], ['FAIL', 'exit 1', 'fail', 'CHANGES_REQUESTED']]) {
+  test(`F4.6 Bob: QA ${name} from the exit file, review pinned to the commit`, { skip: !hasTmux }, () => {
+    const w = bobWorld();
+    try {
+      const p = qa(w, 'prep', '220'); assert.equal(p.status, 0, p.stdout + p.stderr); assert.match(p.stdout, /2 itens/);
+      assert.match(readFileSync(join(w.d, 'rx.log'), 'utf8'), new RegExp(`^prep qa-bob-220 https://github.com/.*\\.git ${HEAD}$`, 'm'));
+      assert.match(qa(w, 'run', '1', 'echo um').stdout, /EXIT=0/);
+      assert.match(qa(w, 'run', '2', second).stdout, verdict === 'pass' ? /EXIT=0/ : /EXIT=1/);
+      if (verdict === 'pass') assert.equal(qa(w, 'verdict', '--all-pass').status, 0);
+      else {
+        assert.equal(qa(w, 'verdict', '1', 'PASS').status, 0);
+        assert.match(qa(w, 'verdict', '2', 'FAIL', 'refuses red CI').stdout, /1ª falha guardada/);
+        qa(w, 'run', '2', second); assert.equal(qa(w, 'verdict', '2', 'FAIL', 'refuses red CI').status, 0);
+      }
+      const no = qa(w, 'finish'); assert.equal(no.status, 1); assert.match(no.stdout + no.stderr, /falta --entrega/); assert.equal(gh(w).prs['220'].reviews.length, 0);
+      const e = file(w, 'qa.json', { ...example('qa'), pr: 220, head: HEAD.slice(0, 7), verdict, acceptance: [{ item: 1, command: 'echo um', exit: 0, result: 'pass' }, { item: 2, command: second, exit: verdict === 'pass' ? 0 : 1, result: verdict }] });
+      const f = qa(w, 'finish', '--entrega', e); assert.equal(f.status, 0, f.stdout + f.stderr);
+      const [r] = gh(w).prs['220'].reviews;
+      assert.equal(r.state, state); assert.equal(r.author.login, 'fsd-bob'); assert.equal(r.commit.oid, HEAD);
+      if (verdict === 'fail') assert.match(r.body, /## Steps to reproduce\n2\. `exit 1`/); else assert.doesNotMatch(r.body, /Steps to reproduce/);
+      assert.equal(entregas(w, 'qa').length, 1);
+    } finally { spawnSync('tmux', ['-L', 'fsd-qa-bob', 'kill-server']); }
+  });
+}
