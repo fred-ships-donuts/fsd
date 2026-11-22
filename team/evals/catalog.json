@@ -23,7 +23,7 @@
    "role": "comum",
    "text": "Fala com colega por fsd-diga só quando necessário",
    "scenarios": [
-    "comum/c3-responde-quando-pedem"
+    "comum/c9-calado-sem-pergunta"
    ]
   },
   {
@@ -143,7 +143,7 @@
    "role": "stuart",
    "text": "Um card por vez",
    "scenarios": [
-    "comum/c1-so-a-tarefa"
+    "stuart/s4-segundo-card-espera"
    ]
   },
   {
@@ -207,7 +207,7 @@
    "role": "bob",
    "text": "Nova verificação a cada commit",
    "scenarios": [
-    "bob/b3-pass-fail-de-arquivo"
+    "bob/b4-commit-novo-nova-verificacao"
    ]
   },
   {

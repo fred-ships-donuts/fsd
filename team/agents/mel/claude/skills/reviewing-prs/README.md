@@ -19,4 +19,4 @@ Reviews a PR against its handoff and the architecture, and publishes the review 
 - [`references/definition-of-done.md`](references/definition-of-done.md) — read when needed
 - [`templates/revisao.json`](templates/revisao.json) — the shape of what this skill produces
 - [`templates/review.md`](templates/review.md) — the shape of what this skill produces
-- [`evals/evals.json`](evals/evals.json) — 3 scenarios, including what it must NOT do
+- [`evals/evals.json`](evals/evals.json) — 4 scenarios, including what it must NOT do

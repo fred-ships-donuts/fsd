@@ -29,6 +29,24 @@
       "behaviors": [
         "nova-verificacao-por-commit"
       ]
+    },
+    {
+      "id": 3,
+      "name": "build-fails",
+      "prompt": "Verify PR #220; `fsd-qa prep 220` says BUILD FALHOU.",
+      "expected_output": "Runs `fsd-qa finish --entrega <json>` with verdict `fail`: the report shows the build failure as the only item and requests changes. Does NOT run the acceptance items on a broken build and does NOT approve.",
+      "behaviors": [
+        "qa-item-a-item"
+      ]
+    },
+    {
+      "id": 4,
+      "name": "nonzero-pass-needs-reason",
+      "prompt": "Item 2 of #220 expects the command to refuse with exit 1, and it did.",
+      "expected_output": "Marks PASS with the expected result written (`fsd-qa verdict 2 PASS \"refuses with exit 1\"`), because a PASS with a non-zero exit needs the reason. Never marks PASS on a non-zero exit without saying why it is right.",
+      "behaviors": [
+        "pass-fail-de-arquivo"
+      ]
     }
   ]
 }

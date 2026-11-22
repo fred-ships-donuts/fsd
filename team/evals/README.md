@@ -13,6 +13,12 @@ Cada comportamento de um papel do time nativo (estudo §4.1) tem pelo menos um c
 | `catalog.json` | Os comportamentos, por papel (`comum` vale para todos), e os cenários que cobrem cada um. Para a revisão do autor |
 | `<pasta>/<id>.json` | Um cenário: `setup` (tarefa, issue, mensagens, prompt), `expect` (o que deve e o que não pode acontecer) e `play` |
 
+## GitHub falso
+
+O executor monta um GitHub em JSON (`team/setup/fake-gh`, pelo `FSD_GH`) com o issue do cenário (`setup.issue`, com `labels`) e os PRs
+(`setup.prs`), e o quadro num JSON (`FSD_BOARD_FAKE`). Assim os comandos de verdade rodam (`fsd-arq publish --entrega`, `fsd-issue
+triage --entrega`, `fsd-qa prep`); as escritas seguem só impressas (`FSD_DRY`). Nenhuma eval toca o GitHub, nem no modo `--real`.
+
 ## O que o executor confere
 
 - **Entrega:** a entrega válida do tipo esperado para o card, gravada pelo `fsd-entrega`; ou nenhuma (`noDelivery`), quando o certo era

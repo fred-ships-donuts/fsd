@@ -46,3 +46,13 @@ test('fsd-audit reads fsd-diga called by its path in quotes', () => {
   const t = [{ type: 'user', message: { content: 'x' } }, { type: 'assistant', message: { content: [{ type: 'tool_use', id: 't1', name: 'Bash', input: { command: '"$FSD_TEAM/bin/fsd-diga" mel "oi"' } }] } }];
   assert.deepEqual(audit(t.map((x) => JSON.stringify(x)), { role: 'stuart' }), []);
 });
+
+test('the catalog review scenarios fail the wrong behavior: a needless message, a second card, an old verification, the plan off the card', async () => {
+  const P = (id) => byId[id].play;
+  assert.match((await bad('c9-calado-sem-pergunta', [{ bash: '"$FSD_TEAM/bin/fsd-diga" mel "terminei um commit"' }, ...P('c9-calado-sem-pergunta')])).reasons.join(), /rodou o que não pode: .*fsd-diga/);
+  assert.match((await bad('s4-segundo-card-espera', [{ bash: 'true fsd-dev start 13' }, ...P('s4-segundo-card-espera')])).reasons.join(), /rodou o que não pode: .*fsd-dev start 13/);
+  assert.match((await bad('s4-segundo-card-espera', P('s4-segundo-card-espera').slice(1))).reasons.join(), /faltou a mensagem para kevin/);
+  assert.match((await bad('b4-commit-novo-nova-verificacao', [{ bash: 'true' }])).reasons.join(), /faltou o comando \/fsd-qa prep 220\//);
+  // m1 sem o fsd-arq publish (só o fsd-entrega): o plano não chegou ao card.
+  assert.match((await bad('m1-arquitetura', [P('m1-arquitetura')[0], { bash: '"$FSD_TEAM/bin/fsd-entrega" /tmp/fsd-eval-entrega.json' }])).reasons.join(), /faltou o comando \/fsd-arq publish/);
+});
