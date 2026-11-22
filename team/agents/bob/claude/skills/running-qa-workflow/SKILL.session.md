@@ -15,7 +15,7 @@ Every PR that closes an issue goes through this script, including one that only 
    - Any other message → do what it says.
 2. For **each** item k: `fsd-qa run <k> "<command of item k>"` → shows the output and `EXIT=n`. To reach the state an item needs (installed, outdated, missing, a forced failure), use the skill `testing-cli`; to drive a screen, `driving-terminal-apps`.
    - Never write `echo $?`, even when the acceptance asks for it: `EXIT=n` already is the `$?` of the command. On an interactive screen it appears in the `fsd-qa key` that closes it. `fsd-qa` refuses a command with `$?`.
-   - A command with quotes, `$` or several lines: `fsd-qa run <k> - <<'X'` + the command + `X`.
+   - A command with quotes, `$`, `&&`, `|`, a redirect or several lines: `fsd-qa run <k> - <<'X'` + the command + `X`. `fsd-qa` runs outside the Bash sandbox, so the guard accepts it only alone on the line: never chain it with another command.
    - An item with more than one command: repeat `fsd-qa run <k> …` with the same k.
    - After an interactive screen you may go on to the next `run`: it closes the previous one by itself.
    - `TELA INTERATIVA` → `fsd-qa key Down`, `fsd-qa key Enter`, `fsd-qa key Escape`… until the result. Literal text: `fsd-qa key --text "<text>"`.

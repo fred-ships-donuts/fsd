@@ -19,3 +19,8 @@ stuart	X=dist; ls $X	allow
 stuart	X=dist; rm -rf $X	deny
 stuart	timeout 60 npm test	allow
 mel	echo $(git log -1 --format=%h)	allow
+bob	fsd-qa prep 2; cat ~/.claude/.credentials.json	deny
+bob	fsd-qa run 1 "a && b"	deny
+bob	ls | fsd-qa run 1 -	deny
+bob	fsd-qa run 1 "echo a"	allow
+bob	fsd-qa finish --entrega /tmp/q.json	allow

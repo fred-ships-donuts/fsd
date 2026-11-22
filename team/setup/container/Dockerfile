@@ -29,6 +29,11 @@
 #     o modo userspace (proxy SOCKS5), e o Syncthing e o túnel passam por ele.
 #   * Os volumes fsd-home (o HOME) e fsd-projects (o código) guardam tudo. Apagar o container não
 #     apaga nada. Apagar os volumes apaga tudo. Sem eles, os logins somem a cada container novo.
+#   * Time nativo (FSD_NATIVE=1 no team.env; E6): o Bash de cada papel roda no sandbox do claude (bubblewrap), que esconde a
+#     credencial da assinatura e deixa a internet livre (F2.5). O bubblewrap dentro do Docker precisa de três opções a mais no
+#     docker run: --security-opt seccomp=unconfined --security-opt apparmor=unconfined --security-opt systempaths=unconfined
+#     (provado: sem cada uma, o sandbox não sobe e a sessão falha fechado, sem rodar comando). Elas afrouxam o confinamento do
+#     container em relação ao host; o sandbox.enableWeakerNestedSandbox não evita nenhuma das três.
 #   * Opcionais no docker run: -e TS_AUTHKEY=tskey-… (entra na Tailscale sem abrir link),
 #     -e FSD_GIT_NAME=… -e FSD_GIT_EMAIL=… (senão vêm da conta do GitHub), -e FSD_MATRIZ=<ip>.
 #
@@ -102,7 +107,7 @@ ENV DEBIAN_FRONTEND=noninteractive LANG=C.UTF-8 LC_ALL=C.UTF-8 \
 # Pacotes do sistema (gh 2.45.0, syncthing 1.27.2, tmux 3.4: apt do Ubuntu 24.04, iguais à matriz) + Tailscale.
 RUN apt-get update && apt-get install -y --no-install-recommends \
       ca-certificates curl gnupg git gh tmux jq python3 openssh-client syncthing supervisor \
-      netcat-openbsd iptables iproute2 procps less sudo util-linux libatomic1 \
+      netcat-openbsd iptables iproute2 procps less sudo util-linux libatomic1 bubblewrap socat \
  && curl -fsSL https://pkgs.tailscale.com/stable/ubuntu/noble.noarmor.gpg -o /usr/share/keyrings/tailscale-archive-keyring.gpg \
  && curl -fsSL https://pkgs.tailscale.com/stable/ubuntu/noble.tailscale-keyring.list -o /etc/apt/sources.list.d/tailscale.list \
  && apt-get update && apt-get install -y --no-install-recommends tailscale \
