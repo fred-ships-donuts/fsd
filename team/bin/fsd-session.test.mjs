@@ -77,3 +77,15 @@ test('bgId reads the short id the --bg prints, and nothing else', async () => {
 });
 
 test('usage errors', () => { const w = world(); assert.equal(ses(w, ['start', 'eve', 'x']).status, 2); assert.equal(ses(w, ['nada']).status, 2); });
+
+test('R24: a recorded conversation that is gone opens a new session (with the new-day note) instead of failing every turn', async () => {
+  const { writeFileSync } = await import('node:fs');
+  const w = world();
+  assert.equal(ses(w, ['start', 'mel', 'um']).status, 0); const old = stub(w).sessions[0].sessionId;
+  ses(w, ['stop', 'mel']);
+  const st = stub(w); st.sessions = []; writeFileSync(join(w.STUB_CLAUDE_DIR, 'state.json'), JSON.stringify(st));   // a conversa sumiu
+  const r = ses(w, ['turn', 'mel', 'dois']); assert.equal(r.status, 0, r.stdout + r.stderr); assert.match(r.stdout, /sumiu; abrindo uma sessão nova/);
+  const stored = JSON.parse(readFileSync(join(w.FSD_STATE, 'dispatch', 'sessions.json'), 'utf8')).mel;
+  assert.equal(stored.lastSessionId, old); assert.notEqual(stored.sessionId, old);
+  const [s] = stub(w).sessions; assert.match(s.prompts[0], /Sessão nova[\s\S]*dois$/); assert.equal(s.args.includes('--resume'), false);
+});

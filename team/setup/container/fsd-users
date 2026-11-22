@@ -26,10 +26,13 @@ state_dirs() {
     { setfacl -R -m "$acl" "$d" && find "$d" -type d -exec setfacl -d -m "$acl" {} +; } || { echo "fsd-users: a ACL de $d não pegou (o sistema de arquivos tem ACL?)" >&2; exit 1; }
   done
 }
-getent group fsd >/dev/null || groupadd fsd
+# Validação R13: uid e gid fixos (2000+), para que as homes e o estado em volume continuem do mesmo dono num container novo.
+declare -A UID_OF=([fsd-kevin]=2001 [fsd-mel]=2002 [fsd-stuart]=2003 [fsd-bob]=2004 [fsd-dispatch]=2005 [fsd-run]=2006 [fsd-broker]=2007)
+getent group fsd >/dev/null || groupadd -g 2000 fsd
 mk() {   # mk <usuário> [grupos extras]
-  local u=$1; shift
-  id "$u" >/dev/null 2>&1 || useradd -m -s /bin/bash -U "$u"
+  local u=$1; shift; local n=${UID_OF[$u]}
+  getent group "$u" >/dev/null || groupadd -g "$n" "$u"
+  id "$u" >/dev/null 2>&1 || useradd -m -s /bin/bash -u "$n" -g "$u" "$u"
   [ $# -gt 0 ] && usermod -aG "$(IFS=,; echo "$*")" "$u"
   chmod 0700 "/home/$u"; chown "$u:$u" "/home/$u"
 }

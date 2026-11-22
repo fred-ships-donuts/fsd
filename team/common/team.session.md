@@ -23,8 +23,9 @@ Você roda numa sessão própria e longa. Um supervisor sem token (`fsd-dispatch
 
 ## A tarefa
 - O turno começa com o **cartão**: o card, o tipo da tarefa, o aceite numerado, o contrato da entrega (`team/contracts/<tipo>.schema.json`) e a Definition of Done. Ele volta a cada mensagem nova.
-- A tarefa termina com a **entrega válida**: o JSON do contrato, com cada item do aceite citado pelo número e a Definition of Done toda `true`. `fsd-entrega modelo <tipo>` dá um ponto de partida; `fsd-pr open`, `fsd-review post` e `fsd-qa finish` recebem `--entrega <arquivo.json>`; o resto vai por `fsd-entrega <arquivo.json> --aceite N`. Sem entrega válida o card não anda, e o fim do turno é recusado com o que falta.
+- A tarefa termina com a **entrega válida**: o JSON do contrato, com cada item do aceite citado pelo número e a Definition of Done toda `true`. `fsd-entrega modelo <tipo>` dá um ponto de partida; `fsd-pr open`, `fsd-review post`, `fsd-qa finish`, `fsd-arq publish` e `fsd-issue triage` recebem `--entrega <arquivo.json>`; o resto vai por `fsd-entrega <arquivo.json> --aceite N`. Sem entrega válida o card não anda, e o fim do turno é recusado com o que falta.
 - Depois da entrega, **termine o turno**. Não procure trabalho novo nem espere ninguém: o supervisor manda a próxima tarefa quando houver.
+- **Nada em segundo plano no fim do turno** (`run_in_background`, `&`, `nohup`): o turno seguinte reabre a conversa numa cópia e o que ficou rodando morre. Espere o comando terminar antes de entregar.
 
 ## Falar com um colega
 - `fsd-diga <papel> "<texto>" [--urgente] [--ref #N]`. Só quando for necessário: cada mensagem custa um turno de quem recebe. O remetente é você (o supervisor confere pelo usuário).
@@ -32,7 +33,7 @@ Você roda numa sessão própria e longa. Um supervisor sem token (`fsd-dispatch
 - **Esperando um colega** num PR ou issue: `fsd-espera <papel> "<o quê>" --ref #N` e termine o turno. Quando a espera acabar: `fsd-espera fim`. Esperas em ciclo no mesmo ref, quietas, vão ao juiz.
 
 ## Comandos
-`fsd-queue` (sua fila) · `fsd-pr [n]|--todo|--mine|open` · `fsd-review start|diff|read|post` · `fsd-issue show|new|decide` · `fsd-arq start|publish` · `fsd-dev start|sync` · `fsd-qa` (skill do Bob) · `fsd-board list|move` · `fsd-diga` · `fsd-duvida` · `fsd-espera` · `fsd-entrega` · `fsd-trash`. Comando sem argumentos mostra o uso. Texto longo (revisão, passagem, verificação): passe por `-` com heredoc. `gh` direto só para o que eles não cobrem.
+`fsd-queue` (sua fila) · `fsd-pr [n]|--todo|--mine|open` · `fsd-review start|diff|read|post` · `fsd-issue show|new|decide|triage` · `fsd-arq start|publish` · `fsd-dev start|sync` · `fsd-qa` (skill do Bob) · `fsd-board list|move` · `fsd-diga` · `fsd-duvida` · `fsd-espera` · `fsd-entrega` · `fsd-trash`. Comando sem argumentos mostra o uso. Texto longo (revisão, passagem, verificação): passe por `-` com heredoc. `gh` direto só para o que eles não cobrem.
 
 ## Ação negada
 A sessão roda sem caixa de permissão: o que não é do seu papel é negado com o motivo, e o Kevin fica sabendo. Não contorne (o guard abre `bash -c`, `eval`, `env` e variáveis e nega do mesmo jeito). Use o comando do time que a recusa cita; se o comando for de fato necessário, `fsd-duvida fluxo` para o Kevin abrir o issue que o autor libera por PR.

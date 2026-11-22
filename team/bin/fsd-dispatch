@@ -156,8 +156,18 @@ async function exec(a, g) {
   throw new Error(`ação desconhecida: ${a.type}`);
 }
 
+const fsMod = await import('node:fs');
+// Validação R30: a decisão do autor nos issues com aguardando-autor (fsd-admit, 0 token) a cada dispatch.admitEveryMin (padrão 5).
+function admit() {
+  if (DRY || process.env.FSD_DISPATCH_FIXTURE) return;
+  const f = join(D.dispatchDir(), 'admit.at'); let last = 0; try { last = Number(readFileSync(f, 'utf8')) || 0; } catch {}
+  if (now() - last < Number(cfg.admitEveryMin ?? 5) * 60000) return;
+  const r = spawnSync(join(BIN, 'fsd-admit'), [], { encoding: 'utf8', env: process.env, timeout: 120000 });
+  try { fsMod.writeFileSync(f, String(now())); } catch {}
+  const out = `${r.stdout || ''}${r.stderr || ''}`.trim(); if (out && !/nada a fazer/.test(out)) console.log(`fsd-dispatch: fsd-admit: ${out.split('\n').join(' | ').slice(0, 300)}`);
+}
 if (cmd === 'round') {
-  const r = await D.round({ gather, exec, now: now(), cfg });
+  const r = await D.round({ gather, exec, now: now(), cfg }); admit();
   console.log(`fsd-dispatch: ${r.actions.length} ação(ões), ${r.done.length} feita(s)${r.skipped.length ? `, ${r.skipped.length} falharam` : ''}`);
 } else if (cmd === 'pin') {
   const repo = process.env.FSD_REPO || join(TEAM, '..');
@@ -173,7 +183,7 @@ if (cmd === 'round') {
   // Validação R32: depois de um reinício do container, os papéis ativos voltam pela conversa gravada antes da primeira rodada.
   if (!DRY && !process.env.FSD_DISPATCH_FIXTURE) { const b = spawnSync(join(BIN, 'fsd-session'), ['boot'], { encoding: 'utf8', env: process.env }); console.log((b.stdout || b.stderr || '').trim().split('\n')[0] || 'fsd-session boot: sem saída'); }
   const rounds = Number(process.env.FSD_DISPATCH_ROUNDS) || Infinity;   // testes: um número fixo de rodadas
-  for (let i = 0; i < rounds; i++) { try { await D.round({ gather, exec, now: now(), cfg }); } catch (e) { console.log(`fsd-dispatch: rodada falhou: ${String(e.message).split('\n')[0]}`); } if (i + 1 < rounds) await new Promise((r) => setTimeout(r, Number(cfg.loopSeconds || 60) * 1000)); }
+  for (let i = 0; i < rounds; i++) { try { await D.round({ gather, exec, now: now(), cfg }); admit(); } catch (e) { console.log(`fsd-dispatch: rodada falhou: ${String(e.message).split('\n')[0]}`); } if (i + 1 < rounds) await new Promise((r) => setTimeout(r, Number(cfg.loopSeconds || 60) * 1000)); }
 } else if (cmd === 'status') {
   const tasks = D.loadTasks(); console.log(JSON.stringify({ pin: D.currentPin(), tasks, judged: D.loadJudged(), judging: D.loadJudging() }, null, 1));
 } else L.die('uso: fsd-dispatch round [--dry] | loop | pin | status', 2);
