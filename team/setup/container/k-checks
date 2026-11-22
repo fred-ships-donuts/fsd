@@ -145,6 +145,14 @@ if [ -d /srv/native ]; then
   check K15 "node e claude para os usuários de sistema" bash -c "su -s /bin/bash fsd-mel -c 'node -e 0 && claude --help >/dev/null'"
   check K15 "o ai-memory na home de cada papel (caminho dos hooks)" bash -c "for r in kevin mel stuart bob; do su -s /bin/bash fsd-\$r -c \"test -x /home/fsd-\$r/.local/lib/ai-memory/ai-memory\" || exit 1; done"
 fi
+# K16 (F2.5): o Bash de cada papel no sandbox do claude, sem saída para fora dele, com a credencial e os tokens do ai-memory negados à
+# leitura e a internet livre; só o fsd-qa do Bob fica fora (o sudo para o fsd-run não roda com no_new_privs; o guard o quer sozinho).
+if command -v jq >/dev/null; then
+  for r in "${ROLES[@]}"; do
+    check K16 "o perfil do $r liga o sandbox, sem comando fora dele, e nega a credencial" jq -e '.sandbox.enabled == true and .sandbox.allowUnsandboxedCommands == false and .sandbox.failIfUnavailable == true and (.sandbox.filesystem.denyRead | index("~/.claude/.credentials.json")) and (.sandbox.network.allowedDomains == ["*"])' "/etc/fsd/profiles/$r/settings.json"
+  done
+  check K16 "só o fsd-qa do Bob fica fora do sandbox" bash -c "[ \"\$(jq -c .sandbox.excludedCommands /etc/fsd/profiles/bob/settings.json)\" = '[\"fsd-qa *\"]' ] && for r in kevin mel stuart; do [ \"\$(jq -c '.sandbox.excludedCommands // []' /etc/fsd/profiles/\$r/settings.json)\" = '[]' ] || exit 1; done"
+fi
 # K13 (F0.2, T0.2.2): o aceite do bypass em --bg vem das managed settings do root, que nenhum papel edita.
 if command -v jq >/dev/null; then
   check K13 "managed settings do root com o aceite do bypass" bash -c "[ \"\$(stat -c '%U %a' /etc/claude-code/managed-settings.json)\" = 'root 644' ] && jq -e '.skipDangerousModePermissionPrompt == true' /etc/claude-code/managed-settings.json >/dev/null"

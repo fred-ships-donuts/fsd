@@ -59,5 +59,26 @@
         ]
       }
     ]
+  },
+  "sandbox": {
+    "enabled": true,
+    "allowUnsandboxedCommands": false,
+    "failIfUnavailable": true,
+    "filesystem": {
+      "denyRead": [
+        "~/.claude/.credentials.json",
+        "~/.local/share/ai-memory/auth-token",
+        "~/.local/share/ai-memory/auth-header",
+        "~/.local/share/ai-memory/auth-tokens"
+      ]
+    },
+    "network": {
+      "allowedDomains": [
+        "*"
+      ]
+    },
+    "excludedCommands": [
+      "fsd-qa *"
+    ]
   }
 }
