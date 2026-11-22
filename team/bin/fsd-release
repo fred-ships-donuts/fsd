@@ -1,5 +1,6 @@
 #!/usr/bin/env node
-// fsd-release plan [--json] | prepare [--dry] — a release do produto (E5, RELEASE.md). 0 token.
+// fsd-release plan [--json] | prepare [--dry] | publish <pr> [--dry] | rollback <ruim> <correção> [--dry] | audit verify
+// — a release do produto (E5, RELEASE.md). 0 token.
 //   plan      a próxima versão pelos commits desde a última tag v* (só os que tocam src/ e package.json) e as notas
 //   prepare   branch release/vX.Y.Z a partir da develop, com o CHANGELOG promovido e a versão no package.json, e o PR para a main
 //             com notas, checklist e o autor como revisor. --dry (ou FSD_DRY=1) só mostra. Quem roda é o supervisor (token de release).
@@ -36,4 +37,45 @@ if (cmd === 'plan') {
   git('add', 'CHANGELOG.md', 'package.json'); git('commit', '-qm', `release: v${p.version}`); git('push', '-q', 'origin', branch);
   const r = spawnSync(join(BIN, 'gh'), ['pr', 'create', '--base', 'main', '--head', branch, '--title', `release: v${p.version}`, '--reviewer', CFG.author, '--body-file', '-'], { input: body, encoding: 'utf8' });
   console.log(r.status === 0 ? r.stdout.trim() : `fsd-release: PR falhou: ${r.stderr.trim()}`); process.exit(r.status === 0 ? 0 : 4);
-} else { console.log('uso: fsd-release plan [--json] | prepare [--dry]'); process.exit(2); }
+} else if (cmd === 'publish') {
+  // F5.3: portão (autor aprovou o head, CI verde) → merge na main → tag assinada → push da tag → assets (de um worktree limpo da
+  // tag) → GitHub Release (sem npm) → auditoria. FSD_RELEASE_FIXTURE=<json do PR> troca o gh (testes, com --dry).
+  const n = rest.find((x) => /^\d+$/.test(x)); if (!n) { console.log('uso: fsd-release publish <pr> [--dry]'); process.exit(2); }
+  const L = await import('./fsd-lib.mjs');
+  const pr = process.env.FSD_RELEASE_FIXTURE ? JSON.parse(readFileSync(process.env.FSD_RELEASE_FIXTURE, 'utf8')) : L.pr(n);
+  const fail = R.releaseGate(pr, { author: CFG.author, ciState: L.ciState }); if (fail.length) { console.log(`fsd-release: PR #${n} não pode ser publicado: ${fail.join('; ')}`); process.exit(1); }
+  const version = pr.headRefName.replace('release/v', ''), tag = `v${version}`;
+  const key = process.env.FSD_RELEASE_SIGNING_KEY;
+  if (!key && !DRY) { console.log('fsd-release: sem FSD_RELEASE_SIGNING_KEY (a chave de assinatura do broker)'); process.exit(2); }
+  const steps = [`gh pr merge ${n} --merge --match-head-commit ${pr.headRefOid}`, `git tag -s ${tag} (ssh, ${key || '<chave do broker>'}) no merge commit`, `git push origin ${tag}`,
+    `assets de ${tag}: npm pack, npm sbom (CycloneDX), SHA256SUMS`, `gh release create ${tag} --verify-tag --title ${tag} --notes-file <seção ${version} do CHANGELOG> <assets>`, `auditoria: ${tag}`];
+  if (DRY) { console.log(steps.map((x) => `[dry] ${x}`).join('\n')); process.exit(0); }
+  const gh = (...a) => { const r = spawnSync(join(BIN, 'gh'), a, { encoding: 'utf8' }); if (r.status !== 0) throw new Error(`gh ${a[0]} ${a[1]}: ${r.stderr.trim()}`); return r.stdout.trim(); };
+  gh('pr', 'merge', n, '--merge', '--match-head-commit', pr.headRefOid);
+  const sha = JSON.parse(gh('pr', 'view', n, '--json', 'mergeCommit')).mergeCommit.oid;
+  git('fetch', '-q', 'origin', 'main'); R.signTag({ repo: REPO, tag, sha, key, message: `fsd ${tag}` }); git('push', '-q', 'origin', tag);
+  const { mkdtempSync } = await import('node:fs'); const { tmpdir } = await import('node:os');
+  const wt = mkdtempSync(join(tmpdir(), 'fsd-rel-')); git('worktree', 'add', '-q', '--detach', join(wt, 'src'), tag);
+  try {
+    spawnSync('npm', ['ci', '--silent', '--no-audit', '--no-fund'], { cwd: join(wt, 'src') });
+    const a = R.buildAssets({ repo: join(wt, 'src'), out: join(wt, 'assets') });
+    const notes = R.sectionOf(readFileSync(join(wt, 'src', 'CHANGELOG.md'), 'utf8'), version);
+    writeFileSync(join(wt, 'notes.md'), notes);
+    gh('release', 'create', tag, '--verify-tag', '--title', tag, '--notes-file', join(wt, 'notes.md'), a.tgz, a.sbom, a.sums);
+    const state = process.env.FSD_STATE || join(process.env.HOME, '.config', 'fsd-agents');
+    R.auditAppend(join(state, 'releases.jsonl'), { t: new Date().toISOString(), event: 'release', tag, sha, pr: Number(n), preparedBy: 'fsd-dispatch', approvedBy: CFG.author, ci: 'green', assets: Object.fromEntries([a.tgz, a.sbom].map((f) => [f.split('/').pop(), R.sha256File(f)])) });
+    console.log(`fsd-release: ${tag} publicado`);
+  } finally { git('worktree', 'remove', '--force', join(wt, 'src')); }
+} else if (cmd === 'rollback') {
+  const [bad, fix] = rest.filter((x) => /^v\d+\.\d+\.\d+$/.test(x)); if (!bad || !fix) { console.log('uso: fsd-release rollback <vRuim> <vCorreção> [--dry]'); process.exit(2); }
+  const note = `**Superseded by ${fix}.** This release has a known problem; use ${fix}.`;
+  const steps = [`gh release edit ${bad} --prerelease (nota no topo: ${note})`, `auditoria: rollback ${bad} → ${fix}`, 'a tag não é movida nem apagada'];
+  if (DRY) { console.log(steps.map((x) => `[dry] ${x}`).join('\n')); process.exit(0); }
+  const cur = spawnSync(join(BIN, 'gh'), ['release', 'view', bad, '--json', 'body', '--jq', '.body'], { encoding: 'utf8' }).stdout;
+  const r = spawnSync(join(BIN, 'gh'), ['release', 'edit', bad, '--prerelease', '--notes', `${note}\n\n${cur}`], { encoding: 'utf8' }); if (r.status !== 0) { console.log(r.stderr.trim()); process.exit(4); }
+  const state = process.env.FSD_STATE || join(process.env.HOME, '.config', 'fsd-agents');
+  R.auditAppend(join(state, 'releases.jsonl'), { t: new Date().toISOString(), event: 'rollback', tag: bad, fix }); console.log(`fsd-release: ${bad} marcado como substituído por ${fix}`);
+} else if (cmd === 'audit' && rest[0] === 'verify') {
+  const state = process.env.FSD_STATE || join(process.env.HOME, '.config', 'fsd-agents'); const v = R.auditVerify(join(state, 'releases.jsonl'));
+  console.log(v.ok ? `auditoria íntegra (${v.entries} entrada(s))` : `auditoria ADULTERADA na linha ${v.at + 1}`); process.exit(v.ok ? 0 : 1);
+} else { console.log('uso: fsd-release plan [--json] | prepare [--dry] | publish <pr> [--dry] | rollback <ruim> <correção> [--dry] | audit verify'); process.exit(2); }
