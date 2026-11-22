@@ -60,7 +60,8 @@ test('task lease: after taskLeaseMin with the role stopped and no delivery, deci
 test('judge once per ref across rounds and restarts', async () => {
   fresh(); const seen = [];
   for (let i = 0; i < 3; i++) await D.round({ gather: g({ deadlocks: [{ ref: '#7', key: 'DEADLOCK #7' }] }), exec: async (a) => seen.push(a.type), now: T0 + i * MIN });
-  assert.deepEqual(seen, ['judge']); assert.deepEqual(D.loadJudged(), ['#7']);
+  // Validação R28: chamado uma vez; fica em judging até o supervisor ler a resposta (só então entra em judged).
+  assert.deepEqual(seen, ['judge']); assert.deepEqual(D.loadJudged(), []); assert.equal(D.loadJudging()['#7'].state, 'running');
 });
 
 test('every action is in the journal with intent and done', async () => {

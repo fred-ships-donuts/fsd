@@ -226,7 +226,27 @@ if [ -x /usr/local/sbin/fsd-session-exec ] && [ -n "${FSD_SIM_TEAM:-}" ] && comm
   check K18 "R12: o StopFailure do Bob pede a pausa na pasta dele (não grava a raiz)" bash -c "[ -f $SR/bob/PAUSE.request ] && [ ! -e $SR/PAUSE ]"
   disp >/dev/null
   check K18 "R12: o supervisor aplica o pedido no PAUSE do time e apaga o pedido" bash -c "[ -f $SR/PAUSE ] && [ -f $SR/PAUSE.usage ] && [ ! -e $SR/bob/PAUSE.request ]"
-  rm -f "$SR/PAUSE" "$SR/PAUSE.usage" "/tmp/stub-claude-$(id -u fsd-mel)/env.json"
+  # R28: o juiz roda como o Kevin pelo verbo judge do wrapper (só como fsd-kevin), e o supervisor lê o resultado e avisa o Kevin.
+  echo '[]' > /tmp/k18-waits.json; chmod 644 /tmp/k18-waits.json
+  jout=$(su -s /bin/bash fsd-dispatch -c "sudo -n -u fsd-kevin /usr/local/sbin/fsd-session-exec judge 77 /tmp/k18-waits.json" 2>&1); jrc=$?
+  judged_as_kevin() { [ "$1" != 1 ] && [ "$1" != 2 ] && ! grep -q 'only kevin' <<<"$2"; }
+  check K18 "R28: o juiz roda como o Kevin pelo wrapper (passa a checagem do papel)" judged_as_kevin "$jrc" "$jout"
+  check K18 "R28: o verbo judge recusa outro papel" cannot fsd-dispatch "sudo -n -u fsd-mel /usr/local/sbin/fsd-session-exec judge 77 /tmp/k18-waits.json"
+  JD=$KD/st/dispatch/judge; install -d -o fsd-dispatch -g fsd-dispatch -m 0700 "$JD"
+  printf '{"#77":{"at":%s,"state":"running"}}' "$(date +%s%3N)" > "$KD/st/dispatch/judging.json"; echo 0 > "$JD/77.done"
+  printf 'fsd-judge: author decision needed (low confidence)\n**Deadlock: author decision needed**\nk18-comentario\n' > "$JD/77.out"; chown -R fsd-dispatch: "$KD/st/dispatch"
+  disp >/dev/null
+  judge_reported() { grep -q 'k18-comentario' "$SR/kevin/inbox/kevin" && jq -e 'index("#77")' "$KD/st/dispatch/judged.json" >/dev/null && [ ! -e "$JD/77.done" ]; }
+  check K18 "R28: a resposta do juiz chega ao Kevin (comentário do autor) e o ref fica julgado só depois dela" judge_reported
+  # R31: o fsd-eval --real como o supervisor: a situação vai para a pasta da Mel, a sessão sobe pelo wrapper, o eval espera o Stop da
+  # conversa nova, lê a transcrição pelo verbo transcript e as mensagens pela pasta dela (o stub faz o papel do claude).
+  printf '[{"bash":"fsd-diga kevin k18-eval-real"}]' > /tmp/k18-play.json; chmod 644 /tmp/k18-play.json
+  printf '{"id":"k18-real","role":"mel","behaviors":[],"setup":{"prompt":"diga ao kevin"},"expect":{"messages":[{"to":"kevin","match":"k18-eval-real"}],"commands":{"must":["fsd-diga kevin"]}}}' > /tmp/k18-sc.json; chmod 644 /tmp/k18-sc.json
+  stubenv '{"STUB_RUN_HOOKS":"1","STUB_PLAY":"/tmp/k18-play.json","STUB_HOME_TRANSCRIPT":"1"}'
+  eout=$(su -s /bin/bash fsd-dispatch -c "cd ~ && FSD_STATE_ROOT=$SR FSD_EVAL_POLL_MS=200 FSD_EVAL_TIMEOUT_S=30 node $T/fsd-eval run /tmp/k18-sc.json --real" 2>&1)
+  eval_real_ok() { grep -q '^PASS mel' <<<"$1" && ! compgen -G "$SR/mel/outbox/mel/*.json" >/dev/null; }
+  check K18 "R31: o eval --real espera o Stop, lê a transcrição pelo wrapper e acha a mensagem da Mel (e não a deixa no outbox)" eval_real_ok "$eout"
+  rm -f "$SR/PAUSE" "$SR/PAUSE.usage" "/tmp/stub-claude-$(id -u fsd-mel)/env.json" /tmp/k18-waits.json /tmp/k18-play.json /tmp/k18-sc.json
 fi
 # K13 (F0.2, T0.2.2): o aceite do bypass em --bg vem das managed settings do root, que nenhum papel edita.
 if command -v jq >/dev/null; then

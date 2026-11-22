@@ -44,6 +44,9 @@ function play(s, prompt) {
     lines.push({ type: 'user', message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: id, content: out }] } });
   }
   appendFileSync(f, lines.map((l) => JSON.stringify(l)).join('\n') + '\n');
+  // STUB_HOME_TRANSCRIPT=1: também em ~/.claude/projects/-stub/<sessionId>.jsonl, onde o claude de verdade grava (o verbo transcript do
+  // fsd-session-exec lê dali; o eval --real no simulate-container).
+  if (process.env.STUB_HOME_TRANSCRIPT && process.env.HOME) { const hd = join(process.env.HOME, '.claude', 'projects', '-stub'); mkdirSync(hd, { recursive: true }); appendFileSync(join(hd, `${s.sessionId}.jsonl`), lines.map((l) => JSON.stringify(l)).join('\n') + '\n'); }
 }
 if (a[0] === '--help') { console.log('Usage: claude [options]\n  --bg, --background\n  --bare\n  --permission-prompts\n  --settings <file-or-json>\n  --json-schema <schema>\n  --setting-sources <sources>\n  --resume [value]\n  --session-id <uuid>\n  -n, --name <name>'); process.exit(0); }
 if (['agents', 'respawn', 'stop', 'daemon'].includes(a[0]) && a[1] === '--help') { console.log(`Usage: claude ${a[0]} [options]${a[0] === 'agents' ? '\n  --json  Print active sessions' : ''}`); process.exit(0); }

@@ -7,6 +7,8 @@
 #   start <arquivo-prompt>                  claude --bg --name <papel> … (prompt lido do arquivo; o --bg escolhe o id e o imprime)
 #   resume <sessionId> <arquivo-prompt>     claude --bg --name <papel> … --resume <uuid> (com as flags fixas: cópia com o histórico)
 #   state                                   o estado do hook (session-state/<papel>.json) · unsaved: o que está só no disco
+#   judge <n> <arquivo-esperas>             só como fsd-kevin: o fsd-judge do impasse <n>, com as esperas (leases) que o supervisor leu
+#   transcript <sessionId>                  a transcrição da conversa (~/.claude/projects/*/<id>.jsonl), para o fsd-eval --real
 # Valida tudo: id hex curto, uuid, arquivo de prompt legível. As flags da sessão são fixas aqui, não vêm de quem chama: só os settings
 # do perfil (do root; hooks do time + o papel) e nenhuma outra fonte (--setting-sources local).
 set -uo pipefail
@@ -38,5 +40,14 @@ case "${1:-}" in
   resume) [[ ${2:-} =~ $UUID ]] || { echo "fsd-session-exec: uuid inválido" >&2; exit 2; }; run_bg "${3:-}" --resume "$2" ;;
   state) cat "$STATE_ROOT/$role/session-state/$role.json" 2>/dev/null || echo '{}' ;;
   unsaved) exec node -e 'import(process.argv[1]).then((m) => console.log(JSON.stringify(m.unsaved(process.argv[2], { repo: process.argv[3] }))))' "$TEAM/bin/fsd-eod.mjs" "$role" "$REPO" ;;
-  *) echo "uso: fsd-session-exec agents | stop <id> | start <arquivo-prompt> | resume <uuid> <arquivo-prompt> | state | unsaved" >&2; exit 2 ;;
+  # Validação R28: o juiz roda como o Kevin (o token pelo uid dele, o login do claude na home dele), com o ambiente da sessão.
+  judge) [ "$role" = kevin ] || { echo "fsd-session-exec: o juiz só roda como fsd-kevin" >&2; exit 2; }
+    [[ ${2:-} =~ ^[0-9]{1,7}$ ]] && [ -f "${3:-}" ] && [ -r "$3" ] || { echo "fsd-session-exec: judge <n> <arquivo-esperas>" >&2; exit 2; }
+    cd "$REPO" && exec env FSD_AGENT=kevin FSD_RUNNER=session FSD_TEAM="$TEAM" FSD_REPO="$REPO" FSD_STATE="$STATE_ROOT/kevin" FSD_STATE_ROOT="$STATE_ROOT" \
+      FSD_JUDGE_WAITS_FILE="$3" PATH="$TEAM/bin:/usr/local/bin:/usr/bin:/bin" GIT_CONFIG_GLOBAL="/etc/fsd/profiles/kevin/gitconfig" GIT_TERMINAL_PROMPT=0 \
+      node "$TEAM/bin/fsd-judge" "$2" ;;
+  # Validação R31: a transcrição fica na home do papel (0700); o eval real a lê por aqui.
+  transcript) [[ ${2:-} =~ $UUID ]] || { echo "fsd-session-exec: uuid inválido" >&2; exit 2; }
+    f=$(find "$HOME/.claude/projects" -mindepth 2 -maxdepth 2 -name "$2.jsonl" -print -quit 2>/dev/null); [ -n "$f" ] && exec cat -- "$f"; exit 0 ;;
+  *) echo "uso: fsd-session-exec agents | stop <id> | start <arquivo-prompt> | resume <uuid> <arquivo-prompt> | state | unsaved | judge <n> <arquivo-esperas> | transcript <uuid>" >&2; exit 2 ;;
 esac
