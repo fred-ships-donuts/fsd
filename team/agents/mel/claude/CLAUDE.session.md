@@ -3,7 +3,7 @@
 Conta `fsd-mel[bot]`. Dona do **como estruturar**: camadas (`core/`, `plan/`, `engine/`, `commands/`, `wizard/`, `ui/`), contratos e decisões técnicas. Referência: `docs/ARQUITETURA.md`.
 
 ## Faz
-- **Arquitetura** (contrato `arquitetura`): publica no card o plano antes de mover para Ready for Development, com o aceite numerado, os arquivos e os riscos (skill `writing-handoffs`).
+- **Arquitetura** (contrato `arquitetura`): publica no card o plano antes de mover para Ready for Development, com o aceite numerado, os arquivos e os riscos (skill `writing-handoffs`). O comando é `fsd-arq publish <n> <arquivo> --entrega <json>` (modelo: `fsd-entrega modelo arquitetura`): sem a entrega válida nada é publicado; o `plan` dela entra no card como **Plan:**.
 - **Revisão** (contrato `revisao`) dos PRs, principalmente os que tocam `engine/` e `core/` (skill `reviewing-prs`): lê o diff no head, confere cada item do aceite e o CI.
 - Responde as dúvidas técnicas que chegam por `fsd-duvida tecnica` ou `fsd-diga`; mantém o `docs/ARQUITETURA.md` por PR com issue próprio.
 

@@ -24,6 +24,27 @@ process.on('uncaughtException', (e) => die(String(e.message || e).split('\n')[0]
 process.on('unhandledRejection', (e) => die(String(e?.message || e).split('\n')[0].slice(0, 200), 4));
 if (!agent || !cfg.agents[agent]) die('rode dentro de uma sessão aberta pelo fsd-agent', 2);
 const board = cfg.board;
+// FSD_BOARD_FAKE=<arquivo>: o quadro num JSON ({ "<n>": "<coluna>" }) para os ciclos dry (F4.5–F4.8, com o fake-gh). Sem rede nem token.
+const FAKE = process.env.FSD_BOARD_FAKE;
+const COLS = Object.values(STAGE);
+const fakeLoad = () => { try { return JSON.parse(readFileSync(FAKE, 'utf8')); } catch { return {}; } };
+if (FAKE) {
+  const [c, ...r] = process.argv.slice(2); const quiet = r.includes('--quiet'); const a = r.filter((x) => x !== '--quiet' && x !== '-t' && x !== '--json');
+  const b = fakeLoad();
+  if (c === 'move') {
+    let col, nums; if (a.length === 2 && /^\d+$/.test(a[0]) && !/^\d+$/.test(a[1])) { nums = [a[0]]; col = a[1]; } else { col = a[0]; nums = a.slice(1); }
+    if (!col || !nums.length || nums.some((n) => !/^\d+$/.test(n))) die('uso: fsd-board move "<coluna>" <n…>', 2);
+    col = stageName(col); if (!COLS.includes(col)) die(`coluna "${col}" não existe. Colunas: ${COLS.join(', ')}`, 2);
+    for (const n of nums) b[n] = col; writeFileSync(FAKE, JSON.stringify(b, null, 1));
+    const own = ownersOf(col); let told = '';
+    if (own && !quiet) { try { told = execFileSync(join(HERE, 'fsd-notify'), [own.join(','), `${nums.map((n) => '#' + n).join(',')} → ${col}`], { encoding: 'utf8' }).trim(); } catch {} }
+    console.log(`${nums.map((n) => '#' + n).join(',')} → ${col}${told && told !== 'ninguém recebeu' ? ' | avisados: ' + told : ''}`);
+  } else if (c === 'list') {
+    if (r.includes('--json')) console.log(JSON.stringify(Object.entries(b).map(([n, column]) => ({ column, number: Number(n), type: 'Issue', updatedAt: null }))));
+    else { const want = a[0] ? stageName(a[0]) : null; for (const o of COLS.filter((x) => !want || x === want)) { const here = Object.keys(b).filter((n) => b[n] === o); if (here.length || want) console.log(`${o} (${here.length}): ${here.map((n) => '#' + n).join(' ')}`); } }
+  } else die('fsd-board (fake): só list e move', 2);
+  process.exit(0);
+}
 if (!board?.owner || !board?.number || !board?.repo) {
   const av = process.argv.slice(2);
   if (av[0] === 'move' && !av.includes('--quiet') && !process.env.FSD_DRY) {
@@ -34,7 +55,9 @@ if (!board?.owner || !board?.number || !board?.repo) {
   die('quadro ainda não configurado (falta "board" no agents.json)', 2);
 }
 const tok = new Map();
-const token = (scope) => { if (!tok.has(scope)) { try { tok.set(scope, execFileSync(join(HERE, 'fsd-token'), scope === 'org' ? [agent, 'org'] : [agent], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim()); } catch (e) { die(String(e.stderr || e.message).trim().split('\n')[0], 4); } } return tok.get(scope); };
+// Sessão nova (F2.3, C1): o token vem do arquivo do papel (fsd-token-file, pelo usuário Unix); o fsd-token lê as chaves, que o papel não vê.
+const SESSION = process.env.FSD_RUNNER === 'session';
+const token = (scope) => { if (!tok.has(scope)) { try { tok.set(scope, execFileSync(join(HERE, SESSION ? 'fsd-token-file' : 'fsd-token'), SESSION ? (scope === 'org' ? ['org'] : []) : (scope === 'org' ? [agent, 'org'] : [agent]), { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim()); } catch (e) { die(String(e.stderr || e.message).trim().split('\n')[0], 4); } } return tok.get(scope); };
 
 async function gql(scope, query, variables = {}) {
   const r = await fetch('https://api.github.com/graphql', {

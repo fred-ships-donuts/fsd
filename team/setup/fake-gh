@@ -1,0 +1,81 @@
+#!/usr/bin/env node
+// fake-gh — um GitHub falso em JSON para os ciclos dry dos papéis (F4.5–F4.8; 0 token, sem rede). Entra no lugar do wrapper pelo
+// FSD_GH (fsd-lib). Estado em $FAKE_GH_STATE:
+//   { issues: { "<n>": { number, title, body, state, labels: [{name}], comments: [{ author: {login}, body }] } },
+//     prs: { "<n>": { number, title, body, state, isDraft, baseRefName, headRefName, headRefOid, author: {login}, files: [...],
+//                     diff, reviews: [{ id, author: {login}, state, body, commit: {oid} }], comments: [...], statusCheckRollup: [...] } },
+//     next: <próximo número>, calls: [argv…] }
+// Quem escreve: fsd-$FSD_AGENT (o App do papel; o GraphQL do markBots diz Bot). Só o que os comandos do time usam; o resto sai 2.
+import { readFileSync, writeFileSync } from 'node:fs';
+
+const F = process.env.FAKE_GH_STATE; if (!F) { console.error('fake-gh: FAKE_GH_STATE não definido'); process.exit(2); }
+const st = (() => { try { return JSON.parse(readFileSync(F, 'utf8')); } catch { return {}; } })();
+st.issues ||= {}; st.prs ||= {}; st.next ||= 100; st.calls ||= [];
+const a = process.argv.slice(2); st.calls.push(a);
+const save = () => writeFileSync(F, JSON.stringify(st, null, 1));
+const out = (x) => { save(); process.stdout.write(typeof x === 'string' ? x + '\n' : JSON.stringify(x) + '\n'); process.exit(0); };
+const fail = (m, c = 1) => { save(); console.error(m); process.exit(c); };
+const opt = (k) => { const i = a.indexOf(k); return i >= 0 ? a[i + 1] : undefined; };
+const opts = (k) => a.flatMap((x, i) => (x === k ? [a[i + 1]] : []));
+const me = () => ({ login: `fsd-${process.env.FSD_AGENT || 'x'}` });
+const stdin = () => { try { return readFileSync(0, 'utf8'); } catch { return ''; } };
+const bodyArg = () => (opt('--body') ?? (opt('--body-file') === '-' ? stdin() : opt('--body-file') ? readFileSync(opt('--body-file'), 'utf8') : ''));
+const pick = (o) => { const f = opt('--json'); if (!f) return o; return Object.fromEntries(f.split(',').map((k) => [k, o[k] ?? null])); };
+const url = (kind, n) => `https://github.com/fake/fsd/${kind}/${n}`;
+const num = (x) => String(Number(String(x).replace(/^#/, '')));
+const issue = (n) => st.issues[num(n)] || fail(`GraphQL: Could not resolve to an issue or pull request with the number of ${n}.`);
+const prOf = (n) => st.prs[num(n)] || fail(`GraphQL: Could not resolve to a PullRequest with the number of ${n}.`);
+const [g, c] = a;
+
+if (g === 'issue') {
+  if (c === 'view') out(pick(issue(a[2])));
+  if (c === 'list') {
+    let l = Object.values(st.issues); const s = (opt('--state') || 'open').toUpperCase();
+    if (s !== 'ALL') l = l.filter((i) => i.state === s);
+    for (const lb of opts('--label')) l = l.filter((i) => (i.labels || []).some((x) => x.name === lb));
+    const q = opt('--search'); if (q) { const w = q.replace(/\s+in:title$/, '').toLowerCase(); l = l.filter((i) => i.title.toLowerCase().includes(w)); }
+    out(l.slice(0, Number(opt('--limit') || 30)).map(pick));
+  }
+  if (c === 'comment') { const i = issue(a[2]); (i.comments ||= []).push({ author: me(), body: bodyArg() }); out(`${url('issues', i.number)}#issuecomment-${i.comments.length}`); }
+  if (c === 'edit') { const i = issue(a[2]); for (const l of opts('--add-label').flatMap((x) => x.split(','))) if (!i.labels.some((x) => x.name === l)) i.labels.push({ name: l });
+    for (const l of opts('--remove-label').flatMap((x) => x.split(','))) i.labels = i.labels.filter((x) => x.name !== l); out(url('issues', i.number)); }
+  if (c === 'create') { const n = st.next++; st.issues[n] = { number: n, title: opt('--title'), body: bodyArg(), state: 'OPEN', labels: opts('--label').flatMap((x) => x.split(',')).map((name) => ({ name })), comments: [], author: me() }; out(url('issues', n)); }
+  if (c === 'close') { issue(a[2]).state = 'CLOSED'; out(''); }
+}
+if (g === 'pr') {
+  if (c === 'view') out(pick(prOf(a[2])));
+  if (c === 'list') {
+    let l = Object.values(st.prs); const s = (opt('--state') || 'open').toUpperCase();
+    if (s !== 'ALL') l = l.filter((p) => p.state === s); if (opt('--head')) l = l.filter((p) => p.headRefName === opt('--head'));
+    out(l.slice(0, Number(opt('--limit') || 30)).map(pick));
+  }
+  if (c === 'diff') { save(); process.stdout.write(prOf(a[2]).diff || ''); process.exit(0); }
+  if (c === 'comment') { const p = prOf(a[2]); (p.comments ||= []).push({ author: me(), body: bodyArg() }); out(`${url('pull', p.number)}#issuecomment-${p.comments.length}`); }
+  if (c === 'create') {
+    const n = st.next++; const head = opt('--head');
+    st.prs[n] = { number: n, title: opt('--title'), body: bodyArg(), state: 'OPEN', isDraft: false, baseRefName: opt('--base') || 'develop', headRefName: head, headRefOid: process.env.FAKE_GH_HEAD || '0'.repeat(40), author: me(), files: [], diff: '', reviews: [], comments: [], reviewRequests: [], mergeable: 'MERGEABLE', mergeCommit: null, statusCheckRollup: [], url: url('pull', n) };
+    out(url('pull', n));
+  }
+}
+if (g === 'api') {
+  const path = a.find((x, i) => i > 0 && !x.startsWith('-') && !['-X', '-f', '-F'].includes(a[i - 1])) || '';
+  if (path === 'graphql') {   // markBots: o __typename do autor de cada revisão
+    const q = (opts('-f').find((x) => x.startsWith('query=')) || '').slice(6); const repository = {};
+    for (const m of q.matchAll(/(p\d+):pullRequest\(number:(\d+)\)/g)) repository[m[1]] = { reviews: { nodes: (st.prs[m[2]]?.reviews || []).map((r) => ({ id: r.id, author: { __typename: /^fsd-/.test(r.author?.login) ? 'Bot' : 'User' } })) } };
+    out({ data: { repository } });
+  }
+  let m;
+  if ((m = /pulls\/(\d+)\/reviews$/.exec(path)) && opt('-X') === 'POST') {
+    const p = prOf(m[1]); const f = Object.fromEntries(opts('-f').map((x) => [x.slice(0, x.indexOf('=')), x.slice(x.indexOf('=') + 1)]));
+    const body = (opts('-F').find((x) => x.startsWith('body=')) || '') === 'body=@-' ? stdin() : '';
+    const state = { APPROVE: 'APPROVED', REQUEST_CHANGES: 'CHANGES_REQUESTED', COMMENT: 'COMMENTED' }[f.event];
+    if (!state) fail('fake-gh: event inválido', 2);
+    if (f.commit_id && f.commit_id !== p.headRefOid) fail(`HTTP 422: commit_id ${f.commit_id} não é o head do PR`);
+    p.reviews.push({ id: `R${p.reviews.length + 1}`, author: me(), state, body, commit: { oid: f.commit_id || p.headRefOid }, submittedAt: new Date().toISOString() });
+    out({ id: p.reviews.length, state });
+  }
+  if ((m = /pulls\/(\d+)\/comments$/.exec(path))) out(prOf(m[1]).lineComments || []);
+  if ((m = /issues\/(\d+)\/comments$/.exec(path))) out((issue(m[1]).comments || []).map((x, i) => ({ id: i + 1, user: x.author, body: x.body })));
+  if ((m = /issues\/(\d+)$/.exec(path))) out({ number: Number(m[1]), updated_at: new Date().toISOString() });
+}
+fail(`fake-gh: não emulado: ${a.join(' ')}`, 2);
