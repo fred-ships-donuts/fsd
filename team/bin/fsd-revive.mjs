@@ -27,8 +27,9 @@ export function reviveRefused(dir = stateDir()) {
   if (process.env.FSD_REVIVE_CMD) return null;
   if (process.env.FSD_DRY) return 'FSD_DRY';
   const real = (p) => { try { return realpathSync(p); } catch { return p; } };
-  const t = real(tmpdir()), d = real(dir);
-  return d === t || d.startsWith(`${t}/`) ? `estado de teste (${dir})` : null;
+  // O tmpdir do processo e o /tmp do sistema: um teste que aponta o TMPDIR para uma subpasta (simulate-envs) deixa o estado no /tmp.
+  const d = real(dir);
+  return [tmpdir(), '/tmp'].map(real).some((t) => d === t || d.startsWith(`${t}/`)) ? `estado de teste (${dir})` : null;
 }
 export function reviveWatcher(who = process.env.FSD_AGENT || 'agente') {
   try {

@@ -37,6 +37,7 @@ import { fingerprint, reexecIfChanged, settingsHash, safeToRestart } from './fsd
 import { checkoutState } from './fsd-follow.mjs';
 import { load as loadRedirects } from './fsd-redirects.mjs';
 import { refuseIfQa } from './fsd-qa-guard.mjs';
+import { reviveRefused } from './fsd-revive.mjs';
 
 const BIN = dirname(fileURLToPath(import.meta.url)); const ROOT = dirname(BIN);
 const REPO = process.env.FSD_REPO || dirname(ROOT); // o clone em que team/ mora
@@ -266,6 +267,9 @@ function cleanupCheck() {
   if (up) return `fsd-cleanup: no ar (pid ${pid})`;
   if (existsSync(join(dir, 'PAUSE'))) return 'fsd-cleanup: parado, PAUSE: nada';
   if (!FIX) return 'fsd-cleanup: parado, faria: subir o laço';
+  // #212: a mesma regra do fsd-revive. Com FSD_DRY ou estado de teste (no tmpdir), nunca sobe um laço destacado: uma rodada única de
+  // teste (simulate-envs, QA) deixava um fsd-cleanup --loop vivo para sempre.
+  const refused = reviveRefused(dir); if (refused) return `fsd-cleanup: parado, ${refused}: não sobe o laço`;
   const c = spawn(process.execPath, [join(BIN, 'fsd-cleanup'), '--loop'], { detached: true, stdio: 'ignore', env: process.env });
   c.on('error', () => {}); c.unref();
   log('fsd-cleanup: parado → subiu o laço (fsd-cleanup --loop)');

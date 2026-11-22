@@ -19,7 +19,7 @@ BASE="$(mktemp -d "${TMPDIR:-/tmp}/fsd-sim.XXXX")"; RES="$BASE/results"; : > "$R
 # Na saída, mesmo abortando no meio: derruba os servidores tmux da simulação (sockets em $BASE) e apaga $BASE.
 # Hermético: nenhuma FSD_* da sessão de quem roda (FSD_DRY, FSD_STATE, FSD_TMUX_SOCKET…) entra nos ambientes simulados.
 for v in $(compgen -e | grep '^FSD_'); do unset "$v"; done
-trap 'node "$SRC/team/bin/fsd-loops.mjs" kill --under "$BASE" >/dev/null 2>&1; for d in "$BASE"/tmux-*; do [ -d "$d" ] && TMUX_TMPDIR="$d" tmux -L fsd-sim kill-server 2>/dev/null; done; TMUX_TMPDIR="$BASE/tmux-watch" tmux -L "fsdsim$$" kill-server 2>/dev/null; [ "$KEEP" = 1 ] || rm -rf "$BASE"' EXIT
+trap 'node "$SRC/team/bin/fsd-loops.mjs" kill --under "$BASE" >/dev/null 2>&1; for d in "$BASE"/tmux-*; do [ -d "$d" ] && TMUX_TMPDIR="$d" tmux -L fsd-sim kill-server 2>/dev/null; done; TMUX_TMPDIR="$BASE/tmux-watch" tmux -L "fsdsim$$" kill-server 2>/dev/null; [ "$KEEP" = 1 ] || { rm -rf "$BASE"; [ ! -e "$BASE" ] || { echo "simulate-envs: $BASE ficou para trás (#212)" >&2; exit 1; }; }' EXIT
 ok()  { echo "  PASS $*"; echo P >> "$RES"; }
 bad() { echo "  FAIL $*"; echo F >> "$RES"; }
 chk() { local d="$1"; shift; local o; if o=$("$@" 2>&1); then ok "$d"; else bad "$d :: $(tail -3 <<<"$o" | tr '\n' ' ' | cut -c1-300)"; fi; }
@@ -40,8 +40,9 @@ mkenv() { # nome repo home FSD_REPO(set|unset) links(container|host) node_module
   git -C "$repo" fetch -q origin "+refs/heads/develop:refs/remotes/origin/develop"
   [ "$nm" = link ] && ln -s "$SRC/node_modules" "$repo/node_modules"
   local st="$home/.config/fsd-agents"; mkdir -p "$st/agents/mel/claude" "$st/agents/kevin/claude" "$st/ai-memory-tokens" "$st/cache"
-  # Token do App sem chave e sem rede: o fsd-token devolve o cache enquanto faltar mais de 10 min para expirar.
-  node -e 'const fs=require("fs"),[a,d]=process.argv.slice(1),x=new Date(Date.now()+864e5).toISOString();for(const n of Object.keys(JSON.parse(fs.readFileSync(a)).agents))for(const f of [n,n+"-org"])fs.writeFileSync(d+"/"+f+".json",JSON.stringify({token:"sim",expires_at:x}),{mode:0o600})' "$repo/team/agents.json" "$st/cache"
+  # Token do App sem chave e sem rede: o fsd-token devolve o cache enquanto faltar mais de 10 min para expirar e só se ele foi
+  # emitido com o mesmo body (F1.6): a semente leva o body do requestBody do próprio fsd-mint.mjs.
+  node --input-type=module -e 'import fs from "node:fs"; const [a,d,m]=process.argv.slice(1); const { requestBody } = await import(m); const cfg=JSON.parse(fs.readFileSync(a)); const x=new Date(Date.now()+864e5).toISOString(); for (const n of Object.keys(cfg.agents)) for (const [f,sc] of [[n,"repo"],[n+"-org","org"]]) { let body; try { body=requestBody(cfg,n,sc); } catch { continue; } fs.writeFileSync(d+"/"+f+".json",JSON.stringify({token:"sim",expires_at:x,body}),{mode:0o600}); }' "$repo/team/agents.json" "$st/cache" "$repo/team/bin/fsd-mint.mjs"
   echo dummy > "$st/claude-oauth-token"; echo dummy > "$st/ai-memory-tokens/mel"
   ln -s /media/outra-maquina/Projects/fred-ships-donuts/team/agents/mel/claude/CLAUDE.md "$st/agents/mel/claude/CLAUDE.md"
   echo "cópia antiga" > "$st/agents/kevin/claude/CLAUDE.md"
@@ -216,5 +217,9 @@ wait
 cat "$BASE"/out/[1-7]
 # Nada saiu dos falsos: um claude ou gh de verdade teria caído nestes que vêm depois deles no PATH.
 [ -s "$BASE/trap.hits" ] && bad "claude/gh de verdade foi chamado: $(head -3 "$BASE/trap.hits" | tr '\n' ' ')" || ok "nenhum claude ou gh de verdade foi chamado (só os falsos)"
+# #212: nenhum laço fsd-watch/fsd-cleanup --loop desta simulação pode seguir de pé depois dos cenários (o trap ainda encerra, mas
+# um laço vivo aqui é um vazamento que, fora da simulação, ficaria rodando).
+left=$(node "$SRC/team/bin/fsd-loops.mjs" kill --under "$BASE" --dry 2>/dev/null)
+[ -n "$left" ] && bad "laços da simulação seguiam de pé no fim: $(wc -l <<<"$left") ($(head -2 <<<"$left" | tr '\n' ' '))" || ok "nenhum laço fsd-watch/fsd-cleanup --loop da simulação sobrou (#212)"
 p=$(grep -c P "$RES"); f=$(grep -c F "$RES"); echo "== total: $p PASS, $f FAIL$([ "$KEEP" = 1 ] && echo "  (mantido em $BASE)")"
 [ "$f" = 0 ]
