@@ -28,7 +28,21 @@ export function plan(file, { exists = existsSync } = {}) {
   if (test) steps.push({ name: `teste ${relative(root, test)}`, cmd: process.execPath, args: [...(ts ? ['--import', 'tsx'] : []), '--test', test] });
   return { root, steps };
 }
-const defaultRun = (s, root) => { const r = spawnSync(s.cmd, s.args, { cwd: root, encoding: 'utf8', timeout: 120000, env: { ...process.env, FSD_RUNNER: '' } }); return { ok: r.status === 0, out: `${r.stdout || ''}${r.stderr || ''}${r.error ? r.error.message : ''}` }; };
+// Validação R15: o teste e o tsc rodam código que o agente escreveu, e o hook roda fora do sandbox do Bash. Por isso cada passo roda num
+// bwrap que troca por /dev/null a credencial da assinatura e os tokens do ai-memory (os mesmos que o sandbox do perfil nega). Sem o
+// bwrap funcionando, a verificação não roda (avisa): nunca o código do agente fora de um sandbox.
+export const SECRETS = ['.claude/.credentials.json', '.local/share/ai-memory/auth-token', '.local/share/ai-memory/auth-header'];
+export function sandboxed(step, { home = process.env.HOME, exists = existsSync } = {}) {
+  const mask = SECRETS.map((f) => join(home || '/nonexistent', f)).filter((f) => exists(f)).flatMap((f) => ['--ro-bind', '/dev/null', f]);
+  return { cmd: 'bwrap', args: ['--die-with-parent', '--dev-bind', '/', '/', ...mask, '--', step.cmd, ...step.args] };
+}
+const defaultRun = (s, root) => {
+  const env = { ...process.env, FSD_RUNNER: '' }; delete env.NODE_TEST_CONTEXT;   // um node --test dentro de outro viraria filho e sairia 0
+  const w = sandboxed(s); const r = spawnSync(w.cmd, w.args, { cwd: root, encoding: 'utf8', timeout: 120000, env });
+  const out = `${r.stdout || ''}${r.stderr || ''}${r.error ? r.error.message : ''}`;
+  if (r.error || /^bwrap: /m.test(r.stderr || '') && r.status !== 0 && !r.stdout) return { ok: true, skipped: `sem sandbox para verificar (${(r.error?.code || (r.stderr || '').split('\n')[0]).toString().slice(0, 80)})` };
+  return { ok: r.status === 0, out };
+};
 // Do teste, só o que diz o que falhou (o TAP inteiro estoura o contexto).
 const brief = (name, out) => {
   const l = out.split('\n').filter((x) => x.trim());
@@ -39,8 +53,9 @@ export function verify(input, { run = defaultRun, exists = existsSync } = {}) {
   if (!EDIT_TOOLS.has(input?.tool_name)) return '';
   const p = plan(input?.tool_input?.file_path, { exists }); if (!p || !p.steps.length) return '';
   const bad = [];
-  for (const s of p.steps) { const r = run(s, p.root); if (!r.ok) bad.push(`## ${s.name}\n${brief(s.name, r.out)}`); }
-  if (!bad.length) return '';
+  const skipped = [];
+  for (const s of p.steps) { const r = run(s, p.root); if (r.skipped) skipped.push(`${s.name}: ${r.skipped}`); else if (!r.ok) bad.push(`## ${s.name}\n${brief(s.name, r.out)}`); }
+  if (!bad.length) return skipped.length ? JSON.stringify({ hookSpecificOutput: { hookEventName: 'PostToolUse', additionalContext: `Verificação depois da edição não rodou (${skipped.join('; ')}): rode os testes do arquivo pelo Bash antes de entregar.` } }) : '';
   return JSON.stringify({ decision: 'block', reason: `Verificação depois da edição de ${relative(p.root, input.tool_input.file_path)} falhou (corrija antes de seguir):\n\n${bad.join('\n\n')}` });
 }
 import { fileURLToPath } from 'node:url';

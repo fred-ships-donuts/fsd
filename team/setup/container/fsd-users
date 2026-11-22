@@ -56,6 +56,16 @@ for r in "${ROLES[@]}"; do
            | if $model != "" then .model = $model else . end' --arg model "$model" "$team" "$role" "$sess" > "$p/settings.json.tmp" && install -o root -g root -m 0644 "$p/settings.json.tmp" "$p/settings.json"; rm -f "$p/settings.json.tmp"
   fi
 done
+# git do papel (validação R7): identidade do bot, o credential helper do time (token do arquivo do papel) e https no lugar de ssh, num
+# arquivo do root que a sessão usa como GIT_CONFIG_GLOBAL (o papel não edita; o ~/.gitconfig dele não entra).
+if [ -n "${FSD_TEAM_DIR:-}" ] && [ -f "$FSD_TEAM_DIR/agents.json" ] && command -v jq >/dev/null; then
+  for r in "${ROLES[@]}"; do
+    slug=$(jq -r --arg r "$r" '.agents[$r].slug // ("fsd-" + $r)' "$FSD_TEAM_DIR/agents.json"); bid=$(jq -r --arg r "$r" '.agents[$r].bot_user_id // 0' "$FSD_TEAM_DIR/agents.json")
+    g=/etc/fsd/profiles/$r/gitconfig
+    printf '[user]\n\tname = %s[bot]\n\temail = %s+%s[bot]@users.noreply.github.com\n[credential "https://github.com"]\n\thelper =\n\thelper = %s/bin/git-credential-fsd\n[url "https://github.com/"]\n\tinsteadOf = git@github.com:\n[commit]\n\tgpgsign = false\n[core]\n\thooksPath = /dev/null\n' \
+      "$slug" "$bid" "$slug" "$FSD_TEAM_DIR" > "$g.tmp" && install -o root -g root -m 0644 "$g.tmp" "$g"; rm -f "$g.tmp"
+  done
+fi
 # ai-memory (T2.5.2): o token do papel nunca vai no argv (todos os uids leem o argv; fase0.md). O hook sem --auth-token lê
 # <data_dir>/auth-token e o mcp-bridge lê o [auth].bearer_token_file do config.toml (provado na 3.4.3 com um servidor falso).
 # O data dir é do papel (spool, estado); o token é 0400 do papel, o config.toml é do root. FSD_AIM_TOKENS_SRC=<pasta com um

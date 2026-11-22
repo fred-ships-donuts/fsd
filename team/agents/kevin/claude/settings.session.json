@@ -69,6 +69,15 @@
         "~/.local/share/ai-memory/auth-token",
         "~/.local/share/ai-memory/auth-header",
         "~/.local/share/ai-memory/auth-tokens"
+      ],
+      "allowWrite": [
+        "~/wt",
+        "~/qa",
+        "~/.config/fsd-agents",
+        "~/.fsd",
+        "~/.npm",
+        "~/.cache",
+        "/tmp"
       ]
     },
     "network": {

@@ -33,8 +33,12 @@ export const TASK_OF = {   // coluna → tarefas (papel e tipo do contrato da F3
   devReady: [{ role: 'stuart', kind: 'entrega-codigo' }],
   changes: [{ role: 'stuart', kind: 'correcao' }],
   review: [{ role: 'mel', kind: 'revisao' }, { role: 'bob', kind: 'qa' }],
+  // Validação R4: card já em andamento (Developing, Architecting) continua com a mesma chave da tarefa, então só volta depois que a
+  // tarefa anterior terminou sem entrega (turno acabou, lease vencido, fim do dia): o card não fica parado.
+  dev: [{ role: 'stuart', kind: 'entrega-codigo' }],
+  arch: [{ role: 'mel', kind: 'arquitetura' }],
 };
-const PRIORITY = ['changes', 'review', 'devReady', 'archReady'];   // correção primeiro; terminar antes de começar
+const PRIORITY = ['changes', 'review', 'dev', 'devReady', 'arch', 'archReady'];   // correção primeiro; terminar antes de começar
 export const taskKey = (card, kind) => `${kind}:#${card.n}${card.head ? `@${card.head}` : ''}`;
 
 export function decide(state) {

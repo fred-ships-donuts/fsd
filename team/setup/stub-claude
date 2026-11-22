@@ -57,7 +57,8 @@ if (a.includes('--bg')) {
   // começo do sessionId. --resume com flags (além do --bg) cria uma cópia que leva o histórico (id novo; a sessão guarda as próprias
   // opções); sem flags, acorda a mesma sessão desligada; ligada (ociosa ou trabalhando), sempre cópia (E-cópia).
   const prompt = a[a.length - 1]; const resume = opt('--resume');
-  const env = { agent: process.env.FSD_AGENT || null, runner: process.env.FSD_RUNNER || null };
+  const env = { agent: process.env.FSD_AGENT || null, runner: process.env.FSD_RUNNER || null,
+    path: process.env.PATH || null, repo: process.env.FSD_REPO || null, state: process.env.FSD_STATE || null, gitcfg: process.env.GIT_CONFIG_GLOBAL || null };
   if (opt('--session-id')) console.error('warning: --bg manages the session id; ignoring --session-id (use --resume <id> to continue an existing session)');
   const flags = a.slice(0, -1).filter((x, i, l) => !['--bg', '--background', '--resume'].includes(x) && l[i - 1] !== '--resume');
   let s = resume ? st.sessions.find((x) => x.sessionId === resume) : null;

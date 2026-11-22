@@ -44,6 +44,8 @@ CLAUDE=${FSD_CLAUDE_REAL:-/opt/fsd/claude/versions/$(cat /opt/fsd/CLAUDE_VERSION
 AIM=${FSD_AIM_DIR:-/opt/fsd/ai-memory}
 for x in "$NODE" "$CLAUDE" "$AIM/ai-memory"; do [ -x "$x" ] || { echo "fsd-native-setup: falta $x"; exit 1; }; done
 ln -sfn "$NODE" /usr/local/bin/node; ln -sfn "$CLAUDE" /usr/local/bin/claude
+# rtk dos hooks (validação R6): cópia do root em /usr/local/bin, não o /opt/fsd/bin do uid 1000.
+RTK=${FSD_RTK_BIN:-/opt/fsd/bin/rtk}; [ -x "$RTK" ] && install -o root -g root -m 0755 "$RTK" /usr/local/bin/rtk
 for r in kevin mel stuart bob; do
   h=/home/fsd-$r; install -d -o "fsd-$r" -g "fsd-$r" -m 0700 "$h/.local" "$h/.local/lib"
   ln -sfn "$AIM" "$h/.local/lib/ai-memory"; chown -h "fsd-$r:fsd-$r" "$h/.local/lib/ai-memory"
