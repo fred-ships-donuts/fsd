@@ -2,6 +2,7 @@
 // fsd-usage — uso da conta do time (5h e semanal) sem gastar token do modelo (#193).
 //   fsd-usage.mjs refresh   busca se o cache velho (usage.refreshSeconds) e o retry-after permitem; aplica o PAUSE por uso
 //   fsd-usage.mjs status    mostra o cache
+//   fsd-usage.mjs statusline     statusLine da sessão nativa: grava os rate_limits do JSON no cache do papel (budgetOk do supervisor)
 //   fsd-usage.mjs stop-failure   hook StopFailure (matcher rate_limit): a conta bateu no limite → PAUSE por uso, sem esperar o
 //                                endpoint (freio reativo; #214: o endpoint recusa o token do time). Sai por usage.reactiveHoldMin.
 // Cache: $FSD_STATE/usage.json · token: $FSD_STATE/claude-oauth-token · lock: usage.lock (O_EXCL).
@@ -12,7 +13,7 @@ import { readFileSync, writeFileSync, existsSync, openSync, closeSync, rmSync, s
 import { spawn } from 'node:child_process';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { stateDir, stateRoot, roleStateDir, pausePath, AGENTS, ghw } from './fsd-lib.mjs';
+import { stateDir, stateRoot, roleStateDir, pausePath, AGENTS, ghw, shareMode } from './fsd-lib.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const URL_ = 'https://api.anthropic.com/api/oauth/usage';
@@ -39,6 +40,7 @@ export function due(cache, refreshSeconds, t = now()) {
 }
 // Usado pelo guard: dispara um refresh destacado se for a hora (o lock evita dois).
 export function kick(cache, cfg) {
+  if (process.env.FSD_RUNNER === 'session') return;   // nativo: sem token do endpoint; o uso vem da statusline (teamCache)
   if (!due(cache, cfg.refreshSeconds)) return;
   try { spawn(process.execPath, [join(HERE, 'fsd-usage.mjs'), 'refresh'], { detached: true, stdio: 'ignore', env: process.env }).unref(); } catch {}
 }
@@ -101,10 +103,40 @@ export function stopFailure(cfg = usageConfig()) {
   pauseFor({ window: 'reactive', resets_at: null, pct: null }, 'The team account hit its usage limit (StopFailure rate_limit)');
   return true;
 }
+// Time nativo (budgetOk): o endpoint recusa o token do time (#214), mas a statusline de cada sessão recebe os rate_limits da conta
+// (T0.2.1). A statusline do papel grava o uso na pasta dele, no formato do cache (utilization = used_percentage), e o supervisor
+// lê o mais recente entre os papéis. Janela já reiniciada (resets_at no passado) não conta.
+export function fromStatusline(j, t = now()) {
+  const rl = j?.rate_limits; if (!rl) return null;
+  const w = (x) => (x && Number.isFinite(Number(x.used_percentage)) ? { utilization: Number(x.used_percentage), resets_at: x.resets_at ?? null } : undefined);
+  const c = { fetchedAt: t, source: 'statusline', five_hour: w(rl.five_hour), seven_day: w(rl.seven_day) };
+  return c.five_hour || c.seven_day ? c : null;
+}
+export function teamCache(roles = AGENTS, t = now()) {
+  const all = [readCache(), ...(stateRoot() ? roles.map((r) => read(join(roleStateDir(r), 'usage.json'))) : [])];
+  // resets_at: segundos (statusline) ou ISO (endpoint); sem ele, a janela vale.
+  const resetMs = (v) => (v == null || v === '' ? Infinity : Number.isFinite(Number(v)) ? Number(v) * 1000 : Date.parse(v));
+  const live = (x) => (x && !(resetMs(x.resets_at) <= t) ? x : undefined);
+  let best = null;
+  for (const c of all) {
+    if (!c?.fetchedAt) continue;
+    const k = { fetchedAt: c.fetchedAt, five_hour: live(c.five_hour), seven_day: live(c.seven_day) };
+    if ((k.five_hour || k.seven_day) && (!best || k.fetchedAt > best.fetchedAt)) best = k;
+  }
+  return best;
+}
+export function statusline(input, t = now()) {
+  let j = null; try { j = JSON.parse(input); } catch {}
+  const c = fromStatusline(j, t);
+  if (c) { const f = P('usage.json'); try { writeFileSync(`${f}.tmp`, JSON.stringify(c), { mode: shareMode(0o600) }); renameSync(`${f}.tmp`, f); } catch {} }
+  const pct = (x) => (x ? `${Math.round(x.utilization)}%` : '-');
+  return `fsd ${process.env.FSD_AGENT || ''} · 5h ${pct(c?.five_hour)} · semana ${pct(c?.seven_day)}`;
+}
 if (process.argv[1] && realpathSync(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const cmd = process.argv[2];
   if (cmd === 'refresh') { try { await refresh(); } catch (e) { console.error(`fsd-usage: ${e.message}`); process.exit(2); } }
   else if (cmd === 'status') console.log(JSON.stringify(readCache()));
   else if (cmd === 'stop-failure') { try { stopFailure(); } catch {} process.exit(0); }   // hook: nunca falha o turno
-  else { console.error('uso: fsd-usage.mjs refresh|status|stop-failure'); process.exit(2); }
+  else if (cmd === 'statusline') { let x = ''; try { x = readFileSync(0, 'utf8'); } catch {} console.log(statusline(x)); process.exit(0); }   // nunca falha
+  else { console.error('uso: fsd-usage.mjs refresh|status|stop-failure|statusline'); process.exit(2); }
 }

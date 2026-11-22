@@ -95,3 +95,28 @@ test('fsd-restart reads $FSD_STATE/PAUSE, not team/PAUSE', () => {
   writeFileSync(join(t.d, 'PAUSE'), '');
   assert.match(run(), /PAUSE ativo/);
 });
+
+// budgetOk do nativo: a statusline do papel grava o uso na pasta dele; o supervisor lê o mais recente entre os papéis.
+test('native budget: the role statusline writes rate_limits to its state, and teamCache takes the freshest live one', () => {
+  const root = mkdtempSync(join(tmpdir(), 'usage-root-'));
+  for (const r of ['kevin', 'mel', 'stuart', 'bob']) spawnSync('mkdir', ['-p', join(root, r)]);
+  const sl = (role, json, now) => spawnSync(process.execPath, [join(BIN, 'fsd-usage.mjs'), 'statusline'], { env: { ...process.env, FSD_STATE: join(root, role), FSD_STATE_ROOT: root, FSD_AGENT: role, FSD_RUNNER: 'session', FSD_USAGE_NOW: String(now) }, input: json, encoding: 'utf8' });
+  const resets = 2e9;   // segundos, como a statusline manda
+  const a = sl('mel', JSON.stringify({ rate_limits: { five_hour: { used_percentage: 40, resets_at: resets }, seven_day: { used_percentage: 20, resets_at: resets } } }), 1e12);
+  assert.equal(a.status, 0); assert.match(a.stdout, /fsd mel · 5h 40% · semana 20%/);
+  sl('bob', JSON.stringify({ rate_limits: { five_hour: { used_percentage: 93, resets_at: resets } } }), 1e12 + 1000);
+  // JSON sem rate_limits (ou quebrado): imprime a linha e não apaga o cache do papel
+  assert.equal(sl('bob', 'not json', 1e12 + 2000).status, 0);
+  assert.equal(JSON.parse(readFileSync(join(root, 'bob', 'usage.json'), 'utf8')).five_hour.utilization, 93);
+  const code = `import { teamCache, over } from '${join(BIN, 'fsd-usage.mjs')}'; const c = teamCache(undefined, Number(process.env.T)); console.log(JSON.stringify({ c, o: over(c, 90) }));`;
+  const run = (t) => JSON.parse(spawnSync(process.execPath, ['--input-type=module', '-e', code], { env: { ...process.env, FSD_STATE: join(root, 'sup'), FSD_STATE_ROOT: root, T: String(t) }, encoding: 'utf8' }).stdout);
+  const r1 = run(1e12 + 5000); assert.equal(r1.c.five_hour.utilization, 93); assert.deepEqual(r1.o, { pct: 93, window: 'five_hour' });
+  // depois do reset da janela, o uso velho não segura o time
+  const r2 = run(resets * 1000 + 1); assert.equal(r2.c, null); assert.equal(r2.o, null);
+});
+
+test('native budget: in a session runner the guard never kicks the endpoint refresh (no team token there)', () => {
+  const t = mk(); fixture(t, ok(10));
+  spawnSync(join(BIN, 'fsd-context-guard'), { env: { ...t.env, FSD_DRY: '', FSD_RUNNER: 'session', FSD_AGENT: 'bob' }, input: JSON.stringify({ hook_event_name: 'UserPromptSubmit' }), encoding: 'utf8' });
+  spawnSync('sleep', ['0.5']); assert.equal(existsSync(join(t.d, 'usage.json')), false);
+});

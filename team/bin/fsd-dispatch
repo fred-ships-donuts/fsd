@@ -74,7 +74,8 @@ async function gather() {
   const seen = D.loadStalled(), keep = {};
   for (const x of stalled) { keep[x.key] = seen[x.key] || now(); if (!seen[x.key]) tellKevin(`${x.line} (parado; ninguém em ciclo)`); }
   if (!DRY) D.saveStalled(keep);
-  let budgetOk = true; try { budgetOk = !U.over(U.readCache(), U.usageConfig().stopPct); } catch {}
+  // No nativo, o uso vem da statusline dos papéis (o mais recente entre as pastas deles); no tmux, do cache do fsd-usage.
+  let budgetOk = true; try { budgetOk = !U.over(U.teamCache(), U.usageConfig().stopPct); } catch {}
   // Fim do dia: contexto de cada sessão ligada (transcript <sessionId>.jsonl) e a marca de fechamento já pedido (eod.json).
   const E = await import('./fsd-eod.mjs'); const eod = D.loadEod(); const projects = join(process.env.CLAUDE_CONFIG_DIR || join(process.env.HOME, '.claude'), 'projects');
   const { readdirSync } = await import('node:fs');
