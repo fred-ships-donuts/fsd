@@ -6,6 +6,7 @@
 //   P=$(mktemp -d); node team/bin/fsd-profile.mjs $P/.claude.json "$PWD" && cd "$PWD" \
 //     && tmux new-session -d -s probe -x 120 -y 40 "CLAUDE_CONFIG_DIR=$P claude" && sleep 8 && tmux capture-pane -p -t probe
 // O pane deve mostrar o prompt de entrada (caixa "> "), sem a tela de onboarding/tema/login e sem "Quick safety check ... trust".
+import { realpathSync } from 'node:fs';
 import { readFileSync, writeFileSync, renameSync, readdirSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -35,7 +36,7 @@ export function ensureFirstRun(file, repo, version) {
   const t = `${file}.${process.pid}.tmp`; writeFileSync(t, JSON.stringify(json, null, 2) + '\n', { mode: 0o600 }); renameSync(t, file);
   return 'written';
 }
-if (process.argv[1] === fileURLToPath(import.meta.url)) {
+if (process.argv[1] && realpathSync(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const [file, repo, version] = process.argv.slice(2);
   if (!file || !repo) { console.error('uso: fsd-profile.mjs <.claude.json> <repo> [versão]'); process.exit(2); }
   const r = ensureFirstRun(file, repo, version); console.log(r); process.exit(r === 'unreadable' ? 1 : 0);

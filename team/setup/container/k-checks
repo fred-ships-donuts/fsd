@@ -107,7 +107,7 @@ if [ -x /usr/local/sbin/fsd-session-exec ] && command -v jq >/dev/null; then
   sed -i 's/^PREFLIGHT=.*/PREFLIGHT=1/' /etc/fsd/session.env
   echo x > /tmp/k11-prompt; chmod 644 /tmp/k11-prompt
   out=$(su -s /bin/bash fsd-dispatch -c "sudo -n -u fsd-bob /usr/local/sbin/fsd-session-exec start /tmp/k11-prompt" 2>&1)
-  check K11 "com a checagem ligada, sem ai-memory e sem túnel, a sessão do Bob não sobe e diz por quê" bash -c "grep -q 'ai-memory não instalado' <<<\"$out\" && grep -q 'túnel do ai-memory fechado' <<<\"$out\""
+  check K11 "com a checagem ligada e o túnel fechado, a sessão do Bob não sobe e diz por quê" bash -c "grep -q 'a sessão não sobe' <<<\"$out\" && grep -q 'túnel do ai-memory fechado' <<<\"$out\""
   sed -i 's/^PREFLIGHT=.*/PREFLIGHT=0/' /etc/fsd/session.env
 fi
 # K12 (T2.5.2): o token do ai-memory fora do argv. O perfil chama o hook sem --auth-token; o token é um arquivo 0400 do papel, que
@@ -122,16 +122,28 @@ if command -v jq >/dev/null && [ -f /etc/fsd/profiles/stuart/settings.json ]; th
   check K12 "o Stuart não reescreve o config.toml" cannot fsd-stuart "echo x >> $D/config.toml"
   # O comando do hook como o perfil o roda, com um ai-memory falso que grava o argv: nenhum pedaço do token aparece.
   cmd=$(jq -r '[.hooks[][].hooks[].command | select(test("ai-memory"))][0]' /etc/fsd/profiles/stuart/settings.json)
+  [ -e /home/fsd-stuart/.local/lib ] && mv /home/fsd-stuart/.local/lib /home/fsd-stuart/.local/lib.k12   # o do setup nativo volta no fim
   install -d -o fsd-stuart -g fsd-stuart -m 0700 /home/fsd-stuart/.local/lib /home/fsd-stuart/.local/lib/ai-memory
   printf '#!/bin/sh\necho "$0 $*" > /tmp/k12-argv\n' > /home/fsd-stuart/.local/lib/ai-memory/ai-memory
   chown fsd-stuart: /home/fsd-stuart/.local/lib/ai-memory/ai-memory; chmod 0700 /home/fsd-stuart/.local/lib/ai-memory/ai-memory
   su -s /bin/bash fsd-stuart -c "AI_MEMORY_AUTH_TOKEN= $cmd" </dev/null >/dev/null 2>&1
   check K12 "o argv do hook não tem o token nem --auth-token" bash -c "[ -s /tmp/k12-argv ] && ! grep -qF \"\$(cat $D/auth-token)\" /tmp/k12-argv && ! grep -q -- --auth-token /tmp/k12-argv"
-  rm -rf /home/fsd-stuart/.local/lib /tmp/k12-argv
+  rm -rf /home/fsd-stuart/.local/lib /tmp/k12-argv; [ -e /home/fsd-stuart/.local/lib.k12 ] && mv /home/fsd-stuart/.local/lib.k12 /home/fsd-stuart/.local/lib
 fi
 # K14 (F4.8): o modelo de cada papel vem do agents.json, no perfil do root.
 if command -v jq >/dev/null && [ -n "${FSD_SIM_TEAM:-}" ]; then
   for r in "${ROLES[@]}"; do check K14 "o perfil do $r tem o modelo do agents.json" bash -c "[ \"\$(jq -r .model /etc/fsd/profiles/$r/settings.json)\" = \"\$(jq -r '.agents.$r.claude.model' $FSD_SIM_TEAM/agents.json)\" ]"; done
+fi
+# K15 (E6): o fsd-native-setup. O team/ que roda (hooks, perfis, wrappers) é uma cópia fixada do root, que nenhum papel grava; o
+# session.env aponta para ela; as ferramentas chegam aos usuários de sistema. (A simulação monta a raiz em /srv/native.)
+if [ -d /srv/native ]; then
+  N=/srv/native; sha=$(cat $N/TEAM_SHA)
+  check K15 "a cópia fixada é do root, sem escrita de grupo, e /srv/native/team aponta para ela" bash -c "[ \"\$(readlink -f $N/team)\" = $N/team-$sha ] && [ -z \"\$(find $N/team-$sha \\( \\! -user root -o \\( \\! -type l -perm /022 \\) \\) -print -quit)\" ]"
+  for r in "${ROLES[@]}"; do check K15 "fsd-$r não grava o código que roda" cannot "fsd-$r" "echo x >> $N/team/bin/fsd-session-hook"; done
+  check K15 "o session.env aponta o TEAM para a cópia fixada" grep -qx "TEAM=$N/team" /etc/fsd/session.env
+  check K15 "o repositório dos papéis está preparado (fsd-repo)" bash -c "[ \"\$(git -C $N/repo config core.sharedRepository)\" = group ]"
+  check K15 "node e claude para os usuários de sistema" bash -c "su -s /bin/bash fsd-mel -c 'node -e 0 && claude --help >/dev/null'"
+  check K15 "o ai-memory na home de cada papel (caminho dos hooks)" bash -c "for r in kevin mel stuart bob; do su -s /bin/bash fsd-\$r -c \"test -x /home/fsd-\$r/.local/lib/ai-memory/ai-memory\" || exit 1; done"
 fi
 # K13 (F0.2, T0.2.2): o aceite do bypass em --bg vem das managed settings do root, que nenhum papel edita.
 if command -v jq >/dev/null; then

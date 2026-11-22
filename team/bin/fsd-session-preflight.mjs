@@ -1,6 +1,7 @@
 // fsd-session-preflight.mjs — antes de subir a sessão de um papel (F4.1, T4.1.3): recusa sem os hooks do time, sem o ai-memory, sem
 // login, sem o token do ai-memory em arquivo ou com o túnel do ai-memory fechado. Cada falha vem com o motivo. 0 token: lê arquivos, `claude auth status` e uma porta.
 //   requiredHooks · hooksMissing(settingsFiles) · check({ settingsFiles, claude, home, probe }) → [motivos]
+import { realpathSync } from 'node:fs';
 import { readFileSync, existsSync, accessSync, constants } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { connect } from 'node:net';
@@ -56,7 +57,7 @@ export async function check({ settingsFiles, claude = 'claude', home = process.e
 }
 // CLI (o wrapper fsd-session-exec chama como o papel): node fsd-session-preflight.mjs <settings…> → motivos; exit 1 se houver.
 import { fileURLToPath } from 'node:url';
-if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
+if (process.argv[1] && realpathSync(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const why = await check({ settingsFiles: process.argv.slice(2), claude: process.env.FSD_PREFLIGHT_CLAUDE || 'claude' });
   if (why.length) { console.log(`a sessão não sobe:\n${why.map((w) => `- ${w}`).join('\n')}`); process.exit(1); }
 }

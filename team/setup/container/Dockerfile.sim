@@ -15,6 +15,13 @@ RUN git config --global user.email sim@sim && git config --global user.name sim 
  && git init -q --bare /srv/origin.git && git clone -q /srv/origin.git /tmp/seed && cd /tmp/seed && echo a > a && git add a && git commit -qm init && git push -q origin HEAD:develop \
  && chgrp -R fsd /srv/origin.git && chmod -R g+rwX /srv/origin.git && find /srv/origin.git -type d -exec chmod g+s {} + && git -C /srv/origin.git config core.sharedRepository group \
  && git config --system --add safe.directory /srv/origin.git && git clone -q -b develop /srv/origin.git /srv/repo && /opt/fsd-sim/fsd-repo /srv/repo
+# E6 (preparação): o fsd-native-setup de ponta a ponta numa raiz à parte, com um clone git que tem o team/ e ferramentas falsas.
+COPY team /tmp/src/team
+RUN git init -q /tmp/src && git -C /tmp/src add -A && git -C /tmp/src -c user.email=s@s -c user.name=s commit -qm team \
+ && mkdir -p /opt/fake-aim && printf '#!/bin/sh\nexit 0\n' > /opt/fake-aim/ai-memory && chmod 755 /opt/fake-aim/ai-memory \
+ && FSD_TEAM_SRC=/tmp/src FSD_TEAM_REF=HEAD FSD_REPO_URL=/srv/origin.git FSD_NATIVE_ROOT=/srv/native FSD_NODE_BIN=/usr/bin/node \
+    FSD_CLAUDE_REAL=/opt/fsd-sim/team/setup/stub-claude FSD_AIM_DIR=/opt/fake-aim FSD_NATIVE_PREFLIGHT=0 \
+    FSD_AIM_TOKENS_SRC=/opt/fsd-sim/aim-tokens bash /tmp/src/team/setup/container/fsd-native-setup
 RUN echo '{"type":"module"}' > /opt/fsd-sim/package.json && chmod -R a+rX /opt/fsd-sim/team /opt/fsd-sim/package.json
 ENV FSD_SIM_REPO=/srv/repo FSD_SIM_TEAM=/opt/fsd-sim/team
 CMD ["/opt/fsd-sim/k-checks"]

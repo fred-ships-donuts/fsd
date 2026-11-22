@@ -41,4 +41,4 @@ export function reviveWatcher(who = process.env.FSD_AGENT || 'agente') {
     return true;
   } catch { return false; }
 }
-if (process.argv[1] && process.argv[1] === fileURLToPath(import.meta.url)) reviveWatcher(process.argv[2]);
+if (process.argv[1] && realpathSync(process.argv[1]) === fileURLToPath(import.meta.url)) reviveWatcher(process.argv[2]);

@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // fsd-loops.mjs kill --under <dir> [--older-than <min>] [--dry] — encerra laços `fsd-watch|fsd-cleanup --loop` de teste (#198).
 // Só mexe em processo cujo FSD_STATE (lido de /proc/<pid>/environ) está sob <dir>; sem FSD_STATE, ou fora de <dir>, nunca.
+import { realpathSync } from 'node:fs';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -31,7 +32,7 @@ export function killLoops(opts) {
   return found;
 }
 
-if (process.argv[1] === fileURLToPath(import.meta.url)) {
+if (process.argv[1] && realpathSync(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const a = process.argv.slice(2), opt = (k) => (a.includes(k) ? a[a.indexOf(k) + 1] : undefined);
   if (a[0] !== 'kill' || !opt('--under')) { console.error('uso: fsd-loops.mjs kill --under <dir> [--older-than <min>] [--dry]'); process.exit(2); }
   for (const l of killLoops({ dir: opt('--under'), olderThanMin: Number(opt('--older-than')) || 0, dry: a.includes('--dry') })) console.log(`${a.includes('--dry') ? 'faria: ' : ''}encerrou pid ${l.pid} (${l.args}, estado ${l.state}, ${l.ageMin} min)`);

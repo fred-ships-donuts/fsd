@@ -98,7 +98,7 @@ if (cmd === 'round') {
   console.log(`fsd-dispatch: ${r.actions.length} ação(ões), ${r.done.length} feita(s)${r.skipped.length ? `, ${r.skipped.length} falharam` : ''}`);
 } else if (cmd === 'pin') {
   const repo = process.env.FSD_REPO || join(TEAM, '..');
-  const sha = spawnSync('git', ['-C', repo, 'rev-parse', 'HEAD'], { encoding: 'utf8' }).stdout.trim();
+  const sha = process.env.FSD_PIN_SHA || spawnSync('git', ['-C', repo, 'rev-parse', 'HEAD'], { encoding: 'utf8' }).stdout.trim();   // FSD_PIN_SHA: o sha da cópia do root (fsd-native-setup)
   const dst = D.pinCode(sha, TEAM); console.log(`fsd-dispatch: cópia fixada ${sha.slice(0, 7)} em ${dst}\nrode: ${join(dst, 'bin', 'fsd-dispatch')} loop`);
 } else if (cmd === 'loop') {
   if (!D.runningPinned(process.argv[1]) && !process.env.FSD_DISPATCH_LIVE) L.die(`fsd-dispatch: o laço só roda da cópia fixada (fsd-dispatch pin; em uso: ${D.currentPin()?.path || 'nenhuma'}), não do checkout vivo`, 1);
