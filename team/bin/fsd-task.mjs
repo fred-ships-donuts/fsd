@@ -52,6 +52,9 @@ export const loadCard = (agent) => { try { return readFileSync(file(agent), 'utf
 const taskFile = (agent) => file(agent).replace(/\.card\.md$/, '.task.json');
 export const loadTask = (agent) => { try { return JSON.parse(readFileSync(taskFile(agent), 'utf8')); } catch { return null; } };
 export const saveTask = (agent, t) => put(taskFile(agent), JSON.stringify(t) + '\n');
+// Validação R23: o supervisor guarda o cartão e a tarefa de antes de abrir o turno e os devolve se a chamada falhar.
+export function snapshot(agent) { const rd = (f) => { try { return readFileSync(f, 'utf8'); } catch { return null; } }; return { card: rd(file(agent)), task: rd(taskFile(agent)) }; }
+export function restore(agent, snap) { for (const [f, v] of [[file(agent), snap.card], [taskFile(agent), snap.task]]) { if (v == null) rmSync(f, { force: true }); else put(f, v); } }
 export const clearCard = (agent) => { rmSync(file(agent), { force: true }); rmSync(taskFile(agent), { force: true }); };
 // T3.4.1: a ação turn do decide() vira o texto do turno: o cartão (se houver tarefa) e as mensagens que vão junto.
 // issue = { number, title, body } do card da tarefa; messages = as do outbox cujos ids estão em action.ids.

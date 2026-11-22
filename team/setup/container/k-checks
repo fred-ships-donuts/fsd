@@ -189,10 +189,10 @@ if [ -x /usr/local/sbin/fsd-session-exec ] && [ -n "${FSD_SIM_TEAM:-}" ] && comm
   check K18 "o Stuart grava a mensagem no próprio outbox" has_out
   check K18 "a Mel não grava no outbox do Stuart (o remetente é o dono do arquivo, A4)" cannot fsd-mel "touch $SR/stuart/outbox/stuart/forjada.json"
   round_ok() { grep -q ', 1 feita(s)$' <<<"$1"; }
-  got() { jq -e --arg t "$1" '[.sessions[] | select(.agent == "mel") | .context[]?.out] | any(contains($t))' "$sjm" >/dev/null; }
+  got() { jq -e --arg t "$1" '[.sessions[] | select(.agent == "mel") | (.prompts[]?, .context[]?.out)] | any(contains($t))' "$sjm" >/dev/null; }
   out1=$(disp)
   check K18 "a rodada do supervisor (fsd-dispatch, pelo wrapper) abre o turno da Mel" round_ok "$out1"
-  check K18 "a Mel recebeu a mensagem do Stuart pelo hook da sessão dela" got 'stuart: [urgente] k18 primeira'
+  check K18 "a Mel recebeu a mensagem do Stuart (no texto do turno, R23)" got 'stuart: [urgente] k18 primeira'
   check K18 "o outbox do Stuart ficou vazio (entregue uma vez)" bash -c "! compgen -G '$SR/stuart/outbox/stuart/*.json' >/dev/null"
   check K18 "o estado do hook da Mel está na pasta dela, é dela e o supervisor o lê" bash -c "[ \"\$(stat -c %U $SR/mel/session-state/mel.json)\" = fsd-mel ] && su -s /bin/bash fsd-dispatch -c 'cat $SR/mel/session-state/mel.json' | grep -q '\"state\":\"idle\"'"
   # A Mel num turno que não acaba (STUB_WORKING): a próxima mensagem abre o turno; a seguinte vai para a caixa, sem cortar o turno.
@@ -208,7 +208,25 @@ if [ -x /usr/local/sbin/fsd-session-exec ] && [ -n "${FSD_SIM_TEAM:-}" ] && comm
   touch $SR/PAUSE; n1=$(turns); diga 'k18 quarta'; disp >/dev/null
   held() { [ "$(turns)" = "$1" ] && has_out; }
   check K18 "com o PAUSE do time, nenhum turno sai e a mensagem fica no outbox" held "$n1"
-  rm -f "$SR/PAUSE" "/tmp/stub-claude-$(id -u fsd-mel)/env.json"
+  rm -f "$SR/PAUSE"
+  # R23: o turno não abre (claude sem login): a mensagem fica no outbox e sai na rodada seguinte, que abre.
+  stubenv '{"STUB_RUN_HOOKS":"1","STUB_NOT_LOGGED_IN":"1"}'; outf=$(disp)
+  failed_kept() { grep -q 'falharam' <<<"$1" && has_out; }
+  check K18 "R23: turno que não abre não consome a mensagem (fica no outbox)" failed_kept "$outf"
+  stubenv '{"STUB_RUN_HOOKS":"1"}'; outa=$(disp)
+  check K18 "R23: a rodada seguinte abre o turno e a Mel recebe a mensagem que esperava" bash -c "grep -q ', 1 feita(s)\$' <<<'$outa' && jq -e '[.sessions[] | select(.agent == \"mel\") | .prompts[]?] | any(contains(\"k18 quarta\"))' $sjm >/dev/null"
+  # R25: uma cópia da Mel ligada fora da conversa gravada (o --bg subiu e ninguém gravou) é parada na rodada.
+  echo x > /tmp/k18-prompt; chmod 644 /tmp/k18-prompt
+  oid=$(su -s /bin/bash fsd-dispatch -c "sudo -n -u fsd-mel /usr/local/sbin/fsd-session-exec start /tmp/k18-prompt" 2>/dev/null | sed -n 's/^backgrounded · \([0-9a-f]*\).*/\1/p')
+  outo=$(disp)
+  orphan_stopped() { grep -q "cópia órfã de mel ($1) parada" <<<"$2" && ! jq -e --arg id "$1" '.sessions[] | select(.id == $id) | .alive' "$sjm" | grep -q true; }
+  check K18 "R25: a cópia órfã da Mel é parada pelo supervisor" orphan_stopped "$oid" "$outo"
+  # R12: o rate limit numa sessão do Bob pede a pausa na pasta dele; a rodada liga o PAUSE do time.
+  su -s /bin/bash fsd-bob -c "FSD_AGENT=bob FSD_RUNNER=session FSD_STATE=$SR/bob FSD_STATE_ROOT=$SR node $T/fsd-usage.mjs stop-failure" >/dev/null 2>&1
+  check K18 "R12: o StopFailure do Bob pede a pausa na pasta dele (não grava a raiz)" bash -c "[ -f $SR/bob/PAUSE.request ] && [ ! -e $SR/PAUSE ]"
+  disp >/dev/null
+  check K18 "R12: o supervisor aplica o pedido no PAUSE do time e apaga o pedido" bash -c "[ -f $SR/PAUSE ] && [ -f $SR/PAUSE.usage ] && [ ! -e $SR/bob/PAUSE.request ]"
+  rm -f "$SR/PAUSE" "$SR/PAUSE.usage" "/tmp/stub-claude-$(id -u fsd-mel)/env.json"
 fi
 # K13 (F0.2, T0.2.2): o aceite do bypass em --bg vem das managed settings do root, que nenhum papel edita.
 if command -v jq >/dev/null; then

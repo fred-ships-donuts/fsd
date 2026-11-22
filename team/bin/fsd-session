@@ -36,7 +36,11 @@ function run(steps, r) {
     const out = call(s.argv, r);
     if (out.status !== 0) die(`fsd-session: claude ${s.argv[0]} falhou (${(out.stderr || out.stdout || '').trim().split('\n')[0].slice(0, 160)})`, 4);
     if (s.sessionId !== '$OUT') continue;
-    const id = S.bgId(`${out.stdout}\n${out.stderr}`); const live = id && agents().find((a) => a.id === id);
+    // Validação R25: o --bg volta antes do `agents` listar a sessão; lê de novo por até ~5 s. Sem ela, para a cópia que subiu (senão
+    // fica ligada sem ninguém saber) e falha.
+    const id = S.bgId(`${out.stdout}\n${out.stderr}`); let live = null;
+    for (let i = 0; id && i < 10; i++) { live = agents().find((a) => a.id === id); if (live?.sessionId) break; Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, Number(process.env.FSD_SESSION_POLL_MS || 500)); }
+    if (id && !live?.sessionId) S.stopSession(r, id, { claude: CLAUDE });
     if (!live?.sessionId) die(`fsd-session: o claude não disse o id da sessão de ${r} (${(out.stdout || out.stderr || '').trim().split('\n')[0].slice(0, 120)})`, 4);
     stored[r] = { ...(stored[r] || {}), sessionId: live.sessionId, ...(s.from ? { lastSessionId: s.from } : {}) };
   }

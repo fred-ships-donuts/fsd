@@ -17,14 +17,23 @@ const T0 = Date.parse('2026-11-21T12:00:00Z'), MIN = 60000;
 const off = { state: 'off' }, team = (o = {}) => ({ kevin: off, mel: off, stuart: off, bob: off, ...o });
 const g = (o = {}) => async () => ({ sessions: team(), cards: [], messages: [], deadlocks: [], ...o });
 
-test('the task is recorded before the call: a supervisor that dies in the middle does not resend it after the restart', async () => {
+test('the task is recorded before the call; a call that fails gives it back (R23) and the next round sends it again', async () => {
   fresh(); const calls = [];
-  const crash = async (a) => { calls.push(a); assert.equal(D.loadTasks().stuart?.n, 5); throw new Error('caiu no meio'); };
-  const r1 = await D.round({ gather: g({ cards: [{ n: 5, column: 'devReady' }] }), exec: crash, now: T0 });
-  assert.equal(r1.skipped.length, 1);
+  const fail = async (a) => { calls.push(a); assert.equal(D.loadTasks().stuart?.n, 5); throw new Error('preflight recusou'); };
+  const r1 = await D.round({ gather: g({ cards: [{ n: 5, column: 'devReady' }] }), exec: fail, now: T0 });
+  assert.equal(r1.skipped.length, 1); assert.equal(D.loadTasks().stuart, undefined);
   assert.deepEqual(D.reconcile(T0 + MIN), []);   // failed tem fim; só intent sem fim é abandoned
   const r2 = await D.round({ gather: g({ cards: [{ n: 5, column: 'devReady' }] }), exec: async (a) => calls.push(a), now: T0 + MIN });
-  assert.deepEqual(r2.actions, []); assert.equal(calls.length, 1);   // nenhuma tarefa duplicada
+  assert.equal(r2.actions.length, 1); assert.equal(calls.length, 2); assert.equal(D.loadTasks().stuart?.n, 5);
+});
+
+test('a supervisor that dies in the middle of the call (intent without end) does not resend the task after the restart', async () => {
+  fresh(); mkdirSync(D.dispatchDir(), { recursive: true });
+  writeFileSync(join(D.dispatchDir(), 'tasks.json'), JSON.stringify({ stuart: { key: 'entrega-codigo:#5', kind: 'entrega-codigo', n: 5, at: T0 } }));
+  writeFileSync(join(D.dispatchDir(), 'journal.jsonl'), JSON.stringify({ t: T0, id: 'x0', phase: 'intent', action: { type: 'turn', to: 'stuart' } }) + '\n');
+  assert.equal(D.reconcile(T0 + MIN).length, 1);
+  const calls = []; const r = await D.round({ gather: g({ cards: [{ n: 5, column: 'devReady' }] }), exec: async (a) => calls.push(a), now: T0 + MIN });
+  assert.deepEqual(r.actions, []); assert.equal(calls.length, 0);
 });
 
 test('reconcile: an action left with intent only (process killed) becomes abandoned, once', async () => {
