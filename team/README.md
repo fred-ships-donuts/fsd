@@ -290,7 +290,7 @@ quando o agente gravar o próximo rascunho.
 O time nativo roda no mesmo container, com um usuário Linux por papel (`fsd-kevin`, `fsd-mel`, `fsd-stuart`, `fsd-bob`), o supervisor `fsd-dispatch` (0 token) e o broker de tokens `fsd-broker`. Cada sessão é um `claude --bg` do papel, no sandbox do claude, num cwd do root (`/srv/fsd/cwd/<papel>`), com o clone do papel na home dele (`~/repo`) e o estado em `/var/lib/fsd-state/<papel>`.
 
 1. **`team.env`** (modelo em `setup/team.env.example`): `FSD_NATIVE=1`, `FSD_TEAM_REF=origin/develop` e `FSD_TEAM_SHA=<sha de 40 caracteres>`. Com o `FSD_TEAM_SHA`, o time só sobe se a ref apontar para esse commit.
-2. **Cofre** (no volume `fsd-home`): um token do ai-memory por papel em `~/.config/fsd-agents/ai-memory-tokens/<papel>` e as chaves dos Apps em `~/.config/fsd-agents/keys/*.pem`.
+2. **Cofre** (no volume `fsd-home`): um token do ai-memory por papel em `~/.config/fsd-agents/ai-memory-tokens/<papel>`, as chaves dos Apps em `~/.config/fsd-agents/keys/*.pem` e o `~/.config/fsd-agents/claude-oauth-token` (login do Claude dos papéis).
 3. **Criar o container** com as três `--security-opt` do sandbox (sem elas, a sessão falha fechado) e um volume nomeado por pasta do time (sem eles, um `docker rm` perde os logins, os clones e o estado):
 
    ```
@@ -302,7 +302,7 @@ O time nativo roda no mesmo container, com um usuário Linux por papel (`fsd-kev
    ```
 
 4. **Primeira vez:** `docker exec -it fsd entrar` e `fsd-setup` (clone do fsd e cofre). Depois rode `docker restart fsd`, porque o entrypoint só prepara o time nativo quando o container sobe, a partir do clone que o `fsd-setup` criou.
-5. **Login de cada papel**, uma vez (fica no volume da home): `docker exec -it fsd su - fsd-<papel> -c claude`, `/login`, e saia. A confiança da pasta da sessão é gravada sozinha.
+5. **Login de cada papel:** sozinho. O `fsd-users` grava o `~/.claude/.credentials.json` de cada papel com o `claude-oauth-token` do cofre (o do `claude setup-token`); um token novo no cofre chega a todos no próximo `docker restart fsd`. A confiança da pasta da sessão também é gravada sozinha.
 6. **Conferir:** `docker logs fsd` mostra a ref e o commit em uso (`fsd: time nativo na ref …`) ou o motivo da falha. Depois rode `docker exec fsd supervisorctl status fsd-broker fsd-dispatch`. Com `FSD_NATIVE=1` e o time não preparado, o `fsd-dispatch` fica em FATAL. O log das rodadas fica em `docker exec fsd tail -f /var/log/fsd/dispatch.log`.
 7. **Pausar:** `docker exec fsd touch /var/lib/fsd-state/PAUSE` (nenhum turno novo; quem trabalha termina). Para voltar, `docker exec fsd rm /var/lib/fsd-state/PAUSE`. Um rate limit numa sessão também liga esse PAUSE, e ele cai quando a janela de uso reseta.
 8. **Atualizar o time:** troque o `FSD_TEAM_SHA` no `team.env` e recrie o container com os mesmos volumes (`docker rm -f fsd` e o `docker run` acima). Os dados ficam nos volumes.

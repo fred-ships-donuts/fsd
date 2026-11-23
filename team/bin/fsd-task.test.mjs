@@ -59,3 +59,9 @@ test('T3.4.5: the saved card comes back on SessionStart and UserPromptSubmit, no
   assert.equal(M.hook('PostToolUse', {}, 'bob'), null);
   T.clearCard('bob'); assert.equal(M.hook('SessionStart', {}, 'bob'), null);
 });
+
+test('validation R4: the triage card asks for fsd-issue triage, not the issue acceptance', () => {
+  const card = T.taskCard({ task: { kind: 'triagem' }, issue: { number: 30, body: '## Acceptance\n1. x\n' } });
+  assert.match(card, /fsd-issue triage 30 --entrega/);
+  assert.doesNotMatch(card, /Aceite|não tem a seção/);
+});

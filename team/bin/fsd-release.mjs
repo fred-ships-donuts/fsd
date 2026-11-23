@@ -54,7 +54,7 @@ export const CHECKLIST = [
   'Audit entry recorded; rollback plan in RELEASE.md',
 ];
 export function releaseBody({ version, notes, author, base = 'develop' }) {
-  return [`Release v${version}: \`${base}\` → \`main\`. Prepared by the team supervisor; @${author} is the only approver (RELEASE.md).`, '',
+  return [`Release v${version}: \`${base}\` → \`main\`. Prepared by fsd-release, run by the author; @${author} is the only approver (RELEASE.md).`, '',
     '## Notes', '', notes.trim(), '', '## Checklist', '', ...CHECKLIST.map((c) => `- [ ] ${c}`), ''].join('\n');
 }
 

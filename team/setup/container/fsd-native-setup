@@ -8,7 +8,7 @@
 #   4. node, claude e ai-memory acessíveis aos usuários de sistema (links para /opt/fsd, só leitura).
 # Variáveis: FSD_TEAM_SRC (clone git com o time; obrigatória) · FSD_TEAM_REF (padrão origin/develop) · FSD_REPO_URL (padrão: o
 #   origin do FSD_TEAM_SRC) · FSD_NATIVE_ROOT (padrão /srv/fsd) · FSD_NODE_BIN, FSD_CLAUDE_REAL, FSD_AIM_DIR (as ferramentas; padrão
-#   as de /opt/fsd) · FSD_AIM_TOKENS_SRC (pasta com um aim_… por papel) · FSD_BROKER_KEYS_SRC (as chaves .pem dos Apps) ·
+#   as de /opt/fsd) · FSD_AIM_TOKENS_SRC (pasta com um aim_… por papel) · FSD_CLAUDE_TOKEN_SRC (token do `claude setup-token`) · FSD_BROKER_KEYS_SRC (as chaves .pem dos Apps) ·
 #   FSD_NATIVE_PREFLIGHT (padrão 1).
 # Saída: 0 pronto (imprime o sha) · 2 uso/ambiente · 1 falha de um passo.
 set -euo pipefail
@@ -38,7 +38,7 @@ if [ ! -d "$R/.git" ]; then
 fi
 # 3. Usuários, perfis (da cópia fixada), sudoers, managed settings, tokens do ai-memory.
 FSD_PROFILES_SRC="$ROOT/team/agents" FSD_TEAM_DIR="$ROOT/team" FSD_REPO_DIR="$R" FSD_CWD_ROOT="$ROOT/cwd" FSD_CLAUDE_BIN=/usr/local/bin/claude \
-  FSD_NATIVE_PREFLIGHT="${FSD_NATIVE_PREFLIGHT:-1}" FSD_AIM_TOKENS_SRC="${FSD_AIM_TOKENS_SRC:-}" "$ROOT/team/setup/container/fsd-users"
+  FSD_NATIVE_PREFLIGHT="${FSD_NATIVE_PREFLIGHT:-1}" FSD_AIM_TOKENS_SRC="${FSD_AIM_TOKENS_SRC:-}" FSD_CLAUDE_TOKEN_SRC="${FSD_CLAUDE_TOKEN_SRC:-}" "$ROOT/team/setup/container/fsd-users"
 "$ROOT/team/setup/container/fsd-repo" "$R"
 
 # 4. Ferramentas para os usuários de sistema (sem o nvm nem o PATH do humano).

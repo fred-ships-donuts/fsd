@@ -157,7 +157,7 @@ if [ "${FSD_NATIVE:-0}" = 1 ] && [ -d "$FSD_REPO/.git" ]; then
   if [[ $url =~ ^https://github\.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ ]] && git clone -q --bare --no-local "$FSD_REPO" "$B.new" \
      && git -C "$B.new" fetch -q --no-tags "$FSD_REPO" '+refs/remotes/origin/*:refs/remotes/origin/*' && rm -rf "$B" && mv "$B.new" "$B" \
      && git -C "$B" show "$ref:team/setup/container/fsd-native-setup" > /run/fsd-native-setup 2>/dev/null \
-     && FSD_TEAM_SRC="$B" FSD_TEAM_REF="$ref" FSD_REPO_URL="$url" FSD_AIM_TOKENS_SRC="$AG/ai-memory-tokens" FSD_BROKER_KEYS_SRC="$AG/keys" bash /run/fsd-native-setup; then
+     && FSD_TEAM_SRC="$B" FSD_TEAM_REF="$ref" FSD_REPO_URL="$url" FSD_AIM_TOKENS_SRC="$AG/ai-memory-tokens" FSD_CLAUDE_TOKEN_SRC="$AG/claude-oauth-token" FSD_BROKER_KEYS_SRC="$AG/keys" bash /run/fsd-native-setup; then
     touch /run/fsd-native; echo "fsd: time nativo na ref $ref = $(git -C "$B" log -1 --format='%h de %ci' "$ref")"
   else echo "fsd: FSD_NATIVE=1, mas o time nativo não foi preparado (veja acima: url do origin, clone, ref, FSD_TEAM_SHA); o time no tmux segue"; fi
 fi

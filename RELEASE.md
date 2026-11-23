@@ -1,6 +1,8 @@
 # Releasing `fsd`
 
-How a version of `fsd` goes from `develop` to a GitHub Release. The team supervisor (`fsd-dispatch`) prepares and executes every step; **the author is the only approver** of the release PR into `main`. There is no npm publish: the release lives on GitHub only.
+How a version of `fsd` goes from `develop` to a GitHub Release. **The author runs every step** with `team/bin/fsd-release` and is **the only approver** of the release PR into `main`; the team supervisor (`fsd-dispatch`) never releases. There is no npm publish: the release lives on GitHub only.
+
+Run it from a clone of `fsd` with the team tooling (the matriz or the container), as `FSD_AGENT=kevin team/bin/fsd-release …`: the GitHub calls go through the Kevin App (`team/bin/gh`), so the release PR is not the author's own and the author can approve it.
 
 ## Version
 
@@ -18,17 +20,17 @@ How a version of `fsd` goes from `develop` to a GitHub Release. The team supervi
 
 ## Steps
 
-1. **Prepare** (`team/bin/fsd-release prepare`; `--dry` shows it all first):
+1. **Prepare** (`FSD_AGENT=kevin team/bin/fsd-release prepare`; `--dry` shows it all first):
    - branch `release/vX.Y.Z` from `develop`;
    - `CHANGELOG.md`: `[Unreleased]` becomes `[X.Y.Z] - YYYY-MM-DD` ([Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/)), with a new empty `[Unreleased]` and the compare links at the bottom;
    - `package.json` version = `X.Y.Z`;
    - a PR from the branch into `main` with the notes, the version and the checklist, with the author as the reviewer.
 2. **Approve**: only the author. The `ProtMain` ruleset requires 1 approval after the last push and signed commits.
-3. **Merge and tag**: with the author's approval and CI green, the supervisor merges (`--match-head-commit`) and creates the **signed tag** `vX.Y.Z` on the merge commit, with the release key held by the broker.
+3. **Merge and tag** (`FSD_AGENT=kevin FSD_RELEASE_SIGNING_KEY=<author SSH key> team/bin/fsd-release publish <pr>`): with the author's approval and CI green, it merges (`--match-head-commit`) and creates the **signed tag** `vX.Y.Z` on the merge commit, signed with the author's SSH key.
 4. **GitHub Release** for the tag:
    - the notes are the CHANGELOG section;
    - the assets are the package tarball (`npm pack`), an **SBOM** (CycloneDX JSON) and `SHA256SUMS`.
-5. **Audit**: one append-only entry per release, with who prepared it, who approved it, the tag, the commit, the CI run and the asset checksums. Each entry carries the hash of the previous one.
+5. **Audit**: one append-only entry per release (`releases.jsonl` in the author's state folder), with who prepared it, who ran and approved it, the tag, the commit, the CI run and the asset checksums. Each entry carries the hash of the previous one.
 
 ## Checklist (also in the PR body)
 

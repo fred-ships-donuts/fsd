@@ -312,5 +312,20 @@ if command -v jq >/dev/null; then
   check K13 "managed settings do root com o aceite do bypass" bash -c "[ \"\$(stat -c '%U %a' /etc/claude-code/managed-settings.json)\" = 'root 644' ] && jq -e '.skipDangerousModePermissionPrompt == true' /etc/claude-code/managed-settings.json >/dev/null"
   for r in "${ROLES[@]}"; do check K13 "fsd-$r não edita as managed settings" cannot "fsd-$r" "echo x >> /etc/claude-code/managed-settings.json"; done
 fi
+# K21 (E6): o login do Claude de cada papel vem do token do cofre (FSD_CLAUDE_TOKEN_SRC), sem /login; 0600 do papel, que outro papel
+# não lê; um login de verdade (com refreshToken) não é trocado numa nova rodada do fsd-users.
+if command -v jq >/dev/null && [ -s /home/fsd-bob/.claude/.credentials.json ]; then
+  C=/home/fsd-bob/.claude/.credentials.json
+  check K21 "a credencial do Bob é 0600 dele" bash -c "[ \"\$(stat -c '%a %U' $C)\" = '600 fsd-bob' ]"
+  check K21 "a credencial tem o token do cofre, sem refreshToken" jq -e '.claudeAiOauth.accessToken == "sk-ant-oat01-fake" and .claudeAiOauth.refreshToken == null' "$C"
+  check K21 "a Mel não lê a credencial do Bob" cannot fsd-mel "cat $C"
+  for r in "${ROLES[@]}"; do check K21 "fsd-$r tem credencial" test -s "/home/fsd-$r/.claude/.credentials.json"; done
+  if [ -x /opt/fsd-sim/fsd-users ] && [ -s /opt/fsd-sim/claude-token ]; then
+    cp -p "$C" /tmp/k21-bak; jq '.claudeAiOauth.refreshToken = "real"' /tmp/k21-bak > "$C"
+    FSD_PROFILES_SRC=/opt/fsd-sim/agents FSD_REPO_DIR=/srv/repo FSD_TEAM_DIR=/opt/fsd-sim/team FSD_NATIVE_PREFLIGHT=0 FSD_CLAUDE_TOKEN_SRC=/opt/fsd-sim/claude-token /opt/fsd-sim/fsd-users >/dev/null 2>&1
+    check K21 "um login de verdade fica" jq -e '.claudeAiOauth.refreshToken == "real"' "$C"
+    cp -p /tmp/k21-bak "$C"; rm -f /tmp/k21-bak
+  fi
+fi
 [ $fail = 0 ] && echo "k-checks: tudo ok" || echo "k-checks: há falhas"
 exit $fail

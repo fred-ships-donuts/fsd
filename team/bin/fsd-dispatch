@@ -42,13 +42,17 @@ async function gather() {
   }
   const key = Object.fromEntries(Object.entries(STAGE).map(([k, v]) => [v, k]));
   let board = []; try { board = JSON.parse(spawnSync(join(BIN, 'fsd-board'), ['list', '--json'], { encoding: 'utf8' }).stdout || '[]'); } catch {}
-  const blocked = new Set((L.ghJson(['issue', 'list', '--label', 'blocked', '--state', 'open', '--json', 'number']) || []).map((i) => i.number));
+  // Validação R4: um gh só para os bloqueados e os sem size: (o Backlog sem size: vai para a triagem do Kevin).
+  const open = L.ghJson(['issue', 'list', '--state', 'open', '--limit', '500', '--json', 'number,labels']) || [];
+  const labelsOf = (i) => (i.labels || []).map((l) => l.name);
+  const blocked = new Set(open.filter((i) => labelsOf(i).includes('blocked')).map((i) => i.number));
+  const sized = new Set(open.filter((i) => labelsOf(i).some((x) => /^size:/.test(x))).map((i) => i.number));
   const prs = L.openPrs(); const roleOf = (login) => L.agentOf(login);
   const cards = board.filter((b) => b.type !== 'PullRequest').map((b) => {
     const column = key[stageName(b.column)] || null; const pr = prs.find((p) => L.closes(p.body).includes(b.number));
     const st = pr ? L.reviewState(pr) : null;
     const reviewedBy = pr ? [...st.last].filter(([, r]) => r.commit?.oid === pr.headRefOid && r.state !== 'DISMISSED').map(([w]) => roleOf(w)) : [];
-    return { n: b.number, column, blocked: blocked.has(b.number), ...(pr ? { pr: pr.number, head: pr.headRefOid, reviewedBy } : {}) };
+    return { n: b.number, column, blocked: blocked.has(b.number), ...(column === 'backlog' && !sized.has(b.number) ? { unsized: true } : {}), ...(pr ? { pr: pr.number, head: pr.headRefOid, reviewedBy } : {}) };
   }).filter((c) => c.column);
   const { messages, rejected } = M.collect();
   for (const r of rejected) console.log(`mensagem recusada (${r.from || '?'}): ${r.errors.join('; ')}`);

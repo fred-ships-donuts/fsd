@@ -3,7 +3,8 @@
 // — a release do produto (E5, RELEASE.md). 0 token.
 //   plan      a próxima versão pelos commits desde a última tag v* (só os que tocam src/ e package.json) e as notas
 //   prepare   branch release/vX.Y.Z a partir da develop, com o CHANGELOG promovido e a versão no package.json, e o PR para a main
-//             com notas, checklist e o autor como revisor. --dry (ou FSD_DRY=1) só mostra. Quem roda é o supervisor (token de release).
+//             com notas, checklist e o autor como revisor. --dry (ou FSD_DRY=1) só mostra. Quem roda é o autor (validação R35), com
+//             FSD_AGENT=kevin: o PR sai pelo App do Kevin, e o autor pode aprová-lo (o GitHub não deixa aprovar o próprio PR).
 import { readFileSync, writeFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { join, dirname } from 'node:path';
@@ -46,8 +47,8 @@ if (cmd === 'plan') {
   const fail = R.releaseGate(pr, { author: CFG.author, ciState: L.ciState }); if (fail.length) { console.log(`fsd-release: PR #${n} não pode ser publicado: ${fail.join('; ')}`); process.exit(1); }
   const version = pr.headRefName.replace('release/v', ''), tag = `v${version}`;
   const key = process.env.FSD_RELEASE_SIGNING_KEY;
-  if (!key && !DRY) { console.log('fsd-release: sem FSD_RELEASE_SIGNING_KEY (a chave de assinatura do broker)'); process.exit(2); }
-  const steps = [`gh pr merge ${n} --merge --match-head-commit ${pr.headRefOid}`, `git tag -s ${tag} (ssh, ${key || '<chave do broker>'}) no merge commit`, `git push origin ${tag}`,
+  if (!key && !DRY) { console.log('fsd-release: sem FSD_RELEASE_SIGNING_KEY (a chave SSH do autor que assina a tag)'); process.exit(2); }
+  const steps = [`gh pr merge ${n} --merge --match-head-commit ${pr.headRefOid}`, `git tag -s ${tag} (ssh, ${key || '<chave do autor>'}) no merge commit`, `git push origin ${tag}`,
     `assets de ${tag}: npm pack, npm sbom (CycloneDX), SHA256SUMS`, `gh release create ${tag} --verify-tag --title ${tag} --notes-file <seção ${version} do CHANGELOG> <assets>`, `auditoria: ${tag}`];
   if (DRY) { console.log(steps.map((x) => `[dry] ${x}`).join('\n')); process.exit(0); }
   const gh = (...a) => { const r = spawnSync(join(BIN, 'gh'), a, { encoding: 'utf8' }); if (r.status !== 0) throw new Error(`gh ${a[0]} ${a[1]}: ${r.stderr.trim()}`); return r.stdout.trim(); };
@@ -63,7 +64,7 @@ if (cmd === 'plan') {
     writeFileSync(join(wt, 'notes.md'), notes);
     gh('release', 'create', tag, '--verify-tag', '--title', tag, '--notes-file', join(wt, 'notes.md'), a.tgz, a.sbom, a.sums);
     const state = process.env.FSD_STATE || join(process.env.HOME, '.config', 'fsd-agents');
-    R.auditAppend(join(state, 'releases.jsonl'), { t: new Date().toISOString(), event: 'release', tag, sha, pr: Number(n), preparedBy: 'fsd-dispatch', approvedBy: CFG.author, ci: 'green', assets: Object.fromEntries([a.tgz, a.sbom].map((f) => [f.split('/').pop(), R.sha256File(f)])) });
+    R.auditAppend(join(state, 'releases.jsonl'), { t: new Date().toISOString(), event: 'release', tag, sha, pr: Number(n), preparedBy: process.env.FSD_AGENT ? `fsd-${process.env.FSD_AGENT}` : CFG.author, runBy: CFG.author, approvedBy: CFG.author, ci: 'green', assets: Object.fromEntries([a.tgz, a.sbom].map((f) => [f.split('/').pop(), R.sha256File(f)])) });
     console.log(`fsd-release: ${tag} publicado`);
   } finally { git('worktree', 'remove', '--force', join(wt, 'src')); }
 } else if (cmd === 'rollback') {
