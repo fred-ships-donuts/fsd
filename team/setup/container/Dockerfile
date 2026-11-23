@@ -149,7 +149,8 @@ else echo userspace > /run/fsd-net-mode; echo "fsd: sem /dev/net/tun, Tailscale 
 rm -f /run/fsd-native
 if [ "${FSD_NATIVE:-0}" = 1 ] && [ -d "$FSD_REPO/.git" ]; then
   ref="${FSD_TEAM_REF:-origin/develop}"; AG="$H/.config/fsd-agents"
-  git config --system --get-all safe.directory 2>/dev/null | grep -qxF "$FSD_REPO" || git config --system --add safe.directory "$FSD_REPO"
+  # E6 real: o clone --no-local do root confere o dono do $FSD_REPO/.git (do uid 1000), não só o da pasta; os dois entram.
+  for d in "$FSD_REPO" "$FSD_REPO/.git"; do git config --system --get-all safe.directory 2>/dev/null | grep -qxF "$d" || git config --system --add safe.directory "$d"; done
   # Validação R19: o root copia o clone do humano para um bare dele (--no-local: o index-pack confere cada objeto) e lê o time de lá;
   # com FSD_TEAM_SHA no team.env, só aquele commit sobe. A url dos papéis é a do GitHub, conferida.
   B=/srv/fsd/team.git; mkdir -p /srv/fsd; rm -rf "$B.new"
