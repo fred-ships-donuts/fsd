@@ -62,3 +62,9 @@ test('fsd-merge: the fixture only works with FSD_DRY=1', () => {
   const r = spawnSync(process.execPath, [join(BIN, 'fsd-merge'), '7'], { encoding: 'utf8', env: { ...process.env, FSD_DRY: '', FSD_MERGE_FIXTURE: f } });
   assert.equal(r.status, 2);
 });
+
+test('validation R22 (author decision): a code PR (from the Stuart) needs the Mel and the Bob; Kevin + Mel is not enough', () => {
+  const g = mergeGate(pr({ reviews: [approved('fsd-mel[bot]'), approved('fsd-kevin[bot]')] }));
+  assert.ok(g.fail.some((f) => /falta a aprovação de bob/.test(f)), g.fail.join('; '));
+  assert.deepEqual(mergeGate(pr({ author: { login: 'fsd-mel[bot]' }, reviews: [approved('fsd-kevin[bot]'), approved('fsd-bob[bot]')] })).fail, []);
+});

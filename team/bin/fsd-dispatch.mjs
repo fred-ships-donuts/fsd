@@ -8,7 +8,7 @@
 //   maxConcurrent,                          quantos agentes podem estar trabalhando ao mesmo tempo (D4: 1, depois 2)
 //   offline: 'byUrgency'|'wait'|'wake',     D11: mensagem para agente desligado (padrão byUrgency: urgente religa, comum espera)
 //   sessions: { <papel>: { state: 'working'|'idle'|'off', id?, task? } }   task = { key } da tarefa em andamento
-//   cards: [{ n, column, blocked?, pr?, head?, reviewedBy?: [papel] }]     column = chave de COLUMNS (cardColumn já aplicado)
+//   cards: [{ n, column, blocked?, unsized?, pr?, head?, reviewedBy?: [papel] }]   column = chave de COLUMNS; unsized = sem size:
 //   messages: [{ id, from, to, text, urgent? }]                           o que está no outbox, ainda não entregue
 //   deadlocks: [{ ref, key }]                                              de findDeadlocks (fsd-lib), sem juiz ainda
 //   judged: [ref]                                                          refs que já foram ao juiz
@@ -24,7 +24,8 @@
 //                                                    sessions[r].ctx e sessions[r].eod)
 // Regras: PAUSE ou orçamento estourado → nenhum turno novo (a caixa de quem trabalha ainda recebe; o merge espera também).
 // maxConcurrent conta quem já trabalha mais os turnos abertos nesta rodada. Prioridade dos turnos: correção primeiro
-// (Changes Requested do Stuart), depois revisão, depois Ready for Development, depois arquitetura, depois mensagens soltas.
+// (Changes Requested do Stuart), depois revisão, depois Ready for Development, depois arquitetura, depois triagem do Backlog,
+// depois mensagens soltas.
 // O Stuart pega um card por vez: com um card em Developing ou em Changes Requested, Ready for Development não sai para ele.
 import { COLUMNS } from './fsd-stages.mjs';
 
@@ -37,8 +38,10 @@ export const TASK_OF = {   // coluna → tarefas (papel e tipo do contrato da F3
   // tarefa anterior terminou sem entrega (turno acabou, lease vencido, fim do dia): o card não fica parado.
   dev: [{ role: 'stuart', kind: 'entrega-codigo' }],
   arch: [{ role: 'mel', kind: 'arquitetura' }],
+  // Validação R4 (decisão do autor): card no Backlog sem size: ganha um turno de triagem do Kevin (fsd-issue triage --entrega).
+  backlog: [{ role: 'kevin', kind: 'triagem' }],
 };
-const PRIORITY = ['changes', 'review', 'dev', 'devReady', 'arch', 'archReady'];   // correção primeiro; terminar antes de começar
+const PRIORITY = ['changes', 'review', 'dev', 'devReady', 'arch', 'archReady', 'backlog'];   // correção primeiro; terminar antes de começar
 export const taskKey = (card, kind) => `${kind}:#${card.n}${card.head ? `@${card.head}` : ''}`;
 
 export function decide(state) {
@@ -70,6 +73,7 @@ export function decide(state) {
     for (const c of s.cards.filter((x) => x.column === col && !x.blocked).sort((a, b) => a.n - b.n)) {
       for (const t of TASK_OF[col]) {
         if (col === 'devReady' && stuartBusy) continue;   // um card por vez para o Stuart
+        if (col === 'backlog' && !c.unsized) continue;      // já triado (tem size:): fica no Backlog até o autor puxar
         if (col === 'review' && (c.reviewedBy || []).includes(t.role)) continue;   // já revisou este head
         tasks.push({ role: t.role, kind: t.kind, card: c, key: taskKey(c, t.kind) });
       }

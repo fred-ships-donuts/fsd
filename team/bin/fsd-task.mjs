@@ -30,13 +30,15 @@ export function taskCard({ task, issue, notes = [] }) {
     `[fsd-cartão] ${task.kind} · #${issue.number}${issue.title ? ` ${issue.title}` : ''}${task.head ? ` · head ${task.head}` : ''}`,
     WHAT[task.kind] || '',
     '',
-    items.length ? `Aceite (${items.length} itens; cite cada um pelo número na entrega):` : 'Aceite: o issue não tem a seção "## Acceptance". Peça ao Kevin antes de começar (fsd-diga kevin).',
-    ...items.map((x, i) => `${i + 1}. ${x}`),
+    // Validação R4: a triagem é do Kevin, que dimensiona o issue; o aceite do issue não é dela.
+    ...(task.kind === 'triagem' ? [] : [items.length ? `Aceite (${items.length} itens; cite cada um pelo número na entrega):` : 'Aceite: o issue não tem a seção "## Acceptance". Peça ao Kevin antes de começar (fsd-diga kevin).']),
+    ...(task.kind === 'triagem' ? [] : items.map((x, i) => `${i + 1}. ${x}`)),
     ...(notes.length ? ['', 'Pedidos a atender:', ...notes.map((x) => `- ${x}`)] : []),
     '',
     `Contrato: team/contracts/${contract}.schema.json (exemplo em team/contracts/examples/${contract}/valid.json).`,
     ...(dod.length ? [`Definition of Done (todos true em "dod"): ${dod.join(', ')}.`] : []),
-    `Entregue com: fsd-entrega <arquivo.json>${items.length ? ` --aceite ${items.length}` : ''}. Sem entrega válida o card não anda.`,
+    task.kind === 'triagem' ? `Entregue com: fsd-issue triage ${issue.number} --entrega <arquivo.json>. Sem entrega válida o card não anda.`
+      : `Entregue com: fsd-entrega <arquivo.json>${items.length ? ` --aceite ${items.length}` : ''}. Sem entrega válida o card não anda.`,
   ];
   return lines.filter((l, i, a) => !(l === '' && a[i - 1] === '')).join('\n').trim();
 }

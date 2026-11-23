@@ -122,10 +122,23 @@ for r in "${ROLES[@]}"; do
   # Validação R19: só arquivo de verdade (o install segue link; um link do uid 1000 apontaria para outro arquivo).
   if [ -n "${FSD_AIM_TOKENS_SRC:-}" ] && [ -f "$tok" ] && [ ! -L "$tok" ] && [ -s "$tok" ]; then install -o "fsd-$r" -g "fsd-$r" -m 0400 "$tok" "$dd/auth-token"; fi
 done
+# Login do Claude (E6): FSD_CLAUDE_TOKEN_SRC=<arquivo com o token do `claude setup-token`> grava o ~/.claude/.credentials.json de cada
+# papel (0600 do papel), sem /login interativo. O arquivo de credencial é negado ao Bash e ao Read nos perfis da sessão. Um login de
+# verdade (com refreshToken) não é trocado; um semeado (refreshToken null) é regravado, e assim um token novo no cofre chega a todos.
+ctok=${FSD_CLAUDE_TOKEN_SRC:-}
+if [ -n "$ctok" ] && [ -f "$ctok" ] && [ ! -L "$ctok" ] && [ -s "$ctok" ] && command -v jq >/dev/null; then
+  for r in "${ROLES[@]}"; do
+    h=/home/fsd-$r; c=$h/.claude/.credentials.json
+    install -d -o "fsd-$r" -g "fsd-$r" -m 0700 "$h/.claude"
+    if [ -L "$c" ] || { [ -s "$c" ] && jq -e '.claudeAiOauth.refreshToken // empty' "$c" >/dev/null 2>&1; }; then continue; fi
+    ( umask 077; jq -n --rawfile t "$ctok" --argjson exp "$(( ($(date +%s) + 365*86400) * 1000 ))" \
+        '{claudeAiOauth: {accessToken: ($t | rtrimstr("\n") | rtrimstr("\r")), refreshToken: null, expiresAt: $exp, scopes: ["user:inference"], subscriptionType: null}}' > "$c.tmp" ) \
+      && install -o "fsd-$r" -g "fsd-$r" -m 0600 "$c.tmp" "$c"; rm -f "$c.tmp"
+  done
+fi
 # Bypass em --bg (F0.2, T0.2.2): o claude exige o aceite do aviso (skipDangerousModePermissionPrompt) nas settings do usuário, que a
 # sessão do papel não lê (--setting-sources local). As managed settings (/etc/claude-code, do root, sempre lidas) valem para isso
-# (provado no container). Só essa chave; o que já houver no arquivo fica. A confiança da pasta do repositório não entra aqui: cada papel
-# aceita uma vez, pelo claude interativo (passo do autor na E6).
+# (provado no container). Só essa chave; o que já houver no arquivo fica. A confiança da pasta da sessão é gravada pelo fsd-profile.mjs (R47).
 install -d -o root -g root -m 0755 /etc/claude-code
 mf=/etc/claude-code/managed-settings.json; [ -s "$mf" ] || echo '{}' > "$mf"
 if command -v jq >/dev/null; then jq '.skipDangerousModePermissionPrompt = true' "$mf" > "$mf.tmp" && install -o root -g root -m 0644 "$mf.tmp" "$mf"; rm -f "$mf.tmp"; fi

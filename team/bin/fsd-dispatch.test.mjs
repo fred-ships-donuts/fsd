@@ -80,3 +80,13 @@ test('validation R4: a card already in Developing or Architecting continues once
   // finishing comes before starting: the card in Developing goes before a new one in Ready for Development (which waits anyway)
   assert.deepEqual(turns(decide({ sessions: team({ stuart: idle }), cards: [{ n: 9, column: 'devReady' }, dev] })), ['stuart:resume:entrega-codigo#12']);
 });
+
+test('validation R4 (author decision): an unsized Backlog card gets one Kevin triage turn; a sized one stays put', () => {
+  const idle = { state: 'idle', id: 'k1' };
+  assert.deepEqual(turns(decide({ sessions: team({ kevin: idle }), cards: [{ n: 30, column: 'backlog', unsized: true }] })), ['kevin:resume:triagem#30']);
+  assert.deepEqual(turns(decide({ sessions: team(), cards: [{ n: 30, column: 'backlog', unsized: true }] })), ['kevin:wake:triagem#30']);
+  assert.deepEqual(turns(decide({ sessions: team({ kevin: idle }), cards: [{ n: 31, column: 'backlog' }] })), []);
+  assert.deepEqual(turns(decide({ sessions: team({ kevin: { ...idle, task: { key: taskKey({ n: 30 }, 'triagem') } } }), cards: [{ n: 30, column: 'backlog', unsized: true }] })), []);
+  // triage comes after the code work: with one slot, the Stuart's correction goes first
+  assert.deepEqual(turns(decide({ sessions: team({ kevin: idle, stuart: { state: 'idle', id: 's1' } }), cards: [{ n: 30, column: 'backlog', unsized: true }, { n: 5, column: 'changes' }] })), ['stuart:resume:correcao#5']);
+});

@@ -86,7 +86,7 @@ test('T4.1.4: in a session runner the context guard asks to close the day instea
 
 test('T4.1.5: the old watcher does not bring back a role migrated to runner "session"', () => {
   const t = mkdtempSync(join(tmpdir(), 'team-')); for (const p of ['bin', 'agents.json', 'redirects.json', 'claude-settings.json']) cpSync(join(TEAM, p), join(t, p), { recursive: true });
-  const cfg = JSON.parse(readFileSync(join(t, 'agents.json'), 'utf8')); cfg.agents.mel.runner = 'session'; writeFileSync(join(t, 'agents.json'), JSON.stringify(cfg));
+  const cfg = JSON.parse(readFileSync(join(t, 'agents.json'), 'utf8')); for (const a of Object.values(cfg.agents)) delete a.runner; cfg.agents.mel.runner = 'session'; writeFileSync(join(t, 'agents.json'), JSON.stringify(cfg));
   const r = spawnSync(join(t, 'bin', 'fsd-watch'), [], { encoding: 'utf8', env: { ...process.env, FSD_STATE: mkdtempSync(join(tmpdir(), 'ws-')), FSD_DRY: '1', FSD_TMUX_SOCKET: `pf-${process.pid}`, FSD_REPO: t } });
   assert.equal(r.status, 0, r.stderr); assert.match(r.stdout, /Kevin/); assert.match(r.stdout, /Stuart/); assert.doesNotMatch(r.stdout, /│ Mel /);
   assert.match(readFileSync(join(BIN, 'fsd-wait'), 'utf8'), /runner !== 'session'/);
