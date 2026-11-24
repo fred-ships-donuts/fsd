@@ -72,5 +72,5 @@ else if (cmd === 'retire' && S.ROLES.includes(role)) {   // fim do dia (T3.4.2):
   stored[role] = { active: false, retiredAt: new Date().toISOString(), lastSessionId: stored[role]?.sessionId || null }; S.saveStored(stored);
   console.log(`fsd-session: ${role} aposentado (fim do dia); a próxima tarefa abre uma sessão nova`);
 }
-else if (cmd === 'boot') { const b = S.planBoot({ stored, st: st() }); for (const x of b) if (run(x.steps, x.role) === 'missing') { stored[x.role] = { active: false, lastSessionId: stored[x.role]?.sessionId || null }; S.saveStored(stored); } console.log(`fsd-session: boot religou ${b.map((x) => x.role).join(', ') || 'ninguém'}`); }
+else if (cmd === 'boot') { const b = S.planBoot({ stored, st: st(), interrupted: (r) => sessionState(r)?.state !== 'idle' }); for (const x of b) if (run(x.steps, x.role) === 'missing') { stored[x.role] = { active: false, lastSessionId: stored[x.role]?.sessionId || null }; S.saveStored(stored); } console.log(`fsd-session: boot religou ${b.map((x) => x.role).join(', ') || 'ninguém'}`); }
 else die('uso: fsd-session status [--json] | start|turn <papel> "<texto>" | stop|retire <papel> | boot', 2);
