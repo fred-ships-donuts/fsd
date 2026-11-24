@@ -299,6 +299,11 @@ export function columnCards(col) {
 export function devCards() {
   return [STAGE.changes, STAGE.dev].flatMap((col) => columnCards(col).map((n) => ({ n, col })));
 }
+// Um card por vez (#185): só Developing conta; Changes Requested é fila. `pulling` = o card pedido já tem PR (correção).
+export function oneCardRule(cards, n, pulling) {
+  const dev = cards.filter((c) => c.col === STAGE.dev && c.n !== n);
+  return pulling ? { refuse: null, back: dev.map((c) => c.n) } : { refuse: dev[0] || null, back: [] };
+}
 // Move o card de um PR para a coluna que cardColumn calcula (#187); null (fechado, draft) deixa o card onde está. `p` é o JSON do gh (L.pr).
 export function boardPr(p, { pulled = false, state } = {}) {
   const n = prFromGh(p); if (state) n.state = state;
