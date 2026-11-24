@@ -84,9 +84,9 @@ comando passam por cima do padrão.
 
 ```
 ~/.local/bin/
-└── fsd-agent                      atalho: só chama o launcher de verdade
+└── fsd-agent                      link para <repo>/team/bin/fsd-agent (o launcher de verdade)
 
-~/.config/fsd-agents/              ── TUDO DOS AGENTES ──
+<repo>/team/                       ── CÓDIGO DOS AGENTES (versionado) ──
 ├── bin/
 │   ├── fsd-agent           ⚙️     launcher: identidade, flags (modelo, esforço, ferramentas, MCP), tokens
 │   ├── fsd-token                  gera o token do GitHub App do agente: só o repositório do time e as permissões do papel (agents.json → tokens), sem workflows
@@ -108,7 +108,8 @@ comando passam por cima do padrão.
 │   ├── gh                         gh dos agentes (só entra no PATH dentro do fsd-agent)
 │   ├── fsd-map                    mapa de código (ask, grep, skeleton, callers, map, build); motor privado, fora do PATH
 │   └── git-credential-fsd         entrega o token ao git
-│
+
+~/.config/fsd-agents/              ── ESTADO DOS AGENTES (FSD_STATE) ──
 ├── agents.json             ⚙️     por agente: model, effort, disallowedTools, dados do GitHub App
 │                                  "claude_common": ferramentas cortadas para todos
 │                                  "timing": tempos do time (pings e prazos), ver "Tempos do time"
@@ -334,7 +335,8 @@ O time nativo roda no mesmo container, com um usuário Linux por papel (`fsd-kev
 
 ## fsd-agent fred
 
+`team/bin/fsd-agent` já traz o perfil `fred` (sem receita para aplicar):
+
 ```bash
-sed -i '/^name="\${1:-}"; shift || true$/a [ "$name" = fred ] \&\& { [ "${1:-}" = claude ] \&\& shift; d="$ROOT/agents/fred/claude"; mkdir -p "$d" "$ROOT/sessions"; (shopt -s dotglob; for f in "$HOME"/.claude/*; do n="${f##*/}"; [ "$n" = sessions ] || [ -e "$d/$n" ] || ln -s "$f" "$d/$n"; done); ln -sfn "$HOME/.claude.json" "$d/.claude.json"; ln -sfn "$ROOT/sessions" "$d/sessions"; CLAUDE_CONFIG_DIR="$d" exec claude -n fred "$@"; }' ~/.config/fsd-agents/bin/fsd-agent
 fsd-agent fred
 ```
