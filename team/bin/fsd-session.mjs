@@ -65,8 +65,9 @@ export function planTurn(role, prompt, { st, stored = {}, opts } = {}) {
   return { steps: [...stop, ...planStart(role, prompt, { stored, opts })] };
 }
 export const planStop = (role, { st }) => (st?.id ? [{ argv: ['stop', st.id] }] : []);
-// Depois de um reinício (respawn --all só pega sessões vivas): cada papel ativo que não está ligado volta pelo id, com um aviso.
-export function planBoot({ stored = {}, st = {}, opts } = {}) {
-  return ROLES.filter((r) => stored[r]?.active && st[r]?.state === 'off' && stored[r].sessionId)
+// Depois de um reinício (respawn --all só pega sessões vivas): cada papel ativo, desligado e interrompido no meio de um turno volta pelo id,
+// com um aviso. Quem estava ocioso espera: a próxima tarefa já retoma a conversa, e religar à toa relê o contexto inteiro (custa).
+export function planBoot({ stored = {}, st = {}, opts, interrupted = () => true } = {}) {
+  return ROLES.filter((r) => stored[r]?.active && st[r]?.state === 'off' && stored[r].sessionId && interrupted(r))
     .map((r) => ({ role: r, steps: planStart(r, '[fsd] Sessão religada depois de um reinício do container. Siga o cartão da tarefa e a caixa; nada novo chegou.', { stored, opts }) }));
 }

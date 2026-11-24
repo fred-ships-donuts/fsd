@@ -4,7 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, readFileSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -53,7 +53,10 @@ test('after a simulated container restart, boot brings back each active role wit
   const ids = Object.fromEntries(stub(w).sessions.map((s) => [s.name, s.sessionId]));
   spawnSync(STUB, ['reboot'], { env: { ...process.env, ...w } });
   assert.deepEqual(Object.values(status(w)).map((x) => x.state), ['off', 'off', 'off', 'off']);
-  const r = ses(w, ['boot']); assert.equal(r.status, 0); assert.match(r.stdout, /religou mel, stuart|religou stuart, mel/);
+  // Ocioso no reinício não é religado (a próxima tarefa retoma a conversa); interrompido no meio do turno, sim.
+  const hook = (r, state) => { mkdirSync(join(w.FSD_STATE, 'session-state'), { recursive: true }); writeFileSync(join(w.FSD_STATE, 'session-state', `${r}.json`), JSON.stringify({ state, at: new Date().toISOString() })); };
+  hook('mel', 'idle'); hook('stuart', 'idle'); assert.match(ses(w, ['boot']).stdout, /religou ninguém/); hook('mel', 'working'); hook('stuart', 'working');
+  const r = ses(w, ['boot']); assert.equal(r.status, 0); assert.match(r.stdout, /religou mel, stuart|religou stuart, mel/); hook('mel', 'idle'); hook('stuart', 'idle');
   const s = status(w); const [st] = alive(w, 'stuart'), [me] = alive(w, 'mel');
   assert.equal(st.copyOf, ids.stuart); assert.equal(me.copyOf, ids.mel); assert.equal(s.stuart.sessionId, st.sessionId); assert.equal(s.stuart.state, 'idle'); assert.equal(s.kevin.state, 'off');
   assert.ok(stub(w).sessions.every((x) => x.copyOf || Object.values(ids).includes(x.sessionId)));   // nenhuma conversa nova
