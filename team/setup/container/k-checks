@@ -160,6 +160,7 @@ if command -v jq >/dev/null && [ -f /etc/fsd/profiles/stuart/settings.json ]; th
 fi
 # K14 (F4.8): o modelo de cada papel vem do agents.json, no perfil do root.
 if command -v jq >/dev/null && [ -n "${FSD_SIM_TEAM:-}" ]; then
+  for r in "${ROLES[@]}"; do check K14 "o perfil do $r tem o esforço e as ferramentas cortadas do agents.json" bash -c "jq -e --slurpfile a $FSD_SIM_TEAM/agents.json --arg r $r '.effortLevel == \$a[0].agents[\$r].claude.effort and (((\$a[0].claude_common.disallowedTools + \$a[0].agents[\$r].claude.disallowedTools) - .permissions.deny) == [])' /etc/fsd/profiles/$r/settings.json >/dev/null"; done
   for r in "${ROLES[@]}"; do check K14 "o perfil do $r tem o modelo do agents.json" bash -c "[ \"\$(jq -r .model /etc/fsd/profiles/$r/settings.json)\" = \"\$(jq -r '.agents.$r.claude.model' $FSD_SIM_TEAM/agents.json)\" ]"; done
 fi
 # K15 (E6): o fsd-native-setup. O team/ que roda (hooks, perfis, wrappers) é uma cópia fixada do root, que nenhum papel grava; o
