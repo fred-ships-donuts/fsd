@@ -1,5 +1,4 @@
-# CODEOWNERS (T1.1.4 do plano do time nativo; achado S5): as regras do time e o CI são do autor.
+# CODEOWNERS (T1.1.4 do plano do time nativo; achado S5): o CI e este arquivo são do autor.
 # O arquivo só pede a revisão; quem a torna obrigatória é o ruleset ProtDevelop (require_code_owner_review), ligado na TI.2.
-# Assim nenhum agente muda o próprio guard, o deny, o fsd-merge ou os workflows sem a aprovação do autor.
-/team/ @fredericojacobi
+# /team/ saiu por decisão do autor (2026-11-24): as tarefas do time entram com as aprovações da Mel e do Bob e o CI verde.
 /.github/ @fredericojacobi
