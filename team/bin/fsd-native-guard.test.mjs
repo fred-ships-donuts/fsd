@@ -44,6 +44,9 @@ test('F2.5: every session profile turns the Bash sandbox on, with no way out and
     const sb = JSON.parse(readFileSync(join(TEAM, 'agents', r, 'claude', 'settings.session.json'), 'utf8')).sandbox;
     assert.equal(sb.enabled, true); assert.equal(sb.allowUnsandboxedCommands, false); assert.equal(sb.failIfUnavailable, true);
     assert.ok(sb.filesystem.denyRead.includes('~/.claude/.credentials.json')); assert.ok(sb.filesystem.denyRead.includes('~/.local/share/ai-memory/auth-token'));
+    // As regras Read(...) do deny valem também no sandbox: sem isto o gh do papel não lê o próprio token (a ferramenta Read segue negada).
+    assert.deepEqual(sb.filesystem.allowRead, [`/var/lib/fsd-tokens/${r}`]);
+    assert.ok(JSON.parse(readFileSync(join(TEAM, 'agents', r, 'claude', 'settings.session.json'), 'utf8')).permissions.deny.includes('Read(//var/lib/fsd-tokens/**)'));
     assert.deepEqual(sb.network.allowedDomains, ['*']); assert.deepEqual(sb.excludedCommands || [], r === 'bob' ? ['fsd-qa *'] : []);
   }
   const legacy = JSON.parse(readFileSync(join(TEAM, 'claude-settings.json'), 'utf8')); assert.equal(legacy.sandbox, undefined);   // o time no tmux não muda

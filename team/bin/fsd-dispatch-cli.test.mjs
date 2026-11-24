@@ -5,7 +5,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtempSync, writeFileSync, readFileSync, mkdirSync, cpSync, existsSync, renameSync, symlinkSync, chmodSync, rmSync } from 'node:fs';
 import { spawnSync, spawn } from 'node:child_process';
-import { tmpdir } from 'node:os';
+import { tmpdir, userInfo } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -138,7 +138,8 @@ test('gather (R12): PAUSE.request of a role becomes the PAUSE of the team; --dry
   const f = mk(); symlinkSync(join(f.root, 'nao', 'existe'), join(f.root, 'PAUSE')); ok(f.x.run(['round'], f.env), /pausa pedida por bob falhou: ENOENT/); assert.ok(existsSync(f.req));
 });
 
-test('gather: messages of the outbox reach decide; a bad one is refused, with or without a known sender', () => {
+// O remetente é o dono do arquivo: rodando como fsd-<papel>, todos os arquivos do teste seriam desse papel.
+test('gather: messages of the outbox reach decide; a bad one is refused, with or without a known sender', { skip: /^fsd-/.test(userInfo().username) }, () => {
   const x = world({ decide: 'dump' }); const box = (r, f, v) => { mkdirSync(join(x.st, 'outbox', r), { recursive: true }); writeFileSync(join(x.st, 'outbox', r, f), typeof v === 'string' ? v : JSON.stringify(v)); };
   box('mel', '1.json', { to: 'stuart', text: 'oi', urgent: true }); box('mel', '2.json', { to: 'mel', text: 'eu mesma' }); box('mel', '3.json', '{lixo'); box('zeca', '4.json', { to: 'mel', text: 'x' });
   const r = ok(x.run(['round']));

@@ -76,7 +76,9 @@ test('F4.5 Mel: a technical doubt from Stuart reaches Mel, and her answer reache
 });
 
 // F4.6 Bob: QA na sessão nova. O fsd-run-exec é falso aqui (registra e roda o comando; a troca de usuário real é o K9); o tmux é real.
-const hasTmux = spawnSync('tmux', ['-V']).status === 0;
+// No sandbox de um papel o tmux existe, mas o socket é bloqueado: só conta o tmux que abre um terminal. No CI, existir basta (não pula).
+const tmuxUp = () => { const s = `probe-${process.pid}`, up = spawnSync('tmux', ['-L', s, 'new-session', '-d', 'sleep 5']).status === 0; if (up) spawnSync('tmux', ['-L', s, 'kill-server']); return up; };
+const hasTmux = spawnSync('tmux', ['-V']).status === 0 && (!!process.env.CI || tmuxUp());
 let bobN = 0;
 function bobWorld() {
   const w = world({ prs: { 220: PR } }); const rx = join(w.d, 'rx');

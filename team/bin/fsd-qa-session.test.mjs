@@ -10,7 +10,9 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const BIN = dirname(fileURLToPath(import.meta.url));
-const hasTmux = spawnSync('tmux', ['-V']).status === 0;
+// No sandbox de um papel o tmux existe, mas o socket é bloqueado: só conta o tmux que abre um terminal. No CI, existir basta (não pula).
+const tmuxUp = () => { const s = `probe-${process.pid}`, up = spawnSync('tmux', ['-L', s, 'new-session', '-d', 'sleep 5']).status === 0; if (up) spawnSync('tmux', ['-L', s, 'kill-server']); return up; };
+const hasTmux = spawnSync('tmux', ['-V']).status === 0 && (!!process.env.CI || tmuxUp());
 
 test('session runner (R16): each item runs in its own window, the exit comes from the file in ~/qa, and no Bob shell is left to type into', { skip: !hasTmux }, () => {
   const home = mkdtempSync(join(tmpdir(), 'qah-')), log = join(home, 'rx.log'), rx = join(home, 'rx');

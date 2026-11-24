@@ -88,6 +88,9 @@
         "~/.local/share/ai-memory/auth-header",
         "~/.local/share/ai-memory/auth-tokens"
       ],
+      "allowRead": [
+        "/var/lib/fsd-tokens/stuart"
+      ],
       "allowWrite": [
         "~/repo",
         "~/wt",

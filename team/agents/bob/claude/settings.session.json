@@ -77,6 +77,9 @@
         "~/.local/share/ai-memory/auth-header",
         "~/.local/share/ai-memory/auth-tokens"
       ],
+      "allowRead": [
+        "/var/lib/fsd-tokens/bob"
+      ],
       "allowWrite": [
         "~/repo",
         "~/wt",

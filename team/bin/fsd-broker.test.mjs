@@ -47,6 +47,7 @@ test('a role folder that does not exist is reported, not created', async () => {
 });
 
 test('fsd-token-file refuses a user that is not fsd-<role>, whatever FSD_AGENT says', () => {
-  const r = spawnSync(join(BIN, 'fsd-token-file'), [], { encoding: 'utf8', env: { ...process.env, FSD_AGENT: 'mel', FSD_RUNNER: 'session' } });
+  const who = mkdtempSync(join(tmpdir(), 'id-')); writeFileSync(join(who, 'id'), '#!/bin/sh\necho alguem\n', { mode: 0o755 });   // vale também rodando como fsd-<papel>
+  const r = spawnSync(join(BIN, 'fsd-token-file'), [], { encoding: 'utf8', env: { ...process.env, PATH: `${who}:${process.env.PATH}`, FSD_AGENT: 'mel', FSD_RUNNER: 'session' } });
   assert.equal(r.status, 2); assert.match(r.stderr, /não é um usuário de papel/);
 });

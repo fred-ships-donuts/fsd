@@ -52,6 +52,13 @@ install -o root -g root -m 0755 "$NODE" "$N/bin/node"; install -o root -g root -
 rm -rf "$N/ai-memory.new"; cp -rL "$AIM" "$N/ai-memory.new"; chown -R root:root "$N/ai-memory.new"; chmod -R u+rwX,go+rX,go-w "$N/ai-memory.new"
 rm -rf "$N/ai-memory"; mv "$N/ai-memory.new" "$N/ai-memory"; AIM=$N/ai-memory
 ln -sfn "$N/bin/node" /usr/local/bin/node; ln -sfn "$N/bin/claude" /usr/local/bin/claude
+# npm e npx dos papéis e do fsd-run (npm ci, build e testes no worktree): cópia do root do npm que vem com o mesmo node.
+NPM=$(dirname "$(dirname "$NODE")")/lib/node_modules/npm
+[ -f "$NPM/bin/npm-cli.js" ] || { echo "fsd-native-setup: falta o npm do node em $NPM"; exit 1; }
+install -d -o root -g root -m 0755 "$N/lib" "$N/lib/node_modules"; rm -rf "$N/lib/node_modules/npm.new"; cp -rL "$NPM" "$N/lib/node_modules/npm.new"
+chown -R root:root "$N/lib/node_modules/npm.new"; chmod -R u+rwX,go+rX,go-w "$N/lib/node_modules/npm.new"
+rm -rf "$N/lib/node_modules/npm"; mv "$N/lib/node_modules/npm.new" "$N/lib/node_modules/npm"
+for c in npm npx; do ln -sfn "../lib/node_modules/npm/bin/$c-cli.js" "$N/bin/$c"; ln -sfn "$N/bin/$c" "/usr/local/bin/$c"; done
 # rtk dos hooks (validação R6): cópia do root em /usr/local/bin, não o /opt/fsd/bin do uid 1000.
 RTK=${FSD_RTK_BIN:-/opt/fsd/bin/rtk}; [ -x "$RTK" ] && install -o root -g root -m 0755 "$RTK" /usr/local/bin/rtk
 for r in kevin mel stuart bob; do
