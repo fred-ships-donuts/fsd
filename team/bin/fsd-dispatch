@@ -50,10 +50,17 @@ async function gather() {
   const sized = new Set(open.filter((i) => labelsOf(i).some((x) => /^size:/.test(x))).map((i) => i.number));
   const prs = L.openPrs(); const roleOf = (login) => L.agentOf(login);
   const cards = board.filter((b) => b.type !== 'PullRequest').map((b) => {
-    const column = key[stageName(b.column)] || null; const pr = prs.find((p) => L.closes(p.body).includes(b.number));
+    let column = key[stageName(b.column)] || null; const pr = prs.find((p) => L.closes(p.body).includes(b.number));
+    // O CI ficou verde depois das 2 aprovações (o último revisor viu "pendente"): ninguém mais move o card, então o supervisor o leva.
+    if (column === 'review' && pr && L.ready(pr)) {
+      const r = DRY ? '' : L.board(STAGE.mergeReady, [b.number]);
+      if (DRY || r.includes('→')) column = 'mergeReady'; else console.log(`fsd-dispatch: #${b.number}: ${r}`);
+    }
     const st = pr ? L.reviewState(pr) : null;
     const reviewedBy = pr ? [...st.last].filter(([, r]) => r.commit?.oid === pr.headRefOid && r.state !== 'DISMISSED').map(([w]) => roleOf(w)) : [];
-    return { n: b.number, column, blocked: blocked.has(b.number), ...(column === 'backlog' && !sized.has(b.number) ? { unsized: true } : {}), ...(pr ? { pr: pr.number, head: pr.headRefOid, reviewedBy } : {}) };
+    // Falta a revisão que o GitHub exige (CODEOWNERS: /team/ e /.github/ são do autor): o merge seria recusado a cada rodada; o card espera.
+    const waits = column === 'mergeReady' && pr?.reviewDecision === 'REVIEW_REQUIRED';
+    return { n: b.number, column, blocked: waits || blocked.has(b.number), ...(column === 'backlog' && !sized.has(b.number) ? { unsized: true } : {}), ...(pr ? { pr: pr.number, head: pr.headRefOid, reviewedBy } : {}) };
   }).filter((c) => c.column);
   const { messages, rejected } = M.collect();
   for (const r of rejected) console.log(`mensagem recusada (${r.from || '?'}): ${r.errors.join('; ')}`);

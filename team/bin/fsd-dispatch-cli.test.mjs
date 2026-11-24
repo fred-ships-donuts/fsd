@@ -64,6 +64,18 @@ test('gather: cards with column, blocked, unsized, PR, head and who already revi
   const s = x.state(); assert.equal(s.paused, false); assert.equal(s.budgetOk, true); assert.equal(s.maxConcurrent, 1); assert.deepEqual(s.messages, []); assert.deepEqual(s.deadlocks, []);
 });
 
+test('gather: CI green after the two approvals → the supervisor takes the card to Ready to Merge; --dry, pending CI or one approval do not move it', () => {
+  const ci = (over = {}) => ['build', 'test', 'paths', 'shellcheck'].map((name) => ({ workflowName: 'regression', name, status: 'COMPLETED', conclusion: 'SUCCESS', ...(name === 'paths' ? over : {}) }));
+  const rv = (who) => ({ id: who, author: { login: `fsd-${who}` }, state: 'APPROVED', commit: { oid: 'h1' }, submittedAt: '2026-11-21T11:00:00Z' });
+  const mk = (over, whos = ['mel', 'bob']) => world({ decide: 'dump', board: { 2: COL.review }, issues: { 2: issue(2) }, prs: { 20: { number: 20, title: 'p', body: 'Closes #2', state: 'OPEN', isDraft: false, baseRefName: 'develop', headRefName: 'b', headRefOid: 'h1', author: { login: 'app/fsd-stuart' }, reviews: whos.map(rv), reviewRequests: [], statusCheckRollup: ci(over), mergeable: 'MERGEABLE', mergeCommit: null, url: 'u' } } });
+  const at = (x) => json(join(x.st, 'board.json'))[2]; const column = (x) => x.state().cards[0].column;
+  let x = mk(); ok(x.run(['round'])); assert.equal(column(x), 'mergeReady'); assert.equal(x.state().cards[0].blocked, false); assert.equal(at(x), COL.mergeReady);
+  x = mk(); ok(x.run(['round', '--dry'])); assert.equal(at(x), COL.review);
+  x = mk(); const f = join(x.st, 'gh.json'), g = json(f); g.prs[20].reviewDecision = 'REVIEW_REQUIRED'; writeFileSync(f, JSON.stringify(g));   // falta o code owner
+  ok(x.run(['round'])); assert.equal(at(x), COL.mergeReady); assert.equal(x.state().cards[0].blocked, true);
+  for (const y of [mk({ status: 'IN_PROGRESS', conclusion: '' }), mk({ conclusion: 'FAILURE' }), mk({}, ['mel'])]) { ok(y.run(['round'])); assert.equal(column(y), 'review'); assert.equal(at(y), COL.review); }
+});
+
 test('gather: a PullRequest item is not a card; an empty answer of gh and an issue without labels are fine', () => {
   const x = world({ decide: 'dump', gh: 'case "$*" in "issue list"*) echo null; exit 0;; esac', cmds: { 'fsd-board': `echo '[{"column":"${COL.review}","number":9,"type":"PullRequest"},{"column":"${COL.backlog}","number":3,"type":"Issue"}]'` } });
   ok(x.run(['round'])); assert.deepEqual(x.state().cards, [{ n: 3, column: 'backlog', blocked: false, unsized: true }]);
