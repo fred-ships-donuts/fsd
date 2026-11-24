@@ -20,7 +20,7 @@ function viaWrapper(argv, role) {
   // Validação R39: no time nativo o arquivo do prompt fica na pasta de estado do papel (só ele e o supervisor leem, ACL); fora dele,
   // numa pasta temporária.
   const L = libRef; const base = L.stateRoot() ? L.roleStateDir(role) : tmpdir();
-  const dir = mkdtempSync(join(base, '.prompt-')); chmodSync(dir, L.stateRoot() ? 0o770 : 0o711); const f = join(dir, 'prompt'); writeFileSync(f, argv[argv.length - 1], { mode: L.stateRoot() ? 0o660 : 0o644 });
+  const dir = mkdtempSync(join(base, '.prompt-')); chmodSync(dir, L.stateRoot() ? 0o770 : 0o711); const f = join(dir, 'prompt'); writeFileSync(f, argv[argv.length - 1], { mode: 0o600 }); chmodSync(f, L.stateRoot() ? 0o660 : 0o644);   // chmod: o umask de quem chama não tira a leitura do papel
   try { return i >= 0 ? SX(role, 'resume', argv[i + 1], f) : SX(role, 'start', f); } finally { rmSync(dir, { recursive: true, force: true }); }
 }
 const call = (argv, role) => (VIA ? viaWrapper(argv, role) : spawnSync(CLAUDE, argv, { cwd: REPO, encoding: 'utf8', env: { ...process.env, ...(role ? { FSD_AGENT: role, FSD_RUNNER: 'session', FSD_TEAM: join(BIN, '..') } : {}) } }));

@@ -23,7 +23,7 @@ function world({ decide = 'real', cmds = {}, agents = () => {}, issues = {}, prs
   const cfg = json(join(TEAM, 'agents.json')); agents(cfg); writeFileSync(join(team, 'agents.json'), JSON.stringify(cfg));
   if (decide !== 'real') {
     renameSync(join(bin, 'fsd-dispatch.mjs'), join(bin, 'real-decide.mjs'));
-    writeFileSync(join(bin, 'fsd-dispatch.mjs'), `import { writeFileSync } from 'node:fs';\nexport * from './real-decide.mjs';\nexport const decide = (s) => { writeFileSync(${JSON.stringify(join(w, 'state.dump'))}, JSON.stringify(s)); return ${JSON.stringify(decide === 'dump' ? [] : decide)}; };\n`);
+    writeFileSync(join(bin, 'fsd-dispatch.mjs'), `import { writeFileSync } from 'node:fs';\nexport * from ${JSON.stringify(join(bin, 'real-decide.mjs'))};\nexport const decide = (s) => { writeFileSync(${JSON.stringify(join(w, 'state.dump'))}, JSON.stringify(s)); return ${JSON.stringify(decide === 'dump' ? [] : decide)}; };\n`);
   }
   for (const [c, body] of Object.entries(cmds)) exe(join(bin, c), `printf '%s|%s|%s\\n' "${c}" "$FSD_AGENT" "$*" >> ${join(w, 'calls')}\n${body}`);
   writeFileSync(join(st, 'gh.json'), JSON.stringify({ issues, prs })); writeFileSync(join(st, 'board.json'), JSON.stringify(board));
@@ -360,7 +360,7 @@ test('exec retire: without FSD_REPO, the clone the team/ lives in', () => {
 test('loop: a round that throws anything (Error, text, nothing) is said in one line and the next one runs', () => {
   for (const [what, re] of [["new Error('um\\ndois')", /rodada falhou: um\n/], ["'texto'", /rodada falhou: texto\n/], ['undefined', /rodada falhou: undefined\n/]]) {
     const x = world({ decide: 'dump', cmds: { 'fsd-session': 'exit 0', 'fsd-admit': 'exit 0' }, agents: (c) => { c.dispatch.loopSeconds = 0.01; } });
-    writeFileSync(join(x.bin, 'fsd-dispatch.mjs'), `export * from './real-decide.mjs';\nexport const decide = () => { throw ${what}; };\n`);
+    writeFileSync(join(x.bin, 'fsd-dispatch.mjs'), `export * from ${JSON.stringify(join(x.bin, 'real-decide.mjs'))};\nexport const decide = () => { throw ${what}; };\n`);
     const r = ok(x.run(['loop'], { ...LIVE, FSD_DISPATCH_ROUNDS: '2' }), re); assert.equal(r.stdout.match(/rodada falhou/g).length, 2); assert.doesNotMatch(r.stdout, /dois/);
   }
 });
