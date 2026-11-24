@@ -4,6 +4,8 @@
 // fsd-pr --todo [agente]    PRs que o revisor (mel, bob) precisa olhar agora: "#n sha" ou "nada"
 // fsd-pr --mine [agente]    PRs abertos do agente ou "nada"
 // fsd-pr --ready            PRs prontos para fsd-merge ou "nada"
+// fsd-pr reply <n> <arquivo|->  responde à revisão de um PR em Changes Requested sem commit novo: comenta, pede a revisão de novo a quem pediu a mudança e leva o card a In Review.
+//     PR sem mudança pedida: recusa em uma linha (exit 1).
 // fsd-pr open "<título>" (--verified <arquivo|-> | --docs) [--dev "<desvio>"] [--reply <arquivo|->] [-C <pasta>]
 //     push do branch, abre (ou atualiza) o PR para a develop, card → In Review (Mel, Bob), avisa mel e bob.
 //     Em PR que já existe, --verified vira comentário "Re-verified" e --reply responde à revisão.
@@ -12,6 +14,7 @@
 //     (commitlint.config.mjs, a mesma regra do CI); com tarefa, o cabeçalho termina com (#n). Branch em conflito com a develop: recusa (exit 1), lista os arquivos e não envia nada (#154).
 import * as L from './fsd-lib.mjs';
 import { markGet } from './fsd-mark.mjs';
+import { replyPlan } from './fsd-reply.mjs';
 const C = await import('./fsd-contract.mjs'); const { loadTask, acceptanceOf } = await import('./fsd-task.mjs');
 const ENTREGA = (() => { const i = process.argv.indexOf('--entrega'); return i >= 0 ? process.argv[i + 1] : undefined; })();
 import { conflictFiles } from './fsd-conflict.mjs';
@@ -63,6 +66,14 @@ if (!a.length) { const ps = L.openPrs(); console.log(ps.length ? ps.map((p) => l
 else if (a[0] === '--todo') list(L.todo(who(a[1])), (p) => `#${p.number} ${p.headRefOid.slice(0, 7)}`);
 else if (a[0] === '--mine') { const w = who(a[1]); list(L.openPrs().filter((p) => L.norm(p.author?.login) === w), (p) => line(p, w)); }
 else if (a[0] === '--ready') list(L.openPrs().filter((p) => L.readyIdle(p)), (p) => `#${p.number} ${L.reviewState(p).author}`);
+else if (a[0] === 'reply') {
+  if (!/^\d+$/.test(a[1] || '') || !a[2]) L.die('uso: fsd-pr reply <n> <arquivo|->', 2);
+  const p = L.pr(a[1]); const plan = replyPlan(p); if (!plan.ok) L.die(plan.error, 1);
+  L.ghw(['pr', 'comment', String(p.number), '--body-file', '-'], { input: L.readArgFile(a[2]) });
+  L.ghw(['pr', 'edit', String(p.number), ...plan.reviewers.flatMap((r) => ['--add-reviewer', r])]);
+  const b = L.board(L.STAGE.review, L.closes(p.body));
+  console.log([`PR #${p.number} respondido; revisão pedida de novo a ${plan.reviewers.join(', ')}`, b, L.noticeSummary(L.notify(plan.reviewers.map(L.agentOf), `PR #${p.number}: resposta à sua revisão, sem commit novo: fsd-pr --todo.`))].filter(Boolean).join(' | '));
+}
 else if (a[0] === 'open') {
   const title = a[1] && !a[1].startsWith('-') ? a[1] : ''; const dir = opt('-C') || process.cwd(); const docs = a.includes('--docs');
   if (!title && !a.includes('--reply') && !a.includes('--verified')) L.die('uso: fsd-pr open "<título>" (--verified <arquivo|-> | --docs) [--dev "<desvio>"] [--reply <arquivo|->] [-C <pasta>]', 2);
@@ -121,4 +132,4 @@ else if (a[0] === 'open') {
   console.log([out, b, n].filter(Boolean).join(' | '));
 }
 else if (/^\d+$/.test(a[0])) console.log(line(L.pr(a[0])));
-else L.die('uso: fsd-pr [n] | --todo [agente] | --mine [agente] | --ready | open "<título>" …', 2);
+else L.die('uso: fsd-pr [n] | --todo [agente] | --mine [agente] | --ready | reply <n> <arquivo|-> | open "<título>" …', 2);
