@@ -72,7 +72,7 @@ docker run -d --name fsd --hostname fsd-notebook --env-file team.env --restart u
 
 > Deu erro com `/dev/net/tun`? Rode `docker rm -f fsd` e repita o comando **sem** `--cap-add NET_ADMIN --device /dev/net/tun`.
 
-> **Vai ligar o time nativo** (`FSD_NATIVE=1` no `team.env`)? Use o `docker run` da seção "Time nativo (E6)" do [README do time](../README.md#time-nativo-e6). Ele leva três `--security-opt` a mais, sem as quais o sandbox das sessões não sobe, e um volume para cada pasta do time.
+> **Vai ligar o time nativo** (`FSD_NATIVE=1` no `team.env`)? Use o `docker run` da seção "Time nativo (E6)" do [README do time](../README.md#time-nativo-e6). Ele leva três `--security-opt` a mais, sem as quais o sandbox das sessões não sobe, e quatro volumes, com todas as homes juntas no `fsd-home-team`.
 
 ---
 
