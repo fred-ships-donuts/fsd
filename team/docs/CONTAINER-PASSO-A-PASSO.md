@@ -97,7 +97,7 @@ Ele faz quase tudo sozinho. Quando aparecer o **👉 amarelo**, é a sua vez:
 | **2. GitHub** | Abra o link, cole o código de 8 letras e clique em **Authorize**. |
 | **4. Segredos** | Digite a senha. As letras não aparecem enquanto você digita, e isso é normal. |
 | **5. Matriz** | Copie a linha `fsd-aceitar …`, cole num terminal **da matriz** e aperte Enter. (Na matriz, o comando existe em `~/.local/bin`. Se não achar, rode `ln -sfn <repo>/team/bin/fsd-aceitar ~/.local/bin/`.) |
-| **7. Claude** | Aperte Enter. O Claude abre. Digite `/login`, siga o link e, no fim, digite `/exit`. |
+| **7. Claude** | Aperte Enter. O Claude abre. Digite `/login` e siga o link **com a conta dos agentes**: a do `FSD_CLAUDE_ACCOUNT` no `team.env`, a mesma do token OAuth do cofre (não a do trabalho). No fim, digite `/exit`. Conta errada: o passo falha; no Claude, `/logout` e `/login` com a conta certa. |
 
 Termina com **🎉 Pronto!**.
 
