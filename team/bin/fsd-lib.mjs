@@ -69,7 +69,7 @@ export function closes(body) {
   return [...out];
 }
 
-const PR_FIELDS = 'number,title,url,state,isDraft,baseRefName,headRefName,headRefOid,author,reviews,mergeable,body,mergeCommit,reviewRequests,statusCheckRollup';
+const PR_FIELDS = 'number,title,url,state,isDraft,baseRefName,headRefName,headRefOid,author,reviews,mergeable,body,mergeCommit,reviewRequests,statusCheckRollup,reviewDecision';
 export function pr(n) {
   const r = run(GH, ['pr', 'view', String(n), '--json', PR_FIELDS], { allowFail: true });
   if (!r.ok) die(/not found|Could not resolve/i.test(r.err) ? `PR #${n} não encontrado` : `gh falhou: ${r.err.slice(0, 200)}`, /not found|Could not resolve/i.test(r.err) ? 1 : 4);

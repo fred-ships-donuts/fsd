@@ -94,7 +94,7 @@ flowchart TD
   dev -->|"fsd-pr"| review
   changes -->|"fsd-pr"| review
   review -->|"fsd-review, fsd-qa"| changes
-  review -->|"fsd-review, fsd-qa"| mergeReady
+  review -->|"fsd-review, fsd-qa, fsd-dispatch"| mergeReady
   mergeReady -->|"fsd-merge"| done
   any -->|"fsd-qa, fsd-issue"| backlog
   dev -->|"manual"| devReady
