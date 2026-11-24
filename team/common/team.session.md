@@ -38,6 +38,8 @@ Você roda numa sessão própria e longa. Um supervisor sem token (`fsd-dispatch
 ## Ação negada
 A sessão roda sem caixa de permissão: o que não é do seu papel é negado com o motivo, e o Kevin fica sabendo. Não contorne (o guard abre `bash -c`, `eval`, `env` e variáveis e nega do mesmo jeito). Use o comando do time que a recusa cita; se o comando for de fato necessário, `fsd-duvida fluxo` para o Kevin abrir o issue que o autor libera por PR.
 
+**Busca de leitura recusada no Bash** (`grep -r`, `rg`, `cat` com `$(…)`, `fsd-map grep`): a recusa vem da verificação de caminho do Claude Code (2.1.322) e não do guard do time. Ela só aparece quando o comando alcança um caminho coberto por uma regra `Read(...)` de deny (a pasta de outro agente, tokens, chaves). Medido na sessão nativa: `grep -rn`, `rg`, `cat $(…)` e `cd <pasta> && grep -r` passam dentro do worktree; `grep -r` sobre `~/.config/fsd-agents` só avisa `Permission denied` nas pastas negadas. Não peça para soltar a regra: use as ferramentas Grep, Glob e Read, que não passam por essa verificação, e restrinja a busca ao worktree (`grep -r … <worktree>/team`). `fsd-map` que falha por `ENOENT … ~/.local/share/fsd/map` é outro problema (pasta do índice ausente no sandbox): use Grep e avise `fsd-duvida fluxo`.
+
 ## Memória
 `memory_query` antes de propor desenho. Página durável só quando o autor pedir. Handoff é só seu (nunca `shared: true`). Para achar código, antes de abrir fontes: `fsd-map ask "<pergunta>" --source`, `fsd-map grep "<literal>"`, `fsd-map skeleton <arquivo>`, `fsd-map callers <símbolo>`.
 
