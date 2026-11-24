@@ -133,6 +133,8 @@ H=/home/fsd
 
 # 1. Dono certo nos volumes e links para /opt/fsd (volume novo, volume antigo ou imagem nova).
 chown 1000:1000 "$H" /media/fsd/Projects 2>/dev/null || true
+# A home do humano (o cofre) é só dele: os papéis e o fsd-dispatch estão no grupo fsd, que entraria com 0750.
+chmod 0700 "$H"
 # O fsd-run roda o código dos PRs: a home dele fica no volume /home, mas não guarda nada de um início para o outro.
 if [ -d /home/fsd-run ]; then find /home/fsd-run -mindepth 1 -delete; fi
 mkdir -p /media/fsd/Projects/projetos && chown 1000:1000 /media/fsd/Projects/projetos
