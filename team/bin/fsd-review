@@ -11,7 +11,8 @@ import { rmSync } from 'node:fs';
 import { refuseConflicting } from './fsd-conflict.mjs';
 const [cmd, n, ...rest] = process.argv.slice(2);
 const NOISE = /(^|\/)(package-lock\.json|pnpm-lock\.yaml|yarn\.lock)$|^dist\//;
-const SF = `/tmp/fsd-${L.ME || 'x'}/review-${n}.json`;
+// Na sessão nova, na pasta de estado do papel: um /tmp/fsd-<papel> criado por um teste de outro usuário trancava a revisão.
+const SF = `${process.env.FSD_RUNNER === 'session' ? `${L.stateDir()}/review` : `/tmp/fsd-${L.ME || 'x'}`}/review-${n}.json`;
 if (!/^\d+$/.test(n || '')) L.die('uso: fsd-review start|diff|read|post <n> …', 2);
 if (cmd === 'start') {
   const p = L.pr(n); const refuse = refuseConflicting(p, 'fsd-review'); if (refuse) L.die(refuse, 1); const files = L.ghJson(['pr', 'view', n, '--json', 'files']).files;

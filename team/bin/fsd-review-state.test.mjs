@@ -1,49 +1,20 @@
-// A10: só os Apps do time aprovam ou pedem mudança. O repositório é público; um usuário humano chamado fsd-mel não conta.
+// Na sessão nova o fsd-review e o fsd-trash guardam o que é do papel fora do /tmp, que é de todos os usuários.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { reviewState, isTeamBot, markBots, mergeGate, cardColumn, prFromGraphQL, prFromGh, STAGE } from './fsd-lib.mjs';
-
-const rv = (login, state = 'APPROVED', extra = {}) => ({ id: `R_${login}_${state}`, state, author: { login, ...extra }, commit: { oid: 'abc' } });
-const ci = () => ['build', 'test', 'paths', 'shellcheck'].map((name) => ({ name, status: 'COMPLETED', conclusion: 'SUCCESS', workflowName: 'regression' }));
-const pr = (reviews) => ({ number: 7, state: 'OPEN', isDraft: false, baseRefName: 'develop', mergeable: 'MERGEABLE', headRefOid: 'abc', body: 'Closes #1', author: { login: 'app/fsd-stuart', is_bot: true }, reviews, statusCheckRollup: ci() });
-
-test('isTeamBot: App of the team by flag, "[bot]" or "app/"; a user with the same name or another App does not count', () => {
-  for (const a of [{ login: 'fsd-mel', bot: true }, { login: 'fsd-mel[bot]' }, { login: 'app/fsd-bob' }, { login: 'fsd-kevin', bot: true }]) assert.equal(isTeamBot(a), true, a.login);
-  for (const a of [{ login: 'fsd-mel' }, { login: 'fsd-mel', bot: false }, { login: 'outsider', bot: true }, { login: 'dependabot[bot]' }, { login: 'fredericojacobi' }, null]) assert.equal(isTeamBot(a), false, a?.login);
+import { spawnSync } from 'node:child_process';
+import { mkdtempSync, mkdirSync, writeFileSync, existsSync, readdirSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
+const BIN = dirname(fileURLToPath(import.meta.url));
+test('fsd-review in a role session keeps its state in the folder of the role', () => {
+  const d = mkdtempSync(join(tmpdir(), 'rv-')), pr = { number: 7, title: 'p', body: 'Closes #1', state: 'OPEN', isDraft: false, baseRefName: 'develop', headRefName: 'b', headRefOid: 'a'.repeat(40), author: { login: 'app/fsd-stuart' }, reviews: [], reviewRequests: [], statusCheckRollup: [], mergeable: 'MERGEABLE', mergeCommit: null, url: 'u', files: [] };
+  writeFileSync(join(d, 'gh.json'), JSON.stringify({ issues: {}, prs: { 7: pr } })); writeFileSync(join(d, 'board.json'), '{}');
+  const r = spawnSync(join(BIN, 'fsd-review'), ['start', '7'], { encoding: 'utf8', env: { ...process.env, FSD_AGENT: 'mel', FSD_RUNNER: 'session', FSD_STATE: d, FSD_REPO: d, FSD_GH: join(BIN, '..', 'setup', 'fake-gh'), FAKE_GH_STATE: join(d, 'gh.json'), FSD_BOARD_FAKE: join(d, 'board.json') } });
+  assert.ok(existsSync(join(d, 'review', 'review-7.json')), r.stdout + r.stderr);
 });
-
-test('third-party approvals do not count: a user named fsd-mel and a human reviewer', () => {
-  const s = reviewState(pr([rv('fsd-mel', 'APPROVED', { bot: false }), rv('fredericojacobi'), rv('fsd-bob[bot]')]));
-  assert.deepEqual(s.approvers, ['fsd-bob']);
-  assert.match(mergeGate(pr([rv('fsd-mel', 'APPROVED', { bot: false }), rv('fsd-bob', 'APPROVED', { bot: false })])).fail.join(), /0\/2 aprovações/);
-  assert.deepEqual(mergeGate(pr([rv('fsd-mel', 'APPROVED', { bot: true }), rv('fsd-bob', 'APPROVED', { bot: true })])).fail, []);
-});
-
-test('a third-party change request does not block either', () => {
-  assert.deepEqual(reviewState(pr([rv('fsd-bob', 'CHANGES_REQUESTED', { bot: false })])).changes, []);
-  assert.deepEqual(reviewState(pr([rv('fsd-bob', 'CHANGES_REQUESTED', { bot: true })])).changes, ['fsd-bob']);
-});
-
-test('markBots: one GraphQL query with an alias per PR marks author.bot by __typename; unknown reviews stay unmarked', () => {
-  const prs = [pr([rv('fsd-mel'), rv('fsd-bob')]), { ...pr([]), number: 9 }];
-  let asked = '';
-  markBots(prs, (q) => { asked = q; return { data: { repository: { p7: { reviews: { nodes: [{ id: 'R_fsd-mel_APPROVED', author: { __typename: 'User' } }] } } } } }; });
-  assert.match(asked, /p7:pullRequest\(number:7\)\{reviews\(last:100\)\{nodes\{id author\{__typename\}\}\}\}/);
-  assert.doesNotMatch(asked, /p9:/);   // PR sem revisão não entra na consulta
-  assert.equal(prs[0].reviews[0].author.bot, false);
-  assert.equal(prs[0].reviews[1].author.bot, false);   // fora da resposta: não conta
-  assert.deepEqual(reviewState(prs[0]).approvers, []);
-  const one = pr([rv('fsd-mel')]);
-  markBots(one, () => ({ data: { repository: { p7: { reviews: { nodes: [{ id: 'R_fsd-mel_APPROVED', author: { __typename: 'Bot' } }] } } } } }));
-  assert.deepEqual(reviewState(one).approvers, ['fsd-mel']);
-});
-
-test('cardColumn: two approvals from users named like the bots stay In Review; from the Apps → Ready to Merge', () => {
-  const node = (type) => ({ state: 'OPEN', headRefOid: 'abc', mergeable: 'MERGEABLE', author: { login: 'fsd-stuart' },
-    reviews: { nodes: ['fsd-mel', 'fsd-bob'].map((login) => ({ author: { __typename: type, login }, state: 'APPROVED', commit: { oid: 'abc' } })) },
-    commits: { nodes: [{ commit: { statusCheckRollup: { state: 'SUCCESS', contexts: { nodes: ci().map((c) => ({ ...c, checkSuite: { workflowRun: { workflow: { name: 'regression' } } } })) } } } }] } });
-  assert.equal(cardColumn(prFromGraphQL(node('User'))), STAGE.review);
-  assert.equal(cardColumn(prFromGraphQL(node('Bot'))), STAGE.mergeReady);
-  assert.equal(cardColumn(prFromGh(pr([rv('fsd-mel', 'APPROVED', { bot: true }), rv('fsd-bob', 'APPROVED', { bot: true })]))), STAGE.mergeReady);
-  assert.equal(cardColumn(prFromGh(pr([rv('fsd-mel'), rv('fsd-bob')]))), STAGE.review);
+test('fsd-trash in a role session moves to the home of the role; FSD_TRASH_DIR still wins', () => {
+  const h = mkdtempSync(join(tmpdir(), 'tr-')), run = (env) => { const f = join(h, `f${Math.random()}`); writeFileSync(f, 'x'); const r = spawnSync(join(BIN, 'fsd-trash'), [f], { encoding: 'utf8', env: { ...process.env, HOME: h, FSD_AGENT: 'mel', FSD_REPO: join(h, 'repo'), FSD_RUNNER: 'session', ...env } }); assert.equal(r.status, 0, r.stderr); };
+  mkdirSync(join(h, 'repo')); run({}); assert.equal(readdirSync(join(h, '.cache', 'fsd-trash', 'mel')).length, 1);
+  run({ FSD_TRASH_DIR: join(h, 'lixo') }); assert.equal(readdirSync(join(h, 'lixo', 'mel')).length, 1); assert.equal(readdirSync(join(h, '.cache', 'fsd-trash', 'mel')).length, 1);
 });

@@ -10,7 +10,8 @@ set -uo pipefail
 HERE="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"
 repo="$(realpath -s -- "${FSD_REPO:-$(dirname "$(dirname "$HERE")")}")"
 home="$(realpath -s -- "$HOME")"
-root="${FSD_TRASH_DIR:-/tmp/fsd-trash}"
+# Sessão nova: na home do papel (o /tmp é de todos, e quem cria a pasta primeiro tranca os outros).
+root="${FSD_TRASH_DIR:-/tmp/fsd-trash}"; [ -z "${FSD_TRASH_DIR:-}" ] && [ "${FSD_RUNNER:-}" = session ] && root="$HOME/.cache/fsd-trash"
 dir="$root/${FSD_AGENT:-autor}"; mkdir -p "$dir" && chmod 700 "$dir"
 # Limpeza pela data de entrada (<AAAAmmdd-HHMMSS>-nome). Sem a data no nome, fica (nunca apaga o que não sabe quando entrou).
 if cutoff=$(date -d '3 days ago' +%Y%m%d-%H%M%S 2>/dev/null); then
