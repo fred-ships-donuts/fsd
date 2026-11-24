@@ -31,6 +31,10 @@ printf '#!/usr/bin/env bash\necho "STUB claude $* | DISABLE_1M=${CLAUDE_CODE_DIS
 # gh de verdade simulado (FSD_REAL_GH): o issue da tarefa existe e está aberto, sem depender do estado do GitHub (o #81 já fechou).
 printf '#!/usr/bin/env bash\nif [ "$1 $2" = "issue view" ]; then echo "{\\"number\\":$3,\\"title\\":\\"sim\\",\\"body\\":\\"\\",\\"state\\":\\"OPEN\\",\\"labels\\":[],\\"comments\\":[]}"; else echo "gh simulado: $*" >&2; exit 1; fi\n' > "$BASE/stub/gh-real"; chmod +x "$BASE/stub/gh-real"
 
+# Time do tmux (runner fora de "session"): o fsd-watch só cuida desses papéis e, com os 4 migrados no agents.json, não teria agente
+# nenhum para olhar. Os cenários do vigia tiram o runner do agents.json do clone deles; nunca do repositório de quem roda.
+tmuxteam() { node -e 'const fs=require("fs"),f=process.argv[1],c=JSON.parse(fs.readFileSync(f));for(const a of Object.values(c.agents))delete a.runner;fs.writeFileSync(f,JSON.stringify(c,null,2))' "$1/team/agents.json"; }
+
 mkenv() { # nome repo home FSD_REPO(set|unset) links(container|host) node_modules(link|none)
   local n="$1" repo="$2" home="$3" setrepo="$4" links="$5" nm="$6"
   echo "== $n | repo=$repo | HOME=$home | FSD_REPO=$setrepo | links=$links | node_modules=$nm"
@@ -74,7 +78,9 @@ mkenv() { # nome repo home FSD_REPO(set|unset) links(container|host) node_module
   # moram em $TMPDIR, os mesmos dos agentes reais desta máquina. Sem isolar, o Mel simulado cai em "configuração antiga"
   # conforme o que o Mel real estiver fazendo, e o check grava no estado do vigia real.
   local ttmp; ttmp="$(mktemp -d "$BASE/tmp.XXXX")"
+  tmuxteam "$repo"
   chk "fsd-watch: agents.local.json inválido → 'configuração inválida', vigia segue" run env TMPDIR="$ttmp" TMUX_TMPDIR="$tsock" FSD_TMUX_SOCKET=fsd-sim bash -c 'o=$("$0" 2>&1) && grep -q "Mel .*configuração inválida" <<<"$o" && ! grep -q "at .*fsd-context" <<<"$o" && grep -q "mel: configuração inválida (agents.local.json inválido" "$1/watch.log"' "$T/fsd-watch" "$st"
+  git -C "$repo" checkout -q -- team/agents.json
   TMUX_TMPDIR="$tsock" tmux -L fsd-sim kill-server 2>/dev/null; rm -rf "$tx" "$st/agents.local.json"
   chk "fsd-redirects --check: tabela do team.md em dia" run "$T/fsd-redirects" --check
   chk "fsd-redirects --test: fixtures do hook" run "$T/fsd-redirects" --test
@@ -196,9 +202,10 @@ watchsim() {
   local sock="fsdsim$$" st="$BASE/watch-st" a o
   mkdir -p "$st" "$BASE/watch-home/tmp"; chmod 700 "$BASE/tmux-watch" 2>/dev/null || { mkdir -p "$BASE/tmux-watch"; chmod 700 "$BASE/tmux-watch"; }
   export TMUX_TMPDIR="$BASE/tmux-watch"; echo "== vigia com sessões vivas | tmux -L $sock"
+  local repo="$BASE/watch-repo"; git clone -q --no-hardlinks "$SRC" "$repo" && git -C "$repo" checkout -q "$BR" && tmuxteam "$repo"
   for a in kevin mel stuart bob; do tmux -L "$sock" new-session -d -s "fsd-$a" "sleep 120"; done
-  o=$(cd "$SRC" && env FSD_STATE="$st" FSD_TMUX_SOCKET="$sock" HOME="$BASE/watch-home" TMPDIR="$BASE/watch-home/tmp" "$SRC/team/bin/fsd-watch" --fix 2>&1); local n; n=$(tmux -L "$sock" list-sessions 2>/dev/null | wc -l)
-  { ! grep -q "sem sessão" "$st/watch.log" 2>/dev/null && [ "$n" = 4 ]; } && ok "sessões vivas: sem 'sem sessão' no log e 4 sessões (sem duplicar)" || bad "sessões vivas: log=$(cat "$st/watch.log" 2>/dev/null | head -3 | tr '\n' ' ') sessões=$n"
+  o=$(cd "$repo" && env FSD_STATE="$st" FSD_TMUX_SOCKET="$sock" HOME="$BASE/watch-home" TMPDIR="$BASE/watch-home/tmp" "$repo/team/bin/fsd-watch" --fix 2>&1); local n; n=$(tmux -L "$sock" list-sessions 2>/dev/null | wc -l)
+  { ! grep -q "sem sessão" "$st/watch.log" 2>/dev/null && [ "$n" = 4 ] && [ "$(grep -cE "(Kevin|Mel|Stuart|Bob) " <<<"$o")" -ge 4 ]; } && ok "sessões vivas: sem 'sem sessão' no log e 4 sessões (sem duplicar)" || bad "sessões vivas: log=$(cat "$st/watch.log" 2>/dev/null | head -3 | tr '\n' ' ') sessões=$n"
   tmux -L "$sock" kill-server 2>/dev/null
 }
 mapengine
