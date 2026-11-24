@@ -8,6 +8,7 @@
     "prepack": "npm run build",
     "test": "node --import tsx --test \"src/**/*.test.ts\" \"team/bin/*.test.mjs\" \"team/agents/*/claude/skills/*/scripts/*.test.mjs\"",
     "test:coverage": "node --import tsx --test --experimental-test-coverage --test-coverage-lines=80 --test-coverage-branches=70 --test-coverage-functions=72 --test-coverage-include=\"src/**\" --test-coverage-include=\"team/**\" \"src/**/*.test.ts\" \"team/bin/*.test.mjs\" \"team/agents/*/claude/skills/*/scripts/*.test.mjs\"",
+    "test:supervisor": "node team/setup/supervisor-coverage",
     "typecheck:tests": "tsc -p tsconfig.test.json",
     "build": "tsc",
     "check:paths": "node team/setup/check-paths",
@@ -23,6 +24,7 @@
     "@commitlint/config-conventional": "^21.2.4",
     "@types/node": "^26.6.5",
     "@types/react": "^19.3.0",
+    "c8": "^12.0.0",
     "tsx": "^4.23.15",
     "typescript": "^7.0.2"
   },
