@@ -9,11 +9,11 @@ set -euo pipefail
 [ "$(id -u)" = 0 ] || { echo "fsd-repo: rode como root"; exit 2; }
 R=${1:?uso: fsd-repo <repo>}; G=$R/.git
 [ -d "$G" ] || { echo "fsd-repo: $R não é um clone (sem .git)"; exit 2; }
+# Antes de qualquer git no <repo>: num container recriado com os mesmos volumes o <repo> já é do fsd-dispatch, e o git do root o recusa.
+# O clone de cada papel lê o depósito pelo file:// (o .git dele é aberto como repositório): o .git também é seguro.
+for d in "$R" "$G"; do grep -qxF "$d" <(git config --system --get-all safe.directory 2>/dev/null) || git config --system --add safe.directory "$d"; done
 git -C "$R" config core.sharedRepository group
 git -C "$R" config --unset-all extensions.worktreeConfig 2>/dev/null || true
-grep -qxF "$R" <(git config --system --get-all safe.directory 2>/dev/null) || git config --system --add safe.directory "$R"
-# O clone de cada papel lê o depósito pelo file:// (o .git dele é aberto como repositório): o .git também é seguro.
-grep -qxF "$G" <(git config --system --get-all safe.directory 2>/dev/null) || git config --system --add safe.directory "$G"
 git -C "$R" config gc.auto 0; git -C "$R" config gc.pruneExpire never
 chown -R fsd-dispatch:fsd "$R"; chmod -R u+rwX,g+rX,g-w,o-rwx "$R"; find "$R" -type d -exec chmod g+s {} +
 chmod 2750 "$G"
