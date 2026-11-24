@@ -133,6 +133,8 @@ H=/home/fsd
 
 # 1. Dono certo nos volumes e links para /opt/fsd (volume novo, volume antigo ou imagem nova).
 chown 1000:1000 "$H" /media/fsd/Projects 2>/dev/null || true
+# O fsd-run roda o código dos PRs: a home dele fica no volume /home, mas não guarda nada de um início para o outro.
+if [ -d /home/fsd-run ]; then find /home/fsd-run -mindepth 1 -delete; fi
 mkdir -p /media/fsd/Projects/projetos && chown 1000:1000 /media/fsd/Projects/projetos
 su fsd -c /usr/local/bin/fsd-links
 echo "fsd: ferramentas $(cat /opt/fsd/VERSIONS)"
@@ -477,5 +479,6 @@ LABEL devcontainer.metadata='[{"remoteUser":"fsd","workspaceFolder":"/media/fsd/
 
 # Validação R13: o time nativo também vive em volume (as homes dos papéis com login, confiança, transcripts e clones; o supervisor; a
 # cópia do time e o repositório; o estado). Use volumes nomeados no docker run (team/README.md, "Time nativo"), senão um docker rm perde tudo.
-VOLUME ["/home/fsd", "/media/fsd/Projects", "/home/fsd-kevin", "/home/fsd-mel", "/home/fsd-stuart", "/home/fsd-bob", "/home/fsd-dispatch", "/srv/fsd", "/var/lib/fsd-state"]
+# Quatro volumes: as homes ficam juntas no /home (quem separa os papéis é o uid e o 0700 de cada home, não o volume).
+VOLUME ["/home", "/media/fsd/Projects", "/srv/fsd", "/var/lib/fsd-state"]
 ENTRYPOINT ["/usr/local/bin/fsd-entrypoint"]

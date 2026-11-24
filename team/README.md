@@ -290,15 +290,14 @@ quando o agente gravar o próximo rascunho.
 O time nativo roda no mesmo container, com um usuário Linux por papel (`fsd-kevin`, `fsd-mel`, `fsd-stuart`, `fsd-bob`), o supervisor `fsd-dispatch` (0 token) e o broker de tokens `fsd-broker`. Cada sessão é um `claude --bg` do papel, no sandbox do claude, num cwd do root (`/srv/fsd/cwd/<papel>`), com o clone do papel na home dele (`~/repo`) e o estado em `/var/lib/fsd-state/<papel>`.
 
 1. **`team.env`** (modelo em `setup/team.env.example`): `FSD_NATIVE=1`, `FSD_TEAM_REF=origin/develop` e `FSD_TEAM_SHA=<sha de 40 caracteres>`. Com o `FSD_TEAM_SHA`, o time só sobe se a ref apontar para esse commit.
-2. **Cofre** (no volume `fsd-home`): um token do ai-memory por papel em `~/.config/fsd-agents/ai-memory-tokens/<papel>`, as chaves dos Apps em `~/.config/fsd-agents/keys/*.pem` e o `~/.config/fsd-agents/claude-oauth-token` (login do Claude dos papéis).
-3. **Criar o container** com as três `--security-opt` do sandbox (sem elas, a sessão falha fechado) e um volume nomeado por pasta do time (sem eles, um `docker rm` perde os logins, os clones e o estado):
+2. **Cofre** (na home do `fsd`, no volume `fsd-homes`): um token do ai-memory por papel em `~/.config/fsd-agents/ai-memory-tokens/<papel>`, as chaves dos Apps em `~/.config/fsd-agents/keys/*.pem` e o `~/.config/fsd-agents/claude-oauth-token` (login do Claude dos papéis).
+3. **Criar o container** com as três `--security-opt` do sandbox (sem elas, a sessão falha fechado) e quatro volumes nomeados (sem eles, um `docker rm` perde os logins, os clones e o estado). As homes ficam todas no `fsd-homes`; cada papel tem o próprio clone na home dele, que só ele lê:
 
    ```
    docker run -d --name fsd --hostname fsd-<nome> --restart unless-stopped --cap-add NET_ADMIN --device /dev/net/tun \
      --security-opt seccomp=unconfined --security-opt apparmor=unconfined --security-opt systempaths=unconfined \
-     --env-file team.env -v fsd-home:/home/fsd -v fsd-projects:/media/fsd/Projects \
-     -v fsd-kevin:/home/fsd-kevin -v fsd-mel:/home/fsd-mel -v fsd-stuart:/home/fsd-stuart -v fsd-bob:/home/fsd-bob \
-     -v fsd-dispatch:/home/fsd-dispatch -v fsd-srv:/srv/fsd -v fsd-state:/var/lib/fsd-state fsd
+     --env-file team.env -v fsd-homes:/home -v fsd-projects:/media/fsd/Projects \
+     -v fsd-srv:/srv/fsd -v fsd-state:/var/lib/fsd-state fsd
    ```
 
 4. **Primeira vez:** `docker exec -it fsd entrar` e `fsd-setup` (clone do fsd e cofre). Depois rode `docker restart fsd`, porque o entrypoint só prepara o time nativo quando o container sobe, a partir do clone que o `fsd-setup` criou.
