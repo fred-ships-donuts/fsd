@@ -76,7 +76,7 @@ test('decide: messages — every number, urgency, offline policy and state of th
   } exact(15000);
 });
 test('decide: end of the day — every state, mark and context (below, at, above, none) × the limit × freeze × maxConcurrent × message and card', () => {
-  seen = 0; for (const s of product({ st: STATES, id: [undefined, 'a'], eod: [undefined, true], hold: [undefined, true], ctx: [undefined, 0, 99, 100, 101], at: [undefined, 0, 100], paused: B, budgetOk: B, max: MAX, m: B, card: B, two: B }))
+  seen = 0; for (const s of product({ st: STATES, id: [undefined, 'a'], eod: [undefined, true], hold: [undefined, true], ctx: [undefined, 0, 1, 99, 100, 101], at: [undefined, 0, 1, 100], paused: B, budgetOk: B, max: MAX, m: B, card: B, two: B }))
     check({ endOfDayAt: s.at, paused: s.paused, budgetOk: s.budgetOk, maxConcurrent: s.max, sessions: team({ mel: { state: s.st, id: s.id, eod: s.eod, eodHold: s.hold, ctx: s.ctx }, ...(s.two ? { bob: { state: 'idle', id: 'b', ctx: 500 } } : {}) }), messages: s.m ? [{ id: 'm', to: 'mel', urgent: true }] : [], cards: s.card ? [{ n: 1, column: 'archReady' }, { n: 2, column: 'review' }] : [] });
   exact(40000);
 });
