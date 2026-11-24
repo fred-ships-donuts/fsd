@@ -22,7 +22,9 @@ const agent = process.env.FSD_AGENT;
 const die = (m, c = 1) => { console.error(`fsd-board: ${m}`); process.exit(c); };
 process.on('uncaughtException', (e) => die(String(e.message || e).split('\n')[0].slice(0, 200), 4));
 process.on('unhandledRejection', (e) => die(String(e?.message || e).split('\n')[0].slice(0, 200), 4));
-if (!agent || !cfg.agents[agent]) die('rode dentro de uma sessão aberta pelo fsd-agent', 2);
+// Sessão nova (F2.3, C1): quem lê é o usuário Unix (fsd-token-file), nunca o FSD_AGENT; o supervisor (fsd-dispatch) nem tem um.
+const SESSION = process.env.FSD_RUNNER === 'session';
+if (!SESSION && (!agent || !cfg.agents[agent])) die('rode dentro de uma sessão aberta pelo fsd-agent', 2);
 const board = cfg.board;
 // FSD_BOARD_FAKE=<arquivo>: o quadro num JSON ({ "<n>": "<coluna>" }) para os ciclos dry (F4.5–F4.8, com o fake-gh). Sem rede nem token.
 const FAKE = process.env.FSD_BOARD_FAKE;
@@ -56,7 +58,6 @@ if (!board?.owner || !board?.number || !board?.repo) {
 }
 const tok = new Map();
 // Sessão nova (F2.3, C1): o token vem do arquivo do papel (fsd-token-file, pelo usuário Unix); o fsd-token lê as chaves, que o papel não vê.
-const SESSION = process.env.FSD_RUNNER === 'session';
 const token = (scope) => { if (!tok.has(scope)) { try { tok.set(scope, execFileSync(join(HERE, SESSION ? 'fsd-token-file' : 'fsd-token'), SESSION ? (scope === 'org' ? ['org'] : []) : (scope === 'org' ? [agent, 'org'] : [agent]), { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim()); } catch (e) { die(String(e.stderr || e.message).trim().split('\n')[0], 4); } } return tok.get(scope); };
 
 async function gql(scope, query, variables = {}) {

@@ -41,7 +41,8 @@ async function gather() {
     (await import('node:fs')).rmSync(req, { force: true }); console.log(`fsd-dispatch: ${r} bateu no limite da conta: PAUSE do time`);
   }
   const key = Object.fromEntries(Object.entries(STAGE).map(([k, v]) => [v, k]));
-  let board = []; try { board = JSON.parse(spawnSync(join(BIN, 'fsd-board'), ['list', '--json'], { encoding: 'utf8' }).stdout || '[]'); } catch {}
+  // Sem o quadro não há rodada: a falha aparece no log (rodada falhou) em vez de virar um quadro vazio, em que nenhuma tarefa sai.
+  const board = JSON.parse(L.run(join(BIN, 'fsd-board'), ['list', '--json']));
   // Validação R4: um gh só para os bloqueados e os sem size: (o Backlog sem size: vai para a triagem do Kevin).
   const open = L.ghJson(['issue', 'list', '--state', 'open', '--limit', '500', '--json', 'number,labels']) || [];
   const labelsOf = (i) => (i.labels || []).map((l) => l.name);
