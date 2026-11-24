@@ -41,7 +41,7 @@ function commitlint() {
     console.log(`falta o commitlint: rodando npm ci em ${L.REPO_DIR} (uma vez)…`);
     r = spawnSync('npm', ['ci', '--no-audit', '--no-fund'], { cwd: L.REPO_DIR, encoding: 'utf8', timeout: WAIT_MS, killSignal: 'SIGKILL' });
   }
-  try { rmdirSync(lock); } catch {}                                        // solta a trava antes de qualquer saída (L.die não roda finally)
+  try { rmdirSync(lock); } catch {}                                        // solta a trava antes de qualquer saída
   if (r && (r.error || r.status !== 0)) L.die(`npm ci falhou em ${L.REPO_DIR}: ${L.firstLine(r.stderr || r.stdout || String(r.error?.code || r.signal))}`, 3);
   if (!existsSync(bin)) L.die(`npm ci terminou mas o commitlint não veio: o package.json de ${L.REPO_DIR} não o tem (atualize a develop com git pull)`, 2);
   return bin;

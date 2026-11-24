@@ -24,10 +24,17 @@ import { cardColumn, prFromGh } from './fsd-column.mjs';
 export { STAGE, OWNERS, WHO, stageName, ownersOf };
 export { cardColumn, prFromGraphQL, prFromGh, PR_GRAPHQL } from './fsd-column.mjs';
 const NAME = String(process.argv[1] || 'fsd').split('/').pop();
-process.on('uncaughtException', (e) => { console.log(`${NAME}: ${String(e.message || e).split('\n')[0].slice(0, 200)}`); process.exit(e.code === 'ENOENT' ? 2 : (Number.isInteger(e.code) ? e.code : 4)); });
-process.on('unhandledRejection', (e) => { console.log(`${NAME}: ${String(e?.message || e).split('\n')[0].slice(0, 200)}`); process.exit(4); });
+// die lança; nunca sai do processo. Quem chama pode tratar (o laço do fsd-dispatch falha a rodada e segue); sem tratamento, o comando
+// termina aqui, com a mensagem como ela é e o código dela. Outro erro leva o nome do comando na frente (ENOENT → 2, sem código → 4).
+class Fatal extends Error { constructor(msg, code) { super(msg); this.code = code; } }
+function quit(e) {
+  if (e instanceof Fatal) { console.log(e.message); process.exit(e.code); }
+  console.log(`${NAME}: ${String(e?.message || e).split('\n')[0].slice(0, 200)}`); process.exit(e?.code === 'ENOENT' ? 2 : (Number.isInteger(e?.code) ? e.code : 4));
+}
+process.on('uncaughtException', quit);
+process.on('unhandledRejection', quit);
 
-export function die(msg, code = 1) { if (process.env.FSD_THROW) throw Object.assign(new Error(msg), { code }); console.log(msg); process.exit(code); }
+export function die(msg, code = 1) { throw new Fatal(msg, code); }
 export const firstLine = (s) => String(s || '').trim().split('\n').filter(Boolean).slice(-1)[0] || '';
 
 // Roda um comando; em erro, sai com a última linha útil do stderr (sem dump).

@@ -92,3 +92,15 @@ test('fsd-dispatch round --dry with a fixture prints the actions and executes no
   assert.equal(r.status, 0, r.stderr); assert.match(r.stdout, /\[dry\] \{"type":"turn","to":"stuart","how":"wake","task":\{"key":"correcao:#9","kind":"correcao","n":9\}/);
   assert.equal(cli(['nada']).status, 2);
 });
+
+test('a gh failure fails the round and not the loop: the next round runs', () => {
+  fresh(); const st = process.env.FSD_STATE;
+  const teamDir = mkdtempSync(join(tmpdir(), 'team-')); for (const p of ['bin', 'contracts', 'agents.json']) cpSync(join(BIN, '..', p), join(teamDir, p), { recursive: true });
+  const a = JSON.parse(readFileSync(join(teamDir, 'agents.json'), 'utf8')); a.dispatch.loopSeconds = 0.01; writeFileSync(join(teamDir, 'agents.json'), JSON.stringify(a));
+  const dst = D.pinCode('def5678', teamDir); const fake = mkdtempSync(join(tmpdir(), 'fake-'));
+  writeFileSync(join(fake, 'claude'), '#!/bin/sh\necho "[]"\n', { mode: 0o755 });
+  writeFileSync(join(fake, 'gh'), `#!/bin/sh\necho "$1" >> ${join(fake, 'calls')}\necho "sem rede" >&2\nexit 1\n`, { mode: 0o755 });
+  const r = cli(['loop'], { FSD_DISPATCH_ROUNDS: '2', FSD_DRY: '1', FSD_GH: join(fake, 'gh'), FSD_STATE: st, PATH: `${fake}:${process.env.PATH}` }, join(dst, 'bin', 'fsd-dispatch'));
+  assert.equal(r.status, 0, r.stdout + r.stderr);
+  assert.equal(r.stdout.match(/rodada falhou: .*sem rede/g)?.length, 2, r.stdout);
+});

@@ -12,7 +12,6 @@
 // No "any", cada caso do papel confere no seu próprio ritmo.
 // Toda rodada começa esvaziando a caixa de avisos não entregues (fsd-notify): N avisos → uma linha "avisos (N): …", exit 0.
 // Kevin, no "any": agente sem sessão com avisos na caixa → "<agente> offline, N pending".
-process.env.FSD_THROW = '1';
 const L = await import('./fsd-lib.mjs');
 import { spawnSync } from 'node:child_process';
 import { RESERVED } from './fsd-backlog.mjs';
