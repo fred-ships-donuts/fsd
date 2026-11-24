@@ -60,15 +60,17 @@ async function gather() {
   // Validação R28: o resultado do juiz. Respondeu (exit 0): o ref fica julgado e o Kevin recebe o que fazer (o comentário do caminho do
   // autor, que ele posta); falhou ou passou do prazo: o Kevin é avisado e o ref volta ao juiz depois de 30 min.
   { const fs = await import('node:fs'); const { timing } = await import('./fsd-timing.mjs'); const jd = join(D.dispatchDir(), 'judge');
-    const judging = D.loadJudging(); let changed = false; const limit = 2 * Number(timing().judge.timeoutMin || 30) * 60000;
+    const judging = D.loadJudging(); let changed = false; const limit = 2 * Number(timing().judge.timeoutMin) * 60000;
     for (const [ref, j] of Object.entries(judging)) {
       const n = ref.replace(/^#/, ''), done = join(jd, `${n}.done`), outF = join(jd, `${n}.out`);
       if (j.state === 'failed') { if (now() - j.at > 30 * 60000) { delete judging[ref]; changed = true; } continue; }
-      if (!fs.existsSync(done)) { if (now() - j.at > limit) { judging[ref] = { at: now(), state: 'failed' }; changed = true; tellKevin(`[urgente] ${ref}: o juiz não terminou no prazo.`); } continue; }
-      const code = Number(fs.readFileSync(done, 'utf8').trim()); let out = ''; try { out = fs.readFileSync(outF, 'utf8').trim(); } catch {}
+      // O .done nasce vazio (o shell abre antes de escrever): só um número é resposta; o resto conta como ainda rodando, até o prazo.
+      let end = ''; try { end = fs.readFileSync(done, 'utf8').trim(); } catch {}
+      if (!/^\d+$/.test(end)) { if (now() - j.at > limit) { judging[ref] = { at: now(), state: 'failed' }; changed = true; tellKevin(`[urgente] ${ref}: o juiz não terminou no prazo.`); } continue; }
+      const code = Number(end); let out = ''; try { out = fs.readFileSync(outF, 'utf8').trim(); } catch {}
       if (code === 0) {
         if (!DRY) D.saveJudged([...new Set([...D.loadJudged(), ref])]); delete judging[ref];
-        if (/^fsd-judge: author decision needed/m.test(out)) tellKevin(`[urgente] ${ref}: o juiz pede a decisão do autor. Poste em ${ref} o comentário abaixo.\n${out.slice(out.indexOf('**Deadlock')) || out}`.slice(0, 4000));
+        if (/^fsd-judge: author decision needed/m.test(out)) tellKevin(`[urgente] ${ref}: o juiz pede a decisão do autor. Poste em ${ref} o comentário abaixo.\n${out.slice(Math.max(0, out.indexOf('**Deadlock')))}`.slice(0, 4000));
         else tellKevin(`${ref}: o juiz decidiu e comentou no ${ref}; as partes foram avisadas.`);
       } else { judging[ref] = { at: now(), state: 'failed' }; tellKevin(`[urgente] ${ref}: o juiz falhou (exit ${code}): ${out.split('\n')[0].slice(0, 200)}`); }
       if (!DRY) { fs.rmSync(done, { force: true }); fs.rmSync(outF, { force: true }); } changed = true;
@@ -80,7 +82,8 @@ async function gather() {
   for (const x of stalled) { keep[x.key] = seen[x.key] || now(); if (!seen[x.key]) tellKevin(`${x.line} (parado; ninguém em ciclo)`); }
   if (!DRY) D.saveStalled(keep);
   // No nativo, o uso vem da statusline dos papéis (o mais recente entre as pastas deles); no tmux, do cache do fsd-usage.
-  let budgetOk = true; try { budgetOk = !U.over(U.teamCache(), U.usageConfig().stopPct); } catch {}
+  // Configuração do freio ilegível: a rodada falha (e diz), em vez de seguir sem freio.
+  const budgetOk = !U.over(U.teamCache(), U.usageConfig().stopPct);
   // Fim do dia: contexto de cada sessão ligada (transcript <sessionId>.jsonl) e a marca de fechamento já pedido (eod.json).
   const E = await import('./fsd-eod.mjs'); const eod = D.loadEod(); const projects = join(process.env.CLAUDE_CONFIG_DIR || join(process.env.HOME, '.claude'), 'projects');
   const { readdirSync } = await import('node:fs');
@@ -95,6 +98,8 @@ async function gather() {
   return { sessions, cards, messages, deadlocks, paused: existsSync(L.pausePath()), budgetOk, endOfDayAt: Number(cfg.endOfDayAt) || Number(L.CFG.claude_common?.context?.restartAbove) || 0 };
 }
 
+// Por que um comando chamado falhou: a primeira linha do que ele disse, ou o erro de quem o chamou (ausente, morto por sinal).
+const why = (r) => (r.stdout || r.stderr || '').trim().split('\n')[0] || `sem saída (${r.error?.code || r.signal || `exit ${r.status}`})`;
 async function exec(a, g) {
   if (DRY) { console.log(`[dry] ${JSON.stringify(a)}`); return 'dry'; }
   const M = await import('./fsd-messenger.mjs');
@@ -114,7 +119,7 @@ async function exec(a, g) {
     }
     const prompt = T.turnPrompt({ action: a, issue, messages: mine });
     const r = spawnSync(join(BIN, 'fsd-session'), ['turn', a.to, prompt], { encoding: 'utf8', env: process.env });
-    if (r.status !== 0) { if (snap) T.restore(a.to, snap); throw new Error((r.stdout || r.stderr).trim().split('\n')[0]); }
+    if (r.status !== 0) { if (snap) T.restore(a.to, snap); throw new Error(why(r)); }
     for (const m of mine) M.consume(m);
     return r.stdout.trim();
   }
@@ -123,7 +128,7 @@ async function exec(a, g) {
     // Validação R26: o turno do fechamento não cobra a entrega da tarefa (a marca sai no retire).
     const ef = Msg.eodFile(a.to); (await import('node:fs')).mkdirSync(dirname(ef), { recursive: true }); (await import('node:fs')).writeFileSync(ef, `${new Date(now()).toISOString()}\n`);
     const r = spawnSync(join(BIN, 'fsd-session'), ['turn', a.to, E.EOD_PROMPT], { encoding: 'utf8', env: process.env });
-    if (r.status !== 0) { (await import('node:fs')).rmSync(ef, { force: true }); throw new Error((r.stdout || r.stderr).trim().split('\n')[0]); }
+    if (r.status !== 0) { (await import('node:fs')).rmSync(ef, { force: true }); throw new Error(why(r)); }
     D.saveEod({ ...D.loadEod(), [a.to]: { sessionId: S.loadStored()[a.to]?.sessionId || null, at: now(), asks: (D.loadEod()[a.to]?.asks || 0) + 1 } });
     return 'fim do dia pedido';
   }
@@ -134,18 +139,18 @@ async function exec(a, g) {
     else left = E.unsaved(a.to, { repo: process.env.FSD_REPO || join(TEAM, '..') });
     if (left.length) {   // algo só no disco: não aposenta; pede de novo (até 3 vezes) e avisa o Kevin
       const e = D.loadEod()[a.to] || {}; const list = left.map((x) => `${x.branch} (${x.unreadable ? 'sem acesso para conferir' : `${x.dirty ? `${x.dirty} mudança(s) sem commit` : ''}${x.dirty && x.ahead ? ', ' : ''}${x.ahead ? `${x.ahead} commit(s) sem push` : ''}`})`).join('; ');
-      if ((e.asks || 0) < 3) { const r = spawnSync(join(BIN, 'fsd-session'), ['turn', a.to, `${E.EOD_PROMPT}\n\nAinda só no disco: ${list}.`], { encoding: 'utf8', env: process.env }); D.saveEod({ ...D.loadEod(), [a.to]: { ...e, asks: (e.asks || 0) + 1 } }); return `não aposentado: ${list}${r.status ? ' (pedido falhou)' : ''}`; }
+      if ((e.asks || 0) < 3) { const r = spawnSync(join(BIN, 'fsd-session'), ['turn', a.to, `${E.EOD_PROMPT}\n\nAinda só no disco: ${list}.`], { encoding: 'utf8', env: process.env }); D.saveEod({ ...D.loadEod(), [a.to]: { ...e, asks: (e.asks || 0) + 1 } }); return `não aposentado: ${list}${r.status !== 0 ? ' (pedido falhou)' : ''}`; }
       // Validação R27: avisa o Kevin uma vez e solta o papel (eodHold): ele segue com o trabalho em vez de ficar preso no fechamento.
       if (!e.gaveUp) { tellKevin(`${a.to} não consegue fechar o dia: ${list}`); D.saveEod({ ...D.loadEod(), [a.to]: { ...e, gaveUp: true } }); }
       return `não aposentado: ${list}`;
     }
     const r = spawnSync(join(BIN, 'fsd-session'), ['retire', a.to], { encoding: 'utf8', env: process.env });
-    if (r.status !== 0) throw new Error(r.stdout.trim());
+    if (r.status !== 0) throw new Error(why(r));
     const e = D.loadEod(); delete e[a.to]; D.saveEod(e); const t = D.loadTasks(); delete t[a.to]; D.saveTasks(t);   // a tarefa volta para a sessão nova
     (await import('node:fs')).rmSync(Msg.eodFile(a.to), { force: true });
     return 'aposentado';
   }
-  if (a.type === 'merge') { const r = spawnSync(join(BIN, 'fsd-merge'), [String(a.n)], { encoding: 'utf8', env: { ...process.env, FSD_AGENT: 'kevin' } }); if (![0, 1, 3].includes(r.status)) throw new Error(r.stdout.trim()); return r.stdout.trim(); }
+  if (a.type === 'merge') { const r = spawnSync(join(BIN, 'fsd-merge'), [String(a.n)], { encoding: 'utf8', env: { ...process.env, FSD_AGENT: 'kevin' } }); if (![0, 1, 3].includes(r.status)) throw new Error(why(r)); return r.stdout.trim(); }
   if (a.type === 'judge') {
     // Validação R28: o juiz roda como o Kevin (no container, pelo verbo judge do wrapper), com os leases do ref num arquivo que ele lê;
     // a saída e o exit vão para dispatch/judge/<n>.out|.done, que o gather das próximas rodadas lê (a saída não some mais no /dev/null).
@@ -189,7 +194,7 @@ if (cmd === 'round') {
   // Validação R32: depois de um reinício do container, os papéis ativos voltam pela conversa gravada antes da primeira rodada.
   if (!DRY && !process.env.FSD_DISPATCH_FIXTURE) { const b = spawnSync(join(BIN, 'fsd-session'), ['boot'], { encoding: 'utf8', env: process.env }); console.log((b.stdout || b.stderr || '').trim().split('\n')[0] || 'fsd-session boot: sem saída'); }
   const rounds = Number(process.env.FSD_DISPATCH_ROUNDS) || Infinity;   // testes: um número fixo de rodadas
-  for (let i = 0; i < rounds; i++) { try { await D.round({ gather, exec, now: now(), cfg }); admit(); } catch (e) { console.log(`fsd-dispatch: rodada falhou: ${String(e.message).split('\n')[0]}`); } if (i + 1 < rounds) await new Promise((r) => setTimeout(r, Number(cfg.loopSeconds || 60) * 1000)); }
+  for (let i = 0; i < rounds; i++) { try { await D.round({ gather, exec, now: now(), cfg }); admit(); } catch (e) { console.log(`fsd-dispatch: rodada falhou: ${String(e?.message || e).split('\n')[0]}`); } if (i + 1 < rounds) await new Promise((r) => setTimeout(r, Number(cfg.loopSeconds || 60) * 1000)); }
 } else if (cmd === 'status') {
   const tasks = D.loadTasks(); console.log(JSON.stringify({ pin: D.currentPin(), tasks, judged: D.loadJudged(), judging: D.loadJudging() }, null, 1));
 } else L.die('uso: fsd-dispatch round [--dry] | loop | pin | status', 2);

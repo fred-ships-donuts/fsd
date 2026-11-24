@@ -111,7 +111,7 @@ export function reviewState(p) {
   for (const [who, r] of last) {
     if (who === author) continue;
     if (r.state === 'CHANGES_REQUESTED') changes.push(who);
-    else if (r.state === 'APPROVED') (r.commit?.oid && r.commit.oid !== p.headRefOid ? stale : approvers).push(who);
+    else if (r.state === 'APPROVED') (r.commit?.oid === p.headRefOid ? approvers : stale).push(who);   // sem commit não dá para dizer que é do head: antiga
   }
   return { author, approvers, stale, changes, last };
 }

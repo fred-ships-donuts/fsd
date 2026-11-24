@@ -20,8 +20,7 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 const cfg = JSON.parse(readFileSync(join(HERE, '..', 'agents.json'), 'utf8'));
 const agent = process.env.FSD_AGENT;
 const die = (m, c = 1) => { console.error(`fsd-board: ${m}`); process.exit(c); };
-process.on('uncaughtException', (e) => die(String(e.message || e).split('\n')[0].slice(0, 200), 4));
-process.on('unhandledRejection', (e) => die(String(e?.message || e).split('\n')[0].slice(0, 200), 4));
+process.on('uncaughtException', (e) => die(String(e.message).split('\n')[0].slice(0, 200), 4));   // também o erro de um await no topo
 // Sessão nova (F2.3, C1): quem lê é o usuário Unix (fsd-token-file), nunca o FSD_AGENT; o supervisor (fsd-dispatch) nem tem um.
 const SESSION = process.env.FSD_RUNNER === 'session';
 if (!SESSION && (!agent || !cfg.agents[agent])) die('rode dentro de uma sessão aberta pelo fsd-agent', 2);
