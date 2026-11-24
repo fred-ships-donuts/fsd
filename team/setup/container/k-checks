@@ -327,6 +327,9 @@ if command -v jq >/dev/null && [ -s /home/fsd-bob/.claude/.credentials.json ]; t
     cp -p /tmp/k21-bak "$C"; rm -f /tmp/k21-bak
   fi
 fi
+# K23 (E6): os papéis e o fsd-run têm o npm (cópia do root), o mesmo do node do time.
+for u in fsd-kevin fsd-mel fsd-stuart fsd-bob fsd-run; do check K23 "$u roda o npm" su -s /bin/bash "$u" -c 'PATH=/usr/local/bin:/usr/bin:/bin npm --version'; done
+check K23 "o npm dos papéis é do root e nenhum papel o troca" bash -c "[ \"\$(stat -Lc %U /usr/local/bin/npm)\" = root ] && ! su -s /bin/bash fsd-stuart -c 'echo x >> /usr/local/bin/npm' 2>/dev/null"
 # K22 (E6): recriar o container com os mesmos volumes. O /etc/gitconfig (safe.directory) é da camada do container e some; o
 # /srv/fsd/repo é de um volume e volta já do fsd-dispatch. O fsd-native-setup tem de passar do mesmo jeito.
 if [ -d /srv/native/repo/.git ] && [ -d /tmp/src ]; then

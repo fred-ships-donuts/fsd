@@ -37,7 +37,8 @@ export function sandboxed(step, { home = process.env.HOME, exists = existsSync }
   return { cmd: 'bwrap', args: ['--die-with-parent', '--dev-bind', '/', '/', ...mask, '--', step.cmd, ...step.args] };
 }
 const defaultRun = (s, root) => {
-  const env = { ...process.env, FSD_RUNNER: '' }; delete env.NODE_TEST_CONTEXT;   // um node --test dentro de outro viraria filho e sairia 0
+  const env = Object.fromEntries(Object.entries(process.env).filter(([k]) => !/^FSD_/.test(k)));   // o teste não vê o estado do papel
+  delete env.NODE_TEST_CONTEXT;   // um node --test dentro de outro viraria filho e sairia 0
   const w = sandboxed(s); const r = spawnSync(w.cmd, w.args, { cwd: root, encoding: 'utf8', timeout: 120000, env });
   const out = `${r.stdout || ''}${r.stderr || ''}${r.error ? r.error.message : ''}`;
   if (r.error || /^bwrap: /m.test(r.stderr || '') && r.status !== 0 && !r.stdout) return { ok: true, skipped: `sem sandbox para verificar (${(r.error?.code || (r.stderr || '').split('\n')[0]).toString().slice(0, 80)})` };
