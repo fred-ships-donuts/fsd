@@ -58,7 +58,7 @@ async function gather() {
     }
     const st = pr ? L.reviewState(pr) : null;
     const reviewedBy = pr ? [...st.last].filter(([, r]) => r.commit?.oid === pr.headRefOid && r.state !== 'DISMISSED').map(([w]) => roleOf(w)) : [];
-    // Falta a revisão que o GitHub exige (CODEOWNERS: /team/ e /.github/ são do autor): o merge seria recusado a cada rodada; o card espera.
+    // Falta a revisão que o GitHub exige (CODEOWNERS: /.github/ é do autor): o merge seria recusado a cada rodada; o card espera.
     const waits = column === 'mergeReady' && pr?.reviewDecision === 'REVIEW_REQUIRED';
     return { n: b.number, column, blocked: waits || blocked.has(b.number), ...(column === 'backlog' && !sized.has(b.number) ? { unsized: true } : {}), ...(pr ? { pr: pr.number, head: pr.headRefOid, reviewedBy } : {}) };
   }).filter((c) => c.column);
