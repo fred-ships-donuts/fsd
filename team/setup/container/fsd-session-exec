@@ -44,8 +44,9 @@ run_bg() {   # run_bg <arquivo> [--resume <uuid>]
   # Validação R6/R7: o PATH do time (fsd-*, o wrapper gh, rtk), o repositório (o fsd-lib não acha pelo link da cópia fixada) e o git do
   # root; sem prompt de git nem editor. R1: o estado na pasta do papel ($STATE_ROOT/<papel>), que o supervisor também lê e grava.
   # Validação R18: o repositório da sessão é o clone do papel na home dele (o compartilhado é só leitura).
+  # NODE_USE_ENV_PROXY: no sandbox do Bash a rede sai por um proxy; o gh o usa, o fetch do Node (fsd-board) só com isto.
   cd "$cwd" && exec env FSD_AGENT="$role" FSD_RUNNER=session FSD_TEAM="$TEAM" FSD_REPO="$(role_repo)" FSD_STATE="$STATE_ROOT/$role" FSD_STATE_ROOT="$STATE_ROOT" \
-    PATH="$TEAM/bin:/usr/local/bin:/usr/bin:/bin" GIT_CONFIG_GLOBAL="/etc/fsd/profiles/$role/gitconfig" GIT_TERMINAL_PROMPT=0 GIT_EDITOR=true \
+    PATH="$TEAM/bin:/usr/local/bin:/usr/bin:/bin" GIT_CONFIG_GLOBAL="/etc/fsd/profiles/$role/gitconfig" GIT_TERMINAL_PROMPT=0 GIT_EDITOR=true NODE_USE_ENV_PROXY=1 \
     "$CLAUDE" --bg --name "$role" --permission-mode bypassPermissions \
     --setting-sources local --settings "/etc/fsd/profiles/$role/settings.json" \
     --append-system-prompt-file "/etc/fsd/profiles/$role/system.md" --mcp-config "$MCP" --strict-mcp-config "${PLUGIN[@]}" "$@" < "$pf"

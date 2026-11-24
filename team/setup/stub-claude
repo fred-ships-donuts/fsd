@@ -67,7 +67,7 @@ if (a.includes('--bg')) {
   const viaStdin = stdinPrompt.trim() !== ''; const noPrompt = viaStdin ? a : a.slice(0, -1);
   const prompt = viaStdin ? stdinPrompt.trim() : a[a.length - 1]; const resume = opt('--resume');
   const env = { agent: process.env.FSD_AGENT || null, runner: process.env.FSD_RUNNER || null,
-    path: process.env.PATH || null, repo: process.env.FSD_REPO || null, state: process.env.FSD_STATE || null, gitcfg: process.env.GIT_CONFIG_GLOBAL || null };
+    path: process.env.PATH || null, repo: process.env.FSD_REPO || null, state: process.env.FSD_STATE || null, gitcfg: process.env.GIT_CONFIG_GLOBAL || null, proxy: process.env.NODE_USE_ENV_PROXY || null };
   if (opt('--session-id')) console.error('warning: --bg manages the session id; ignoring --session-id (use --resume <id> to continue an existing session)');
   const flags = noPrompt.filter((x, i, l) => !['--bg', '--background', '--resume'].includes(x) && l[i - 1] !== '--resume');
   let s = resume ? st.sessions.find((x) => x.sessionId === resume) : null;

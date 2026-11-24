@@ -105,7 +105,7 @@ fi
 # papel sai com a identidade do bot só pelo GIT_CONFIG_GLOBAL (sem -c).
 if [ -x /usr/local/sbin/fsd-session-exec ] && command -v jq >/dev/null; then
   sj=/tmp/stub-claude-$(id -u fsd-stuart)/state.json; T17=$(grep -E '^TEAM=' /etc/fsd/session.env | cut -d= -f2); R17=$(grep -E '^REPO=' /etc/fsd/session.env | cut -d= -f2)
-  k17_env() { jq -e --arg t "$T17/bin" --arg r "$R17" '[.sessions[] | select(.agent == "stuart")] | last | (.path | startswith($t + ":")) and .repo == "/home/fsd-stuart/repo" and .state == "/var/lib/fsd-state/stuart" and .gitcfg == "/etc/fsd/profiles/stuart/gitconfig"' "$sj" >/dev/null; }
+  k17_env() { jq -e --arg t "$T17/bin" --arg r "$R17" '[.sessions[] | select(.agent == "stuart")] | last | (.path | startswith($t + ":")) and .repo == "/home/fsd-stuart/repo" and .state == "/var/lib/fsd-state/stuart" and .proxy == "1" and .gitcfg == "/etc/fsd/profiles/stuart/gitconfig"' "$sj" >/dev/null; }
   check K17 "a sessão do Stuart sobe com PATH do time, FSD_REPO, FSD_STATE e o gitconfig do root" k17_env
   check K17 "o gitconfig do papel é do root, com a identidade do bot e o helper do time" bash -c "[ \"\$(stat -c %U /etc/fsd/profiles/stuart/gitconfig)\" = root ] && git config -f /etc/fsd/profiles/stuart/gitconfig user.name | grep -qx 'fsd-stuart\[bot\]' && git config -f /etc/fsd/profiles/stuart/gitconfig --get-all credential.https://github.com.helper | grep -q git-credential-fsd"
   if [ -n "${FSD_SIM_REPO:-}" ]; then
