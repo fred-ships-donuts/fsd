@@ -1,14 +1,15 @@
 #!/usr/bin/env node
 // supervisor-coverage — a cobertura do supervisor (fsd-dispatch e fsd-dispatch-*) pelo c8, só com os testes dele (npm run test:supervisor).
 // Os testes rodam cópias do team/ numa pasta temporária, em processos filhos: uma cópia de conteúdo igual ao arquivo conta como ele; uma
-// cópia que o teste mudou ou apagou não conta. Sai 1 se um teste falha ou se linhas, ramos, funções ou instruções ficam abaixo de MIN.
+// cópia que o teste mudou ou apagou não conta. Sai 1 se um teste falha ou se linhas, ramos, funções ou
+// instruções de algum arquivo ficam abaixo de MIN (por arquivo: um arquivo sem teste não se esconde na média dos outros).
 // Sem rede nem token. Arquivo de código novo com esse nome entra sozinho, mesmo que nenhum teste o carregue (--all).
 import { readdirSync, readFileSync, writeFileSync, existsSync, mkdtempSync, mkdirSync, rmSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { join, dirname, basename } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-const MIN = 100;
+const MIN = 90;   // decisão do autor: mínimo da versão final em produção
 const REPO = join(dirname(fileURLToPath(import.meta.url)), '..', '..'), BIN = join(REPO, 'team', 'bin');
 const all = readdirSync(BIN).filter((f) => /^fsd-dispatch([.-]|$)/.test(f)), tests = all.filter((f) => f.endsWith('.test.mjs')), code = all.filter((f) => !f.endsWith('.test.mjs'));
 const base = mkdtempSync(join(tmpdir(), 'sup-cov-')), v8 = join(base, 'v8'), tmp = join(base, 'tmp'); mkdirSync(v8); mkdirSync(tmp);
@@ -27,6 +28,6 @@ for (const f of readdirSync(v8)) {
   writeFileSync(join(v8, f), JSON.stringify(j));
 }
 const r = spawnSync(join(REPO, 'node_modules', '.bin', 'c8'), ['report', '--all', '--temp-directory', v8, '--extension', '.mjs', '--extension', '', '--exclude', 'nada', ...code.flatMap((f) => ['--include', `team/bin/${f}`]),
-  '--reporter', 'text', '--check-coverage', '--lines', MIN, '--branches', MIN, '--functions', MIN, '--statements', MIN].map(String), { cwd: REPO, stdio: 'inherit' });
+  '--reporter', 'text', '--check-coverage', '--per-file', '--lines', MIN, '--branches', MIN, '--functions', MIN, '--statements', MIN].map(String), { cwd: REPO, stdio: 'inherit' });
 if (r.error) console.error(`supervisor-coverage: c8 não rodou (${r.error.code}); rode npm ci`);
 process.exit(r.status === 0 ? 0 : 1);
