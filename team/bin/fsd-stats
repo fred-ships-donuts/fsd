@@ -9,6 +9,13 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { context } from './fsd-context.mjs';
 
+// fsd-stats consumo   custo por papel e modelo e por card (T6.3.4) · fsd-stats painel   retrabalho, desvios, consumo e tempo por coluna (T6.5.1)
+if (['consumo', 'painel'].includes(process.argv[2])) {
+  const C = await import('./fsd-consumo.mjs'); const { COLUMNS } = await import('./fsd-stages.mjs');
+  const d = C.load(process.env.FSD_STATE || join(process.env.HOME, '.config', 'fsd-agents'));
+  console.log(process.argv[2] === 'consumo' ? C.consumoText(d) : C.painelText(d, { roles: ['kevin', 'mel', 'stuart', 'bob'], who: Object.fromEntries(Object.entries(COLUMNS).map(([k, c]) => [k, c.who])), now: Number(process.env.FSD_NOW) || Date.now() }));
+  process.exit(0);
+}
 const ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
 const cfg = JSON.parse(readFileSync(join(ROOT, 'agents.json'), 'utf8'));
 const C = context(''); const LIMIT = C.limit - C.outputReserve;   // janela útil (limite comum a todos)

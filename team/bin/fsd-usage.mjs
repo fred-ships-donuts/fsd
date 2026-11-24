@@ -129,6 +129,9 @@ export function statusline(input, t = now()) {
   let j = null; try { j = JSON.parse(input); } catch {}
   const c = fromStatusline(j, t);
   if (c) { const f = P('usage.json'); try { writeFileSync(`${f}.tmp`, JSON.stringify(c), { mode: shareMode(0o600) }); renameSync(`${f}.tmp`, f); } catch {} }
+  // Custo acumulado da sessão (T6.3.4): o supervisor tira daí o custo de cada turno (fsd-consumo).
+  const usd = Number(j?.cost?.total_cost_usd ?? NaN);
+  if (j?.session_id && Number.isFinite(usd)) { const f = P('cost.json'); try { writeFileSync(`${f}.tmp`, JSON.stringify({ t, session: j.session_id, model: j.model?.id ?? null, usd, ms: Number(j.cost.total_api_duration_ms ?? NaN) }), { mode: shareMode(0o600) }); renameSync(`${f}.tmp`, f); } catch {} }
   const pct = (x) => (x ? `${Math.round(x.utilization)}%` : '-');
   return `fsd ${process.env.FSD_AGENT || ''} · 5h ${pct(c?.five_hour)} · semana ${pct(c?.seven_day)}`;
 }

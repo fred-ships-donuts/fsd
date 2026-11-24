@@ -59,6 +59,13 @@ install -d -o root -g root -m 0755 "$N/lib" "$N/lib/node_modules"; rm -rf "$N/li
 chown -R root:root "$N/lib/node_modules/npm.new"; chmod -R u+rwX,go+rX,go-w "$N/lib/node_modules/npm.new"
 rm -rf "$N/lib/node_modules/npm"; mv "$N/lib/node_modules/npm.new" "$N/lib/node_modules/npm"
 for c in npm npx; do ln -sfn "../lib/node_modules/npm/bin/$c-cli.js" "$N/bin/$c"; ln -sfn "$N/bin/$c" "/usr/local/bin/$c"; done
+# Motor do fsd-map: cópia do root já corrigida (o /opt/fsd é do uid 1000, e um papel não grava nem corrige nada lá).
+if [ -d /opt/fsd/map/node_modules ]; then
+  rm -rf "$N/map.new"; cp -rL /opt/fsd/map "$N/map.new"; chown -R root:root "$N/map.new"; chmod -R u+rwX,go+rX,go-w "$N/map.new"
+  rm -rf "$N/map"; mv "$N/map.new" "$N/map"; mh=$(mktemp -d)
+  FSD_MAP_PKG="$N/map" FSD_MAP_HOME="$mh" "$N/bin/node" "$ROOT/team/bin/fsd-map" engine || { echo "fsd-native-setup: o motor do fsd-map não ficou pronto"; exit 1; }
+  rm -rf "$mh"
+fi
 # rtk dos hooks (validação R6): cópia do root em /usr/local/bin, não o /opt/fsd/bin do uid 1000.
 RTK=${FSD_RTK_BIN:-/opt/fsd/bin/rtk}; [ -x "$RTK" ] && install -o root -g root -m 0755 "$RTK" /usr/local/bin/rtk
 for r in kevin mel stuart bob; do

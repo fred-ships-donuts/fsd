@@ -194,7 +194,7 @@
       "id": "bash-read-refused",
       "label": "Bash read-only search refused (`grep -r`, `rg`, `cat $(…)`, `fsd-map grep`)",
       "do": {
-        "default": "the built-in Grep, Glob and Read tools (they are not subject to the Bash path check); `fsd-map` only if it runs"
+        "default": "the full literal path, with no cd before it, or the Read tool (Grep and Glob do not exist in the native session)"
       },
       "why": "Claude Code's path check on file-reading Bash commands can refuse a search that touches a path named by a Read deny rule (e.g. another agent's folder under ~/.config/fsd-agents); the team's guard did not refuse it, and the deny rules stay as they are"
     },

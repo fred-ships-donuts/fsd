@@ -54,6 +54,9 @@ jobs:
         with:
           node-version: 22
       - run: npm run check:paths
+      # T4.9.5: só avisa quais papéis mudaram e pedem rodada de evals; nunca falha.
+      # No PR o checkout é o merge: o primeiro pai é a base.
+      - run: git fetch -q --deepen=1 && node team/setup/evals-needed 'HEAD^1' || true
 
   shellcheck:
     runs-on: ubuntu-latest
