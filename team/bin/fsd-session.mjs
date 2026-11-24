@@ -26,8 +26,13 @@ export function saveStored(s) { mkdirSync(stDir(), { recursive: true }); const f
 export const via = () => process.env.FSD_SESSION_VIA === 'sudo';
 export const sx = (role, ...args) => spawnSync('sudo', ['-n', '-u', `fsd-${role}`, '/usr/local/sbin/fsd-session-exec', ...args], { encoding: 'utf8' });
 export function liveAgents({ claude = process.env.FSD_CLAUDE || 'claude', cwd } = {}) {
-  const parse = (r) => { try { const v = JSON.parse(r.stdout || '[]'); return Array.isArray(v) ? v : []; } catch { return []; } };
-  return via() ? ROLES.flatMap((r) => parse(sx(r, 'agents'))) : parse(spawnSync(claude, ['agents', '--json'], { encoding: 'utf8', ...(cwd ? { cwd } : {}) }));
+  // Sem a lista não dá para dizer que um papel está desligado: "nenhuma sessão" por engano abriria uma cópia de quem trabalha.
+  const parse = (r, who) => {
+    let v; if (r.status === 0) { try { v = JSON.parse(r.stdout || '[]'); } catch {} }
+    if (!Array.isArray(v)) throw new Error(`não consegui ler as sessões${who}: ${(r.stderr || r.stdout || r.error?.code || `exit ${r.status}`).trim().split('\n')[0].slice(0, 160)}`);
+    return v;
+  };
+  return via() ? ROLES.flatMap((r) => parse(sx(r, 'agents'), ` de ${r}`)) : parse(spawnSync(claude, ['agents', '--json'], { encoding: 'utf8', ...(cwd ? { cwd } : {}) }), '');
 }
 
 export const stopSession = (role, id, { claude = process.env.FSD_CLAUDE || 'claude' } = {}) => (via() ? sx(role, 'stop', id) : spawnSync(claude, ['stop', id], { encoding: 'utf8' }));

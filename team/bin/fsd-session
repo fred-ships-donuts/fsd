@@ -20,7 +20,7 @@ function viaWrapper(argv, role) {
   // Validação R39: no time nativo o arquivo do prompt fica na pasta de estado do papel (só ele e o supervisor leem, ACL); fora dele,
   // numa pasta temporária.
   const L = libRef; const base = L.stateRoot() ? L.roleStateDir(role) : tmpdir();
-  const dir = mkdtempSync(join(base, '.prompt-')); chmodSync(dir, L.stateRoot() ? 0o770 : 0o711); const f = join(dir, 'prompt'); writeFileSync(f, argv[argv.length - 1], { mode: L.stateRoot() ? 0o660 : 0o644 });
+  const dir = mkdtempSync(join(base, '.prompt-')); chmodSync(dir, L.stateRoot() ? 0o770 : 0o711); const f = join(dir, 'prompt'); writeFileSync(f, argv[argv.length - 1], { mode: 0o600 }); chmodSync(f, L.stateRoot() ? 0o660 : 0o644);   // chmod: o umask de quem chama não tira a leitura do papel
   try { return i >= 0 ? SX(role, 'resume', argv[i + 1], f) : SX(role, 'start', f); } finally { rmSync(dir, { recursive: true, force: true }); }
 }
 const call = (argv, role) => (VIA ? viaWrapper(argv, role) : spawnSync(CLAUDE, argv, { cwd: REPO, encoding: 'utf8', env: { ...process.env, ...(role ? { FSD_AGENT: role, FSD_RUNNER: 'session', FSD_TEAM: join(BIN, '..') } : {}) } }));
@@ -53,6 +53,8 @@ function run(steps, r) {
   }
   stored[r] = { ...(stored[r] || {}), active: true }; S.saveStored(stored);
 }
+// Sessão que não para não é dada por parada nem aposentada: ficaria viva e esquecida, e o próximo turno abriria outra.
+const stopAll = (r) => { for (const s of S.planStop(r, { st: st()[r] })) { const o = call(s.argv, r); if (o.status !== 0) die(`fsd-session: ${r} não parou (${(o.stderr || o.stdout || '').trim().split('\n')[0].slice(0, 160)})`, 4); } };
 if (cmd === 'status') { const s = st(); console.log(process.argv.includes('--json') ? JSON.stringify(s) : Object.entries(s).map(([r, x]) => `${r}: ${x.state}${x.sessionId ? ` (${x.sessionId.slice(0, 8)})` : ''}`).join('\n')); }
 else if ((cmd === 'start' || cmd === 'turn') && S.ROLES.includes(role) && text) {
   const { NEW_DAY_NOTE } = await import('./fsd-eod.mjs');
@@ -63,9 +65,9 @@ else if ((cmd === 'start' || cmd === 'turn') && S.ROLES.includes(role) && text) 
     stored[role] = { ...(stored[role] || {}), lastSessionId: stored[role]?.sessionId || null }; delete stored[role].sessionId;
     run(S.planStart(role, `${NEW_DAY_NOTE}\n\n${text}`, { stored }), role);
   } console.log(`fsd-session: ${role} com turno novo na conversa ${stored[role].sessionId.slice(0, 8)}`);
-} else if (cmd === 'stop' && S.ROLES.includes(role)) { for (const s of S.planStop(role, { st: st()[role] })) call(s.argv, role); stored[role] = { ...(stored[role] || {}), active: false }; S.saveStored(stored); console.log(`fsd-session: ${role} parado`); }
+} else if (cmd === 'stop' && S.ROLES.includes(role)) { stopAll(role); stored[role] = { ...(stored[role] || {}), active: false }; S.saveStored(stored); console.log(`fsd-session: ${role} parado`); }
 else if (cmd === 'retire' && S.ROLES.includes(role)) {   // fim do dia (T3.4.2): para e esquece a conversa; a próxima tarefa abre outra
-  for (const s of S.planStop(role, { st: st()[role] })) call(s.argv, role);
+  stopAll(role);
   stored[role] = { active: false, retiredAt: new Date().toISOString(), lastSessionId: stored[role]?.sessionId || null }; S.saveStored(stored);
   console.log(`fsd-session: ${role} aposentado (fim do dia); a próxima tarefa abre uma sessão nova`);
 }
