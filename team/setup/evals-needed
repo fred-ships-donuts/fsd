@@ -1,0 +1,22 @@
+#!/usr/bin/env node
+// evals-needed [<base>] — T4.9.5: os papéis cuja configuração o diff muda (skills, CLAUDE, permissões, contrato, regras comuns, modelo)
+// e cujas evals pedem uma rodada. Só avisa (no CI, como aviso do PR); sai sempre 0. Base padrão: origin/develop. 0 token.
+import { spawnSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
+import { realpathSync } from 'node:fs';
+export const ROLES = ['kevin', 'mel', 'stuart', 'bob'];
+export function rolesOf(files) {
+  const out = new Set();
+  for (const f of files) {
+    const m = /^team\/agents\/([a-z]+)\/claude\//.exec(f);
+    if (m && ROLES.includes(m[1])) out.add(m[1]);
+    else if (/^team\/(common\/|contracts\/|claude-settings\.json$|agents\.json$|redirects\.json$)/.test(f)) ROLES.forEach((r) => out.add(r));
+  }
+  return ROLES.filter((r) => out.has(r));
+}
+if (process.argv[1] && realpathSync(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  const base = process.argv[2] || 'origin/develop', r = spawnSync('git', ['diff', '--name-only', `${base}...HEAD`], { encoding: 'utf8' });
+  const roles = r.status === 0 ? rolesOf(r.stdout.split('\n').filter(Boolean)) : [];
+  const msg = r.status !== 0 ? `evals-needed: não li o diff com ${base}` : roles.length ? `A configuração de ${roles.join(', ')} mudou: rode fsd-eval run ${roles.join(' ')} --real e compare a nota antes do merge.` : 'evals-needed: nenhuma configuração de papel mudou';
+  console.log(process.env.GITHUB_ACTIONS && (roles.length || r.status !== 0) ? `::warning::${msg}` : msg);
+}

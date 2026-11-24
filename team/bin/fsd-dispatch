@@ -62,6 +62,11 @@ async function gather() {
     const waits = column === 'mergeReady' && pr?.reviewDecision === 'REVIEW_REQUIRED';
     return { n: b.number, column, blocked: waits || blocked.has(b.number), ...(column === 'backlog' && !sized.has(b.number) ? { unsized: true } : {}), ...(pr ? { pr: pr.number, head: pr.headRefOid, reviewedBy } : {}) };
   }).filter((c) => c.column);
+  // Consumo e colunas (T6.3.4, T6.5.1): só registro; falhar aqui não derruba a rodada.
+  if (!DRY) try {
+    const C = await import('./fsd-consumo.mjs'), state = L.stateDir(), cost = (r) => { try { return JSON.parse(readFileSync(join(L.roleStateDir(r), 'cost.json'), 'utf8')); } catch { return null; } };
+    C.recordTurns({ state, roles: S.ROLES, sessions, tasks: D.loadTasks(), cost, now: now() }); C.recordColumns({ state, cards, now: now() });
+  } catch (e) { console.log(`fsd-dispatch: consumo não registrado: ${e.message}`); }
   const { messages, rejected } = M.collect();
   for (const r of rejected) console.log(`mensagem recusada (${r.from || '?'}): ${r.errors.join('; ')}`);
   // Validação R28: o resultado do juiz. Respondeu (exit 0): o ref fica julgado e o Kevin recebe o que fazer (o comentário do caminho do

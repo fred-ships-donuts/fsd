@@ -120,3 +120,11 @@ test('native budget: in a session runner the guard never kicks the endpoint refr
   spawnSync(join(BIN, 'fsd-context-guard'), { env: { ...t.env, FSD_DRY: '', FSD_RUNNER: 'session', FSD_AGENT: 'bob' }, input: JSON.stringify({ hook_event_name: 'UserPromptSubmit' }), encoding: 'utf8' });
   spawnSync('sleep', ['0.5']); assert.equal(existsSync(join(t.d, 'usage.json')), false);
 });
+
+test('statusline: the accumulated cost of the session goes to cost.json; without cost or session nothing is written', () => {
+  const d = mkdtempSync(join(tmpdir(), 'uc-')); const sl = (j) => spawnSync(process.execPath, [join(BIN, 'fsd-usage.mjs'), 'statusline'], { input: typeof j === 'string' ? j : JSON.stringify(j), encoding: 'utf8', env: { ...process.env, FSD_STATE: d, FSD_STATE_ROOT: '', FSD_AGENT: 'mel', FSD_RUNNER: 'session' } });
+  for (const j of ['lixo', {}, { session_id: 's' }, { cost: { total_cost_usd: 1 } }]) assert.equal(sl(j).status, 0);
+  assert.equal(existsSync(join(d, 'cost.json')), false);
+  sl({ session_id: 's', model: { id: 'claude-sonnet-5-5' }, cost: { total_cost_usd: 0.25, total_api_duration_ms: 900 } });
+  const c = JSON.parse(readFileSync(join(d, 'cost.json'), 'utf8')); assert.deepEqual([c.session, c.model, c.usd, c.ms], ['s', 'claude-sonnet-5-5', 0.25, 900]);
+});

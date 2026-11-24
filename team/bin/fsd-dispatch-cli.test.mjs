@@ -76,6 +76,14 @@ test('gather: CI green after the two approvals → the supervisor takes the card
   for (const y of [mk({ status: 'IN_PROGRESS', conclusion: '' }), mk({ conclusion: 'FAILURE' }), mk({}, ['mel'])]) { ok(y.run(['round'])); assert.equal(column(y), 'review'); assert.equal(at(y), COL.review); }
 });
 
+test('gather: the round records the column changes and the cost of a closed turn; --dry records nothing; a failure there does not stop the round', () => {
+  const mk = () => { const x = world({ decide: 'dump', board: { 2: COL.dev }, issues: { 2: issue(2) } }); writeFileSync(join(x.st, 'cost.json'), JSON.stringify({ session: 's', model: 'm', usd: 0.2, ms: 1000 })); return x; };
+  const log = (x, f) => { try { return readFileSync(join(x.st, f), 'utf8').trim().split('\n').map((l) => JSON.parse(l)); } catch { return []; } };
+  let x = mk(); ok(x.run(['round', '--dry'])); assert.deepEqual([log(x, 'colunas.jsonl'), log(x, 'consumo.jsonl')], [[], []]);
+  ok(x.run(['round'])); ok(x.run(['round'])); assert.deepEqual(log(x, 'colunas.jsonl').map((c) => [c.n, c.from, c.to]), [[2, null, 'dev']]); assert.ok(log(x, 'consumo.jsonl').every((c) => c.usd === 0.2 && c.model === 'm'));
+  x = mk(); mkdirSync(join(x.st, 'colunas.jsonl')); ok(x.run(['round']), /consumo não registrado: EISDIR/);
+});
+
 test('gather: a PullRequest item is not a card; an empty answer of gh and an issue without labels are fine', () => {
   const x = world({ decide: 'dump', gh: 'case "$*" in "issue list"*) echo null; exit 0;; esac', cmds: { 'fsd-board': `echo '[{"column":"${COL.review}","number":9,"type":"PullRequest"},{"column":"${COL.backlog}","number":3,"type":"Issue"}]'` } });
   ok(x.run(['round'])); assert.deepEqual(x.state().cards, [{ n: 3, column: 'backlog', blocked: false, unsized: true }]);
