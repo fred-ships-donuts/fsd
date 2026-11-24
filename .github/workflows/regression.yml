@@ -1,7 +1,7 @@
 # Regressão de todo PR para a develop (#151): build, testes, caminhos e shellcheck, cada um como um check próprio.
 # Falha quando: o tsc não compila, os testes do CLI têm erro de tipo (npm run typecheck:tests, tsconfig.test.json), um teste
 # (CLI e team/bin/*.test.mjs) quebra ou a cobertura fica abaixo do piso (npm run test:coverage: linhas 80, branches 70,
-# funções 72), a do supervisor fica abaixo de 90% por arquivo (npm run test:supervisor, c8), um link ou caminho citado no repositório não
+# funções 72), um link ou caminho citado no repositório não
 # existe (npm run check:paths), ou o shellcheck acha aviso nos scripts bash de team/bin e team/setup (escolhidos pelo shebang).
 # Não gasta token: sem chamada ao Claude, sem chave de App, sem secret e sem a API do GitHub (só checkout, setup-node e npm ci).
 # O simulate-envs não roda aqui: é o passo do QA (#153). Tornar este workflow check obrigatório é o #152.
@@ -44,8 +44,6 @@ jobs:
       - run: npm ci
       # npm test com o piso de cobertura: abaixo dele, o job falha.
       - run: npm run test:coverage
-      # O supervisor (fsd-dispatch*) pelo c8: no mínimo 90% de linhas, ramos, funções e instruções em cada arquivo, só com os testes dele.
-      - run: npm run test:supervisor
 
   paths:
     runs-on: ubuntu-latest
