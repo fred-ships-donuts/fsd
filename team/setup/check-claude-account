@@ -1,0 +1,17 @@
+#!/usr/bin/env node
+// check-claude-account [arquivo]: confere a conta do Claude logada (~/.claude.json → oauthAccount) com FSD_CLAUDE_ACCOUNT (#218).
+// Lê só o e-mail e a organização; nunca imprime token. Exit 0: conta certa, ou sem FSD_CLAUDE_ACCOUNT (só mostra a conta);
+// 1: outra conta (diz o que fazer); 2: sem login.
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+const file = process.argv[2] || join(process.env.HOME || '', '.claude.json');
+let acc;
+try { acc = JSON.parse(readFileSync(file, 'utf8')).oauthAccount; } catch { acc = null; }
+const email = String(acc?.emailAddress || '').trim(), org = String(acc?.organizationName || '').trim();
+if (!email) { console.log(`sem conta do Claude em ${file}: faça /login`); process.exit(2); }
+const who = `${email}${org ? ` (${org})` : ''}`;
+const want = String(process.env.FSD_CLAUDE_ACCOUNT || '').trim();
+if (!want) { console.log(`conta logada: ${who}. Defina FSD_CLAUDE_ACCOUNT no team.env para conferir.`); process.exit(0); }
+if (email.toLowerCase() === want.toLowerCase()) { console.log(`conta certa: ${who}`); process.exit(0); }
+console.log(`conta errada: ${who}, esperada ${want}. No Claude: /logout, depois /login com ${want}, e rode fsd-setup de novo.`);
+process.exit(1);

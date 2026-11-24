@@ -383,6 +383,7 @@ else
   (cd "$REPO" && claude) || true
   [ -s "$H/.claude/.credentials.json" ] && ok "logado" || falha "o login do Claude não terminou"
 fi
+CONTA="$(node "$TEAM/setup/check-claude-account")" && ok "$CONTA" || falha "$CONTA"   # #218: a conta dos agentes (FSD_CLAUDE_ACCOUNT)
 [ "$(grep -c aim_ "$H/.claude/settings.json" 2>/dev/null)" = 0 ] || [ ! -f "$H/.claude/settings.json" ] \
   || echo "   aviso: ~/.claude/settings.json tem um token aim_ (não devia)"
 
@@ -396,6 +397,7 @@ ok "instalado e construído"
 passo "9/9  Conferência"
 if pgrep -x tailscaled >/dev/null && pgrep -x syncthing >/dev/null && pgrep -f '49374:127.0.0.1:49374' >/dev/null
 then ok "3 serviços rodando"; else echo "   aviso: algum serviço parou (docker exec -u root fsd supervisorctl status)"; fi
+CONTA="$(node "$TEAM/setup/check-claude-account")" && ok "Claude: $CONTA" || falha "$CONTA"
 tunel_ok && ok "ai-memory responde pelo túnel" || echo "   aviso: o túnel caiu"
 ai-memory status >/dev/null 2>&1 && ok "ai-memory status ok" || echo "   aviso: ai-memory status falhou (rode ai-memory doctor)"
 mkdir -p "$H/.local/state" && date -Is > "$H/.local/state/fsd-setup.ok"
