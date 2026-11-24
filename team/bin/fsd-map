@@ -7,6 +7,7 @@
 // fsd-map map                     visão geral: pastas, pontos centrais
 // fsd-map build                   reconstrói o mapa (os outros comandos já atualizam sozinhos)
 // fsd-map status                  motor, versão, patch e onde fica o mapa deste checkout
+// fsd-map engine                  só instala e corrige o motor (o root prepara a cópia dos papéis no container)
 // Cada checkout (worktree incluído) tem o próprio mapa, fora do repositório; o primeiro uso o constrói.
 // Motor: pacote npm fixado em ARG MAP_VERSION do team/setup/container/Dockerfile, instalado num diretório
 // privado (nunca no PATH) e corrigido aqui: versão diferente → reinstala a fixada; patch idempotente.
@@ -131,6 +132,7 @@ if (cmd === 'status') {
   console.log(`mapa deste checkout: ${existsSync(join(dir, 'INDEX.md')) ? dir : 'ainda não construído'}`);
   process.exit(v === pin && patchState().every((s) => s.done) ? 0 : 1);
 }
+if (cmd === 'engine') { ensure(); process.exit(0); }
 if (!MAP_CMDS.includes(cmd)) usage();
 ensure();
 const { top, dir } = checkout();

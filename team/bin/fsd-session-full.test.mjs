@@ -44,7 +44,7 @@ test('the conversation is gone: a turn opens a new one, boot forgets it; any oth
   const gone = () => { const x = via({ body: `[ "$1" = start ] && echo '[{"id":"abcdef12","kind":"background","sessionId":"${U(3)}"}]' > ${'$(dirname "$0")'}/agents-mel` }); x.stored({ mel: { sessionId: U(1), active: true } }); x.put('bg', 'No conversation found with session ID'); x.put('rc', '1'); off(x); return x; };
   const t = gone(); t.put('bg', 'No conversation found · backgrounded · abcdef12 · x'); ok(t.run(['turn', 'mel', 'oi']), /a conversa 11111111 de mel sumiu; abrindo uma sessão nova/); assert.equal(t.stored().mel.sessionId, U(3)); assert.match(t.file('prompt'), /Sessão nova[\s\S]*oi/);
   const b = gone(); ok(b.run(['boot']), /boot religou mel/); assert.deepEqual(b.stored().mel, { active: false, lastSessionId: U(1) });
-  const f = gone(); f.put('bg', 'quebrou feio\nresto'); no(f.run(['turn', 'mel', 'oi']), 4, /claude --bg falhou \(quebrou feio\)/);
+  const f = gone(); f.put('bg', 'quebrou feio\nresto'); no(f.run(['turn', 'mel', 'oi']), 4, /claude --bg falhou \(quebrou feio resto\)/);
 });
 test('claude does not say the id, or the session never shows up: exit 4, and a copy already up is stopped', () => {
   const x = via(); x.put('bg', 'nada'); no(x.run(['turn', 'mel', 'oi']), 4, /não disse o id da sessão de mel \(nada\)/); assert.ok(!x.calls().some((c) => / stop /.test(c)));

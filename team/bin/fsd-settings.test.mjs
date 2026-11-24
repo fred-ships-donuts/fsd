@@ -22,7 +22,7 @@ test('as regras Read(...) de deny cobrem pastas de outros agentes e segredos, n�
 
 test('a saída para a recusa do Bash está no team.md, no team.session.md e no redirects.json', () => {
   for (const f of ['common/team.md', 'common/team.session.md']) {
-    const t = readFileSync(join(TEAM, f), 'utf8'); assert.match(t, /Busca de leitura recusada no Bash/, f); assert.match(t, /Grep, Glob e Read/, f);
+    const t = readFileSync(join(TEAM, f), 'utf8'); assert.match(t, /Busca de leitura recusada no Bash/, f); assert.match(t, /caminho inteiro e literal/, f); assert.doesNotMatch(t, /use as ferramentas Grep/, f);
   }
   assert.match(readFileSync(join(TEAM, 'redirects.json'), 'utf8'), /"id": "bash-read-refused"/);
   assert.match(readFileSync(join(TEAM, 'common', 'team.md'), 'utf8'), /Bash read-only search refused/);

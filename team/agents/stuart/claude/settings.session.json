@@ -98,6 +98,7 @@
         "~/.config/fsd-agents",
         "~/.fsd",
         "~/.npm",
+        "~/.local/share/rtk",
         "~/.cache",
         "/tmp",
         "/var/lib/fsd-state/stuart"

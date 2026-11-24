@@ -41,7 +41,8 @@ function run(steps, r) {
   for (const s of steps) {
     const out = call(s.argv, r);
     if (out.status !== 0 && s.argv.includes('--resume') && MISSING.test(`${out.stderr}\n${out.stdout}`)) return 'missing';
-    if (out.status !== 0) die(`fsd-session: claude ${s.argv[0]} falhou (${(out.stderr || out.stdout || '').trim().split('\n')[0].slice(0, 160)})`, 4);
+    // O preflight recusa em várias linhas (o título e os motivos): numa linha só, para o log dizer por quê.
+    if (out.status !== 0) die(`fsd-session: claude ${s.argv[0]} falhou (${(out.stderr || out.stdout || '').trim().split('\n').map((l) => l.trim()).filter(Boolean).join(' ').slice(0, 300)})`, 4);
     if (s.sessionId !== '$OUT') continue;
     // Validação R25: o --bg volta antes do `agents` listar a sessão; lê de novo por até ~5 s. Sem ela, para a cópia que subiu (senão
     // fica ligada sem ninguém saber) e falha.

@@ -199,7 +199,16 @@ if (cmd === 'round') {
   process.on('exit', () => freePidFile(pid)); for (const [s, n] of [['SIGTERM', 15], ['SIGINT', 2], ['SIGHUP', 1]]) process.on(s, () => process.exit(128 + n));
   const lost = D.reconcile(now()); if (lost.length) console.log(`fsd-dispatch: ${lost.length} ação(ões) do laço anterior ficaram sem fim (abandoned)`);
   // Validação R32: depois de um reinício do container, os papéis ativos voltam pela conversa gravada antes da primeira rodada.
-  if (!DRY && !process.env.FSD_DISPATCH_FIXTURE) { const b = spawnSync(join(BIN, 'fsd-session'), ['boot'], { encoding: 'utf8', env: process.env }); console.log((b.stdout || b.stderr || '').trim().split('\n')[0] || 'fsd-session boot: sem saída'); }
+  // Na subida do container o broker e o túnel chegam segundos depois: espera o token e tenta o boot de novo (FSD_BOOT_WAIT_MS, testes).
+  if (!DRY && !process.env.FSD_DISPATCH_FIXTURE) {
+    const pause = (ms) => new Promise((r) => setTimeout(r, ms)), step = Number(process.env.FSD_BOOT_WAIT_MS || 10000);
+    if (process.env.FSD_SESSION_VIA === 'sudo') for (let i = 0; i < 60 && spawnSync(join(BIN, 'fsd-token-file'), ['org']).status !== 0; i++) await pause(step / 10);
+    for (let i = 0; i < 4; i++) {
+      const b = spawnSync(join(BIN, 'fsd-session'), ['boot'], { encoding: 'utf8', env: process.env });
+      console.log((b.stdout || b.stderr || '').trim().split('\n')[0] || 'fsd-session boot: sem saída');
+      if (b.status === 0 || i === 3) break; await pause(step);
+    }
+  }
   const rounds = Number(process.env.FSD_DISPATCH_ROUNDS) || Infinity;   // testes: um número fixo de rodadas
   for (let i = 0; i < rounds; i++) { try { await D.round({ gather, exec, now: now(), cfg }); admit(); } catch (e) { console.log(`fsd-dispatch: rodada falhou: ${String(e?.message || e).split('\n')[0]}`); } if (i + 1 < rounds) await new Promise((r) => setTimeout(r, Number(cfg.loopSeconds || 60) * 1000)); }
 } else if (cmd === 'status') {
