@@ -327,5 +327,20 @@ if command -v jq >/dev/null && [ -s /home/fsd-bob/.claude/.credentials.json ]; t
     cp -p /tmp/k21-bak "$C"; rm -f /tmp/k21-bak
   fi
 fi
+# K22 (E6): recriar o container com os mesmos volumes. O /etc/gitconfig (safe.directory) é da camada do container e some; o
+# /srv/fsd/repo é de um volume e volta já do fsd-dispatch. O fsd-native-setup tem de passar do mesmo jeito.
+if [ -d /srv/native/repo/.git ] && [ -d /tmp/src ]; then
+  recreate() {
+    mv /etc/gitconfig /tmp/k22-gitconfig
+    FSD_TEAM_SRC=/tmp/src FSD_TEAM_REF=HEAD FSD_REPO_URL=/srv/origin.git FSD_NATIVE_ROOT=/srv/native FSD_NODE_BIN=/opt/node/bin/node \
+      FSD_CLAUDE_REAL=/opt/fsd-sim/team/setup/stub-claude FSD_AIM_DIR=/opt/fake-aim FSD_NATIVE_PREFLIGHT=0 \
+      FSD_AIM_TOKENS_SRC=/opt/fsd-sim/aim-tokens FSD_CLAUDE_TOKEN_SRC=/opt/fsd-sim/claude-token bash /tmp/src/team/setup/container/fsd-native-setup >/tmp/k22.log 2>&1
+  }
+  check K22 "o /srv/fsd/repo do volume é do fsd-dispatch, não do root" bash -c "[ \"\$(stat -c %U /srv/native/repo)\" = fsd-dispatch ]"
+  check K22 "container recriado (gitconfig novo, volumes antigos): o fsd-native-setup passa" recreate
+  [ $fail = 0 ] || tail -3 /tmp/k22.log
+  for d in /srv/native/repo /srv/native/repo/.git; do check K22 "$d volta a ser safe.directory" bash -c "git config --system --get-all safe.directory | grep -qxF $d"; done
+  mv -f /tmp/k22-gitconfig /etc/gitconfig
+fi
 [ $fail = 0 ] && echo "k-checks: tudo ok" || echo "k-checks: há falhas"
 exit $fail

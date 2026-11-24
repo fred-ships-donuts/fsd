@@ -184,12 +184,13 @@ case "${1:-}" in
     exec /usr/bin/syncthing serve --no-browser --no-restart ;;
   tunnel)
     # Túnel 127.0.0.1:49374 -> ai-memory da matriz. Espera a chave (~/.ssh/id_matriz) e a Tailscale; tenta de novo a cada 5 s.
+    # ConnectTimeout: a 1ª tentativa sai antes de a Tailscale subir, pela rota errada; sem ele, ficava presa por mais de 2 min.
     M="${FSD_MATRIZ:?defina FSD_MATRIZ (team.env)}"; P=()
     [ "$MODE" = userspace ] && P=(-o "ProxyCommand=nc -X 5 -x 127.0.0.1:1055 %h %p")
     while true; do
       if [ -f "$H/.ssh/id_matriz" ]; then
         ssh -NT -i "$H/.ssh/id_matriz" "${P[@]}" -o BatchMode=yes -o StrictHostKeyChecking=accept-new \
-            -o ExitOnForwardFailure=yes -o ServerAliveInterval=15 -o ServerAliveCountMax=2 \
+            -o ConnectTimeout=10 -o ExitOnForwardFailure=yes -o ServerAliveInterval=15 -o ServerAliveCountMax=2 \
             -L 127.0.0.1:49374:127.0.0.1:49374 "${FSD_MATRIZ_USER:?defina FSD_MATRIZ_USER (team.env)}@$M"
       fi
       sleep 5
