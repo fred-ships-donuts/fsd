@@ -21,6 +21,9 @@ test('delta: the difference inside a session; a new session or a total that shra
   assert.equal(C.delta(c('a', 0.5, 2000), c('a', 0.5, 2000)), null);
   assert.deepEqual(C.delta(c('a', 0.5, 2000), c('a', 0.6, null)), { usd: 0.1, seconds: null });
   assert.deepEqual(C.delta(c('a', 0.5, null), c('a', 0.6, 400)), { usd: 0.1, seconds: 0.4 });
+  // Cópia retomada (id novo) da sessão a: só o que passou do total dela; cópia de outra, ou total menor (container novo), conta inteira.
+  assert.deepEqual(C.delta(c('a', 1.7, 121000), c('b', 2.2, 180000), 'a'), { usd: 0.5, seconds: 59 }); assert.deepEqual(C.delta(c('a', 1.7, 121000), c('b', 2.2, 180000), 'z'), { usd: 2.2, seconds: 180 });
+  assert.deepEqual(C.delta(c('a', 1.7, 121000), c('b', 0.3, 4000), 'a'), { usd: 0.3, seconds: 4 });
   for (const bad of [null, {}, { session: 'a', usd: NaN }]) assert.equal(C.delta(null, bad), null);
 });
 
