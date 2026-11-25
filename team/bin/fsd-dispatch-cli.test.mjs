@@ -108,9 +108,9 @@ test('gather: PAUSE, and the account usage over the limit, reach decide', () => 
 test('gather: the limit of the end of the day: dispatch.endOfDayAt, else context.restartAbove, else 0', () => {
   const at = (agents) => { const x = world({ decide: 'dump', agents }); ok(x.run(['round'])); return x.state().endOfDayAt; };
   assert.equal(at((c) => { c.dispatch.endOfDayAt = 777; }), 777);
-  assert.equal(at((c) => { c.claude_common.context.restartAbove = 555; }), 555);
-  assert.equal(at((c) => { delete c.claude_common.context; }), 0);
-  assert.equal(at((c) => { delete c.claude_common.context.restartAbove; }), 0);
+  assert.equal(at((c) => { delete c.dispatch.endOfDayAt; c.claude_common.context.restartAbove = 555; }), 555);
+  assert.equal(at((c) => { delete c.dispatch.endOfDayAt; delete c.claude_common.context; }), 0);
+  assert.equal(at((c) => { delete c.dispatch.endOfDayAt; delete c.claude_common.context.restartAbove; }), 0);
 });
 
 test('gather: without "dispatch" in agents.json the round still runs', () => {
@@ -144,6 +144,30 @@ test('gather (R25): a live copy that is not the stored conversation is stopped a
   const d = mk(); ok(d.run(['round', '--dry']), /cópia órfã de mel \(bad1\) seria parada/); assert.equal(d.stub().sessions.find((s) => s.id === 'bad1').alive, true);
   const x = mk(); ok(x.run(['round']), /cópia órfã de mel \(bad1\) parada/);
   assert.deepEqual(x.stub().sessions.filter((s) => !s.alive).map((s) => s.id), ['bad1']); assert.equal(x.state().sessions.mel.id, 'ok1');
+});
+
+test('gather: the card of a closed issue without an open PR is not work, whatever its column; with an open PR it still is', () => {
+  const pr = { number: 20, title: 'p', body: 'Closes #3', state: 'OPEN', isDraft: false, baseRefName: 'develop', headRefName: 'b', headRefOid: 'h1', author: { login: 'app/fsd-stuart' }, reviews: [], reviewRequests: [], statusCheckRollup: [], mergeable: 'MERGEABLE', mergeCommit: null, url: 'u' };
+  const x = world({ decide: 'dump', board: { 1: COL.review, 2: COL.review, 3: COL.review }, issues: { 1: issue(1), 2: issue(2, { state: 'CLOSED' }), 3: issue(3, { state: 'CLOSED' }) }, prs: { 20: pr } });
+  ok(x.run(['round'])); assert.deepEqual(x.state().cards.map((c) => [c.n, c.pr ?? null]).sort(), [[1, null], [3, 20]]);
+});
+// O caso de 2026-11-24: o daemon aposentou o Stuart ocioso e a linha ficou (blocked, sem pid). Contava como ligada, o turno fazia stop,
+// que falha sempre, e o card não saiu por 3 horas (151 falhas).
+const DEAD = { id: 'ef62', name: 'stuart', sessionId: 'ss', dead: true, prompts: ['a'], context: [] };
+test('gather: a row without pid and status is off, keeps the context the hook saved, and as an orphan is left alone', () => {
+  const x = world({ decide: 'dump' }); x.put('sessions.json', { stuart: { sessionId: 'ss' } }); x.live([DEAD]);
+  mkdirSync(join(x.st, 'session-state')); writeFileSync(join(x.st, 'session-state', 'stuart.json'), JSON.stringify({ state: 'idle', session_id: 'ss', ctx: 149003 }));
+  ok(x.run(['round'])); assert.deepEqual(x.state().sessions.stuart, { state: 'off', sessionId: 'ss', ctx: 149003 });
+  x.put('sessions.json', { stuart: { sessionId: 'outra' } }); assert.doesNotMatch(ok(x.run(['round'])).stdout, /órfã/); assert.equal(x.state().sessions.stuart.ctx, undefined);
+});
+test('turn: a dead row does not block it (no stop); fresh opens a new conversation that reads the handoff and clears the end-of-day mark', () => {
+  for (const fresh of [false, true]) {
+    const { x, r } = act({ type: 'turn', to: 'stuart', how: 'wake', ...(fresh ? { fresh } : {}), task: { key: 'correcao:#1', kind: 'correcao', n: 1 }, ids: [] }, { issues: { 1: issue(1) },
+      before: (w) => { w.put('sessions.json', { stuart: { sessionId: 'ss', active: true } }); w.put('eod.json', { stuart: { asks: 1 }, mel: { asks: 2 } }); w.live([DEAD]); } });
+    ok(r, /1 feita/); const all = x.stub(); assert.ok(!all.calls.some((c) => c[0] === 'stop'));
+    const s = all.sessions.at(-1); assert.equal(s.copyOf, fresh ? undefined : 'ss'); assert.equal(/Sessão nova/.test(s.prompts.at(-1)), fresh);
+    assert.equal(x.get('sessions.json').stuart.sessionId, s.sessionId); assert.deepEqual(x.get('eod.json'), fresh ? { mel: { asks: 2 } } : { stuart: { asks: 1 }, mel: { asks: 2 } });
+  }
 });
 
 test('gather: an interactive session of the same name is not touched', () => {

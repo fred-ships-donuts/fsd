@@ -7,6 +7,7 @@
 //                                STUB_RUN_HOOKS=1: roda $FSD_TEAM/bin/fsd-session-hook com SessionStart, UserPromptSubmit e Stop (o
 //                                turno começa e acaba). STUB_WORKING=1: o turno não acaba (sem Stop).
 //   agents --json [--all]        as sessões background ligadas (com --all, também as paradas)
+//                                dead: true numa sessão do state.json: a linha que sobra do daemon (blocked, sem pid nem status); o stop falha
 //   stop <id>                    desliga (a conversa fica) · reboot (só do stub): desliga todas, como um docker restart
 //   auth status                  {loggedIn}; STUB_NOT_LOGGED_IN=1: false, e o --bg falha com "Not logged in"
 import { readFileSync, writeFileSync, mkdirSync, appendFileSync } from 'node:fs';
@@ -53,10 +54,10 @@ if (['agents', 'respawn', 'stop', 'daemon'].includes(a[0]) && a[1] === '--help')
 if (a[0] === 'auth' && a[1] === 'status') { save(); console.log(JSON.stringify({ loggedIn: !process.env.STUB_NOT_LOGGED_IN, authMethod: process.env.STUB_NOT_LOGGED_IN ? 'none' : 'claude.ai' })); process.exit(process.env.STUB_NOT_LOGGED_IN ? 1 : 0); }
 if (a.includes('--bg') && process.env.STUB_NOT_LOGGED_IN) { save(); console.error('Not logged in · Please run /login'); process.exit(1); }   // a variante "Not logged in"
 if (a[0] === 'agents') {
-  const list = st.sessions.filter((s) => a.includes('--all') || s.alive).map((s) => ({ id: s.id, cwd: s.cwd, kind: 'background', startedAt: s.startedAt, sessionId: s.sessionId, name: s.name, state: s.alive ? 'idle' : 'completed' }));
+  const list = st.sessions.filter((s) => a.includes('--all') || s.alive).map((s) => ({ id: s.id, cwd: s.cwd, kind: 'background', startedAt: s.startedAt, sessionId: s.sessionId, name: s.name, ...(s.dead ? { state: 'blocked' } : { ...(s.alive ? { pid: process.pid, status: 'idle' } : {}), state: s.alive ? 'idle' : 'completed' }) }));
   save(); console.log(JSON.stringify(list, null, 2)); process.exit(0);
 }
-if (a[0] === 'stop') { const s = st.sessions.find((x) => x.id === a[1]); if (!s) { save(); console.error(`no session ${a[1]}`); process.exit(1); } s.alive = false; save(); process.exit(0); }
+if (a[0] === 'stop') { const s = st.sessions.find((x) => x.id === a[1]); if (!s) { save(); console.error(`no session ${a[1]}`); process.exit(1); } if (s.dead) { save(); console.error(`couldn't confirm ${s.id} was stopped — the background service may be restarting. Try again in a moment.`); process.exit(1); } s.alive = false; save(); process.exit(0); }
 if (a[0] === 'reboot') { for (const s of st.sessions) s.alive = false; save(); process.exit(0); }
 if (a.includes('--bg')) {
   // Como o 2.1.322 (F0.2): o --bg escolhe o id (ignora --session-id, com aviso) e imprime "backgrounded · <id> · <nome>"; o id curto é o
