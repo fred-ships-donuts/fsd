@@ -57,7 +57,8 @@ mkenv() { # nome repo home FSD_REPO(set|unset) links(container|host) node_module
   else for b in fsd-agent fsd-memory-backup fsd-sync-pair fsd-restart fsd-trash fsd-stop fsd-map; do ln -s "$repo/team/bin/$b" "$home/.local/bin/$b"; done; fi
   local T="$repo/team/bin" L="$home/.local/bin"
   mkdir -p "$home/tmp"
-  run() { ( export HOME="$home" FSD_STATE="$st" TMPDIR="$home/tmp" FSD_REAL_GH="$BASE/stub/gh-real" PATH="$BASE/stub:$home/.local/bin:$BASE/trap:$PATH"; unset FSD_REPO FSD_DRY; [ "$setrepo" = set ] && export FSD_REPO="$repo"; cd "$home" && "$@" ); }
+  # Lixeira dentro da HOME simulada: o /tmp/fsd-trash é de todos, e se outro usuário o criou o mkdir falha e suja a saída (#293).
+  run() { ( export HOME="$home" FSD_STATE="$st" TMPDIR="$home/tmp" FSD_TRASH_DIR="$home/tmp/fsd-trash" FSD_REAL_GH="$BASE/stub/gh-real" PATH="$BASE/stub:$home/.local/bin:$BASE/trap:$PATH"; unset FSD_REPO FSD_DRY; [ "$setrepo" = set ] && export FSD_REPO="$repo"; cd "$home" && "$@" ); }
   # 1. raiz do repo e configuração
   for s in "$T/fsd-trash" "$L/fsd-trash"; do [ -e "$s" ] || continue
     o=$(run env FSD_DRY=1 "$s" "$repo" 2>&1); [ "$o" = "recusado: $repo" ] && ok "fsd-trash protege o repo (${s#$BASE/})" || bad "fsd-trash ${s#$BASE/}: $o"; done
