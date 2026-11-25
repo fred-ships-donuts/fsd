@@ -50,7 +50,8 @@ test('session runner (R16): each item runs in its own window, the exit comes fro
 
 test('fsd-run-exec validates its arguments before anything (name, GitHub url, sha) and refuses other users', () => {
   const x = join(BIN, '..', 'setup', 'container', 'fsd-run-exec');
-  const r = spawnSync(x, ['run', 'k9', '--', 'id'], { encoding: 'utf8' }); assert.equal(r.status, 2); assert.match(r.stderr, /só como fsd-run/);
+  const who = mkdtempSync(join(tmpdir(), 'id-')); writeFileSync(join(who, 'id'), '#!/bin/sh\necho alguem\n', { mode: 0o755 });   // o QA do Bob roda os testes como fsd-run
+  const r = spawnSync(x, ['run', 'k9', '--', 'id'], { encoding: 'utf8', env: { ...process.env, PATH: `${who}:${process.env.PATH}` } }); assert.equal(r.status, 2); assert.match(r.stderr, /só como fsd-run/);
   const src = readFileSync(x, 'utf8');
   assert.match(src, /\^https:\/\/github\\\.com\//); assert.match(src, /\[0-9a-f\]\{40\}/); assert.match(src, /env -i/);
 });
