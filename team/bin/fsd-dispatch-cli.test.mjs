@@ -146,6 +146,11 @@ test('gather (R25): a live copy that is not the stored conversation is stopped a
   assert.deepEqual(x.stub().sessions.filter((s) => !s.alive).map((s) => s.id), ['bad1']); assert.equal(x.state().sessions.mel.id, 'ok1');
 });
 
+test('gather: the card of a closed issue without an open PR is not work, whatever its column; with an open PR it still is', () => {
+  const pr = { number: 20, title: 'p', body: 'Closes #3', state: 'OPEN', isDraft: false, baseRefName: 'develop', headRefName: 'b', headRefOid: 'h1', author: { login: 'app/fsd-stuart' }, reviews: [], reviewRequests: [], statusCheckRollup: [], mergeable: 'MERGEABLE', mergeCommit: null, url: 'u' };
+  const x = world({ decide: 'dump', board: { 1: COL.review, 2: COL.review, 3: COL.review }, issues: { 1: issue(1), 2: issue(2, { state: 'CLOSED' }), 3: issue(3, { state: 'CLOSED' }) }, prs: { 20: pr } });
+  ok(x.run(['round'])); assert.deepEqual(x.state().cards.map((c) => [c.n, c.pr ?? null]).sort(), [[1, null], [3, 20]]);
+});
 // O caso de 2026-11-24: o daemon aposentou o Stuart ocioso e a linha ficou (blocked, sem pid). Contava como ligada, o turno fazia stop,
 // que falha sempre, e o card não saiu por 3 horas (151 falhas).
 const DEAD = { id: 'ef62', name: 'stuart', sessionId: 'ss', dead: true, prompts: ['a'], context: [] };

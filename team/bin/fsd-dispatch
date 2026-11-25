@@ -48,6 +48,9 @@ async function gather() {
   const labelsOf = (i) => (i.labels || []).map((l) => l.name);
   const blocked = new Set(open.filter((i) => labelsOf(i).includes('blocked')).map((i) => i.number));
   const sized = new Set(open.filter((i) => labelsOf(i).some((x) => /^size:/.test(x))).map((i) => i.number));
+  // Issue fechada e sem PR aberto: o card não é trabalho, esteja na coluna que estiver (em 2026-11-25 um recado atrasado do Kevin devolveu a
+  // #293, já mesclada, a In Review, e a Mel e o Bob gastaram um turno cada). Lista vazia ou no limite não diz quem está fechada.
+  const isOpen = new Set(open.map((i) => i.number)), closed = (n) => open.length > 0 && open.length < 500 && !isOpen.has(n);
   const prs = L.openPrs(); const roleOf = (login) => L.agentOf(login);
   const cards = board.filter((b) => b.type !== 'PullRequest').map((b) => {
     let column = key[stageName(b.column)] || null; const pr = prs.find((p) => L.closes(p.body).includes(b.number));
@@ -61,7 +64,7 @@ async function gather() {
     // Falta a revisão que o GitHub exige (CODEOWNERS: /.github/ é do autor): o merge seria recusado a cada rodada; o card espera.
     const waits = column === 'mergeReady' && pr?.reviewDecision === 'REVIEW_REQUIRED';
     return { n: b.number, column, blocked: waits || blocked.has(b.number), ...(column === 'backlog' && !sized.has(b.number) ? { unsized: true } : {}), ...(pr ? { pr: pr.number, head: pr.headRefOid, reviewedBy } : {}) };
-  }).filter((c) => c.column);
+  }).filter((c) => c.column && (c.pr || !closed(c.n)));
   // Consumo e colunas (T6.3.4, T6.5.1): só registro; falhar aqui não derruba a rodada.
   if (!DRY) try {
     const C = await import('./fsd-consumo.mjs'), state = L.stateDir(), cost = (r) => { try { return JSON.parse(readFileSync(join(L.roleStateDir(r), 'cost.json'), 'utf8')); } catch { return null; } };
