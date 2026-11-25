@@ -26,7 +26,7 @@ function oracle(i) {
   const inbox = dests.filter((r) => is(r, 'working')).map((r) => ({ type: 'inbox', to: r, ids: ids(r) }));
   const open = s.cards.filter((c) => !c.blocked), oneCard = open.some((c) => ['dev', 'changes'].includes(c.column));
   const queue = open.filter((c) => c.column in ORDER && !(c.column === 'devReady' && oneCard) && !(c.column === 'backlog' && !c.unsized))
-    .map((c, k) => ({ c, k })).sort((a, b) => ORDER[a.c.column] - ORDER[b.c.column] || a.c.n - b.c.n || a.k - b.k).flatMap(({ c }) => WHO[c.column].filter(([r]) => !(c.column === 'review' && c.reviewedBy?.includes(r))).map(([r, kind]) => ({ c, r, kind, key: `${kind}:#${c.n}` + (c.head ? `@${c.head}` : '') })));
+    .map((c, k) => ({ c, k })).sort((a, b) => ORDER[a.c.column] - ORDER[b.c.column] || a.k - b.k).flatMap(({ c }) => WHO[c.column].filter(([r]) => !(c.column === 'review' && c.reviewedBy?.includes(r))).map(([r, kind]) => ({ c, r, kind, key: `${kind}:#${c.n}` + (c.head ? `@${c.head}` : '') })));
   const turn = (r, more) => { used.add(r); slots--; return { type: 'turn', to: r, how: is(r, 'idle') ? 'resume' : 'wake', ...id(r), ...more, ids: ids(r) }; }, work = [];
   for (const q of queue) if (free && slots > 0 && !used.has(q.r) && !is(q.r, 'working') && of(q.r).task?.key !== q.key) work.push(turn(q.r, { task: { key: q.key, kind: q.kind, n: q.c.n, ...(q.c.head ? { head: q.c.head } : {}) } }));
   const post = [];
@@ -35,7 +35,7 @@ function oracle(i) {
     const why = !call ? 'desligado: entrega no próximo turno (SessionStart)' : !free ? 'PAUSE ou orçamento' : slots <= 0 ? `maxConcurrent ${s.maxConcurrent}` : null;
     post.push(why ? { type: 'hold', to: r, ids: ids(r), why } : turn(r, {}));
   }
-  const tail = s.paused ? [] : [...s.cards.filter((c) => c.column === 'mergeReady' && !c.blocked).sort((a, b) => a.n - b.n).map((c) => ({ type: 'merge', n: c.pr ?? c.n })), ...s.deadlocks.filter((d) => !s.judged.includes(d.ref)).map((d) => ({ type: 'judge', ref: d.ref }))];
+  const tail = s.paused ? [] : [...s.cards.filter((c) => c.column === 'mergeReady' && !c.blocked).map((c) => ({ type: 'merge', n: c.pr ?? c.n })), ...s.deadlocks.filter((d) => !s.judged.includes(d.ref)).map((d) => ({ type: 'judge', ref: d.ref }))];
   return [...day, ...inbox, ...work, ...post, ...tail];
 }
 function invariants(s, acts) {

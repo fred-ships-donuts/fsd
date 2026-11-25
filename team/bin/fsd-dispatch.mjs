@@ -8,7 +8,7 @@
 //   maxConcurrent,                          quantos agentes podem estar trabalhando ao mesmo tempo (D4: 1, depois 2)
 //   offline: 'byUrgency'|'wait'|'wake',     D11: mensagem para agente desligado (padrão byUrgency: urgente religa, comum espera)
 //   sessions: { <papel>: { state: 'working'|'idle'|'off', id?, task? } }   task = { key } da tarefa em andamento
-//   cards: [{ n, column, blocked?, unsized?, pr?, head?, reviewedBy?: [papel] }]   column = chave de COLUMNS; unsized = sem size:
+//   cards: (na ordem do quadro) [{ n, column, blocked?, unsized?, pr?, head?, reviewedBy?: [papel] }]   column = chave de COLUMNS; unsized = sem size:
 //   messages: [{ id, from, to, text, urgent? }]                           o que está no outbox, ainda não entregue
 //   deadlocks: [{ ref, key }]                                              de findDeadlocks (fsd-lib), sem juiz ainda
 //   judged: [ref]                                                          refs que já foram ao juiz
@@ -26,6 +26,7 @@
 // maxConcurrent conta quem já trabalha mais os turnos abertos nesta rodada. Prioridade dos turnos: correção primeiro
 // (Changes Requested do Stuart), depois revisão, depois Ready for Development, depois arquitetura, depois triagem do Backlog,
 // depois mensagens soltas.
+// Dentro de cada coluna vale a posição no quadro, de cima para baixo (decisão do autor, 2026-11-25): cards vem nessa ordem e o número não conta.
 // O Stuart pega um card por vez: com um card em Developing ou em Changes Requested, Ready for Development não sai para ele.
 import { COLUMNS } from './fsd-stages.mjs';
 
@@ -70,7 +71,7 @@ export function decide(state) {
   const stuartBusy = s.cards.some((c) => !c.blocked && (c.column === 'dev' || c.column === 'changes'));
   const tasks = [];
   for (const col of PRIORITY) {
-    for (const c of s.cards.filter((x) => x.column === col && !x.blocked).sort((a, b) => a.n - b.n)) {
+    for (const c of s.cards.filter((x) => x.column === col && !x.blocked)) {
       for (const t of TASK_OF[col]) {
         if (col === 'devReady' && stuartBusy) continue;   // um card por vez para o Stuart
         if (col === 'backlog' && !c.unsized) continue;      // já triado (tem size:): fica no Backlog até o autor puxar
@@ -102,7 +103,7 @@ export function decide(state) {
 
   // 4. Merge (D2) e juiz: 0 token, fora do maxConcurrent; o PAUSE segura os dois.
   if (!s.paused) {
-    for (const c of s.cards.filter((x) => x.column === 'mergeReady' && !x.blocked).sort((a, b) => a.n - b.n)) out.push({ type: 'merge', n: c.pr ?? c.n });
+    for (const c of s.cards.filter((x) => x.column === 'mergeReady' && !x.blocked)) out.push({ type: 'merge', n: c.pr ?? c.n });
     for (const d of s.deadlocks) if (!s.judged.includes(d.ref)) out.push({ type: 'judge', ref: d.ref });
   }
   return out;

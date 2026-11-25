@@ -90,3 +90,11 @@ test('validation R4 (author decision): an unsized Backlog card gets one Kevin tr
   // triage comes after the code work: with one slot, the Stuart's correction goes first
   assert.deepEqual(turns(decide({ sessions: team({ kevin: idle, stuart: { state: 'idle', id: 's1' } }), cards: [{ n: 30, column: 'backlog', unsized: true }, { n: 5, column: 'changes' }] })), ['stuart:resume:correcao#5']);
 });
+
+test('board order: in every column the card on top goes first, whatever its number; the order between columns stays', () => {
+  const first = (column, extra = {}) => decide({ sessions: team(), cards: [{ n: 311, column, ...extra }, { n: 2, column, ...extra }, { n: 100, column, ...extra }] }).find((a) => a.task)?.task.n;
+  for (const c of ['changes', 'review', 'dev', 'devReady', 'arch', 'archReady']) assert.equal(first(c), 311, c);
+  assert.equal(first('backlog', { unsized: true }), 311);
+  assert.deepEqual(decide({ sessions: team(), cards: [{ n: 311, column: 'mergeReady', pr: 9 }, { n: 2, column: 'mergeReady', pr: 3 }] }).map((a) => a.n), [9, 3]);
+  assert.equal(decide({ sessions: team(), cards: [{ n: 311, column: 'devReady' }, { n: 2, column: 'changes' }] })[0].task.n, 2);   // correção antes, mesmo mais abaixo
+});
