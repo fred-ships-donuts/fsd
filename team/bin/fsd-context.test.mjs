@@ -73,3 +73,9 @@ test('valor que não é objeto no local substitui o do json (arrays e escalares 
   withLocal({ claude_common: { context: { bands: 5 } } });
   assert.throws(() => context('stuart'), /bands\.normal\.urgentAt/);
 });
+
+test('the end of the day comes before the guard: dispatch.endOfDayAt stays mediumFree below restartAbove', async () => {
+  const { readFileSync } = await import('node:fs');
+  const a = JSON.parse(readFileSync(new URL('../agents.json', import.meta.url), 'utf8')), c = a.claude_common.context;
+  assert.ok(a.dispatch.endOfDayAt <= c.restartAbove - c.mediumFree);
+});

@@ -15,7 +15,7 @@ export const EOD_PROMPT = [
   '3. Commit e push de tudo o que estiver no disco (git add, git commit, git push ou fsd-pr open). Nada pode ficar só no disco.',
   'Não comece trabalho novo. A próxima tarefa abre uma sessão nova, que lê a sua passagem.',
 ].join('\n');
-export const NEW_DAY_NOTE = '[fsd] Sessão nova (o dia anterior fechou com a passagem de bastão): leia o handoff do ai-memory antes de seguir o cartão.';
+export const NEW_DAY_NOTE = '[fsd] Sessão nova (a conversa anterior fechou): leia o handoff do ai-memory, se houver, e o estado do PR e dos seus worktrees antes de seguir o cartão.';
 
 const git = (cwd, ...a) => spawnSync('git', ['-C', cwd, ...a], { encoding: 'utf8' });
 export function unsaved(role, { repo }) {

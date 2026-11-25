@@ -17,6 +17,7 @@
 //   { type: 'inbox', to, ids }                       destino trabalhando: vai para a caixa; o hook PostToolUse entrega
 //   { type: 'turn', to, how: 'resume'|'wake', id?, task?, ids }   turno novo na mesma conversa (ocioso: stop + --resume <id>;
 //                                                    desligado: religa pelo id ou abre sessão nova). Leva a tarefa e as mensagens juntas
+//                                                    fresh: true = desligado com ctx ≥ endOfDayAt: conversa nova, não a cheia
 //   { type: 'hold', to, ids, why }                   fica na caixa até o próximo turno do destino
 //   { type: 'merge', n }                             card em Ready to Merge: o supervisor mescla (D2; o portão é o mergeGate)
 //   { type: 'judge', ref }                           impasse: chama o juiz uma vez por ref
@@ -49,6 +50,7 @@ export function decide(state) {
   const out = [];
   const frozen = s.paused || !s.budgetOk;
   const sess = (r) => s.sessions[r] || { state: 'off' };
+  const fresh = (se) => (s.endOfDayAt && se.state === 'off' && (se.ctx || 0) >= s.endOfDayAt ? { fresh: true } : {});
   let busy = Object.values(s.sessions).filter((x) => x.state === 'working').length;
   const turned = new Set();
   const pendingFor = (r) => s.messages.filter((m) => m.to === r);
@@ -84,7 +86,7 @@ export function decide(state) {
     if (turned.has(t.role) || se.state === 'working' || se.task?.key === t.key) continue;
     if (frozen || busy >= s.maxConcurrent) continue;
     const ids = pendingFor(t.role).map((m) => m.id);
-    out.push({ type: 'turn', to: t.role, how: se.state === 'idle' ? 'resume' : 'wake', ...(se.id ? { id: se.id } : {}), task: { key: t.key, kind: t.kind, n: t.card.n, ...(t.card.head ? { head: t.card.head } : {}) }, ids });
+    out.push({ type: 'turn', to: t.role, how: se.state === 'idle' ? 'resume' : 'wake', ...(se.id ? { id: se.id } : {}), ...fresh(se), task: { key: t.key, kind: t.kind, n: t.card.n, ...(t.card.head ? { head: t.card.head } : {}) }, ids });
     turned.add(t.role); busy++;
   }
 
@@ -96,7 +98,7 @@ export function decide(state) {
     if (!wantsTurn) { out.push({ type: 'hold', to: r, ids, why: 'desligado: entrega no próximo turno (SessionStart)' }); continue; }
     if (frozen) { out.push({ type: 'hold', to: r, ids, why: 'PAUSE ou orçamento' }); continue; }
     if (busy >= s.maxConcurrent) { out.push({ type: 'hold', to: r, ids, why: `maxConcurrent ${s.maxConcurrent}` }); continue; }
-    out.push({ type: 'turn', to: r, how: se.state === 'idle' ? 'resume' : 'wake', ...(se.id ? { id: se.id } : {}), ids });
+    out.push({ type: 'turn', to: r, how: se.state === 'idle' ? 'resume' : 'wake', ...(se.id ? { id: se.id } : {}), ...fresh(se), ids });
     turned.add(r); busy++;
   }
 

@@ -20,6 +20,9 @@ test('decide: idle with context at the limit → endofday (and no task that roun
   assert.deepEqual(decide({ endOfDayAt: 100000, sessions: team({ stuart: { state: 'working', id: 's', ctx: 150000 } }), cards }), []);
   assert.deepEqual(decide({ endOfDayAt: 100000, sessions: team({ stuart: { state: 'idle', id: 's', ctx: 50000 } }), cards }).map((a) => a.type), ['turn']);
   assert.deepEqual(decide({ paused: true, endOfDayAt: 100000, sessions: team({ mel: { state: 'idle', id: 'm', ctx: 100000 } }) }), [{ type: 'endofday', to: 'mel', id: 'm' }]);
+  // desligado e cheio: conversa nova com a tarefa; abaixo do limite, a mesma conversa
+  assert.equal(decide({ endOfDayAt: 100000, sessions: team({ stuart: { state: 'off', sessionId: 's', ctx: 100000 } }), cards })[0].fresh, true);
+  assert.ok(!('fresh' in decide({ endOfDayAt: 100000, sessions: team({ stuart: { state: 'off', sessionId: 's', ctx: 99999 } }), cards })[0]));
   assert.deepEqual(decide({ sessions: team({ mel: { state: 'idle', id: 'm', ctx: 900000 } }) }), []);   // sem endOfDayAt, nada
 });
 

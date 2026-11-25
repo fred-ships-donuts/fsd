@@ -8,7 +8,7 @@
 //   status({ agents, stored, hookState })   { <papel>: { state: 'working'|'idle'|'off', id?, sessionId? } } para o decide()
 //   planStart / planTurn / planStop / planBoot   o argv das chamadas ao claude (puro); o executor roda e lê o id da saída
 //   bgId(saída)   o id curto que o --bg imprimiu
-// Estado: ligado = a sessão do papel aparece no `claude agents --json` (pelo sessionId); working/idle = o hook (fsd-session-hook).
+// Estado: ligado = a sessão do papel aparece no `claude agents --json` (pelo sessionId), com pid ou status (isLive); working/idle = o hook (fsd-session-hook).
 import { readFileSync, writeFileSync, mkdirSync, renameSync } from 'node:fs';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
@@ -37,10 +37,13 @@ export function liveAgents({ claude = process.env.FSD_CLAUDE || 'claude', cwd } 
 
 export const stopSession = (role, id, { claude = process.env.FSD_CLAUDE || 'claude' } = {}) => (via() ? sx(role, 'stop', id) : spawnSync(claude, ['stop', id], { encoding: 'utf8' }));
 
+// O daemon do claude aposenta a sessão ociosa (60 min) e sai; se ela parou em "blocked", o registro fica e o `agents --json` segue listando
+// a linha sem pid nem status. Essa linha é uma sessão desligada: o stop nela falha sempre, e o turno nunca abriria.
+export const isLive = (a) => a?.pid != null || a?.status != null;
 export function status({ agents = [], stored = {}, hookState = () => null }) {
   const out = {};
   for (const r of ROLES) {
-    const sid = stored[r]?.sessionId; const live = sid && agents.find((a) => a.sessionId === sid && a.kind === 'background');
+    const sid = stored[r]?.sessionId; const live = sid && agents.find((a) => a.sessionId === sid && a.kind === 'background' && isLive(a));
     if (!live) { out[r] = { state: 'off', ...(sid ? { sessionId: sid } : {}) }; continue; }
     out[r] = { state: hookState(r)?.state === 'working' ? 'working' : 'idle', id: live.id, sessionId: sid };
   }
