@@ -2,7 +2,7 @@
 # fsd-sync-pair — pareia o Syncthing desta máquina com outra e compartilha as pastas do ambiente fsd.
 #   fsd-sync-pair id                                 mostra o device ID desta máquina
 #   fsd-sync-pair add <device-id> <ip-tailscale> <nome> [--first]
-#        adiciona o outro dispositivo e compartilha as 8 pastas com ele (cria pasta e .stignore se faltarem).
+#        adiciona o outro dispositivo e compartilha as 7 pastas com ele (cria pasta e .stignore se faltarem).
 #        --first (só na máquina NOVA): pastas em "receive only" — a matriz manda, nada local sobrescreve a matriz.
 #   fsd-sync-pair status                             estado de cada pasta (idle, falta receber, mudanças locais)
 #   fsd-sync-pair promote                            (máquina nova, depois de tudo "idle" e sem falta) descarta mudanças
