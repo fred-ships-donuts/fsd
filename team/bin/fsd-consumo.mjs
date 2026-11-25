@@ -10,19 +10,20 @@ const json = (f, d) => { try { return JSON.parse(readFileSync(f, 'utf8')) ?? d; 
 const put = (f, v) => { mkdirSync(dirname(f), { recursive: true }); writeFileSync(`${f}.tmp`, JSON.stringify(v)); renameSync(`${f}.tmp`, f); };
 const add = (f, v) => { mkdirSync(dirname(f), { recursive: true }); appendFileSync(f, JSON.stringify(v) + '\n'); };
 
-// O custo de um turno: a diferença dentro da mesma sessão; sessão nova (ou total que encolheu) conta inteira.
-export function delta(prev, cur) {
+// O custo de um turno: a diferença para o total anterior da mesma conversa; conversa nova (ou total que encolheu) conta inteira. Cada turno
+// retomado é uma cópia com id novo que acumula o custo da anterior (medido em 2026-11-24): from = a sessão de que esta é cópia.
+export function delta(prev, cur, from = null) {
   if (!cur || !Number.isFinite(cur.usd)) return null;
-  const same = prev && prev.session === cur.session && cur.usd >= prev.usd;
+  const same = prev && (prev.session === cur.session || (from && prev.session === from)) && cur.usd >= prev.usd;
   const usd = same ? cur.usd - prev.usd : cur.usd, ms = !Number.isFinite(cur.ms) ? null : same && Number.isFinite(prev.ms) ? cur.ms - prev.ms : cur.ms;
   return usd > 0 ? { usd: Math.round(usd * 1e6) / 1e6, seconds: Number.isFinite(ms) ? Math.max(0, Math.round(ms / 100) / 10) : null } : null;
 }
 // Um papel que não está trabalhando e cujo total mudou fechou um turno. cost(role) lê o cost.json dele; tasks é o tasks.json.
-export function recordTurns({ state, roles, sessions, tasks, cost, now }) {
+export function recordTurns({ state, roles, sessions, tasks, cost, now, from = () => null }) {
   const f = join(state, 'consumo-last.json'), last = json(f, {}); const out = [];
   for (const r of roles) {
     if (sessions[r]?.state === 'working') continue;
-    const c = cost(r), d = delta(last[r], c); if (!d) continue;
+    const c = cost(r), d = delta(last[r], c, from(r)); if (!d) continue;
     const line = { t: now, role: r, session: c.session, card: tasks[r]?.n ?? null, kind: tasks[r]?.kind ?? null, model: c.model ?? null, ...d };
     add(join(state, 'consumo.jsonl'), line); last[r] = { session: c.session, usd: c.usd, ms: c.ms }; out.push(line);
   }
