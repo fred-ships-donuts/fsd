@@ -5,7 +5,7 @@
 //   loop    rodadas a cada dispatch.loopSeconds, com pid file (um só). Só roda da cópia fixada (fsd-dispatch pin), nunca do
 //           checkout vivo: um PR mesclado não muda o supervisor sem fixar a cópia nova. FSD_DISPATCH_LIVE=1 libera (testes).
 //   pin     copia o código do commit atual para $FSD_STATE/dispatch/code/<sha>/team e marca como a cópia em uso
-// Ações: turn → cartão salvo + fsd-session turn; inbox/hold → caixa do destino; merge → fsd-merge (como Kevin, até o broker da E2);
+// Ações: turn → cartão salvo + fsd-session turn; pull → card do Backlog para Ready; inbox/hold → caixa do destino; merge → fsd-merge (como Kevin, até o broker da E2);
 // judge → fsd-judge (como Kevin). Saída: 0 ok · 1 recusado · 2 uso.
 import { readFileSync, existsSync } from 'node:fs';
 import { spawnSync, spawn } from 'node:child_process';
@@ -44,10 +44,13 @@ async function gather() {
   // Sem o quadro não há rodada: a falha aparece no log (rodada falhou) em vez de virar um quadro vazio, em que nenhuma tarefa sai.
   const board = JSON.parse(L.run(join(BIN, 'fsd-board'), ['list', '--json']));
   // Validação R4: um gh só para os bloqueados e os sem size: (o Backlog sem size: vai para a triagem do Kevin).
-  const open = L.ghJson(['issue', 'list', '--state', 'open', '--limit', '500', '--json', 'number,labels']) || [];
+  const open = L.ghJson(['issue', 'list', '--state', 'open', '--limit', '500', '--json', 'number,title,labels']) || [];
   const labelsOf = (i) => (i.labels || []).map((l) => l.name);
   const blocked = new Set(open.filter((i) => labelsOf(i).includes('blocked')).map((i) => i.number));
   const sized = new Set(open.filter((i) => labelsOf(i).some((x) => /^size:/.test(x))).map((i) => i.number));
+  // Backlog que o supervisor pode puxar: size: conhecido; held = reservado pelo autor, issue permanente ou decisão pendente.
+  const { RESERVED, isStanding } = await import('./fsd-backlog.mjs'); const { HELD } = await import('./fsd-admit.mjs');
+  const info = new Map(open.map((i) => { const l = labelsOf(i); return [i.number, { size: /^size:(S|M|L)$/.exec(l.find((x) => /^size:/.test(x)) || '')?.[1], held: RESERVED.includes(i.number) || isStanding(i.title) || l.includes('decision') || l.includes(HELD) }]; }));
   const prs = L.openPrs(); const roleOf = (login) => L.agentOf(login);
   const cards = board.filter((b) => b.type !== 'PullRequest').map((b) => {
     let column = key[stageName(b.column)] || null; const pr = prs.find((p) => L.closes(p.body).includes(b.number));
@@ -60,7 +63,7 @@ async function gather() {
     const reviewedBy = pr ? [...st.last].filter(([, r]) => r.commit?.oid === pr.headRefOid && r.state !== 'DISMISSED').map(([w]) => roleOf(w)) : [];
     // Falta a revisão que o GitHub exige (CODEOWNERS: /.github/ é do autor): o merge seria recusado a cada rodada; o card espera.
     const waits = column === 'mergeReady' && pr?.reviewDecision === 'REVIEW_REQUIRED';
-    return { n: b.number, column, blocked: waits || blocked.has(b.number), ...(column === 'backlog' && !sized.has(b.number) ? { unsized: true } : {}), ...(pr ? { pr: pr.number, head: pr.headRefOid, reviewedBy } : {}) };
+    return { n: b.number, column, blocked: waits || blocked.has(b.number), ...(column === 'backlog' && !sized.has(b.number) ? { unsized: true } : {}), ...(column === 'backlog' && info.get(b.number)?.size ? { size: info.get(b.number).size } : {}), ...(column === 'backlog' && info.get(b.number)?.held ? { held: true } : {}), ...(pr ? { pr: pr.number, head: pr.headRefOid, reviewedBy } : {}) };
   }).filter((c) => c.column);
   // Consumo e colunas (T6.3.4, T6.5.1): só registro; falhar aqui não derruba a rodada.
   if (!DRY) try {
@@ -107,7 +110,7 @@ async function gather() {
     const hs = M.sessionState(r); if (hs?.session_id === s.sessionId && Number(hs.ctx) > 0) { s.ctx = Number(hs.ctx); continue; }
     try { for (const d of readdirSync(projects)) { const f = join(projects, d, `${s.sessionId}.jsonl`); if (existsSync(f)) { s.ctx = E.ctxOf(f); break; } } } catch {}
   }
-  return { sessions, cards, messages, deadlocks, paused: existsSync(L.pausePath()), budgetOk, endOfDayAt: Number(cfg.endOfDayAt) || Number(L.CFG.claude_common?.context?.restartAbove) || 0 };
+  return { sessions, cards, messages, deadlocks, readyMin: Number(cfg.readyMin) || 0, paused: existsSync(L.pausePath()), budgetOk, endOfDayAt: Number(cfg.endOfDayAt) || Number(L.CFG.claude_common?.context?.restartAbove) || 0 };
 }
 
 // Por que um comando chamado falhou: a primeira linha do que ele disse, ou o erro de quem o chamou (ausente, morto por sinal).
@@ -162,6 +165,7 @@ async function exec(a, g) {
     (await import('node:fs')).rmSync(Msg.eodFile(a.to), { force: true });
     return 'aposentado';
   }
+  if (a.type === 'pull') { const r = L.board((await import('./fsd-stages.mjs')).STAGE[a.column], [a.n]); if (!r.includes('→')) throw new Error(r || 'o quadro não mudou'); return r; }
   if (a.type === 'merge') { const r = spawnSync(join(BIN, 'fsd-merge'), [String(a.n)], { encoding: 'utf8', env: { ...process.env, FSD_AGENT: 'kevin' } }); if (![0, 1, 3].includes(r.status)) throw new Error(why(r)); return r.stdout.trim(); }
   if (a.type === 'judge') {
     // Validação R28: o juiz roda como o Kevin (no container, pelo verbo judge do wrapper), com os leases do ref num arquivo que ele lê;

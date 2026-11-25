@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // fsd-board — o quadro do time, assinado pelo bot do agente ($FSD_AGENT).
 //   fsd-board list [coluna] [-t]       uma linha por coluna (Done vira contagem; -t mostra títulos)
-//   fsd-board list --json              todos os itens: [{"column","number","type","updatedAt"}] (o fsd-progress usa)
+//   fsd-board list --json              todos os itens, na ordem do quadro (posição, de cima para baixo): [{"column","number","type","updatedAt"}] (o fsd-progress usa)
 //   fsd-board move "<coluna>" <n…>     põe os issues/PRs no quadro, se faltarem, e muda a coluna (também aceita: move <n> "<coluna>")
 //   fsd-board rename [--dry]           põe nas colunas do GitHub os nomes de fsd-stages.mjs (com o responsável entre parênteses), no lugar,
 //                                      e cria as colunas que faltam (na ordem de fsd-stages.mjs): mesmas opções, nenhum card muda de
@@ -82,7 +82,7 @@ async function project() {
 async function itemsOf(p) {
   const items = []; let after = null;
   do {
-    const d = await gql('org', `query($id:ID!,$a:String){node(id:$id){... on ProjectV2{items(first:100,after:$a){pageInfo{hasNextPage endCursor}
+    const d = await gql('org', `query($id:ID!,$a:String){node(id:$id){... on ProjectV2{items(first:100,after:$a,orderBy:{field:POSITION,direction:ASC}){pageInfo{hasNextPage endCursor}
       nodes{id updatedAt status:fieldValueByName(name:"Status"){... on ProjectV2ItemFieldSingleSelectValue{name optionId}}
       content{__typename ... on Issue{number title state} ... on PullRequest{number title state} ... on DraftIssue{title}}}}}}}`, { id: p.id, a: after });
     const page = d.node.items; items.push(...page.nodes); after = page.pageInfo.hasNextPage ? page.pageInfo.endCursor : null;

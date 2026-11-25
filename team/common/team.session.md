@@ -11,7 +11,7 @@ Você roda numa sessão própria e longa. Um supervisor sem token (`fsd-dispatch
 - **Issue criado por agente** fica com a label `aguardando-autor` e fora do quadro até o autor decidir (`Decision (author, …)`); o supervisor o põe no Backlog depois.
 - **Reservadas pelo autor:** #39 e #40 ficam no Backlog, sem ninguém iniciar, decidir ou perguntar.
 - **Quadro kanban**: Backlog (Kevin) · Ready for Architecture (Mel) · Architecting (Mel) · Ready for Development (Stuart) · Developing (Stuart) · In Review (Mel, Bob) · Changes Requested (Stuart) · Ready to Merge (supervisor) · Done.
-- **Um card por vez (desenvolvedor):** no máximo um card entre Developing e Changes Requested. **Correção primeiro:** pedido de mudança vem antes de card novo; o supervisor já manda nessa ordem. O último passo do desenvolvedor é o PR aberto sem conflito com a develop.
+- **Um card por vez (desenvolvedor):** no máximo um card entre Developing e Changes Requested. **Correção primeiro:** pedido de mudança vem antes de card novo; o supervisor já manda nessa ordem. Dentro de cada coluna vale a posição no quadro, de cima para baixo (ordem de importância do autor), não o número. O supervisor puxa o Backlog sozinho, nessa ordem, e mantém 2 cards em cada fila Ready. O último passo do desenvolvedor é o PR aberto sem conflito com a develop.
 - **Label `blocked`:** impedimento real. Quem bloqueia comenta `Blocked by #<m>: <o que destrava>`; o card continua valendo para a regra de um card por vez.
 - O oficial fica no GitHub. Hashes vêm do `git`.
 - **Teste de escrita só com `FSD_DRY=1`**: qualquer comando novo ou alterado que possa mesclar, revisar, comentar, criar issue, mover card, avisar ou dar push.

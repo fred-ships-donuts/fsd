@@ -8,7 +8,8 @@
 //   maxConcurrent,                          quantos agentes podem estar trabalhando ao mesmo tempo (D4: 1, depois 2)
 //   offline: 'byUrgency'|'wait'|'wake',     D11: mensagem para agente desligado (padrão byUrgency: urgente religa, comum espera)
 //   sessions: { <papel>: { state: 'working'|'idle'|'off', id?, task? } }   task = { key } da tarefa em andamento
-//   cards: [{ n, column, blocked?, unsized?, pr?, head?, reviewedBy?: [papel] }]   column = chave de COLUMNS; unsized = sem size:
+//   readyMin,                               quantos cards manter em cada fila Ready, puxados do Backlog (0 = não puxa)
+//   cards: (na ordem do quadro) [{ n, column, size?: 'S'|'M'|'L', held?, blocked?, unsized?, pr?, head?, reviewedBy?: [papel] }]   column = chave de COLUMNS; unsized = sem size:
 //   messages: [{ id, from, to, text, urgent? }]                           o que está no outbox, ainda não entregue
 //   deadlocks: [{ ref, key }]                                              de findDeadlocks (fsd-lib), sem juiz ainda
 //   judged: [ref]                                                          refs que já foram ao juiz
@@ -19,6 +20,7 @@
 //                                                    desligado: religa pelo id ou abre sessão nova). Leva a tarefa e as mensagens juntas
 //   { type: 'hold', to, ids, why }                   fica na caixa até o próximo turno do destino
 //   { type: 'merge', n }                             card em Ready to Merge: o supervisor mescla (D2; o portão é o mergeGate)
+//   { type: 'pull', n, column }                      card do Backlog para Ready: size:S → devReady, M e L → archReady (0 token)
 //   { type: 'judge', ref }                           impasse: chama o juiz uma vez por ref
 //   { type: 'endofday', to } · { type: 'retire', to } fim do dia: pede o fechamento; depois, aposenta a conversa (state.endOfDayAt,
 //                                                    sessions[r].ctx e sessions[r].eod)
@@ -26,6 +28,7 @@
 // maxConcurrent conta quem já trabalha mais os turnos abertos nesta rodada. Prioridade dos turnos: correção primeiro
 // (Changes Requested do Stuart), depois revisão, depois Ready for Development, depois arquitetura, depois triagem do Backlog,
 // depois mensagens soltas.
+// Dentro de cada coluna vale a posição no quadro, de cima para baixo (decisão do autor, 2026-11-25): cards vem nessa ordem e o número não conta.
 // O Stuart pega um card por vez: com um card em Developing ou em Changes Requested, Ready for Development não sai para ele.
 import { COLUMNS } from './fsd-stages.mjs';
 
@@ -70,7 +73,7 @@ export function decide(state) {
   const stuartBusy = s.cards.some((c) => !c.blocked && (c.column === 'dev' || c.column === 'changes'));
   const tasks = [];
   for (const col of PRIORITY) {
-    for (const c of s.cards.filter((x) => x.column === col && !x.blocked).sort((a, b) => a.n - b.n)) {
+    for (const c of s.cards.filter((x) => x.column === col && !x.blocked)) {
       for (const t of TASK_OF[col]) {
         if (col === 'devReady' && stuartBusy) continue;   // um card por vez para o Stuart
         if (col === 'backlog' && !c.unsized) continue;      // já triado (tem size:): fica no Backlog até o autor puxar
@@ -102,8 +105,19 @@ export function decide(state) {
 
   // 4. Merge (D2) e juiz: 0 token, fora do maxConcurrent; o PAUSE segura os dois.
   if (!s.paused) {
-    for (const c of s.cards.filter((x) => x.column === 'mergeReady' && !x.blocked).sort((a, b) => a.n - b.n)) out.push({ type: 'merge', n: c.pr ?? c.n });
+    for (const c of s.cards.filter((x) => x.column === 'mergeReady' && !x.blocked)) out.push({ type: 'merge', n: c.pr ?? c.n });
     for (const d of s.deadlocks) if (!s.judged.includes(d.ref)) out.push({ type: 'judge', ref: d.ref });
+  }
+
+  // 5. Backlog (decisão do autor, 2026-11-25): o supervisor mantém readyMin cards em cada fila Ready, do topo do quadro para baixo, como o
+  //    Kevin fazia no time do tmux. Com size:, sem bloqueio e sem held (reservado, permanente ou com decisão pendente). O turno vem depois.
+  if (!frozen && s.readyMin > 0) {
+    const have = (col) => s.cards.filter((c) => c.column === col && !c.blocked).length; const count = { devReady: have('devReady'), archReady: have('archReady') };
+    for (const c of s.cards) {
+      if (c.column !== 'backlog' || c.blocked || c.held || !c.size) continue;
+      const column = c.size === 'S' ? 'devReady' : 'archReady'; if (count[column] >= s.readyMin) continue;
+      out.push({ type: 'pull', n: c.n, column }); count[column]++;
+    }
   }
   return out;
 }

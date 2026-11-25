@@ -146,6 +146,21 @@ test('gather (R25): a live copy that is not the stored conversation is stopped a
   assert.deepEqual(x.stub().sessions.filter((s) => !s.alive).map((s) => s.id), ['bad1']); assert.equal(x.state().sessions.mel.id, 'ok1');
 });
 
+test('gather: a Backlog card carries its size and held (reserved, standing, decision); readyMin comes from dispatch', () => {
+  const l = (...n) => n.map((name) => ({ name }));
+  const x = world({ decide: 'dump', board: { 4: COL.backlog, 5: COL.backlog, 6: COL.backlog, 7: COL.backlog, 39: COL.backlog, 8: COL.devReady },
+    issues: { 4: issue(4, { labels: l('size:M') }), 5: issue(5, { title: 'Alerts (standing issue, never closes)' }), 6: issue(6, { labels: l('size:L', 'decision') }), 7: issue(7, { labels: [] }), 39: issue(39, { labels: l('size:L') }), 8: issue(8) } });
+  ok(x.run(['round'])); const c = Object.fromEntries(x.state().cards.map((k) => [k.n, [k.size, k.held, k.unsized]]));
+  assert.deepEqual(c, { 4: ['M', undefined, undefined], 5: ['S', true, undefined], 6: ['L', true, undefined], 7: [undefined, undefined, true], 39: ['L', true, undefined], 8: [undefined, undefined, undefined] });
+  assert.equal(x.state().readyMin, 2);
+  const z = world({ decide: 'dump', agents: (a) => { delete a.dispatch.readyMin; } }); ok(z.run(['round'])); assert.equal(z.state().readyMin, 0);
+});
+test('pull: moves the card on the board; a board that does not move it is a failed action', () => {
+  const { x, end } = act({ type: 'pull', n: 5, column: 'devReady' }, { board: { 5: COL.backlog }, issues: { 5: issue(5) } });
+  assert.equal(end.phase, 'done'); assert.equal(json(join(x.st, 'board.json'))[5], COL.devReady);
+  const bad = act({ type: 'pull', n: 5, column: 'devReady' }, { cmds: { 'fsd-board': 'echo fora >&2; exit 4' } }); assert.equal(bad.end.phase, 'failed');
+});
+
 test('gather: an interactive session of the same name is not touched', () => {
   const x = world({ decide: 'dump' }); exe(join(x.w, 'claude'), `echo '[{"id":"i1","kind":"interactive","name":"mel","sessionId":"orfa"}]'`); x.put('sessions.json', { mel: { sessionId: 'certa' } });
   const r = ok(x.run(['round'], { FSD_CLAUDE: join(x.w, 'claude') })); assert.doesNotMatch(r.stdout, /órfã/); assert.equal(x.state().sessions.mel.state, 'off');
