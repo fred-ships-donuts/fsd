@@ -11,7 +11,9 @@
 # Não simula outro usuário, outro UID nem um container de verdade: para isso, rode num host com Docker.
 set -uo pipefail
 HERE="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"
-SRC="$(dirname "$(dirname "$HERE")")"; BR="$(git -C "$SRC" branch --show-current)"; KEEP=0; [ "${1:-}" = --keep ] && KEEP=1
+SRC="$(dirname "$(dirname "$HERE")")"; REV="$(git -C "$SRC" rev-parse HEAD)"; KEEP=0; [ "${1:-}" = --keep ] && KEEP=1
+# REV é o commit, não o branch: o worktree do QA (fsd-run-exec prep) é um checkout do sha, sem branch, e um checkout de
+# "" falhava e pulava o resto da cadeia (o tmuxteam do vigia, #293).
 # O clone só vê o que está commitado: mudança local (exceto neste script, que roda daqui) seria ignorada em silêncio.
 dirty="$(git -C "$SRC" status --porcelain | grep -v " team/setup/simulate-envs$")"
 if [ -n "$dirty" ]; then echo "simulate-envs: mudanças não commitadas em $SRC:" >&2; echo "$dirty" >&2; echo "commit first; simulate-envs tests the committed branch" >&2; exit 2; fi
@@ -39,7 +41,7 @@ mkenv() { # nome repo home FSD_REPO(set|unset) links(container|host) node_module
   local n="$1" repo="$2" home="$3" setrepo="$4" links="$5" nm="$6"
   echo "== $n | repo=$repo | HOME=$home | FSD_REPO=$setrepo | links=$links | node_modules=$nm"
   mkdir -p "$(dirname "$repo")" "$home/.local/bin"
-  git clone -q --no-hardlinks "$SRC" "$repo" && git -C "$repo" checkout -q "$BR"
+  git clone -q --no-hardlinks "$SRC" "$repo" && git -C "$repo" checkout -q "$REV"
   git -C "$repo" config user.email sim@sim; git -C "$repo" config user.name sim
   git -C "$repo" fetch -q origin "+refs/heads/develop:refs/remotes/origin/develop"
   [ "$nm" = link ] && ln -s "$SRC/node_modules" "$repo/node_modules"
@@ -55,7 +57,8 @@ mkenv() { # nome repo home FSD_REPO(set|unset) links(container|host) node_module
   else for b in fsd-agent fsd-memory-backup fsd-sync-pair fsd-restart fsd-trash fsd-stop fsd-map; do ln -s "$repo/team/bin/$b" "$home/.local/bin/$b"; done; fi
   local T="$repo/team/bin" L="$home/.local/bin"
   mkdir -p "$home/tmp"
-  run() { ( export HOME="$home" FSD_STATE="$st" TMPDIR="$home/tmp" FSD_REAL_GH="$BASE/stub/gh-real" PATH="$BASE/stub:$home/.local/bin:$BASE/trap:$PATH"; unset FSD_REPO FSD_DRY; [ "$setrepo" = set ] && export FSD_REPO="$repo"; cd "$home" && "$@" ); }
+  # Lixeira dentro da HOME simulada: o /tmp/fsd-trash é de todos, e se outro usuário o criou o mkdir falha e suja a saída (#293).
+  run() { ( export HOME="$home" FSD_STATE="$st" TMPDIR="$home/tmp" FSD_TRASH_DIR="$home/tmp/fsd-trash" FSD_REAL_GH="$BASE/stub/gh-real" PATH="$BASE/stub:$home/.local/bin:$BASE/trap:$PATH"; unset FSD_REPO FSD_DRY; [ "$setrepo" = set ] && export FSD_REPO="$repo"; cd "$home" && "$@" ); }
   # 1. raiz do repo e configuração
   for s in "$T/fsd-trash" "$L/fsd-trash"; do [ -e "$s" ] || continue
     o=$(run env FSD_DRY=1 "$s" "$repo" 2>&1); [ "$o" = "recusado: $repo" ] && ok "fsd-trash protege o repo (${s#$BASE/})" || bad "fsd-trash ${s#$BASE/}: $o"; done
@@ -138,7 +141,7 @@ mkenv() { # nome repo home FSD_REPO(set|unset) links(container|host) node_module
 }
 npmci() { # cenários do npm ci automático do fsd-pr num clone sem node_modules
   local repo="$BASE/n/repo" home="$BASE/n/home"; echo "== npm ci automático | repo=$repo"
-  local st="$BASE/n/state"; mkdir -p "$home" "$st" "$home/tmp"; git clone -q --no-hardlinks "$SRC" "$repo" && git -C "$repo" checkout -q "$BR" && git -C "$repo" config user.email s@s && git -C "$repo" config user.name s
+  local st="$BASE/n/state"; mkdir -p "$home" "$st" "$home/tmp"; git clone -q --no-hardlinks "$SRC" "$repo" && git -C "$repo" checkout -q "$REV" && git -C "$repo" config user.email s@s && git -C "$repo" config user.name s
   git -C "$repo" fetch -q origin "+refs/heads/develop:refs/remotes/origin/develop"; git -C "$repo" switch -q -c chore/npm-sim; git -C "$repo" commit -q --allow-empty -m "chore: npm sim"
   pr() { ( export HOME="$home" TMPDIR="$home/tmp" PATH="$BASE/stub:$BASE/trap:$PATH" FSD_REAL_GH="$BASE/stub/gh-real" npm_config_cache="$BASE/npm-cache" npm_config_prefer_offline=true FSD_DRY=1 FSD_AGENT=stuart FSD_STATE="$st" FSD_REPO="$repo"; timeout 900 "$repo/team/bin/fsd-pr" open "chore: npm" --docs -C "$repo" 2>&1 ); }
   # a) npm ausente: falha clara, sem loop, trava solta
@@ -172,7 +175,7 @@ mapengine() {
 mapsim() { # fsd-map: patch, saída sem a marca do motor, worktree, versão diferente, código que mudou
   [ -n "$MAPENG" ] || return 0
   local repo="$BASE/m/repo" home="$BASE/m/home" E P="$MAPENG/node_modules/@trailhq/trail-code"; echo "== fsd-map | repo=$repo"
-  mkdir -p "$home"; git clone -q --no-hardlinks "$SRC" "$repo" && git -C "$repo" checkout -q "$BR"
+  mkdir -p "$home"; git clone -q --no-hardlinks "$SRC" "$repo" && git -C "$repo" checkout -q "$REV"
   sed -i "/fsd-patch/d" "$P"/dist/{claude/hooks,claude/pre-bash,context/savings,ask/ask}.js   # os atalhos acima já corrigiram
   E=(env HOME="$home" FSD_MAP_HOME="$home/map" FSD_MAP_PKG="$MAPENG")
   m() { ( cd "$repo" && "${E[@]}" "$repo/team/bin/fsd-map" "$@" ); }
@@ -202,10 +205,11 @@ watchsim() {
   local sock="fsdsim$$" st="$BASE/watch-st" a o
   mkdir -p "$st" "$BASE/watch-home/tmp"; chmod 700 "$BASE/tmux-watch" 2>/dev/null || { mkdir -p "$BASE/tmux-watch"; chmod 700 "$BASE/tmux-watch"; }
   export TMUX_TMPDIR="$BASE/tmux-watch"; echo "== vigia com sessões vivas | tmux -L $sock"
-  local repo="$BASE/watch-repo"; git clone -q --no-hardlinks "$SRC" "$repo" && git -C "$repo" checkout -q "$BR" && tmuxteam "$repo"
+  local repo="$BASE/watch-repo"; git clone -q --no-hardlinks "$SRC" "$repo" && git -C "$repo" checkout -q "$REV" && tmuxteam "$repo" || { bad "sessões vivas: clone, checkout de $REV ou tmuxteam falhou"; return; }
   for a in kevin mel stuart bob; do tmux -L "$sock" new-session -d -s "fsd-$a" "sleep 120"; done
   o=$(cd "$repo" && env FSD_STATE="$st" FSD_TMUX_SOCKET="$sock" HOME="$BASE/watch-home" TMPDIR="$BASE/watch-home/tmp" "$repo/team/bin/fsd-watch" --fix 2>&1); local n; n=$(tmux -L "$sock" list-sessions 2>/dev/null | wc -l)
-  { ! grep -q "sem sessão" "$st/watch.log" 2>/dev/null && [ "$n" = 4 ] && [ "$(grep -cE "(Kevin|Mel|Stuart|Bob) " <<<"$o")" -ge 4 ]; } && ok "sessões vivas: sem 'sem sessão' no log e 4 sessões (sem duplicar)" || bad "sessões vivas: log=$(cat "$st/watch.log" 2>/dev/null | head -3 | tr '\n' ' ') sessões=$n"
+  local k; k=$(grep -cE "(Kevin|Mel|Stuart|Bob) " <<<"$o")
+  { ! grep -q "sem sessão" "$st/watch.log" 2>/dev/null && [ "$n" = 4 ] && [ "$k" -ge 4 ]; } && ok "sessões vivas: sem 'sem sessão' no log e 4 sessões (sem duplicar)" || bad "sessões vivas: log=$(cat "$st/watch.log" 2>/dev/null | head -3 | tr '\n' ' ') sessões=$n papéis=$k/4 :: $(tail -2 <<<"$o" | tr '\n' ' ')"
   tmux -L "$sock" kill-server 2>/dev/null
 }
 mapengine
