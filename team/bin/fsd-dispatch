@@ -30,7 +30,7 @@ async function gather() {
   const live = S.liveAgents(), stored = S.loadStored();
   // Validação R25: cópia ligada de um papel que não é a conversa gravada (o --bg subiu e o fsd-session não gravou) é parada.
   for (const a of live) {
-    if (a.kind !== 'background' || !S.ROLES.includes(a.name) || !stored[a.name]?.sessionId || a.sessionId === stored[a.name].sessionId) continue;
+    if (a.kind !== 'background' || !S.isLive(a) || !S.ROLES.includes(a.name) || !stored[a.name]?.sessionId || a.sessionId === stored[a.name].sessionId) continue;
     if (!DRY) S.stopSession(a.name, a.id); console.log(`fsd-dispatch: cópia órfã de ${a.name} (${a.id}) ${DRY ? 'seria parada' : 'parada'}`);
   }
   const sessions = S.status({ agents: live.filter((a) => !(S.ROLES.includes(a.name) && stored[a.name]?.sessionId && a.sessionId !== stored[a.name].sessionId)), stored, hookState: M.sessionState });
@@ -102,9 +102,10 @@ async function gather() {
   for (const [r, s] of Object.entries(sessions)) {
     // Validação R27: o fechamento é do papel, não de uma conversa (cada turno é uma cópia com id novo).
     if (eod[r]) { if (eod[r].gaveUp) s.eodHold = true; else s.eod = true; }
-    if (s.state === 'off' || !s.sessionId) continue;
+    if (!s.sessionId) continue;
     // Validação R11: o hook do papel grava o contexto no fim do turno, na pasta dele; o transcript na home do papel o supervisor não lê.
     const hs = M.sessionState(r); if (hs?.session_id === s.sessionId && Number(hs.ctx) > 0) { s.ctx = Number(hs.ctx); continue; }
+    if (s.state === 'off') continue;   // desligado: só o que o hook gravou (o decide() abre conversa nova se passou do limite)
     try { for (const d of readdirSync(projects)) { const f = join(projects, d, `${s.sessionId}.jsonl`); if (existsSync(f)) { s.ctx = E.ctxOf(f); break; } } } catch {}
   }
   return { sessions, cards, messages, deadlocks, paused: existsSync(L.pausePath()), budgetOk, endOfDayAt: Number(cfg.endOfDayAt) || Number(L.CFG.claude_common?.context?.restartAbove) || 0 };
@@ -128,6 +129,12 @@ async function exec(a, g) {
     if (a.task) {
       issue = L.issue(a.task.n); const n = T.acceptanceOf(issue.body).length; snap = T.snapshot(a.to);
       T.saveCard(a.to, T.taskCard({ task: a.task, issue }), { kind: a.task.kind, n: a.task.n, acceptance: n || null });
+    }
+    // Desligado com a conversa cheia: religar gasta um turno em que o guard nega tudo. Aposenta (0 token) e a tarefa abre conversa nova.
+    if (a.fresh) {
+      const r = spawnSync(join(BIN, 'fsd-session'), ['retire', a.to], { encoding: 'utf8', env: process.env });
+      if (r.status !== 0) { if (snap) T.restore(a.to, snap); throw new Error(why(r)); }
+      const e = D.loadEod(); delete e[a.to]; D.saveEod(e); (await import('node:fs')).rmSync(Msg.eodFile(a.to), { force: true });
     }
     const prompt = T.turnPrompt({ action: a, issue, messages: mine });
     const r = spawnSync(join(BIN, 'fsd-session'), ['turn', a.to, prompt], { encoding: 'utf8', env: process.env });

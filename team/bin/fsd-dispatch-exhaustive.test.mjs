@@ -27,7 +27,7 @@ function oracle(i) {
   const open = s.cards.filter((c) => !c.blocked), oneCard = open.some((c) => ['dev', 'changes'].includes(c.column));
   const queue = open.filter((c) => c.column in ORDER && !(c.column === 'devReady' && oneCard) && !(c.column === 'backlog' && !c.unsized))
     .map((c, k) => ({ c, k })).sort((a, b) => ORDER[a.c.column] - ORDER[b.c.column] || a.c.n - b.c.n || a.k - b.k).flatMap(({ c }) => WHO[c.column].filter(([r]) => !(c.column === 'review' && c.reviewedBy?.includes(r))).map(([r, kind]) => ({ c, r, kind, key: `${kind}:#${c.n}` + (c.head ? `@${c.head}` : '') })));
-  const turn = (r, more) => { used.add(r); slots--; return { type: 'turn', to: r, how: is(r, 'idle') ? 'resume' : 'wake', ...id(r), ...more, ids: ids(r) }; }, work = [];
+  const turn = (r, more) => { used.add(r); slots--; return { type: 'turn', to: r, how: is(r, 'idle') ? 'resume' : 'wake', ...id(r), ...(is(r, 'off') && s.endOfDayAt > 0 && (of(r).ctx ?? 0) >= s.endOfDayAt ? { fresh: true } : {}), ...more, ids: ids(r) }; }, work = [];
   for (const q of queue) if (free && slots > 0 && !used.has(q.r) && !is(q.r, 'working') && of(q.r).task?.key !== q.key) work.push(turn(q.r, { task: { key: q.key, kind: q.kind, n: q.c.n, ...(q.c.head ? { head: q.c.head } : {}) } }));
   const post = [];
   for (const r of dests) if (!is(r, 'working') && !used.has(r)) {
