@@ -98,3 +98,15 @@ test('board order: in every column the card on top goes first, whatever its numb
   assert.deepEqual(decide({ sessions: team(), cards: [{ n: 311, column: 'mergeReady', pr: 9 }, { n: 2, column: 'mergeReady', pr: 3 }] }).map((a) => a.n), [9, 3]);
   assert.equal(decide({ sessions: team(), cards: [{ n: 311, column: 'devReady' }, { n: 2, column: 'changes' }] })[0].task.n, 2);   // correção antes, mesmo mais abaixo
 });
+
+test('pull: the Backlog feeds each Ready queue from the top of the board; S → devReady, M and L → archReady', () => {
+  const b = (n, size, o = {}) => ({ n, column: 'backlog', size, ...o });
+  const pulls = (s) => decide({ sessions: team(), readyMin: 2, ...s }).filter((a) => a.type === 'pull').map((a) => `${a.n}:${a.column}`);
+  const cards = [b(311, 'M'), b(9, 'S'), b(50, 'S'), b(3, 'S'), b(2, 'L'), b(1, 'M')];
+  assert.deepEqual(pulls({ cards }), ['311:archReady', '9:devReady', '50:devReady', '2:archReady']);   // 2 por fila, de cima para baixo
+  assert.deepEqual(pulls({ cards: [{ n: 7, column: 'devReady' }, ...cards] }), ['311:archReady', '9:devReady', '2:archReady']);
+  assert.deepEqual(pulls({ cards: [{ n: 7, column: 'devReady', blocked: true }, b(9, 'S'), b(50, 'S')] }), ['9:devReady', '50:devReady']);   // bloqueado não conta na fila
+  for (const o of [{ blocked: true }, { held: true }]) assert.deepEqual(pulls({ cards: [b(9, 'S', o), b(50, 'S')] }), ['50:devReady']);
+  assert.deepEqual(pulls({ cards: [b(9)] }), []);                                                     // sem size: vai para a triagem
+  for (const o of [{ paused: true }, { budgetOk: false }, { readyMin: 0 }, { readyMin: undefined }]) assert.deepEqual(pulls({ cards, ...o }), []);
+});

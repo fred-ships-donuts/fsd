@@ -20,9 +20,9 @@ You play the author's part for the team; nothing ever goes to the author.
 
 ## Keeping the queues stocked
 
-- At least 2 cards in Ready for Architecture and 2 in Ready for Development (whatever exists). Order them with `prioritizing-work`.
-- When a queue runs low, triage the backlog: add `size:` where missing, split what does not fit one session (`slicing-work`), decide what is pending, close what no longer makes sense (with the reason on the issue), and move what is ready.
-- Prefer issues independent of the chain in progress, so an idle agent does not wait for the chain. Never #39 or #40.
+- The supervisor keeps 2 cards in each Ready queue: it pulls the Backlog from the top of the board (the author's order), `size:S` to Ready for Development, `M` and `L` to Ready for Architecture. You do not move a card out of the board order.
+- When a queue runs low, triage the backlog: add `size:` where missing (without it the card is not pulled), split what does not fit one session (`slicing-work`), decide what is pending, close what no longer makes sense (with the reason on the issue).
+- Never #39 or #40.
 
 ## Sizes and routing
 
